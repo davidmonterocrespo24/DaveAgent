@@ -48,10 +48,22 @@ class TaskPlanner:
         self.model_client = model_client
 
         # Crear el agente planner SIN output estructurado (para compatibilidad con DeepSeek)
-        # Siguiendo mejores prácticas de AutoGen: incluir description
+        # Siguiendo mejores prácticas de AutoGen: incluir description clara para el selector
         self.planner_agent = AssistantAgent(
             name="Planner",
-            description="Agente especializado en crear planes de ejecución estructurados para tareas de desarrollo",
+            description="""Planificador estratégico para tareas COMPLEJAS de desarrollo.
+
+Úsalo cuando la solicitud requiere:
+- Crear sistemas completos o aplicaciones desde cero
+- Múltiples archivos y componentes interconectados
+- Arquitectura o diseño de soluciones complejas
+- Refactorización mayor de código existente
+- Proyectos que necesitan coordinación de varias tareas
+
+Señales clave: "sistema", "aplicación", "proyecto completo", "crear desde cero",
+"múltiples archivos", "refactorizar toda la aplicación"
+
+NO lo uses para: Tareas simples de 1-3 archivos, búsquedas, correcciones puntuales.""",
             model_client=model_client,
             system_message=self._get_planner_system_message(),
             # NO usar output_content_type porque DeepSeek no soporta structured_output

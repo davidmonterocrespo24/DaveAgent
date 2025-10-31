@@ -313,7 +313,29 @@ async def diff_history(target_file: str = "", max_commits: int = 10) -> str:
     except Exception as e:
         return f"Error getting diff history: {str(e)}"
 
+# Nuevas herramientas migradas (todas en formato AutoGen async)
+from tools.git_operation import (
+    git_status, git_add, git_commit, git_push, git_pull,
+    git_log, git_branch, git_diff
+)
+from tools.json_tools import (
+    read_json, write_json, merge_json_files, validate_json,
+    format_json, json_get_value, json_set_value, json_to_text
+)
+from tools.csv_tools import (
+    read_csv, write_csv, csv_info, filter_csv,
+    merge_csv_files, csv_to_json, sort_csv
+)
+from tools.wikipedia_tools import (
+    wiki_search, wiki_summary, wiki_content,
+    wiki_page_info, wiki_random, wiki_set_language
+)
+from tools.code_analyzer import (
+    analyze_python_file, find_function_definition, list_all_functions
+)
+
 __all__ = [
+    # Herramientas básicas de archivos
     "read_file",
     "write_file",
     "list_dir",
@@ -324,4 +346,46 @@ __all__ = [
     "delete_file",
     "diff_history",
     "edit_file",
+
+    # Git operations
+    "git_status",
+    "git_add",
+    "git_commit",
+    "git_push",
+    "git_pull",
+    "git_log",
+    "git_branch",
+    "git_diff",
+
+    # JSON tools
+    "read_json",
+    "write_json",
+    "merge_json_files",
+    "validate_json",
+    "format_json",
+    "json_get_value",
+    "json_set_value",
+    "json_to_text",
+
+    # CSV tools
+    "read_csv",
+    "write_csv",
+    "csv_info",
+    "filter_csv",
+    "merge_csv_files",
+    "csv_to_json",
+    "sort_csv",
+
+    # Wikipedia tools
+    "wiki_search",
+    "wiki_summary",
+    "wiki_content",
+    "wiki_page_info",
+    "wiki_random",
+    "wiki_set_language",
+
+    # Code analyzer
+    "analyze_python_file",
+    "find_function_definition",
+    "list_all_functions",
 ]

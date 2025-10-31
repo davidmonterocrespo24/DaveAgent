@@ -1,425 +1,297 @@
-#!/usr/bin/env python3
 """
-Function-based code analysis capabilities for MCP File Editor
+Herramientas de análisis de código - Formato AutoGen
+Analiza estructura de archivos Python para extraer funciones, clases e imports
 """
-
 import ast
-import re
-from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
-
-class CodeAnalyzer:
-    """Analyzes code files to extract function and structure information"""
-    
-    @staticmethod
-    def parse_python_file(content: str) -> ast.AST:
-        """Parse Python code and return AST"""
-        try:
-            return ast.parse(content)
-        except SyntaxError as e:
-            raise ValueError(f"Python syntax error: {e}")
-    
-    @staticmethod
-    def get_docstring(node: ast.AST) -> Optional[str]:
-        """Extract docstring from an AST node"""
-        docstring = ast.get_docstring(node)
-        return docstring.strip() if docstring else None
-    
-    @staticmethod
-    def get_function_signature(node: ast.FunctionDef) -> str:
-        """Get function signature as a string"""
-        args = []
-        for arg in node.args.args:
-            args.append(arg.arg)
-        
-        # Add defaults
-        defaults_start = len(args) - len(node.args.defaults)
-        for i, default in enumerate(node.args.defaults):
-            args[defaults_start + i] += "=..."
-            
-        # Add *args and **kwargs
-        if node.args.vararg:
-            args.append(f"*{node.args.vararg.arg}")
-        if node.args.kwarg:
-            args.append(f"**{node.args.kwarg.arg}")
-            
-        return f"{node.name}({', '.join(args)})"
-    
-    @staticmethod
-    def extract_functions_from_python(content: str) -> List[Dict[str, Any]]:
-        """Extract all functions from Python code"""
-        tree = CodeAnalyzer.parse_python_file(content)
-        functions = []
-        
-        class FunctionVisitor(ast.NodeVisitor):
-            def __init__(self, source_lines):
-                self.functions = []
-                self.source_lines = source_lines
-                self.current_class = None
-                
-            def visit_ClassDef(self, node):
-                old_class = self.current_class
-                self.current_class = node.name
-                self.generic_visit(node)
-                self.current_class = old_class
-                
-            def visit_FunctionDef(self, node):
-                func_info = {
-                    "name": node.name,
-                    "line_start": node.lineno,
-                    "line_end": node.end_lineno,
-                    "signature": CodeAnalyzer.get_function_signature(node),
-                    "docstring": CodeAnalyzer.get_docstring(node),
-                    "decorators": [d.id if isinstance(d, ast.Name) else ast.unparse(d) 
-                                  for d in node.decorator_list],
-                    "is_method": self.current_class is not None,
-                    "class_name": self.current_class,
-                    "is_async": isinstance(node, ast.AsyncFunctionDef)
-                }
-                
-                # Get return type if annotated
-                if node.returns:
-                    func_info["return_type"] = ast.unparse(node.returns)
-                    
-                # Get parameter types if annotated
-                param_types = {}
-                for arg in node.args.args:
-                    if arg.annotation:
-                        param_types[arg.arg] = ast.unparse(arg.annotation)
-                if param_types:
-                    func_info["param_types"] = param_types
-                    
-                self.functions.append(func_info)
-                self.generic_visit(node)
-        
-        visitor = FunctionVisitor(content.splitlines())
-        visitor.visit(tree)
-        return visitor.functions
-    
-    @staticmethod
-    def extract_functions_from_javascript(content: str) -> List[Dict[str, Any]]:
-        """Extract functions from JavaScript/TypeScript code using regex"""
-        functions = []
-        
-        # Regex patterns for different function styles
-        patterns = [
-            # Regular function declaration
-            r'(?:async\s+)?function\s+(\w+)\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*\{',
-            # Arrow function assigned to const/let/var
-            r'(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*(?::\s*[^=]+)?\s*=>',
-            # Method in class
-            r'(?:async\s+)?(\w+)\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*\{',
-        ]
-        
-        lines = content.splitlines()
-        for i, line in enumerate(lines):
-            for pattern in patterns:
-                match = re.search(pattern, line)
-                if match:
-                    func_name = match.group(1)
-                    # Simple heuristic to find end of function
-                    brace_count = 0
-                    start_line = i + 1
-                    end_line = start_line
-                    
-                    for j in range(i, len(lines)):
-                        brace_count += lines[j].count('{') - lines[j].count('}')
-                        if brace_count == 0 and j > i:
-                            end_line = j + 1
-                            break
-                    
-                    functions.append({
-                        "name": func_name,
-                        "line_start": start_line,
-                        "line_end": end_line,
-                        "signature": line.strip(),
-                        "is_async": 'async' in line
-                    })
-                    break
-        
-        return functions
-    
-    @staticmethod
-    def find_function_at_line(functions: List[Dict[str, Any]], line_number: int) -> Optional[Dict[str, Any]]:
-        """Find which function contains a given line number"""
-        for func in functions:
-            if func["line_start"] <= line_number <= func["line_end"]:
-                return func
-        return None
-    
-    @staticmethod
-    def extract_imports_from_python(content: str) -> List[Dict[str, Any]]:
-        """Extract import statements from Python code"""
-        tree = CodeAnalyzer.parse_python_file(content)
-        imports = []
-        
-        class ImportVisitor(ast.NodeVisitor):
-            def __init__(self):
-                self.imports = []
-                
-            def visit_Import(self, node):
-                for alias in node.names:
-                    self.imports.append({
-                        "type": "import",
-                        "module": alias.name,
-                        "alias": alias.asname,
-                        "line": node.lineno
-                    })
-                    
-            def visit_ImportFrom(self, node):
-                module = node.module or ""
-                for alias in node.names:
-                    self.imports.append({
-                        "type": "from",
-                        "module": module,
-                        "name": alias.name,
-                        "alias": alias.asname,
-                        "line": node.lineno
-                    })
-        
-        visitor = ImportVisitor()
-        visitor.visit(tree)
-        return visitor.imports
-    
-    @staticmethod
-    def extract_classes_from_python(content: str) -> List[Dict[str, Any]]:
-        """Extract class definitions from Python code"""
-        tree = CodeAnalyzer.parse_python_file(content)
-        classes = []
-        
-        class ClassVisitor(ast.NodeVisitor):
-            def __init__(self):
-                self.classes = []
-                
-            def visit_ClassDef(self, node):
-                class_info = {
-                    "name": node.name,
-                    "line_start": node.lineno,
-                    "line_end": node.end_lineno,
-                    "docstring": CodeAnalyzer.get_docstring(node),
-                    "bases": [ast.unparse(base) for base in node.bases],
-                    "decorators": [d.id if isinstance(d, ast.Name) else ast.unparse(d) 
-                                  for d in node.decorator_list],
-                    "methods": []
-                }
-                
-                # Get methods
-                for item in node.body:
-                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        class_info["methods"].append({
-                            "name": item.name,
-                            "line": item.lineno,
-                            "is_async": isinstance(item, ast.AsyncFunctionDef)
-                        })
-                
-                self.classes.append(class_info)
-                self.generic_visit(node)
-        
-        visitor = ClassVisitor()
-        visitor.visit(tree)
-        return visitor.classes
+from typing import Dict, List, Any
 
 
-# Tool implementations for MCP
-
-async def list_functions(
-    path: str,
-    language: Optional[str] = None
-) -> List[Dict[str, Any]]:
+async def analyze_python_file(filepath: str) -> str:
     """
-    List all functions in a code file.
-    
+    Analiza un archivo Python y extrae su estructura (funciones, clases, imports).
+
     Args:
-        path: File path
-        language: Programming language (auto-detected if not specified)
-        
+        filepath: Ruta al archivo Python
+
     Returns:
-        List of function information including name, line numbers, signature, etc.
+        str: Análisis detallado del archivo
     """
-    from server import resolve_path, is_safe_path, get_file_type
-    
-    file_path = resolve_path(path)
-    if not is_safe_path(file_path):
-        raise ValueError("Invalid path: directory traversal detected")
-    
-    if not file_path.exists():
-        raise ValueError(f"File does not exist: {path}")
-    
-    # Read file content
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    # Auto-detect language if not specified
-    if not language:
-        suffix = file_path.suffix.lower()
-        if suffix in ['.py', '.pyw']:
-            language = 'python'
-        elif suffix in ['.js', '.jsx', '.ts', '.tsx']:
-            language = 'javascript'
-        else:
-            raise ValueError(f"Unsupported file type: {suffix}")
-    
-    # Extract functions based on language
-    if language == 'python':
-        return CodeAnalyzer.extract_functions_from_python(content)
-    elif language in ['javascript', 'typescript']:
-        return CodeAnalyzer.extract_functions_from_javascript(content)
-    else:
-        raise ValueError(f"Unsupported language: {language}")
+    try:
+        file_path = Path(filepath)
+        if not file_path.exists():
+            return f"ERROR: Archivo no encontrado: {filepath}"
 
+        if not filepath.endswith('.py'):
+            return f"ERROR: {filepath} no es un archivo Python (.py)"
 
-async def get_function_at_line(
-    path: str,
-    line_number: int,
-    language: Optional[str] = None
-) -> Optional[Dict[str, Any]]:
-    """
-    Get the function that contains a specific line number.
-    
-    Args:
-        path: File path
-        line_number: Line number to search for
-        language: Programming language (auto-detected if not specified)
-        
-    Returns:
-        Function information if found, None otherwise
-    """
-    functions = await list_functions(path, language)
-    return CodeAnalyzer.find_function_at_line(functions, line_number)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
 
+        tree = ast.parse(content, filename=filepath)
 
-async def get_code_structure(
-    path: str,
-    language: Optional[str] = None
-) -> Dict[str, Any]:
-    """
-    Get the overall code structure of a file.
-    
-    Args:
-        path: File path
-        language: Programming language (auto-detected if not specified)
-        
-    Returns:
-        Dictionary containing imports, classes, functions, and other structural elements
-    """
-    from server import resolve_path, is_safe_path
-    
-    file_path = resolve_path(path)
-    if not is_safe_path(file_path):
-        raise ValueError("Invalid path: directory traversal detected")
-    
-    if not file_path.exists():
-        raise ValueError(f"File does not exist: {path}")
-    
-    # Read file content
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    # Auto-detect language if not specified
-    if not language:
-        suffix = file_path.suffix.lower()
-        if suffix in ['.py', '.pyw']:
-            language = 'python'
-        elif suffix in ['.js', '.jsx', '.ts', '.tsx']:
-            language = 'javascript'
-        else:
-            raise ValueError(f"Unsupported file type: {suffix}")
-    
-    structure = {
-        "language": language,
-        "file": str(file_path.name),
-        "lines": len(content.splitlines())
-    }
-    
-    if language == 'python':
-        structure["imports"] = CodeAnalyzer.extract_imports_from_python(content)
-        structure["classes"] = CodeAnalyzer.extract_classes_from_python(content)
-        structure["functions"] = CodeAnalyzer.extract_functions_from_python(content)
-    elif language in ['javascript', 'typescript']:
-        structure["functions"] = CodeAnalyzer.extract_functions_from_javascript(content)
-        # TODO: Add JS/TS import and class extraction
-    
-    return structure
+        # Extraer información
+        imports = _extract_imports(tree)
+        classes = _extract_classes(tree, content)
+        functions = _extract_functions(tree, content)
 
+        # Formatear salida
+        output = f"=== Análisis de {file_path.name} ===\n\n"
+        output += f"Líneas de código: {len(content.splitlines())}\n\n"
 
-async def search_functions(
-    pattern: str,
-    path: str = ".",
-    file_pattern: str = "*.py",
-    recursive: bool = True,
-    max_depth: Optional[int] = None
-) -> Dict[str, Any]:
-    """
-    Search for functions by name pattern across files.
-    
-    Args:
-        pattern: Function name pattern (regex)
-        path: Directory to search in
-        file_pattern: File name pattern
-        recursive: Search recursively
-        max_depth: Maximum depth for recursive search
-        
-    Returns:
-        Dictionary with search results
-    """
-    from server import resolve_path, is_safe_path, walk_with_depth
-    import re
-    
-    search_path = resolve_path(path)
-    if not is_safe_path(search_path):
-        raise ValueError("Invalid path: directory traversal detected")
-    
-    regex = re.compile(pattern)
-    results = []
-    files_searched = 0
-    
-    # Get files to search
-    if search_path.is_file():
-        files_to_search = [search_path]
-    else:
-        if recursive:
-            if max_depth is not None:
-                files_to_search = list(walk_with_depth(search_path, file_pattern, max_depth))
-            else:
-                files_to_search = list(search_path.rglob(file_pattern))
-        else:
-            files_to_search = list(search_path.glob(file_pattern))
-    
-    for file_path in files_to_search:
-        if not file_path.is_file():
-            continue
-        
-        try:
-            # Get language from file extension
-            suffix = file_path.suffix.lower()
-            if suffix in ['.py', '.pyw']:
-                language = 'python'
-            elif suffix in ['.js', '.jsx', '.ts', '.tsx']:
-                language = 'javascript'
-            else:
-                continue
-            
-            # Get functions from file
-            functions = await list_functions(str(file_path.relative_to(search_path)), language)
-            files_searched += 1
-            
-            # Search function names
-            matching_functions = []
+        if imports:
+            output += f"IMPORTS ({len(imports)}):\n"
+            for imp in imports:
+                if imp['type'] == 'import':
+                    output += f"  import {imp['module']}\n"
+                else:
+                    output += f"  from {imp['module']} import {imp['name']}\n"
+            output += "\n"
+
+        if classes:
+            output += f"CLASES ({len(classes)}):\n"
+            for cls in classes:
+                output += f"  class {cls['name']}:\n"
+                output += f"    Líneas: {cls['line_start']}-{cls['line_end']}\n"
+                if cls['bases']:
+                    output += f"    Hereda de: {', '.join(cls['bases'])}\n"
+                output += f"    Métodos: {len(cls['methods'])}\n"
+                for method in cls['methods']:
+                    output += f"      - {method['name']}()\n"
+                output += "\n"
+
+        if functions:
+            output += f"FUNCIONES ({len(functions)}):\n"
             for func in functions:
-                if regex.search(func["name"]):
-                    matching_functions.append(func)
-            
-            if matching_functions:
-                results.append({
-                    "file": str(file_path.relative_to(search_path)),
-                    "functions": matching_functions
+                if not func['is_method']:  # Solo funciones de nivel superior
+                    output += f"  {func['signature']}\n"
+                    output += f"    Líneas: {func['line_start']}-{func['line_end']}\n"
+                    if func.get('docstring'):
+                        doc = func['docstring'].split('\n')[0][:60]
+                        output += f"    Doc: {doc}...\n"
+                    output += "\n"
+
+        return output
+
+    except SyntaxError as e:
+        return f"ERROR: Sintaxis inválida en {filepath}:\n  Línea {e.lineno}: {e.msg}"
+    except Exception as e:
+        return f"ERROR analizando {filepath}: {str(e)}"
+
+
+async def find_function_definition(filepath: str, function_name: str) -> str:
+    """
+    Busca la definición de una función en un archivo Python.
+
+    Args:
+        filepath: Ruta al archivo Python
+        function_name: Nombre de la función a buscar
+
+    Returns:
+        str: Código de la función o mensaje de error
+    """
+    try:
+        file_path = Path(filepath)
+        if not file_path.exists():
+            return f"ERROR: Archivo no encontrado: {filepath}"
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            lines = content.splitlines()
+
+        tree = ast.parse(content, filename=filepath)
+        functions = _extract_functions(tree, content)
+
+        # Buscar función
+        for func in functions:
+            if func['name'] == function_name:
+                start = func['line_start'] - 1
+                end = func['line_end']
+
+                func_code = '\n'.join(lines[start:end])
+
+                output = f"Función '{function_name}' en {file_path.name}:\n"
+                output += f"Líneas: {func['line_start']}-{func['line_end']}\n"
+                output += f"Firma: {func['signature']}\n\n"
+                output += "Código:\n"
+                output += func_code
+
+                return output
+
+        return f"ERROR: Función '{function_name}' no encontrada en {filepath}"
+
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
+
+async def list_all_functions(filepath: str) -> str:
+    """
+    Lista todas las funciones en un archivo Python.
+
+    Args:
+        filepath: Ruta al archivo Python
+
+    Returns:
+        str: Lista de funciones con sus firmas
+    """
+    try:
+        file_path = Path(filepath)
+        if not file_path.exists():
+            return f"ERROR: Archivo no encontrado: {filepath}"
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        tree = ast.parse(content, filename=filepath)
+        functions = _extract_functions(tree, content)
+
+        if not functions:
+            return f"No se encontraron funciones en {filepath}"
+
+        output = f"=== Funciones en {file_path.name} ===\n\n"
+        for func in functions:
+            prefix = "  Método" if func['is_method'] else "Función"
+            output += f"{prefix}: {func['signature']}\n"
+            output += f"  Líneas: {func['line_start']}-{func['line_end']}\n"
+            if func.get('docstring'):
+                doc = func['docstring'].split('\n')[0][:70]
+                output += f"  {doc}\n"
+            output += "\n"
+
+        return output
+
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
+
+def _extract_imports(tree: ast.AST) -> List[Dict[str, Any]]:
+    """Extrae imports del AST"""
+    imports = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append({
+                    'type': 'import',
+                    'module': alias.name,
+                    'alias': alias.asname,
+                    'line': node.lineno
                 })
-                
-        except Exception:
-            continue
-    
-    return {
-        "results": results,
-        "files_searched": files_searched,
-        "total_functions": sum(len(r["functions"]) for r in results)
-    }
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            for alias in node.names:
+                imports.append({
+                    'type': 'from',
+                    'module': module,
+                    'name': alias.name,
+                    'alias': alias.asname,
+                    'line': node.lineno
+                })
+
+    return imports
+
+
+def _extract_classes(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
+    """Extrae clases del AST"""
+    classes = []
+
+    class ClassVisitor(ast.NodeVisitor):
+        def visit_ClassDef(self, node):
+            class_info = {
+                'name': node.name,
+                'line_start': node.lineno,
+                'line_end': node.end_lineno,
+                'docstring': ast.get_docstring(node),
+                'bases': [ast.unparse(base) for base in node.bases],
+                'decorators': [ast.unparse(d) for d in node.decorator_list],
+                'methods': []
+            }
+
+            # Obtener métodos
+            for item in node.body:
+                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    class_info['methods'].append({
+                        'name': item.name,
+                        'line': item.lineno,
+                        'is_async': isinstance(item, ast.AsyncFunctionDef)
+                    })
+
+            classes.append(class_info)
+            self.generic_visit(node)
+
+    visitor = ClassVisitor()
+    visitor.visit(tree)
+    return classes
+
+
+def _extract_functions(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
+    """Extrae funciones del AST"""
+    functions = []
+    lines = content.splitlines()
+
+    class FunctionVisitor(ast.NodeVisitor):
+        def __init__(self):
+            self.current_class = None
+
+        def visit_ClassDef(self, node):
+            old_class = self.current_class
+            self.current_class = node.name
+            self.generic_visit(node)
+            self.current_class = old_class
+
+        def visit_FunctionDef(self, node):
+            func_info = {
+                'name': node.name,
+                'line_start': node.lineno,
+                'line_end': node.end_lineno,
+                'signature': _get_function_signature(node),
+                'docstring': ast.get_docstring(node),
+                'decorators': [ast.unparse(d) for d in node.decorator_list],
+                'is_method': self.current_class is not None,
+                'class_name': self.current_class,
+                'is_async': isinstance(node, ast.AsyncFunctionDef)
+            }
+
+            # Return type si existe
+            if node.returns:
+                func_info['return_type'] = ast.unparse(node.returns)
+
+            functions.append(func_info)
+            self.generic_visit(node)
+
+        def visit_AsyncFunctionDef(self, node):
+            self.visit_FunctionDef(node)
+
+    visitor = FunctionVisitor()
+    visitor.visit(tree)
+    return functions
+
+
+def _get_function_signature(node: ast.FunctionDef) -> str:
+    """Obtiene la firma de una función"""
+    args = []
+
+    for arg in node.args.args:
+        arg_str = arg.arg
+        if arg.annotation:
+            arg_str += f": {ast.unparse(arg.annotation)}"
+        args.append(arg_str)
+
+    # Defaults
+    defaults_start = len(args) - len(node.args.defaults)
+    for i, default in enumerate(node.args.defaults):
+        args[defaults_start + i] += f"={ast.unparse(default)}"
+
+    # *args y **kwargs
+    if node.args.vararg:
+        args.append(f"*{node.args.vararg.arg}")
+    if node.args.kwarg:
+        args.append(f"**{node.args.kwarg.arg}")
+
+    signature = f"{node.name}({', '.join(args)})"
+
+    # Return type
+    if node.returns:
+        signature += f" -> {ast.unparse(node.returns)}"
+
+    return signature

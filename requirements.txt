@@ -13,3 +13,11 @@ httpcore
 # Additional dependencies for file operations
 beautifulsoup4
 requests
+
+# Tools dependencies
+wikipedia>=1.4.0
+pandas>=2.0.0
+black>=23.0.0
+autopep8>=2.0.0
+pylint>=3.0.0
+jsonschema>=4.0.0
