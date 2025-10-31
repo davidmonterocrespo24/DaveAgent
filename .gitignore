@@ -3,3 +3,5 @@
 .agent_history
 test/site_dump/*
 logs/*
+codeagent_cli.egg-info/*
+

@@ -272,22 +272,22 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
 
     async def process_user_request(self, user_input: str):
         """
-        Procesa una solicitud del usuario usando SelectorGroupChat.
-        VERSIÓN SIMPLIFICADA Y CORREGIDA - Deja que SelectorGroupChat maneje todo.
+        Procesa una solicitud del usuario - VERSIÓN SIMPLIFICADA SOLO CON CODER
         """
         try:
             self.logger.info(f"📝 Nueva solicitud del usuario: {user_input[:100]}...")
             self.conversation_manager.add_message("user", user_input)
 
-            self.cli.print_thinking("Procesando solicitud...")
-            self.logger.debug("Iniciando procesamiento con SelectorGroupChat")
+            self.cli.print_thinking("Procesando solicitud con Coder...")
+            self.logger.debug("Iniciando ejecución con Coder directamente")
 
-            # CORRECCIÓN PRINCIPAL: Usar directamente el string como tarea
-            # SelectorGroupChat maneja automáticamente la selección del agente
-            self.logger.debug("Llamando a team.run() con la tarea")
-            result = await self.team.run(task=user_input)
+            # SOLUCIÓN: Usar solo el Coder directamente sin SelectorGroupChat
+            # Esto evita el bloqueo y es más simple
+            self.logger.debug("Llamando a coder_agent.run() con la tarea")
 
-            self.logger.debug(f"✅ team.run() completado. Total mensajes: {len(result.messages)}")
+            result = await self.coder_agent.run(task=user_input)
+
+            self.logger.debug(f"✅ coder_agent.run() completado. Total mensajes: {len(result.messages)}")
 
             # Procesar y mostrar resultados
             agent_messages_shown = set()  # Para evitar duplicados
@@ -308,20 +308,33 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
                         self.logger.warning(f"Mensaje sin atributo 'content'. Usando str(): {content[:100]}...")
 
                     # Crear clave única para evitar duplicados
-                    message_key = f"{agent_name}:{hash(content)}"
+                    # Si content es una lista (ej. FunctionCall), convertir a string
+                    try:
+                        if isinstance(content, list):
+                            content_str = str(content)
+                        else:
+                            content_str = content
+                        message_key = f"{agent_name}:{hash(content_str)}"
+                    except TypeError:
+                        # Si aún no se puede hacer hash, usar un hash del string
+                        message_key = f"{agent_name}:{hash(str(content))}"
 
                     if message_key not in agent_messages_shown:
+                        # Convertir content a string si es necesario para el historial
+                        content_for_history = content_str if isinstance(content, list) else content
+
                         # Guardar en el historial
                         self.conversation_manager.add_message(
                             "assistant",
-                            content,
+                            content_for_history,
                             metadata={"agent": agent_name, "type": msg_type}
                         )
 
                         # Mostrar en CLI solo si es un TextMessage final
                         if msg_type == "TextMessage":
-                            self.logger.log_message_processing(msg_type, agent_name, content[:100])
-                            self.cli.print_agent_message(content, agent_name)
+                            preview = content_str[:100] if len(content_str) > 100 else content_str
+                            self.logger.log_message_processing(msg_type, agent_name, preview)
+                            self.cli.print_agent_message(content_str, agent_name)
                             agent_messages_shown.add(message_key)
                         else:
                             self.logger.debug(f"Mensaje tipo {msg_type} no mostrado en CLI")

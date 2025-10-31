@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codeagent-cli"
+version = "1.0.0"
+description = "AI-powered coding assistant with intelligent agent orchestration"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "CodeAgent Team", email = "contact@codeagent.ai"}
+]
+keywords = ["ai", "agent", "coding", "assistant", "llm", "autogen"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "autogen-agentchat>=0.4.0",
+    "autogen-ext[openai]>=0.4.0",
+    "prompt-toolkit>=3.0.0",
+    "rich>=13.0.0",
+    "pandas>=2.0.0",
+    "wikipedia>=1.4.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/codeagent"
+Documentation = "https://codeagent.readthedocs.io"
+Repository = "https://github.com/yourusername/codeagent"
+"Bug Tracker" = "https://github.com/yourusername/codeagent/issues"
+
+[project.scripts]
+codeagent = "src.cli:main"
+
+[tool.setuptools]
+packages = ["src", "src.agents", "src.config", "src.interfaces", "src.managers", "src.tools", "src.tools.filesystem", "src.tools.git", "src.tools.data", "src.tools.web", "src.tools.analysis", "src.utils"]
+
+[tool.setuptools.package-data]
+src = ["*.md", "*.txt"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["test"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
