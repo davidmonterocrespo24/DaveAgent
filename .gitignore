@@ -2,3 +2,4 @@
 *.pyc
 .agent_history
 test/site_dump/*
+logs/*

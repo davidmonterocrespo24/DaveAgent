@@ -1,0 +1,165 @@
+"""
+Sistema de logging para CodeAgent
+Proporciona logging detallado con niveles y colores
+"""
+import logging
+import sys
+from datetime import datetime
+from pathlib import Path
+from rich.console import Console
+from rich.logging import RichHandler
+from typing import Optional
+
+
+class CodeAgentLogger:
+    """Logger personalizado para CodeAgent con soporte de colores y archivos"""
+
+    def __init__(self, name: str = "CodeAgent", log_file: Optional[str] = None, level: int = logging.DEBUG):
+        """
+        Inicializa el logger
+
+        Args:
+            name: Nombre del logger
+            log_file: Ruta al archivo de log (opcional)
+            level: Nivel de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        """
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        self.logger.handlers.clear()  # Limpiar handlers existentes
+
+        self.console = Console(stderr=True)
+
+        # Handler para consola con colores (usando Rich)
+        console_handler = RichHandler(
+            console=self.console,
+            show_time=True,
+            show_path=False,
+            rich_tracebacks=True,
+            tracebacks_show_locals=True,
+        )
+        console_handler.setLevel(level)
+        console_formatter = logging.Formatter(
+            "%(message)s",
+            datefmt="[%X]"
+        )
+        console_handler.setFormatter(console_formatter)
+        self.logger.addHandler(console_handler)
+
+        # Handler para archivo (si se especifica)
+        if log_file:
+            log_path = Path(log_file)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+
+            file_handler = logging.FileHandler(log_file, encoding='utf-8')
+            file_handler.setLevel(logging.DEBUG)  # Siempre DEBUG en archivo
+            file_formatter = logging.Formatter(
+                '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
+            file_handler.setFormatter(file_formatter)
+            self.logger.addHandler(file_handler)
+
+    def debug(self, message: str, **kwargs):
+        """Log mensaje de debug"""
+        self.logger.debug(message, extra=kwargs)
+
+    def info(self, message: str, **kwargs):
+        """Log mensaje informativo"""
+        self.logger.info(message, extra=kwargs)
+
+    def warning(self, message: str, **kwargs):
+        """Log advertencia"""
+        self.logger.warning(message, extra=kwargs)
+
+    def error(self, message: str, **kwargs):
+        """Log error"""
+        self.logger.error(message, extra=kwargs)
+
+    def critical(self, message: str, **kwargs):
+        """Log error crítico"""
+        self.logger.critical(message, extra=kwargs)
+
+    def exception(self, message: str, **kwargs):
+        """Log excepción con traceback"""
+        self.logger.exception(message, extra=kwargs)
+
+    def log_api_call(self, endpoint: str, params: dict):
+        """Log llamada a API"""
+        self.debug(f"🌐 API Call: {endpoint}")
+        self.debug(f"   Params: {params}")
+
+    def log_api_response(self, endpoint: str, status: str, data: any = None):
+        """Log respuesta de API"""
+        self.debug(f"✅ API Response: {endpoint} - {status}")
+        if data:
+            self.debug(f"   Data: {str(data)[:200]}...")
+
+    def log_agent_selection(self, selected_agent: str, reason: str = ""):
+        """Log selección de agente"""
+        self.info(f"🤖 Agente seleccionado: {selected_agent}")
+        if reason:
+            self.debug(f"   Razón: {reason}")
+
+    def log_task_start(self, task_id: int, task_title: str):
+        """Log inicio de tarea"""
+        self.info(f"▶️  Iniciando tarea {task_id}: {task_title}")
+
+    def log_task_complete(self, task_id: int, success: bool):
+        """Log finalización de tarea"""
+        status = "✅ Completada" if success else "❌ Fallida"
+        self.info(f"{status} - Tarea {task_id}")
+
+    def log_message_processing(self, message_type: str, source: str, content_preview: str):
+        """Log procesamiento de mensaje"""
+        self.debug(f"📨 Procesando mensaje:")
+        self.debug(f"   Tipo: {message_type}")
+        self.debug(f"   Fuente: {source}")
+        self.debug(f"   Contenido: {content_preview[:100]}...")
+
+    def log_error_with_context(self, error: Exception, context: str):
+        """Log error con contexto"""
+        self.error(f"💥 Error en {context}")
+        self.error(f"   Tipo: {type(error).__name__}")
+        self.error(f"   Mensaje: {str(error)}")
+        self.exception(f"   Traceback completo:")
+
+
+# Instancia global del logger
+_global_logger: Optional[CodeAgentLogger] = None
+
+
+def get_logger(log_file: Optional[str] = None, level: int = logging.DEBUG) -> CodeAgentLogger:
+    """
+    Obtiene la instancia global del logger
+
+    Args:
+        log_file: Ruta al archivo de log (solo se usa en la primera llamada)
+        level: Nivel de logging
+
+    Returns:
+        CodeAgentLogger: Instancia del logger
+    """
+    global _global_logger
+
+    if _global_logger is None:
+        _global_logger = CodeAgentLogger(
+            name="CodeAgent",
+            log_file=log_file,
+            level=level
+        )
+
+    return _global_logger
+
+
+def set_log_level(level: int):
+    """
+    Cambia el nivel de logging
+
+    Args:
+        level: Nuevo nivel (logging.DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    """
+    logger = get_logger()
+    logger.logger.setLevel(level)
+    for handler in logger.logger.handlers:
+        if isinstance(handler, RichHandler):
+            handler.setLevel(level)

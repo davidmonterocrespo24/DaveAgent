@@ -1,12 +1,9 @@
 """
 Archivo principal - Interfaz CLI completa del agente de código
-NUEVA ESTRUCTURA REORGANIZADA (CORREGIDA CON LOGGING)
+VERSIÓN MEJORADA - Corrige problemas de tipos de mensaje y simplifica la lógica
 """
 import asyncio
-import logging
-from datetime import datetime
 from autogen_agentchat.agents import AssistantAgent
-# Importaciones añadidas para el nuevo flujo
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_ext.models.openai import OpenAIChatCompletionClient
@@ -16,23 +13,14 @@ from src.config import AGENT_SYSTEM_PROMPT
 from src.agents import TaskPlanner, TaskExecutor
 from src.managers import ConversationManager
 from src.interfaces import CLIInterface
-from src.utils import get_logger
 
 
 class CodeAgentCLI:
     """Aplicación CLI principal del agente de código"""
 
-    def __init__(self, debug: bool = False):
+    def __init__(self):
         """Inicializa todos los componentes del agente"""
-        # Configurar logging
-        log_level = logging.DEBUG if debug else logging.INFO
-        log_file = f"logs/codeagent_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        self.logger = get_logger(log_file=log_file, level=log_level)
-
-        self.logger.info("🚀 Inicializando CodeAgent CLI")
-
         # Crear cliente del modelo
-        self.logger.debug("Configurando cliente del modelo OpenAI")
         self.model_client = OpenAIChatCompletionClient(
             model="deepseek-chat",
             base_url="https://api.deepseek.com",
@@ -84,7 +72,7 @@ class CodeAgentCLI:
             codebase_search, grep_search, run_terminal_cmd, diff_history
         ]
 
-        # Crear agente de código
+        # Crear agente de código (Coder)
         self.coder_agent = AssistantAgent(
             name="Coder",
             description="""Especialista en tareas de codificación SIMPLES Y DIRECTAS.
@@ -178,13 +166,13 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
         # Condición de terminación
         termination = TextMentionTermination("TERMINATE") | MaxMessageTermination(30)
 
-        # Crear el team
-        # NOTA: Mantenemos esto para reutilizar el `selector_prompt` y `termination_condition`
+        # Crear el team con SelectorGroupChat
         self.team = SelectorGroupChat(
             participants=[self.planner.planner_agent, self.coder_agent],
             model_client=self.model_client,
             termination_condition=termination,
             selector_prompt=selector_prompt,
+            allow_repeated_speaker=True,  # Permite que un agente hable varias veces seguidas
         )
 
     async def handle_command(self, command: str) -> bool:
@@ -206,6 +194,7 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
         elif cmd == "/new":
             self.conversation_manager.clear()
             self.planner.current_plan = None
+            await self.team.reset()  # MEJORA: Resetear el team también
             self.cli.print_success("Nueva conversación iniciada")
 
         elif cmd == "/plan":
@@ -238,64 +227,30 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
                 except Exception as e:
                     self.cli.print_error(f"Error al cargar: {str(e)}")
 
-        elif cmd == "/debug":
-            # Cambiar nivel de logging
-            current_level = self.logger.logger.level
-            if current_level == logging.DEBUG:
-                self.logger.logger.setLevel(logging.INFO)
-                self.cli.print_success("🔧 Modo debug DESACTIVADO (nivel: INFO)")
-                self.logger.info("Nivel de logging cambiado a INFO")
-            else:
-                self.logger.logger.setLevel(logging.DEBUG)
-                self.cli.print_success("🐛 Modo debug ACTIVADO (nivel: DEBUG)")
-                self.logger.debug("Nivel de logging cambiado a DEBUG")
-
-        elif cmd == "/logs":
-            # Mostrar ubicación del archivo de logs
-            log_files = list(self.logger.logger.handlers)
-            file_handlers = [h for h in log_files if isinstance(h, logging.FileHandler)]
-            if file_handlers:
-                log_path = file_handlers[0].baseFilename
-                self.cli.print_info(f"📄 Archivo de logs: {log_path}")
-            else:
-                self.cli.print_info("No hay archivos de log configurados")
-
         else:
             self.cli.print_error(f"Comando desconocido: {cmd}")
             self.cli.print_info("Usa /help para ver los comandos disponibles")
 
         return True
 
-    # =========================================================================
-    # PROCESAMIENTO DE SOLICITUDES DEL USUARIO
-    # =========================================================================
-
     async def process_user_request(self, user_input: str):
         """
         Procesa una solicitud del usuario usando SelectorGroupChat.
-        VERSIÓN SIMPLIFICADA Y CORREGIDA - Deja que SelectorGroupChat maneje todo.
+        VERSIÓN SIMPLIFICADA - Deja que SelectorGroupChat maneje la selección.
         """
         try:
-            self.logger.info(f"📝 Nueva solicitud del usuario: {user_input[:100]}...")
             self.conversation_manager.add_message("user", user_input)
 
+            # MEJORA 1: Usar run_stream() para mejor visualización en tiempo real
             self.cli.print_thinking("Procesando solicitud...")
-            self.logger.debug("Iniciando procesamiento con SelectorGroupChat")
 
-            # CORRECCIÓN PRINCIPAL: Usar directamente el string como tarea
-            # SelectorGroupChat maneja automáticamente la selección del agente
-            self.logger.debug("Llamando a team.run() con la tarea")
+            # MEJORA 2: Usar directamente el string como tarea (no crear TextMessage manualmente)
             result = await self.team.run(task=user_input)
-
-            self.logger.debug(f"✅ team.run() completado. Total mensajes: {len(result.messages)}")
 
             # Procesar y mostrar resultados
             agent_messages_shown = set()  # Para evitar duplicados
 
-            for idx, msg in enumerate(result.messages):
-                msg_type = type(msg).__name__
-                self.logger.debug(f"Procesando mensaje {idx + 1}/{len(result.messages)} - Tipo: {msg_type}")
-
+            for msg in result.messages:
                 # Solo procesar mensajes que NO sean del usuario
                 if hasattr(msg, 'source') and msg.source != "user":
                     agent_name = msg.source
@@ -305,9 +260,8 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
                         content = msg.content
                     else:
                         content = str(msg)
-                        self.logger.warning(f"Mensaje sin atributo 'content'. Usando str(): {content[:100]}...")
 
-                    # Crear clave única para evitar duplicados
+                    # MEJORA 3: Manejar diferentes tipos de mensajes
                     message_key = f"{agent_name}:{hash(content)}"
 
                     if message_key not in agent_messages_shown:
@@ -315,45 +269,31 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
                         self.conversation_manager.add_message(
                             "assistant",
                             content,
-                            metadata={"agent": agent_name, "type": msg_type}
+                            metadata={"agent": agent_name, "type": type(msg).__name__}
                         )
 
                         # Mostrar en CLI solo si es un TextMessage final
-                        if msg_type == "TextMessage":
-                            self.logger.log_message_processing(msg_type, agent_name, content[:100])
+                        if type(msg).__name__ == "TextMessage":
                             self.cli.print_agent_message(content, agent_name)
                             agent_messages_shown.add(message_key)
-                        else:
-                            self.logger.debug(f"Mensaje tipo {msg_type} no mostrado en CLI")
 
-            # Mostrar razón de detención
+            # MEJORA 4: Mostrar razón de detención
             if hasattr(result, 'stop_reason') and result.stop_reason:
-                self.logger.info(f"🛑 Razón de finalización: {result.stop_reason}")
-                self.cli.print_info(f"Finalización: {result.stop_reason}", "Sistema")
+                self.cli.print_info(f"Razón de finalización: {result.stop_reason}", "Sistema")
 
             # Comprimir historial si es necesario
             if self.conversation_manager.needs_compression():
-                self.logger.warning("⚠️ Historial necesita compresión")
                 await self.executor._compress_conversation_history()
 
             self.cli.print_success("\n✅ Tarea completada.")
-            self.logger.info("✅ Solicitud procesada exitosamente")
 
         except Exception as e:
-            self.logger.log_error_with_context(e, "process_user_request")
             self.cli.print_error(f"Error al procesar solicitud: {str(e)}")
             import traceback
-            error_traceback = traceback.format_exc()
-            self.logger.error(f"Traceback completo:\n{error_traceback}")
-            self.cli.print_error(f"Detalles:\n{error_traceback}")
-
-    # =========================================================================
-    # FUNCIONES SIN CAMBIOS
-    # =========================================================================
+            self.cli.print_error(f"Detalles del error:\n{traceback.format_exc()}")
 
     async def run(self):
         """Ejecuta el loop principal de la CLI"""
-        self.logger.info("▶️ Iniciando loop principal de CLI")
         self.cli.print_banner()
         self.cli.print_welcome_message()
 
@@ -364,50 +304,29 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
                 if not user_input:
                     continue
 
-                self.logger.debug(f"Input recibido: {user_input[:100]}")
                 self.cli.print_user_message(user_input)
 
                 if user_input.startswith("/"):
                     should_continue = await self.handle_command(user_input)
                     if not should_continue:
-                        self.logger.info("👋 Usuario solicitó salir")
                         break
                     continue
 
                 await self.process_user_request(user_input)
 
         except KeyboardInterrupt:
-            self.logger.warning("⚠️ Interrupción por teclado (Ctrl+C)")
             self.cli.print_warning("\nInterrumpido por el usuario")
 
-        except Exception as e:
-            self.logger.log_error_with_context(e, "main loop")
-            self.cli.print_error(f"Error fatal: {str(e)}")
-
         finally:
-            self.logger.info("🔚 Cerrando CodeAgent CLI")
             self.cli.print_goodbye()
             await self.model_client.close()
 
 
-async def main(debug: bool = False):
-    """
-    Punto de entrada principal
-
-    Args:
-        debug: Si True, activa el modo debug con logging detallado
-    """
-    app = CodeAgentCLI(debug=debug)
+async def main():
+    """Punto de entrada principal"""
+    app = CodeAgentCLI()
     await app.run()
 
 
 if __name__ == "__main__":
-    import sys
-
-    # Detectar si se pasó el flag --debug
-    debug_mode = "--debug" in sys.argv or "-d" in sys.argv
-
-    if debug_mode:
-        print("🐛 Modo DEBUG activado")
-
-    asyncio.run(main(debug=debug_mode))
+    asyncio.run(main())
