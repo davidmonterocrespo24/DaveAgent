@@ -5,7 +5,9 @@
       "Bash(for file in write_file.py list_dir.py edit_file.py file_search.py grep_search.py codebase_search.py delete_file.py diff_history.py)",
       "Bash(do echo \"=== $file ===\")",
       "Bash(head:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(mkdir:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

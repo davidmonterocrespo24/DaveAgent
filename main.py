@@ -1,17 +1,18 @@
 """
 Archivo principal - Interfaz CLI completa del agente de código
+NUEVA ESTRUCTURA REORGANIZADA
 """
 import asyncio
-from pathlib import Path
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from prompt import AGENT_SYSTEM_PROMPT
-from task_planner import TaskPlanner
-from conversation_manager import ConversationManager
-from cli_interface import CLIInterface
-from task_executor import TaskExecutor
+
+# Importar desde nueva estructura
+from src.config import AGENT_SYSTEM_PROMPT
+from src.agents import TaskPlanner, TaskExecutor
+from src.managers import ConversationManager
+from src.interfaces import CLIInterface
 
 
 class CodeAgentCLI:
@@ -28,37 +29,15 @@ class CodeAgentCLI:
                 "vision": False,
                 "function_calling": True,
                 "json_output": True,
-                "structured_output": False,  # DeepSeek soporta json_object pero no json_schema
+                "structured_output": False,
             },
         )
 
-        # Herramientas del agente de código - Importadas desde tools/__init__.py
-        from tools import (
-            # Herramientas básicas
-            read_file, write_file, list_dir, run_terminal_cmd,
-            edit_file, codebase_search, grep_search, file_search,
-            delete_file, diff_history,
-            # Git operations
-            git_status, git_add, git_commit, git_push, git_pull,
-            git_log, git_branch, git_diff,
-            # JSON tools
-            read_json, write_json, merge_json_files, validate_json,
-            format_json, json_get_value, json_set_value, json_to_text,
-            # CSV tools
-            read_csv, write_csv, csv_info, filter_csv,
-            merge_csv_files as merge_csv, csv_to_json, sort_csv,
-            # Wikipedia tools
-            wiki_search, wiki_summary, wiki_content,
-            wiki_page_info, wiki_random, wiki_set_language,
-            # Code analyzer
-            analyze_python_file, find_function_definition, list_all_functions
-        )
-
-        coder_tools = [
-            # Básicas
-            read_file, write_file, list_dir, run_terminal_cmd,
-            edit_file, codebase_search, grep_search, file_search,
-            delete_file, diff_history,
+        # Importar todas las herramientas desde la nueva estructura
+        from src.tools import (
+            # Filesystem
+            read_file, write_file, list_dir, edit_file,
+            delete_file, file_search,
             # Git
             git_status, git_add, git_commit, git_push, git_pull,
             git_log, git_branch, git_diff,
@@ -68,14 +47,32 @@ class CodeAgentCLI:
             # CSV
             read_csv, write_csv, csv_info, filter_csv,
             merge_csv, csv_to_json, sort_csv,
-            # Wikipedia
+            # Web
             wiki_search, wiki_summary, wiki_content,
             wiki_page_info, wiki_random, wiki_set_language,
-            # Análisis de código
-            analyze_python_file, find_function_definition, list_all_functions
+            # Analysis
+            analyze_python_file, find_function_definition, list_all_functions,
+            codebase_search, grep_search, run_terminal_cmd, diff_history
+        )
+
+        coder_tools = [
+            # Filesystem (6 tools)
+            read_file, write_file, list_dir, edit_file, delete_file, file_search,
+            # Git (8 tools)
+            git_status, git_add, git_commit, git_push, git_pull, git_log, git_branch, git_diff,
+            # JSON (8 tools)
+            read_json, write_json, merge_json_files, validate_json,
+            format_json, json_get_value, json_set_value, json_to_text,
+            # CSV (7 tools)
+            read_csv, write_csv, csv_info, filter_csv, merge_csv, csv_to_json, sort_csv,
+            # Web (6 tools)
+            wiki_search, wiki_summary, wiki_content, wiki_page_info, wiki_random, wiki_set_language,
+            # Analysis (7 tools)
+            analyze_python_file, find_function_definition, list_all_functions,
+            codebase_search, grep_search, run_terminal_cmd, diff_history
         ]
 
-        # Crear agente de código con descripción optimizada para el selector
+        # Crear agente de código
         self.coder_agent = AssistantAgent(
             name="Coder",
             description="""Especialista en tareas de codificación SIMPLES Y DIRECTAS.
@@ -84,7 +81,10 @@ class CodeAgentCLI:
 - Leer, escribir o editar archivos específicos
 - Buscar código o archivos
 - Corregir errores puntuales
-- Crear scripts o funciones simples
+- Operaciones Git (status, commit, push, pull)
+- Trabajar con JSON y CSV
+- Buscar información en Wikipedia
+- Analizar código Python
 - Tareas que se completan en 1-3 pasos
 
 NO lo uses para:
@@ -121,8 +121,6 @@ NO lo uses para:
     def _setup_team(self):
         """Configura el equipo de agentes con SelectorGroupChat para orquestación inteligente"""
 
-        # Selector prompt: El cerebro de la orquestación
-        # Analiza la complejidad y selecciona el agente apropiado
         selector_prompt = """Selecciona el agente más apropiado para la siguiente tarea.
 
 {roles}
@@ -148,16 +146,19 @@ CRITERIOS DE SELECCIÓN:
    - Corregir un bug puntual
    - Agregar una función simple
    - Ejecutar comandos del sistema
+   - Operaciones Git
+   - Trabajar con JSON/CSV
+   - Buscar en Wikipedia
    - Tareas de 1-3 pasos
 
    Señales clave: "lee", "busca", "corrige este error", "agrega esta función",
-   "qué hace este archivo", "ejecuta", "pequeño cambio"
+   "qué hace este archivo", "ejecuta", "pequeño cambio", "git status"
 
 FLUJO DE TRABAJO:
 - Si la solicitud es ambigua o inicial → Planner (puede delegar a Coder después)
 - Si la solicitud es claramente simple → Coder directamente
 - Si Planner creó un plan → Coder (para ejecutar tareas)
-- Si necesitas usar herramientas (read_file, write_file, etc.) → Coder
+- Si necesitas usar herramientas → Coder
 
 Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN agente de {participants}.
 """
@@ -165,8 +166,7 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
         # Condición de terminación
         termination = TextMentionTermination("TERMINATE") | MaxMessageTermination(30)
 
-        # Crear el team con solo Planner y Coder
-        # El selector_prompt maneja la orquestación inteligente
+        # Crear el team
         self.team = SelectorGroupChat(
             participants=[self.planner.planner_agent, self.coder_agent],
             model_client=self.model_client,
@@ -175,15 +175,7 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
         )
 
     async def handle_command(self, command: str) -> bool:
-        """
-        Maneja comandos especiales del usuario
-
-        Args:
-            command: Comando a ejecutar
-
-        Returns:
-            True si debe continuar, False si debe salir
-        """
+        """Maneja comandos especiales del usuario"""
         parts = command.split(maxsplit=1)
         cmd = parts[0].lower()
 
@@ -199,14 +191,9 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
             self.cli.print_success("Historial limpiado")
 
         elif cmd == "/new":
-            # Limpiar historial y plan actual
             self.conversation_manager.clear()
             self.planner.current_plan = None
-            self.cli.print_success("Nueva conversación iniciada - Historial y plan limpiados")
-            self.cli.print_info(
-                "Comenzando desde cero. El agente no tiene contexto de conversaciones anteriores.",
-                "Nueva Sesión"
-            )
+            self.cli.print_success("Nueva conversación iniciada")
 
         elif cmd == "/plan":
             if self.planner.current_plan:
@@ -223,9 +210,8 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
                 self.cli.print_error("Uso: /save <archivo>")
             else:
                 try:
-                    filepath = parts[1]
-                    self.conversation_manager.save_to_file(filepath)
-                    self.cli.print_success(f"Historial guardado en {filepath}")
+                    self.conversation_manager.save_to_file(parts[1])
+                    self.cli.print_success(f"Historial guardado en {parts[1]}")
                 except Exception as e:
                     self.cli.print_error(f"Error al guardar: {str(e)}")
 
@@ -234,9 +220,8 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
                 self.cli.print_error("Uso: /load <archivo>")
             else:
                 try:
-                    filepath = parts[1]
-                    self.conversation_manager.load_from_file(filepath)
-                    self.cli.print_success(f"Historial cargado desde {filepath}")
+                    self.conversation_manager.load_from_file(parts[1])
+                    self.cli.print_success(f"Historial cargado desde {parts[1]}")
                 except Exception as e:
                     self.cli.print_error(f"Error al cargar: {str(e)}")
 
@@ -247,51 +232,34 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
         return True
 
     async def process_user_request(self, user_input: str):
-        """
-        Procesa una solicitud del usuario usando SelectorGroupChat
-
-        Args:
-            user_input: Input del usuario
-        """
+        """Procesa una solicitud del usuario usando SelectorGroupChat"""
         try:
-            # Agregar al historial
             self.conversation_manager.add_message("user", user_input)
-
-            # Mostrar que está procesando
             self.cli.print_thinking("Analizando solicitud y seleccionando estrategia...")
 
-            # Ejecutar el team con SelectorGroupChat
-            # El selector decidirá si usar Planner o Coder
             from autogen_agentchat.messages import TextMessage
 
             result = await self.team.run(
                 task=TextMessage(content=user_input, source="user")
             )
 
-            # Procesar los mensajes de la conversación
             for msg in result.messages:
-                # Agregar mensaje al historial
                 if hasattr(msg, 'source') and msg.source != "user":
                     agent_name = msg.source
                     content = msg.content if hasattr(msg, 'content') else str(msg)
 
-                    # Mostrar mensaje del agente
                     self.cli.print_agent_message(f"[{agent_name}] {content}")
 
-                    # Guardar en historial
                     self.conversation_manager.add_message(
                         "assistant",
                         content,
                         metadata={"agent": agent_name}
                     )
 
-            # Mensaje final
             self.cli.print_success("\n✅ Tarea completada")
 
-            # Comprimir historial si es necesario
             if self.conversation_manager.needs_compression():
                 self.cli.print_thinking("Comprimiendo historial de conversación...")
-                # Aquí podrías usar el LLM para crear un resumen
                 summary = "Historial comprimido automáticamente"
                 self.conversation_manager.compress_history(summary)
                 self.cli.print_info("Historial comprimido para optimizar memoria")
@@ -303,36 +271,30 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
 
     async def run(self):
         """Ejecuta el loop principal de la CLI"""
-        # Mostrar banner y bienvenida
         self.cli.print_banner()
         self.cli.print_welcome_message()
 
         try:
             while self.running:
-                # Obtener input del usuario
                 user_input = await self.cli.get_user_input()
 
                 if not user_input:
                     continue
 
-                # Mostrar mensaje del usuario
                 self.cli.print_user_message(user_input)
 
-                # Verificar si es un comando
                 if user_input.startswith("/"):
                     should_continue = await self.handle_command(user_input)
                     if not should_continue:
                         break
                     continue
 
-                # Procesar como solicitud normal
                 await self.process_user_request(user_input)
 
         except KeyboardInterrupt:
             self.cli.print_warning("\nInterrumpido por el usuario")
 
         finally:
-            # Limpieza
             self.cli.print_goodbye()
             await self.model_client.close()
 
