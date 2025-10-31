@@ -7,9 +7,9 @@ from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_agentchat.messages import TextMessage, ToolCallRequestEvent, ToolCallExecutionEvent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from task_planner import TaskPlanner, Task, ExecutionPlan
-from conversation_manager import ConversationManager
-from cli_interface import CLIInterface
+from .task_planner import TaskPlanner, Task, ExecutionPlan
+from ..managers.conversation_manager import ConversationManager
+from ..interfaces.cli_interface import CLIInterface
 import asyncio
 from datetime import datetime
 
