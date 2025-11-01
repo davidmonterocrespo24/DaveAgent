@@ -13,7 +13,7 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 # Importar desde nueva estructura
 from src.config import AGENT_SYSTEM_PROMPT
-from src.agents import TaskPlanner, TaskExecutor
+from src.agents import TaskPlanner, TaskExecutor, CodeSearcher
 from src.managers import ConversationManager
 from src.interfaces import CLIInterface
 from src.utils import get_logger
@@ -117,6 +117,18 @@ NO lo uses para:
         )
         self.planner = TaskPlanner(self.model_client)
         self.cli = CLIInterface()
+
+        # Crear CodeSearcher con las herramientas de análisis
+        search_tools = [
+            # Herramientas de búsqueda
+            codebase_search, grep_search, file_search,
+            # Herramientas de lectura
+            read_file, list_dir,
+            # Herramientas de análisis Python
+            analyze_python_file, find_function_definition, list_all_functions,
+        ]
+        self.code_searcher = CodeSearcher(self.model_client, search_tools)
+
         self.executor = TaskExecutor(
             coder_agent=self.coder_agent,
             planner=self.planner,
@@ -142,7 +154,22 @@ Contexto de la conversación:
 
 CRITERIOS DE SELECCIÓN:
 
-1. **Planner** - Para tareas COMPLEJAS que requieren:
+1. **CodeSearcher** - Para BÚSQUEDA y ANÁLISIS de código (USAR PRIMERO si es necesario):
+   - Entender cómo funciona código existente ANTES de modificarlo
+   - Encontrar dónde está implementada una funcionalidad
+   - Buscar referencias a funciones, clases o variables
+   - Analizar dependencias entre archivos
+   - Obtener contexto completo sobre una característica
+   - Mapear la estructura de un proyecto o módulo
+
+   Señales clave: "dónde está", "cómo funciona", "busca", "encuentra", "analiza",
+   "muéstrame", "referencias a", "explicame cómo", "antes de modificar",
+   "quiero entender", "necesito contexto"
+
+   IMPORTANTE: Si el usuario va a MODIFICAR código existente, PRIMERO usa CodeSearcher
+   para obtener contexto, LUEGO pasa al Coder o Planner para la modificación.
+
+2. **Planner** - Para tareas COMPLEJAS que requieren:
    - Múltiples archivos o componentes
    - Sistemas completos o aplicaciones
    - Refactorización mayor
@@ -152,7 +179,7 @@ CRITERIOS DE SELECCIÓN:
    Señales clave: "sistema", "aplicación", "proyecto completo", "múltiples archivos",
    "crear desde cero", "refactorizar todo"
 
-2. **Coder** - Para tareas SIMPLES Y DIRECTAS:
+3. **Coder** - Para tareas SIMPLES Y DIRECTAS de modificación:
    - Leer o buscar archivos específicos
    - Editar 1-3 archivos
    - Corregir un bug puntual
@@ -163,25 +190,37 @@ CRITERIOS DE SELECCIÓN:
    - Buscar en Wikipedia
    - Tareas de 1-3 pasos
 
-   Señales clave: "lee", "busca", "corrige este error", "agrega esta función",
-   "qué hace este archivo", "ejecuta", "pequeño cambio", "git status"
+   Señales clave: "crea", "modifica", "corrige este error", "agrega esta función",
+   "ejecuta", "pequeño cambio", "git status", "escribe"
 
-FLUJO DE TRABAJO:
-- Si la solicitud es ambigua o inicial → Planner (puede delegar a Coder después)
-- Si la solicitud es claramente simple → Coder directamente
-- Si Planner creó un plan → Coder (para ejecutar tareas)
-- Si necesitas usar herramientas → Coder
+FLUJO DE TRABAJO RECOMENDADO:
 
-Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN agente de {participants}.
+Para MODIFICACIONES a código existente:
+1. CodeSearcher → obtiene contexto completo
+2. Coder o Planner → hace la modificación con el contexto
+
+Para BÚSQUEDAS y ANÁLISIS:
+- CodeSearcher directamente
+
+Para CREACIÓN de código nuevo:
+- Planner (si es complejo) o Coder (si es simple)
+
+Para TAREAS SIMPLES sin modificación:
+- Coder directamente
+
+Lee el historial arriba, analiza la intención del usuario, y selecciona UN agente de {participants}.
 """
 
         # Condición de terminación
         termination = TextMentionTermination("TERMINATE") | MaxMessageTermination(30)
 
-        # Crear el team
-        # NOTA: Mantenemos esto para reutilizar el `selector_prompt` y `termination_condition`
+        # Crear el team con los 3 agentes: CodeSearcher, Planner, Coder
         self.team = SelectorGroupChat(
-            participants=[self.planner.planner_agent, self.coder_agent],
+            participants=[
+                self.code_searcher.searcher_agent,  # Agente de búsqueda
+                self.planner.planner_agent,          # Agente de planificación
+                self.coder_agent                     # Agente de ejecución
+            ],
             model_client=self.model_client,
             termination_condition=termination,
             selector_prompt=selector_prompt,
@@ -260,6 +299,16 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
             else:
                 self.cli.print_info("No hay archivos de log configurados")
 
+        elif cmd == "/search":
+            # Invocar CodeSearcher para buscar en el código
+            if len(parts) < 2:
+                self.cli.print_error("Uso: /search <consulta>")
+                self.cli.print_info("Ejemplo: /search función de autenticación")
+            else:
+                query = parts[1]
+                self.cli.print_thinking(f"🔍 Buscando en el código: {query}")
+                await self._run_code_searcher(query)
+
         else:
             self.cli.print_error(f"Comando desconocido: {cmd}")
             self.cli.print_info("Usa /help para ver los comandos disponibles")
@@ -267,28 +316,108 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
         return True
 
     # =========================================================================
+    # CODE SEARCHER - Búsqueda de código
+    # =========================================================================
+
+    async def _run_code_searcher(self, query: str):
+        """
+        Ejecuta CodeSearcher para buscar y analizar código
+
+        Args:
+            query: Consulta de búsqueda del usuario
+        """
+        try:
+            self.logger.info(f"🔍 Ejecutando CodeSearcher: {query}")
+
+            # Usar streaming para mostrar progreso en tiempo real
+            message_count = 0
+            agent_messages_shown = set()
+
+            async for msg in self.code_searcher.search_code_context_stream(query):
+                message_count += 1
+                msg_type = type(msg).__name__
+                self.logger.debug(f"CodeSearcher mensaje #{message_count} - Tipo: {msg_type}")
+
+                if hasattr(msg, 'source') and msg.source != "user":
+                    agent_name = msg.source
+
+                    if hasattr(msg, 'content'):
+                        content = msg.content
+                    else:
+                        content = str(msg)
+
+                    # Crear clave única
+                    try:
+                        if isinstance(content, list):
+                            content_str = str(content)
+                        else:
+                            content_str = content
+                        message_key = f"{agent_name}:{hash(content_str)}"
+                    except TypeError:
+                        message_key = f"{agent_name}:{hash(str(content))}"
+
+                    if message_key not in agent_messages_shown:
+                        # Mostrar diferentes tipos de mensajes
+                        if msg_type == "ThoughtEvent":
+                            self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
+                            self.logger.debug(f"💭 Thought: {content_str}")
+                            agent_messages_shown.add(message_key)
+
+                        elif msg_type == "ToolCallRequestEvent":
+                            if isinstance(content, list):
+                                for tool_call in content:
+                                    if hasattr(tool_call, 'name'):
+                                        tool_name = tool_call.name
+                                        self.cli.print_info(f"🔧 Buscando con: {tool_name}", agent_name)
+                                        self.logger.debug(f"🔧 Tool call: {tool_name}")
+                            agent_messages_shown.add(message_key)
+
+                        elif msg_type == "ToolCallExecutionEvent":
+                            if isinstance(content, list):
+                                for execution_result in content:
+                                    if hasattr(execution_result, 'name'):
+                                        tool_name = execution_result.name
+                                        result_preview = str(execution_result.content)[:100] if hasattr(execution_result, 'content') else "OK"
+                                        self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
+                                        self.logger.debug(f"✅ Tool result: {tool_name}")
+                            agent_messages_shown.add(message_key)
+
+                        elif msg_type == "TextMessage":
+                            # Mostrar el análisis completo
+                            self.cli.print_agent_message(content_str, agent_name)
+                            agent_messages_shown.add(message_key)
+
+            self.cli.print_success("\n✅ Búsqueda completada. Usa esta información para tu próxima solicitud.")
+            self.logger.info("✅ CodeSearcher completado")
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_run_code_searcher")
+            self.cli.print_error(f"Error en búsqueda de código: {str(e)}")
+
+    # =========================================================================
     # PROCESAMIENTO DE SOLICITUDES DEL USUARIO
     # =========================================================================
 
     async def process_user_request(self, user_input: str):
         """
-        Procesa una solicitud del usuario - VERSIÓN SIMPLIFICADA SOLO CON CODER
+        Procesa una solicitud del usuario usando el equipo de agentes (SelectorGroupChat)
+        El selector inteligente elige entre CodeSearcher, Planner o Coder según la tarea
         """
         try:
             self.logger.info(f"📝 Nueva solicitud del usuario: {user_input[:100]}...")
             self.conversation_manager.add_message("user", user_input)
 
-            self.cli.print_thinking("Procesando solicitud con Coder...")
-            self.logger.debug("Iniciando ejecución con Coder directamente")
+            self.cli.print_thinking("🤖 Analizando solicitud y seleccionando el mejor agente...")
+            self.logger.debug("Iniciando ejecución con SelectorGroupChat (CodeSearcher, Planner, Coder)")
 
-            # USAR run_stream() para ver mensajes EN TIEMPO REAL
-            self.logger.debug("Llamando a coder_agent.run_stream() para visualización en tiempo real")
+            # USAR run_stream() del TEAM para selección inteligente de agentes
+            self.logger.debug("Llamando a team.run_stream() para orquestación inteligente en tiempo real")
 
             agent_messages_shown = set()  # Para evitar duplicados
             message_count = 0
 
-            # Procesar mensajes conforme llegan (STREAMING)
-            async for msg in self.coder_agent.run_stream(task=user_input):
+            # Procesar mensajes conforme llegan del TEAM (STREAMING)
+            async for msg in self.team.run_stream(task=user_input):
                 message_count += 1
                 msg_type = type(msg).__name__
                 self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")

@@ -63,8 +63,9 @@ Este agente puede ayudarte a:
   • Ejecutar comandos y scripts
   • Buscar y modificar archivos
 
-**Comandos disponibles:**
-  • `/help` - Muestra la ayuda
+**Comandos principales:**
+  • `/help` - Muestra la ayuda completa
+  • `/search <consulta>` - Busca en tu código antes de modificar
   • `/new` - Inicia una nueva conversación sin historial
   • `/clear` - Limpia el historial de conversación
   • `/plan` - Muestra el plan de ejecución actual
@@ -252,12 +253,15 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 **Comandos Disponibles:**
 
 • `/help` - Muestra este mensaje de ayuda
+• `/search <consulta>` - Busca y analiza código antes de modificarlo
 • `/new` - Inicia una nueva conversación sin historial
 • `/clear` - Limpia el historial de conversación
 • `/plan` - Muestra el plan de ejecución actual
 • `/stats` - Muestra estadísticas de la sesión
 • `/save <archivo>` - Guarda el historial en un archivo
 • `/load <archivo>` - Carga un historial desde un archivo
+• `/debug` - Activa/desactiva el modo debug
+• `/logs` - Muestra la ubicación del archivo de logs
 • `/exit` o `/quit` - Salir del agente
 
 **Uso:**
@@ -268,13 +272,21 @@ Simplemente escribe lo que necesitas que el agente haga. El agente:
 3. Ajustará el plan si encuentra errores o nueva información
 4. Continuará hasta completar el objetivo
 
-**Ejemplos:**
+**Ejemplos de tareas:**
 
 "Crea una API REST con FastAPI que tenga endpoints para usuarios"
 
 "Encuentra todos los archivos Python con bugs y corrígelos"
 
 "Refactoriza el código en src/utils para usar async/await"
+
+**Ejemplos de búsqueda:**
+
+"/search función de autenticación"
+
+"/search dónde se usa la clase User"
+
+"/search métodos que modifican la base de datos"
         """
         self.print_info(help_text, "Ayuda")
 

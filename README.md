@@ -10,10 +10,12 @@ CodeAgent es un asistente de codificación inteligente con IA que trabaja en tu 
 
 - 🚀 **Comando CLI Global**: Usa `codeagent` desde cualquier directorio
 - 📂 **Trabajo Contextual**: Opera en tu directorio actual automáticamente
+- 🔍 **CodeSearcher**: Agente especializado para buscar y analizar código
 - 🔧 **42 Herramientas Integradas**: Filesystem, Git, JSON, CSV, Wikipedia, y más
 - 🤖 **Agentes Inteligentes**: Selección automática del agente apropiado
 - 📊 **Logging Completo**: Sistema de logs detallado para debugging
 - 🎨 **Interfaz Rica**: CLI con colores y formato usando Rich
+- ⚡ **Visualización en Tiempo Real**: Ve los pensamientos y acciones del agente mientras trabaja
 
 ## 🎯 Casos de Uso
 
@@ -22,6 +24,10 @@ CodeAgent es un asistente de codificación inteligente con IA que trabaja en tu 
 cd mi-proyecto
 codeagent
 
+# Buscar código antes de modificar
+Tu: /search sistema de autenticación actual
+
+# Modificar con contexto
 Tu: crear un módulo de autenticación con JWT
 Tu: refactorizar el código en services/ para usar async/await
 Tu: buscar todos los TODOs en el proyecto
@@ -107,12 +113,32 @@ Dentro de CodeAgent, puedes usar estos comandos:
 | Comando | Descripción |
 |---------|-------------|
 | `/help` | Muestra ayuda de comandos |
+| `/search <consulta>` | 🔍 Busca y analiza código (nuevo) |
 | `/debug` | Activa/desactiva modo debug |
 | `/logs` | Muestra ubicación de logs |
 | `/stats` | Muestra estadísticas |
 | `/clear` | Limpia el historial |
 | `/new` | Nueva conversación |
 | `/exit` | Salir de CodeAgent |
+
+#### 🔍 Comando /search
+
+El comando `/search` invoca al agente **CodeSearcher** para buscar y analizar código:
+
+```bash
+Tu: /search función de autenticación
+Tu: /search dónde se usa la clase TaskPlanner
+Tu: /search cómo funciona el sistema de logging
+```
+
+**CodeSearcher te proporciona:**
+- 📍 Archivos relevantes con ubicaciones exactas
+- 🔧 Funciones encontradas con código completo
+- 📦 Variables y constantes importantes
+- 🔗 Dependencias entre componentes
+- 💡 Recomendaciones de qué modificar
+
+Ver [docs/CODESEARCHER_GUIDE.md](docs/CODESEARCHER_GUIDE.md) para más detalles.
 
 ## 🛠️ Herramientas Disponibles
 
@@ -172,11 +198,17 @@ Dentro de CodeAgent, puedes usar estos comandos:
 
 ## 📖 Ejemplos
 
-### Ejemplo 1: Crear un Nuevo Módulo
+### Ejemplo 1: Usar CodeSearcher antes de modificar
 
 ```bash
 cd mi-proyecto
 codeagent
+
+# Primero, buscar contexto
+Tu: /search sistema de utilidades existente
+
+# El agente muestra funciones, archivos y estructura actual
+# Ahora modificar con contexto
 
 Tu: crear un módulo utils.py con funciones para:
     - validar email
@@ -184,7 +216,7 @@ Tu: crear un módulo utils.py con funciones para:
     - calcular hash MD5
 ```
 
-CodeAgent creará el archivo `mi-proyecto/utils.py` con las funciones solicitadas.
+CodeAgent primero analiza el código existente y luego crea el archivo `mi-proyecto/utils.py` con las funciones solicitadas, evitando duplicados y manteniendo consistencia.
 
 ### Ejemplo 2: Analizar un Proyecto
 
@@ -241,7 +273,10 @@ Ver [LOGGING_GUIDE.md](LOGGING_GUIDE.md) para más detalles.
 ```
 CodeAgent/
 ├── src/
-│   ├── agents/          # Agentes (Planner, Executor)
+│   ├── agents/          # Agentes especializados
+│   │   ├── task_planner.py      # Planificación de tareas
+│   │   ├── task_executor.py     # Ejecución de tareas
+│   │   └── code_searcher.py     # 🔍 Búsqueda de código
 │   ├── config/          # Configuración y prompts
 │   ├── interfaces/      # CLI interface
 │   ├── managers/        # Gestión de conversación
@@ -253,6 +288,8 @@ CodeAgent/
 │   │   └── analysis/
 │   ├── utils/          # Utilidades (logger)
 │   └── cli.py          # Punto de entrada CLI
+├── docs/               # Documentación
+│   └── CODESEARCHER_GUIDE.md  # Guía de CodeSearcher
 └── main.py             # Aplicación principal
 ```
 
@@ -306,7 +343,9 @@ mypy src/
 ## 📚 Documentación
 
 - [Guía de Instalación](INSTALACION.md) - Instalación detallada
+- [Guía de CodeSearcher](docs/CODESEARCHER_GUIDE.md) - 🔍 Búsqueda y análisis de código
 - [Guía de Logging](LOGGING_GUIDE.md) - Sistema de logs
+- [Visualización en Tiempo Real](VISUALIZACION_TIEMPO_REAL.md) - Ver pensamientos del agente
 - [Cambios Realizados](CAMBIOS_REALIZADOS.md) - Historial de cambios
 - [Mejoras Implementadas](MEJORAS_IMPLEMENTACION.md) - Análisis técnico
 
