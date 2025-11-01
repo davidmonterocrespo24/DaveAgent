@@ -3,5 +3,29 @@ Configuración del sistema
 """
 from src.config.prompt import AGENT_SYSTEM_PROMPT
 from src.config.settings import CodeAgentSettings, get_settings
+from src.config.prompts import (
+    CODER_AGENT_DESCRIPTION,
+    CODER_AGENT_SYSTEM_MESSAGE,
+    CODE_SEARCHER_DESCRIPTION,
+    CODE_SEARCHER_SYSTEM_MESSAGE,
+    TASK_PLANNER_DESCRIPTION,
+    TASK_PLANNER_SYSTEM_MESSAGE,
+    TASK_PLANNER_UPDATER_MESSAGE,
+    SUMMARIZER_SYSTEM_MESSAGE,
+    SELECTOR_PROMPT,
+)
 
-__all__ = ["AGENT_SYSTEM_PROMPT", "CodeAgentSettings", "get_settings"]
+__all__ = [
+    "AGENT_SYSTEM_PROMPT",
+    "CodeAgentSettings",
+    "get_settings",
+    "CODER_AGENT_DESCRIPTION",
+    "CODER_AGENT_SYSTEM_MESSAGE",
+    "CODE_SEARCHER_DESCRIPTION",
+    "CODE_SEARCHER_SYSTEM_MESSAGE",
+    "TASK_PLANNER_DESCRIPTION",
+    "TASK_PLANNER_SYSTEM_MESSAGE",
+    "TASK_PLANNER_UPDATER_MESSAGE",
+    "SUMMARIZER_SYSTEM_MESSAGE",
+    "SELECTOR_PROMPT",
+]

@@ -10,6 +10,7 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from .task_planner import TaskPlanner, Task, ExecutionPlan
 from ..managers.conversation_manager import ConversationManager
 from ..interfaces.cli_interface import CLIInterface
+from src.config import SUMMARIZER_SYSTEM_MESSAGE
 import asyncio
 from datetime import datetime
 
@@ -47,7 +48,7 @@ class TaskExecutor:
         self.summarizer_agent = AssistantAgent(
             name="Summarizer",
             model_client=model_client,
-            system_message="Eres un experto en crear resúmenes concisos de conversaciones técnicas.",
+            system_message=SUMMARIZER_SYSTEM_MESSAGE,
         )
 
     async def execute_task(self, task: Task) -> tuple[bool, str, Optional[str]]:

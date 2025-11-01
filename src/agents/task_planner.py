@@ -8,6 +8,11 @@ from autogen_agentchat.messages import TextMessage, StructuredMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from datetime import datetime
 import json
+from src.config import (
+    TASK_PLANNER_DESCRIPTION,
+    TASK_PLANNER_SYSTEM_MESSAGE,
+    TASK_PLANNER_UPDATER_MESSAGE
+)
 
 
 class Task(BaseModel):
@@ -51,112 +56,22 @@ class TaskPlanner:
         # Siguiendo mejores prácticas de AutoGen: incluir description clara para el selector
         self.planner_agent = AssistantAgent(
             name="Planner",
-            description="""Planificador estratégico para tareas COMPLEJAS de desarrollo.
-
-Úsalo cuando la solicitud requiere:
-- Crear sistemas completos o aplicaciones desde cero
-- Múltiples archivos y componentes interconectados
-- Arquitectura o diseño de soluciones complejas
-- Refactorización mayor de código existente
-- Proyectos que necesitan coordinación de varias tareas
-
-Señales clave: "sistema", "aplicación", "proyecto completo", "crear desde cero",
-"múltiples archivos", "refactorizar toda la aplicación"
-
-NO lo uses para: Tareas simples de 1-3 archivos, búsquedas, correcciones puntuales.""",
+            description=TASK_PLANNER_DESCRIPTION,
             model_client=model_client,
-            system_message=self._get_planner_system_message(),
+            system_message=TASK_PLANNER_SYSTEM_MESSAGE,
             # NO usar output_content_type porque DeepSeek no soporta structured_output
         )
 
         # Agente para actualizar planes
         self.plan_updater_agent = AssistantAgent(
             name="PlanUpdater",
-            description="Agente especializado en adaptar planes de ejecución basándose en resultados y errores",
+            description="Agent specialized in adapting execution plans based on results and errors",
             model_client=model_client,
-            system_message=self._get_updater_system_message(),
+            system_message=TASK_PLANNER_UPDATER_MESSAGE,
             # NO usar output_content_type porque DeepSeek no soporta structured_output
         )
 
         self.current_plan: Optional[ExecutionPlan] = None
-
-    def _get_planner_system_message(self) -> str:
-        """Mensaje del sistema para el agente planner"""
-        return """Eres un agente experto en planificación de tareas de desarrollo de software.
-
-Tu responsabilidad es analizar las solicitudes del usuario y crear planes de ejecución detallados.
-
-INSTRUCCIONES:
-1. Analiza cuidadosamente el objetivo del usuario
-2. Descompón el objetivo en tareas concretas y accionables
-3. Identifica dependencias entre tareas
-4. Ordena las tareas de manera lógica
-5. Estima la complejidad general del plan
-
-PRINCIPIOS:
-- Cada tarea debe ser específica y verificable
-- Las tareas deben ser granulares (no muy grandes ni muy pequeñas)
-- Considera posibles errores y necesidades de verificación
-- Incluye tareas de testing cuando sea apropiado
-- Sé realista sobre dependencias
-
-FORMATO DE RESPUESTA:
-Debes responder ÚNICAMENTE con un objeto JSON válido con esta estructura exacta:
-```json
-{
-  "goal": "objetivo del usuario",
-  "reasoning": "tu razonamiento sobre el plan",
-  "estimated_complexity": "low|medium|high|very_high",
-  "tasks": [
-    {
-      "id": 1,
-      "title": "Título de la tarea",
-      "description": "Descripción detallada de lo que hay que hacer",
-      "status": "pending",
-      "dependencies": []
-    }
-  ]
-}
-```
-
-IMPORTANTE: Responde SOLO con el JSON, sin texto adicional antes o después."""
-
-    def _get_updater_system_message(self) -> str:
-        """Mensaje del sistema para el agente actualizador de planes"""
-        return """Eres un agente experto en adaptar planes de ejecución basándote en resultados y errores.
-
-Tu responsabilidad es actualizar planes cuando:
-- Una tarea se completa con resultados inesperados
-- Una tarea falla y necesita ser redefinida
-- Se descubre nueva información que cambia el plan
-- Se necesitan tareas adicionales
-
-INSTRUCCIONES:
-1. Analiza el plan actual y el resultado de la última tarea
-2. Determina qué tareas necesitan modificarse
-3. Identifica nuevas tareas necesarias
-4. Marca tareas obsoletas para eliminar
-5. Explica tu razonamiento
-
-PRINCIPIOS:
-- Mantén el objetivo original del plan
-- Solo modifica lo necesario
-- Aprende de los errores
-- Adapta las dependencias apropiadamente
-- Sé conservador: no cambies todo el plan por un error menor
-
-FORMATO DE RESPUESTA:
-Debes responder ÚNICAMENTE con un objeto JSON válido con esta estructura:
-```json
-{
-  "reasoning": "explicación de por qué se actualiza el plan",
-  "modified_tasks": [],
-  "new_tasks": [],
-  "removed_task_ids": []
-}
-```
-
-IMPORTANTE: Responde SOLO con el JSON, sin texto adicional."""
 
     async def create_plan(self, user_goal: str, context: str = "") -> ExecutionPlan:
         """

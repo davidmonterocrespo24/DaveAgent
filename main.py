@@ -12,7 +12,12 @@ from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermi
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 # Importar desde nueva estructura
-from src.config import AGENT_SYSTEM_PROMPT
+from src.config import (
+    AGENT_SYSTEM_PROMPT,
+    CODER_AGENT_DESCRIPTION,
+    CODER_AGENT_SYSTEM_MESSAGE,
+    SELECTOR_PROMPT
+)
 from src.agents import TaskPlanner, TaskExecutor, CodeSearcher
 from src.managers import ConversationManager
 from src.interfaces import CLIInterface
@@ -110,23 +115,8 @@ class CodeAgentCLI:
         # Crear agente de código
         self.coder_agent = AssistantAgent(
             name="Coder",
-            description="""Especialista en tareas de codificación SIMPLES Y DIRECTAS.
-
-Úsalo para:
-- Leer, escribir o editar archivos específicos
-- Buscar código o archivos
-- Corregir errores puntuales
-- Operaciones Git (status, commit, push, pull)
-- Trabajar con JSON y CSV
-- Buscar información en Wikipedia
-- Analizar código Python
-- Tareas que se completan en 1-3 pasos
-
-NO lo uses para:
-- Proyectos complejos que requieren múltiples archivos
-- Tareas que necesitan planificación detallada
-- Implementaciones completas de sistemas""",
-            system_message=AGENT_SYSTEM_PROMPT,
+            description=CODER_AGENT_DESCRIPTION,
+            system_message=CODER_AGENT_SYSTEM_MESSAGE,
             model_client=self.model_client,
             tools=coder_tools,
             max_tool_iterations=5,
@@ -168,72 +158,6 @@ NO lo uses para:
     def _setup_team(self):
         """Configura el equipo de agentes con SelectorGroupChat para orquestación inteligente"""
 
-        selector_prompt = """Selecciona el agente más apropiado para la siguiente tarea.
-
-{roles}
-
-Contexto de la conversación:
-{history}
-
-CRITERIOS DE SELECCIÓN:
-
-1. **CodeSearcher** - Para BÚSQUEDA y ANÁLISIS de código (USAR PRIMERO si es necesario):
-   - Entender cómo funciona código existente ANTES de modificarlo
-   - Encontrar dónde está implementada una funcionalidad
-   - Buscar referencias a funciones, clases o variables
-   - Analizar dependencias entre archivos
-   - Obtener contexto completo sobre una característica
-   - Mapear la estructura de un proyecto o módulo
-
-   Señales clave: "dónde está", "cómo funciona", "busca", "encuentra", "analiza",
-   "muéstrame", "referencias a", "explicame cómo", "antes de modificar",
-   "quiero entender", "necesito contexto"
-
-   IMPORTANTE: Si el usuario va a MODIFICAR código existente, PRIMERO usa CodeSearcher
-   para obtener contexto, LUEGO pasa al Coder o Planner para la modificación.
-
-2. **Planner** - Para tareas COMPLEJAS que requieren:
-   - Múltiples archivos o componentes
-   - Sistemas completos o aplicaciones
-   - Refactorización mayor
-   - Arquitectura o diseño de soluciones
-   - Proyectos que necesitan planificación estructurada
-
-   Señales clave: "sistema", "aplicación", "proyecto completo", "múltiples archivos",
-   "crear desde cero", "refactorizar todo"
-
-3. **Coder** - Para tareas SIMPLES Y DIRECTAS de modificación:
-   - Leer o buscar archivos específicos
-   - Editar 1-3 archivos
-   - Corregir un bug puntual
-   - Agregar una función simple
-   - Ejecutar comandos del sistema
-   - Operaciones Git
-   - Trabajar con JSON/CSV
-   - Buscar en Wikipedia
-   - Tareas de 1-3 pasos
-
-   Señales clave: "crea", "modifica", "corrige este error", "agrega esta función",
-   "ejecuta", "pequeño cambio", "git status", "escribe"
-
-FLUJO DE TRABAJO RECOMENDADO:
-
-Para MODIFICACIONES a código existente:
-1. CodeSearcher → obtiene contexto completo
-2. Coder o Planner → hace la modificación con el contexto
-
-Para BÚSQUEDAS y ANÁLISIS:
-- CodeSearcher directamente
-
-Para CREACIÓN de código nuevo:
-- Planner (si es complejo) o Coder (si es simple)
-
-Para TAREAS SIMPLES sin modificación:
-- Coder directamente
-
-Lee el historial arriba, analiza la intención del usuario, y selecciona UN agente de {participants}.
-"""
-
         # Condición de terminación
         termination = TextMentionTermination("TERMINATE") | MaxMessageTermination(30)
 
@@ -246,7 +170,7 @@ Lee el historial arriba, analiza la intención del usuario, y selecciona UN agen
             ],
             model_client=self.model_client,
             termination_condition=termination,
-            selector_prompt=selector_prompt,
+            selector_prompt=SELECTOR_PROMPT,
         )
 
     async def handle_command(self, command: str) -> bool:
@@ -428,7 +352,20 @@ Lee el historial arriba, analiza la intención del usuario, y selecciona UN agen
         """
         try:
             self.logger.info(f"📝 Nueva solicitud del usuario: {user_input[:100]}...")
-            self.conversation_manager.add_message("user", user_input)
+
+            # Check if there are mentioned files and add their context
+            mentioned_files_content = ""
+            if self.cli.mentioned_files:
+                self.cli.print_mentioned_files()
+                mentioned_files_content = self.cli.get_mentioned_files_content()
+                self.logger.info(f"📎 Including {len(self.cli.mentioned_files)} mentioned file(s) in context")
+
+                # Prepend file content to user input
+                full_input = f"{mentioned_files_content}\n\nUSER REQUEST:\n{user_input}"
+            else:
+                full_input = user_input
+
+            self.conversation_manager.add_message("user", full_input)
 
             self.cli.print_thinking("🤖 Analizando solicitud y seleccionando el mejor agente...")
             self.logger.debug("Iniciando ejecución con SelectorGroupChat (CodeSearcher, Planner, Coder)")
@@ -440,7 +377,7 @@ Lee el historial arriba, analiza la intención del usuario, y selecciona UN agen
             message_count = 0
 
             # Procesar mensajes conforme llegan del TEAM (STREAMING)
-            async for msg in self.team.run_stream(task=user_input):
+            async for msg in self.team.run_stream(task=full_input):
                 message_count += 1
                 msg_type = type(msg).__name__
                 self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")

@@ -2,6 +2,8 @@
 from .logger import CodeAgentLogger, get_logger, set_log_level
 from .setup_wizard import run_interactive_setup, should_run_setup
 from .model_settings import PROVIDERS, get_provider_info, interactive_model_selection
+from .file_indexer import FileIndexer
+from .file_selector import FileSelector, select_file_interactive
 
 __all__ = [
     'CodeAgentLogger',
@@ -11,5 +13,8 @@ __all__ = [
     'should_run_setup',
     'PROVIDERS',
     'get_provider_info',
-    'interactive_model_selection'
+    'interactive_model_selection',
+    'FileIndexer',
+    'FileSelector',
+    'select_file_interactive'
 ]

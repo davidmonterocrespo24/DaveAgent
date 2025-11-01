@@ -18,6 +18,7 @@ from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from datetime import datetime
 import sys
 from pathlib import Path
+from src.utils import FileIndexer, select_file_interactive
 
 
 class CLIInterface:
@@ -30,6 +31,8 @@ class CLIInterface:
             auto_suggest=AutoSuggestFromHistory(),
         )
         self.conversation_active = False
+        self.file_indexer = None  # Will be initialized on first use
+        self.mentioned_files: List[str] = []  # Track files mentioned with @
 
     def print_banner(self):
         """Muestra el banner de bienvenida"""
@@ -77,9 +80,18 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
         self.console.print(Panel(Markdown(welcome), title="Información", border_style="green"))
         self.console.print()
 
+    def _initialize_file_indexer(self):
+        """Initialize file indexer lazily"""
+        if self.file_indexer is None:
+            self.file_indexer = FileIndexer(".")
+            self.console.print("[dim]📁 Indexing files...[/dim]")
+            self.file_indexer.index_directory()
+            self.console.print(f"[dim]✓ Indexed {self.file_indexer.get_file_count()} files[/dim]")
+
     async def get_user_input(self, prompt: str = "") -> str:
         """
         Obtiene input del usuario de manera asíncrona
+        Detecta @ para selección de archivos
 
         Args:
             prompt: Texto del prompt
@@ -97,9 +109,79 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
                 None,
                 lambda: self.session.prompt(prompt)
             )
-            return user_input.strip()
+            user_input = user_input.strip()
+
+            # Check for @ mentions
+            if '@' in user_input:
+                user_input = await self._process_file_mentions(user_input)
+
+            return user_input
         except (EOFError, KeyboardInterrupt):
             return "/exit"
+
+    async def _process_file_mentions(self, user_input: str) -> str:
+        """
+        Process @ mentions in user input to select files
+
+        Args:
+            user_input: User input text
+
+        Returns:
+            Processed input with file paths
+        """
+        # Initialize indexer if needed
+        self._initialize_file_indexer()
+
+        # Find all @ mentions
+        parts = []
+        current_pos = 0
+
+        while True:
+            at_pos = user_input.find('@', current_pos)
+            if at_pos == -1:
+                # No more @ symbols
+                parts.append(user_input[current_pos:])
+                break
+
+            # Add text before @
+            parts.append(user_input[current_pos:at_pos])
+
+            # Extract query after @ (until space or end)
+            query_start = at_pos + 1
+            query_end = query_start
+            while query_end < len(user_input) and user_input[query_end] not in (' ', '\t', '\n'):
+                query_end += 1
+
+            query = user_input[query_start:query_end]
+
+            # Show file selector
+            self.console.print(f"\n[cyan]Detected @ mention, opening file selector...[/cyan]")
+
+            # Run file selector (synchronously since we're in a coroutine)
+            loop = asyncio.get_event_loop()
+            selected_file = await loop.run_in_executor(
+                None,
+                select_file_interactive,
+                ".",
+                query
+            )
+
+            if selected_file:
+                # Add selected file to mentioned files list
+                if selected_file not in self.mentioned_files:
+                    self.mentioned_files.append(selected_file)
+
+                # Replace @ with file path
+                parts.append(f"`{selected_file}`")
+                self.console.print(f"[green]✓ Selected: {selected_file}[/green]\n")
+            else:
+                # User cancelled, keep original @query
+                parts.append(f"@{query}")
+                self.console.print(f"[yellow]✗ Selection cancelled[/yellow]\n")
+
+            current_pos = query_end
+
+        return ''.join(parts)
 
     def print_user_message(self, message: str):
         """Muestra un mensaje del usuario"""
@@ -307,3 +389,56 @@ Simplemente escribe lo que necesitas que el agente haga. El agente:
     def clear_screen(self):
         """Limpia la pantalla"""
         self.console.clear()
+
+    def get_mentioned_files(self) -> List[str]:
+        """
+        Get list of files mentioned with @
+
+        Returns:
+            List of mentioned file paths
+        """
+        return self.mentioned_files.copy()
+
+    def clear_mentioned_files(self):
+        """Clear the list of mentioned files"""
+        self.mentioned_files.clear()
+
+    def print_mentioned_files(self):
+        """Display the list of mentioned files"""
+        if not self.mentioned_files:
+            return
+
+        self.console.print()
+        self.console.print("[bold cyan]📎 Mentioned Files:[/bold cyan]")
+        for file_path in self.mentioned_files:
+            self.console.print(f"  • [green]{file_path}[/green]")
+        self.console.print()
+
+    def get_mentioned_files_content(self) -> str:
+        """
+        Read content of all mentioned files
+
+        Returns:
+            Combined content of all mentioned files with headers
+        """
+        if not self.mentioned_files:
+            return ""
+
+        content_parts = []
+        content_parts.append("📎 MENTIONED FILES CONTEXT (High Priority):\n")
+
+        for file_path in self.mentioned_files:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
+
+                content_parts.append(f"\n{'='*60}")
+                content_parts.append(f"FILE: {file_path}")
+                content_parts.append(f"{'='*60}\n")
+                content_parts.append(file_content)
+                content_parts.append(f"\n{'='*60}\n")
+
+            except Exception as e:
+                content_parts.append(f"\n⚠️ Error reading {file_path}: {e}\n")
+
+        return '\n'.join(content_parts)
