@@ -367,7 +367,8 @@ class CodeAgentCLI:
 
             self.conversation_manager.add_message("user", full_input)
 
-            self.cli.print_thinking("🤖 Analizando solicitud y seleccionando el mejor agente...")
+            # Start vibe spinner while agent is thinking
+            self.cli.start_thinking()
             self.logger.debug("Iniciando ejecución con SelectorGroupChat (CodeSearcher, Planner, Coder)")
 
             # USAR run_stream() del TEAM para selección inteligente de agentes
@@ -375,6 +376,7 @@ class CodeAgentCLI:
 
             agent_messages_shown = set()  # Para evitar duplicados
             message_count = 0
+            first_response = True  # Track if this is the first response from agent
 
             # Procesar mensajes conforme llegan del TEAM (STREAMING)
             async for msg in self.team.run_stream(task=full_input):
@@ -406,6 +408,11 @@ class CodeAgentCLI:
                         message_key = f"{agent_name}:{hash(str(content))}"
 
                     if message_key not in agent_messages_shown:
+                        # Stop spinner on first response from agent
+                        if first_response:
+                            self.cli.stop_thinking()
+                            first_response = False
+
                         # Convertir content a string si es necesario para el historial
                         content_for_history = content_str if isinstance(content, list) else content
 
@@ -459,6 +466,9 @@ class CodeAgentCLI:
 
             self.logger.debug(f"✅ Stream completado. Total mensajes procesados: {message_count}")
 
+            # Ensure spinner is stopped
+            self.cli.stop_thinking()
+
             # Comprimir historial si es necesario
             if self.conversation_manager.needs_compression():
                 self.logger.warning("⚠️ Historial necesita compresión")
@@ -468,6 +478,8 @@ class CodeAgentCLI:
             self.logger.info("✅ Solicitud procesada exitosamente")
 
         except Exception as e:
+            # Stop spinner on error
+            self.cli.stop_thinking()
             self.logger.log_error_with_context(e, "process_user_request")
             self.cli.print_error(f"Error al procesar solicitud: {str(e)}")
             import traceback

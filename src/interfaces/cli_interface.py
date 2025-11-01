@@ -18,7 +18,7 @@ from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from datetime import datetime
 import sys
 from pathlib import Path
-from src.utils import FileIndexer, select_file_interactive
+from src.utils import FileIndexer, select_file_interactive, VibeSpinner
 
 
 class CLIInterface:
@@ -33,6 +33,7 @@ class CLIInterface:
         self.conversation_active = False
         self.file_indexer = None  # Will be initialized on first use
         self.mentioned_files: List[str] = []  # Track files mentioned with @
+        self.vibe_spinner: Optional[VibeSpinner] = None  # Spinner for thinking animation
 
     def print_banner(self):
         """Muestra el banner de bienvenida"""
@@ -257,8 +258,50 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
         ))
         self.console.print()
 
+    def start_thinking(self, message: Optional[str] = None):
+        """
+        Start the vibe spinner to show agent is thinking
+
+        Args:
+            message: Optional custom message (uses rotating vibes if None)
+        """
+        # Stop any existing spinner first
+        self.stop_thinking()
+
+        if message:
+            # Single custom message
+            self.vibe_spinner = VibeSpinner(
+                messages=[message],
+                spinner_style="dots",
+                color="cyan",
+                language="es"
+            )
+        else:
+            # Rotating vibe messages
+            self.vibe_spinner = VibeSpinner(
+                spinner_style="dots",
+                color="cyan",
+                language="es"
+            )
+
+        self.vibe_spinner.start()
+
+    def stop_thinking(self, clear: bool = True):
+        """
+        Stop the vibe spinner
+
+        Args:
+            clear: Whether to clear the spinner line
+        """
+        if self.vibe_spinner and self.vibe_spinner.is_running():
+            self.vibe_spinner.stop(clear_line=clear)
+            self.vibe_spinner = None
+
     def print_thinking(self, message: str = "Pensando..."):
-        """Muestra un indicador de que el agente está pensando"""
+        """
+        Muestra un indicador de que el agente está pensando
+        (Legacy method - consider using start_thinking/stop_thinking instead)
+        """
         self.console.print(f"[dim]{message}[/dim]")
 
     def print_error(self, error: str):
