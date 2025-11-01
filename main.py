@@ -281,20 +281,17 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
             self.cli.print_thinking("Procesando solicitud con Coder...")
             self.logger.debug("Iniciando ejecución con Coder directamente")
 
-            # SOLUCIÓN: Usar solo el Coder directamente sin SelectorGroupChat
-            # Esto evita el bloqueo y es más simple
-            self.logger.debug("Llamando a coder_agent.run() con la tarea")
+            # USAR run_stream() para ver mensajes EN TIEMPO REAL
+            self.logger.debug("Llamando a coder_agent.run_stream() para visualización en tiempo real")
 
-            result = await self.coder_agent.run(task=user_input)
-
-            self.logger.debug(f"✅ coder_agent.run() completado. Total mensajes: {len(result.messages)}")
-
-            # Procesar y mostrar resultados
             agent_messages_shown = set()  # Para evitar duplicados
+            message_count = 0
 
-            for idx, msg in enumerate(result.messages):
+            # Procesar mensajes conforme llegan (STREAMING)
+            async for msg in self.coder_agent.run_stream(task=user_input):
+                message_count += 1
                 msg_type = type(msg).__name__
-                self.logger.debug(f"Procesando mensaje {idx + 1}/{len(result.messages)} - Tipo: {msg_type}")
+                self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
 
                 # Solo procesar mensajes que NO sean del usuario
                 if hasattr(msg, 'source') and msg.source != "user":
@@ -330,19 +327,48 @@ Lee el historial arriba, analiza la complejidad de la tarea, y selecciona UN age
                             metadata={"agent": agent_name, "type": msg_type}
                         )
 
-                        # Mostrar en CLI solo si es un TextMessage final
-                        if msg_type == "TextMessage":
+                        # MOSTRAR DIFERENTES TIPOS DE MENSAJES EN CONSOLA EN TIEMPO REAL
+                        if msg_type == "ThoughtEvent":
+                            # 💭 Mostrar pensamientos/reflexiones del agente
+                            self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
+                            self.logger.debug(f"💭 Thought: {content_str}")
+                            agent_messages_shown.add(message_key)
+
+                        elif msg_type == "ToolCallRequestEvent":
+                            # 🔧 Mostrar herramientas que se van a llamar
+                            if isinstance(content, list):
+                                for tool_call in content:
+                                    if hasattr(tool_call, 'name'):
+                                        tool_name = tool_call.name
+                                        tool_args = tool_call.arguments if hasattr(tool_call, 'arguments') else ""
+                                        self.cli.print_info(f"🔧 Llamando herramienta: {tool_name}", agent_name)
+                                        self.logger.debug(f"🔧 Tool call: {tool_name}({tool_args})")
+                            agent_messages_shown.add(message_key)
+
+                        elif msg_type == "ToolCallExecutionEvent":
+                            # ✅ Mostrar resultados de herramientas
+                            if isinstance(content, list):
+                                for execution_result in content:
+                                    if hasattr(execution_result, 'name'):
+                                        tool_name = execution_result.name
+                                        result_preview = str(execution_result.content)[:100] if hasattr(execution_result, 'content') else "OK"
+                                        # Usar print_thinking en lugar de print_success para mostrar resultado
+                                        self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
+                                        self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
+                            agent_messages_shown.add(message_key)
+
+                        elif msg_type == "TextMessage":
+                            # 💬 Mostrar respuesta final del agente
                             preview = content_str[:100] if len(content_str) > 100 else content_str
                             self.logger.log_message_processing(msg_type, agent_name, preview)
                             self.cli.print_agent_message(content_str, agent_name)
                             agent_messages_shown.add(message_key)
+
                         else:
+                            # Otros tipos de mensaje (para debugging)
                             self.logger.debug(f"Mensaje tipo {msg_type} no mostrado en CLI")
 
-            # Mostrar razón de detención
-            if hasattr(result, 'stop_reason') and result.stop_reason:
-                self.logger.info(f"🛑 Razón de finalización: {result.stop_reason}")
-                self.cli.print_info(f"Finalización: {result.stop_reason}", "Sistema")
+            self.logger.debug(f"✅ Stream completado. Total mensajes procesados: {message_count}")
 
             # Comprimir historial si es necesario
             if self.conversation_manager.needs_compression():
