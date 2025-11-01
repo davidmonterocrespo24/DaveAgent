@@ -1,5 +1,5 @@
 """
-Interactive File Selector - Allows selecting files with keyboard navigation
+Interactive File Selector - Clean file selection with scrollbar
 """
 import sys
 import os
@@ -13,23 +13,9 @@ try:
 except ImportError:
     HAS_READCHAR = False
 
-# ANSI escape codes for terminal control
-class TerminalCodes:
-    CLEAR_LINE = '\033[2K'
-    MOVE_UP = '\033[A'
-    MOVE_DOWN = '\033[B'
-    CURSOR_START = '\r'
-    BOLD = '\033[1m'
-    DIM = '\033[2m'
-    RESET = '\033[0m'
-    BLUE = '\033[94m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    CYAN = '\033[96m'
-
 
 class FileSelector:
-    """Interactive file selector with keyboard navigation"""
+    """Interactive file selector with visual scrollbar"""
 
     def __init__(self, indexer: FileIndexer):
         """
@@ -39,38 +25,37 @@ class FileSelector:
             indexer: FileIndexer instance with indexed files
         """
         self.indexer = indexer
-        self.max_display_items = 10  # Maximum files to show at once
+        self.max_display_items = 15  # Files to show at once
         self.selected_index = 0
         self.scroll_offset = 0
+        self.lines_drawn = 0  # Track how many lines we drew
 
     def _get_key(self) -> str:
-        """
-        Get a single keypress from user
-
-        Returns:
-            Key pressed
-        """
+        """Get a single keypress from user"""
         if HAS_READCHAR:
-            key = readchar.readkey()
-            if key == readchar.key.UP:
-                return 'up'
-            elif key == readchar.key.DOWN:
-                return 'down'
-            elif key == readchar.key.ENTER:
-                return 'enter'
-            elif key == readchar.key.ESC:
-                return 'esc'
-            elif key == readchar.key.BACKSPACE or key == '\x7f':
-                return 'backspace'
-            else:
-                return key
+            try:
+                key = readchar.readkey()
+                if key == readchar.key.UP:
+                    return 'up'
+                elif key == readchar.key.DOWN:
+                    return 'down'
+                elif key == readchar.key.ENTER or key == '\r' or key == '\n':
+                    return 'enter'
+                elif key == readchar.key.ESC:
+                    return 'esc'
+                elif key == readchar.key.BACKSPACE or key == '\x7f' or key == '\x08':
+                    return 'backspace'
+                else:
+                    return key
+            except:
+                return ''
         else:
-            # Fallback for Windows without readchar
+            # Windows fallback
             if os.name == 'nt':
                 import msvcrt
                 if msvcrt.kbhit():
                     key = msvcrt.getch()
-                    if key == b'\xe0':  # Arrow keys prefix on Windows
+                    if key == b'\xe0':  # Arrow keys
                         key = msvcrt.getch()
                         if key == b'H':
                             return 'up'
@@ -83,100 +68,119 @@ class FileSelector:
                     elif key == b'\x08':
                         return 'backspace'
                     else:
-                        return key.decode('utf-8', errors='ignore')
-            else:
-                # Unix-like systems
-                import tty
-                import termios
-                fd = sys.stdin.fileno()
-                old_settings = termios.tcgetattr(fd)
-                try:
-                    tty.setraw(fd)
-                    key = sys.stdin.read(1)
-                    if key == '\x1b':  # ESC sequence
-                        seq = sys.stdin.read(2)
-                        if seq == '[A':
-                            return 'up'
-                        elif seq == '[B':
-                            return 'down'
-                        else:
-                            return 'esc'
-                    elif key == '\r' or key == '\n':
-                        return 'enter'
-                    elif key == '\x7f':
-                        return 'backspace'
-                    else:
-                        return key
-                finally:
-                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                        try:
+                            return key.decode('utf-8', errors='ignore')
+                        except:
+                            return ''
         return ''
 
-    def _render_file_list(
-        self,
-        files: List[str],
-        query: str = "",
-        show_header: bool = True
-    ):
+    def _draw_scrollbar(self, position: int, total: int, height: int) -> str:
         """
-        Render the file list to terminal
+        Create a visual scrollbar
+
+        Args:
+            position: Current position (0-based)
+            total: Total number of items
+            height: Height of scrollbar
+
+        Returns:
+            Scrollbar character
+        """
+        if total <= height:
+            return '│'  # Full bar
+
+        # Calculate scroll position
+        scroll_pos = int((position / max(total - 1, 1)) * (height - 1))
+        return '█' if scroll_pos == position % height else '│'
+
+    def _clear_screen(self):
+        """Clear the selector from screen"""
+        for _ in range(self.lines_drawn):
+            sys.stdout.write('\033[A\033[2K')  # Move up and clear line
+        sys.stdout.write('\r')
+        sys.stdout.flush()
+        self.lines_drawn = 0
+
+    def _render_file_list(self, files: List[str], query: str):
+        """
+        Render the file list with scrollbar
 
         Args:
             files: List of file paths to display
             query: Current search query
-            show_header: Whether to show header
         """
-        # Clear previous output
-        if not show_header:
-            # Move cursor up and clear lines
-            for _ in range(self.max_display_items + 3):
-                sys.stdout.write(TerminalCodes.MOVE_UP + TerminalCodes.CLEAR_LINE)
-            sys.stdout.write(TerminalCodes.CURSOR_START)
+        # Clear previous render (except on first render)
+        if self.lines_drawn > 0:
+            self._clear_screen()
+
+        lines = []
 
         # Header
-        if show_header:
-            print(f"\n{TerminalCodes.BOLD}{TerminalCodes.CYAN}📁 Select a file (Arrow keys to navigate, Enter to select, Esc to cancel){TerminalCodes.RESET}")
-            print(f"{TerminalCodes.DIM}Search: @{query}{TerminalCodes.RESET}")
-            print(f"{TerminalCodes.DIM}─" * 60 + f"{TerminalCodes.RESET}")
-        else:
-            print(f"{TerminalCodes.BOLD}{TerminalCodes.CYAN}📁 Select a file (Arrow keys to navigate, Enter to select, Esc to cancel){TerminalCodes.RESET}")
-            print(f"{TerminalCodes.DIM}Search: @{query}{TerminalCodes.RESET}")
-            print(f"{TerminalCodes.DIM}─" * 60 + f"{TerminalCodes.RESET}")
+        lines.append("\033[1m\033[96m📁 File Selector\033[0m \033[2m(↑↓ navigate | Enter select | Esc cancel)\033[0m")
+        lines.append(f"\033[2mSearch:\033[0m @{query}")
+        lines.append("\033[2m" + "─" * 70 + "\033[0m")
 
         if not files:
-            print(f"{TerminalCodes.YELLOW}No files found matching '{query}'{TerminalCodes.RESET}")
+            lines.append("\033[93m⚠ No files found\033[0m")
             for _ in range(self.max_display_items - 1):
-                print()
-            return
-
-        # Calculate visible range
-        total_files = len(files)
-        start_idx = self.scroll_offset
-        end_idx = min(start_idx + self.max_display_items, total_files)
-
-        # Display files
-        for i in range(start_idx, end_idx):
-            file_path = files[i]
-            is_selected = (i == self.selected_index)
-
-            if is_selected:
-                # Highlight selected item
-                print(f"{TerminalCodes.GREEN}▶ {file_path}{TerminalCodes.RESET}")
-            else:
-                print(f"  {TerminalCodes.DIM}{file_path}{TerminalCodes.RESET}")
-
-        # Fill remaining lines
-        displayed_count = end_idx - start_idx
-        for _ in range(self.max_display_items - displayed_count):
-            print()
-
-        # Footer with scroll indicator
-        if total_files > self.max_display_items:
-            scroll_pct = int((self.selected_index / (total_files - 1)) * 100) if total_files > 1 else 0
-            print(f"{TerminalCodes.DIM}Showing {start_idx + 1}-{end_idx} of {total_files} files ({scroll_pct}%){TerminalCodes.RESET}")
+                lines.append("")
         else:
-            print(f"{TerminalCodes.DIM}Showing {total_files} file(s){TerminalCodes.RESET}")
+            # Calculate visible range
+            total_files = len(files)
+            start_idx = self.scroll_offset
+            end_idx = min(start_idx + self.max_display_items, total_files)
 
+            # Display files with scrollbar
+            for i in range(self.max_display_items):
+                file_idx = start_idx + i
+
+                # Scrollbar on the left
+                if i < total_files - start_idx and file_idx < total_files:
+                    # Calculate if scrollbar should show indicator here
+                    scrollbar_height = self.max_display_items
+                    indicator_pos = int((self.selected_index / max(total_files - 1, 1)) * (scrollbar_height - 1))
+
+                    if i == indicator_pos:
+                        scrollbar = "\033[96m█\033[0m"  # Indicator
+                    else:
+                        scrollbar = "\033[2m│\033[0m"   # Bar
+                else:
+                    scrollbar = " "
+
+                # File display
+                if file_idx < total_files:
+                    file_path = files[file_idx]
+                    is_selected = (file_idx == self.selected_index)
+
+                    if is_selected:
+                        # Highlighted selection
+                        line = f"{scrollbar} \033[1m\033[92m▶ {file_path}\033[0m"
+                    else:
+                        # Normal file
+                        line = f"{scrollbar}   \033[2m{file_path}\033[0m"
+
+                    lines.append(line)
+                else:
+                    # Empty line
+                    lines.append(scrollbar)
+
+        # Footer with position info
+        if files:
+            total = len(files)
+            current = self.selected_index + 1
+            lines.append("\033[2m" + "─" * 70 + "\033[0m")
+            lines.append(f"\033[2mFile {current}/{total} | Showing {start_idx + 1}-{min(end_idx, total)}\033[0m")
+        else:
+            lines.append("\033[2m" + "─" * 70 + "\033[0m")
+            lines.append("\033[2mNo files to display\033[0m")
+
+        # Write all lines at once to reduce flickering
+        output = '\n'.join(lines)
+        sys.stdout.write(output + '\n')
         sys.stdout.flush()
+
+        # Track lines for clearing (add 1 for the trailing newline)
+        self.lines_drawn = len(lines) + 1
 
     def select_file(self, initial_query: str = "") -> Optional[str]:
         """
@@ -189,7 +193,7 @@ class FileSelector:
             Selected file path or None if cancelled
         """
         query = initial_query
-        first_render = True
+        self.lines_drawn = 0
 
         while True:
             # Search files based on query
@@ -198,6 +202,7 @@ class FileSelector:
             # Ensure selected index is valid
             if matching_files:
                 self.selected_index = max(0, min(self.selected_index, len(matching_files) - 1))
+
                 # Adjust scroll to keep selection visible
                 if self.selected_index < self.scroll_offset:
                     self.scroll_offset = self.selected_index
@@ -208,8 +213,7 @@ class FileSelector:
                 self.scroll_offset = 0
 
             # Render file list
-            self._render_file_list(matching_files, query, show_header=first_render)
-            first_render = False
+            self._render_file_list(matching_files, query)
 
             # Get user input
             key = self._get_key()
@@ -226,20 +230,12 @@ class FileSelector:
                 # Select current file
                 if matching_files and self.selected_index < len(matching_files):
                     selected_file = matching_files[self.selected_index]
-                    # Clear the selector UI
-                    for _ in range(self.max_display_items + 4):
-                        sys.stdout.write(TerminalCodes.MOVE_UP + TerminalCodes.CLEAR_LINE)
-                    sys.stdout.write(TerminalCodes.CURSOR_START)
-                    sys.stdout.flush()
+                    self._clear_screen()
                     return selected_file
                 return None
             elif key == 'esc':
                 # Cancel selection
-                # Clear the selector UI
-                for _ in range(self.max_display_items + 4):
-                    sys.stdout.write(TerminalCodes.MOVE_UP + TerminalCodes.CLEAR_LINE)
-                sys.stdout.write(TerminalCodes.CURSOR_START)
-                sys.stdout.flush()
+                self._clear_screen()
                 return None
             elif key == 'backspace':
                 # Remove last character from query
@@ -247,8 +243,8 @@ class FileSelector:
                     query = query[:-1]
                     self.selected_index = 0
                     self.scroll_offset = 0
-            elif key and len(key) == 1 and key.isprintable():
-                # Add character to query
+            elif key and len(key) == 1 and key.isprintable() and key != ' ':
+                # Add character to query (except space)
                 query += key
                 self.selected_index = 0
                 self.scroll_offset = 0
@@ -266,10 +262,17 @@ def select_file_interactive(root_dir: str = ".", initial_query: str = "") -> Opt
         Selected file path or None if cancelled
     """
     indexer = FileIndexer(root_dir)
+
+    # Show indexing message
+    print("\033[2m📁 Indexing files...\033[0m", end='', flush=True)
     indexer.index_directory()
 
+    # Clear indexing message
+    sys.stdout.write('\r\033[2K')
+    sys.stdout.flush()
+
     if indexer.get_file_count() == 0:
-        print("No files found in directory")
+        print("\033[93m⚠ No files found in directory\033[0m")
         return None
 
     selector = FileSelector(indexer)

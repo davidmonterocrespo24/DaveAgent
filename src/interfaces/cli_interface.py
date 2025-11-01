@@ -179,15 +179,33 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 
                 # Replace @ with file path
                 parts.append(f"`{selected_file}`")
-                self.console.print(f"[green]✓ Selected: {selected_file}[/green]\n")
+                self.console.print(f"[green]✓ Selected: {selected_file}[/green]")
             else:
                 # User cancelled, keep original @query
                 parts.append(f"@{query}")
-                self.console.print(f"[yellow]✗ Selection cancelled[/yellow]\n")
+                self.console.print(f"[yellow]✗ Selection cancelled[/yellow]")
 
             current_pos = query_end
 
-        return ''.join(parts)
+        result = ''.join(parts)
+
+        # If result is just file mentions with no actual query, ask user to continue
+        if result.strip() and all(part.strip().startswith('`') and part.strip().endswith('`') or part.strip() == '' for part in result.split()):
+            self.console.print("\n[cyan]💬 Now type your request (you can use @ for more files):[/cyan]")
+            # Get additional input from user
+            loop = asyncio.get_event_loop()
+            additional_input = await loop.run_in_executor(
+                None,
+                lambda: self.session.prompt("   ")
+            )
+
+            # Process the additional input for more @ mentions
+            if '@' in additional_input:
+                additional_input = await self._process_file_mentions(additional_input)
+
+            result = result + " " + additional_input.strip()
+
+        return result
 
     def print_user_message(self, message: str):
         """Muestra un mensaje del usuario"""
