@@ -16,6 +16,7 @@ from src.config import (
     AGENT_SYSTEM_PROMPT,
     CODER_AGENT_DESCRIPTION,
     CODER_AGENT_SYSTEM_MESSAGE,
+    TASK_COMPLETION_SUMMARY_PROMPT,
     SELECTOR_PROMPT
 )
 from src.agents import TaskPlanner, TaskExecutor, CodeSearcher
@@ -148,6 +149,15 @@ class CodeAgentCLI:
             conversation_manager=self.conversation_manager,
             cli=self.cli,
             model_client=self.model_client
+        )
+
+        # Crear agente de resumen de tareas completadas
+        self.summary_agent = AssistantAgent(
+            name="TaskSummarizer",
+            description="Agent that creates friendly summaries of completed tasks",
+            system_message=TASK_COMPLETION_SUMMARY_PROMPT,
+            model_client=self.model_client,
+            tools=[],  # No tools needed for summarization
         )
 
         # Configurar el equipo de agentes con SelectorGroupChat
@@ -469,12 +479,14 @@ class CodeAgentCLI:
             # Ensure spinner is stopped
             self.cli.stop_thinking()
 
+            # Generate task completion summary
+            await self._generate_task_summary(user_input)
+
             # Comprimir historial si es necesario
             if self.conversation_manager.needs_compression():
                 self.logger.warning("⚠️ Historial necesita compresión")
                 await self.executor._compress_conversation_history()
 
-            self.cli.print_success("\n✅ Tarea completada.")
             self.logger.info("✅ Solicitud procesada exitosamente")
 
         except Exception as e:
@@ -486,6 +498,59 @@ class CodeAgentCLI:
             error_traceback = traceback.format_exc()
             self.logger.error(f"Traceback completo:\n{error_traceback}")
             self.cli.print_error(f"Detalles:\n{error_traceback}")
+
+    # =========================================================================
+    # TASK SUMMARY - Resumen de tarea completada
+    # =========================================================================
+
+    async def _generate_task_summary(self, original_request: str):
+        """
+        Genera un resumen amigable de la tarea completada
+
+        Args:
+            original_request: La solicitud original del usuario
+        """
+        try:
+            self.logger.info("📋 Generando resumen de tarea completada...")
+
+            # Get recent conversation history
+            recent_messages = self.conversation_manager.get_context_for_agent(max_recent_messages=10)
+
+            # Create summary request
+            summary_request = f"""Based on the following conversation, create a brief, friendly summary of what was accomplished.
+
+ORIGINAL REQUEST:
+{original_request}
+
+CONVERSATION HISTORY:
+{recent_messages}
+
+Create a concise summary (2-5 sentences) explaining what was done to fulfill the user's request."""
+
+            # Run summary agent
+            result = await self.summary_agent.run(task=summary_request)
+
+            # Extract summary from result
+            summary_text = None
+            for message in reversed(result.messages):
+                if hasattr(message, 'content') and hasattr(message, 'source'):
+                    if message.source != "user":
+                        summary_text = message.content
+                        break
+
+            if summary_text:
+                # Display summary in a special format
+                self.cli.print_task_summary(summary_text)
+                self.logger.info("✅ Resumen generado exitosamente")
+            else:
+                # Fallback message
+                self.cli.print_success("\n✅ Task completed successfully.")
+                self.logger.warning("⚠️ No se pudo generar resumen, usando mensaje por defecto")
+
+        except Exception as e:
+            self.logger.error(f"Error generando resumen: {str(e)}")
+            # Fail silently with default message
+            self.cli.print_success("\n✅ Task completed.")
 
     # =========================================================================
     # FUNCIONES SIN CAMBIOS

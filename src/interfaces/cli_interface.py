@@ -340,6 +340,25 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
         self.console.print(f"[bold green]✓ {message}[/bold green]")
         self.console.print()
 
+    def print_task_summary(self, summary: str):
+        """
+        Muestra el resumen de tarea completada en un formato especial
+
+        Args:
+            summary: Texto del resumen generado por el agente
+        """
+        self.console.print()
+        self.console.print("─" * 60, style="dim cyan")
+        self.console.print()
+
+        # Render as markdown for nice formatting
+        md = Markdown(summary)
+        self.console.print(md)
+
+        self.console.print()
+        self.console.print("─" * 60, style="dim cyan")
+        self.console.print()
+
     def create_progress_table(self, tasks: List[dict]) -> Table:
         """Crea una tabla con el progreso de las tareas"""
         table = Table(title="Progreso de Tareas", show_header=True, header_style="bold")

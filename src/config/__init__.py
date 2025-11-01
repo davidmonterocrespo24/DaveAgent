@@ -1,9 +1,10 @@
 """
 Configuración del sistema
 """
-from src.config.prompt import AGENT_SYSTEM_PROMPT
+
 from src.config.settings import CodeAgentSettings, get_settings
 from src.config.prompts import (
+    AGENT_SYSTEM_PROMPT,
     CODER_AGENT_DESCRIPTION,
     CODER_AGENT_SYSTEM_MESSAGE,
     CODE_SEARCHER_DESCRIPTION,
