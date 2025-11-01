@@ -2,7 +2,8 @@
 Code Searcher Agent - Agente especializado en búsqueda y análisis de código
 Este agente busca y recopila información relevante sobre el código antes de hacer modificaciones
 """
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, AsyncGenerator
+import re
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
@@ -21,6 +22,7 @@ class CodeSearcher:
             tools: Lista de herramientas disponibles para el agente
         """
         self.model_client = model_client
+        self._search_history: List[Dict[str, Any]] = []  # Historial de búsquedas
 
         # Crear el agente con un system message especializado
         self.searcher_agent = AssistantAgent(
@@ -140,6 +142,8 @@ Responde SIEMPRE en español con formato Markdown claro.""",
         Returns:
             Diccionario con el análisis completo del código
         """
+        from datetime import datetime
+
         # Ejecutar el agente para buscar
         result = await self.searcher_agent.run(task=query)
 
@@ -151,14 +155,40 @@ Responde SIEMPRE en español con formato Markdown claro.""",
             "files": [],
             "functions": [],
             "variables": [],
-            "recommendations": []
+            "recommendations": [],
+            "locations": [],
+            "timestamp": datetime.now().isoformat(),
+            "raw_result": result
         }
 
         # Procesar mensajes para extraer el análisis
+        analysis_text = ""
         for msg in result.messages:
             if hasattr(msg, 'content') and hasattr(msg, 'source'):
                 if msg.source == "CodeSearcher" and type(msg).__name__ == "TextMessage":
-                    analysis["analysis"] = msg.content
+                    analysis_text = msg.content
+                    analysis["analysis"] = analysis_text
+                    break
+
+        # Extraer información estructurada del análisis
+        if analysis_text:
+            # Extraer archivos mencionados
+            file_pattern = r'`([^`]+\.(py|js|ts|json|md|txt|csv))`'
+            files = re.findall(file_pattern, analysis_text)
+            analysis["files"] = [f[0] for f in files]
+
+            # Extraer nombres de funciones
+            function_pattern = r'`([a-zA-Z_][a-zA-Z0-9_]*)\(`'
+            functions = re.findall(function_pattern, analysis_text)
+            analysis["functions"] = list(set(functions))
+
+            # Extraer referencias a ubicaciones (archivo:línea)
+            location_pattern = r'`([^`]+\.(py|js|ts)):(\d+)`'
+            locations = re.findall(location_pattern, analysis_text)
+            analysis["locations"] = [f"{loc[0]}:{loc[2]}" for loc in locations]
+
+        # Guardar en historial
+        self._search_history.append(analysis)
 
         return analysis
 
@@ -171,6 +201,10 @@ Responde SIEMPRE en español con formato Markdown claro.""",
 
         Yields:
             Mensajes del agente conforme realiza la búsqueda
+
+        Note:
+            Este método NO guarda en el historial automáticamente.
+            Para guardar, usa search_code_context() después del streaming.
         """
         async for msg in self.searcher_agent.run_stream(task=query):
             yield msg
@@ -182,4 +216,62 @@ Responde SIEMPRE en español con formato Markdown claro.""",
         Returns:
             Resumen en texto de las búsquedas
         """
-        return "CodeSearcher: Agente de búsqueda de código activo"
+        if not self._search_history:
+            return "📋 No se han realizado búsquedas todavía."
+
+        summary = f"📋 Historial de Búsquedas ({len(self._search_history)} búsquedas):\n\n"
+
+        for i, search in enumerate(self._search_history[-5:], 1):  # Últimas 5
+            query = search.get("query", "Consulta desconocida")
+            files = search.get("files", [])
+            functions = search.get("functions", [])
+
+            summary += f"{i}. {query[:60]}...\n"
+            if files:
+                summary += f"   Archivos: {', '.join(files[:3])}\n"
+            if functions:
+                summary += f"   Funciones: {', '.join(functions[:3])}\n"
+            summary += "\n"
+
+        return summary
+
+    def get_last_search(self) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene la última búsqueda realizada
+
+        Returns:
+            Diccionario con información de la última búsqueda o None
+        """
+        if self._search_history:
+            return self._search_history[-1]
+        return None
+
+    def clear_history(self):
+        """Limpia el historial de búsquedas"""
+        self._search_history.clear()
+
+    def get_files_found(self) -> List[str]:
+        """
+        Obtiene lista de todos los archivos encontrados en todas las búsquedas
+
+        Returns:
+            Lista de archivos únicos encontrados
+        """
+        all_files = set()
+        for search in self._search_history:
+            files = search.get("files", [])
+            all_files.update(files)
+        return sorted(list(all_files))
+
+    def get_functions_found(self) -> List[str]:
+        """
+        Obtiene lista de todas las funciones encontradas en todas las búsquedas
+
+        Returns:
+            Lista de funciones únicas encontradas
+        """
+        all_functions = set()
+        for search in self._search_history:
+            functions = search.get("functions", [])
+            all_functions.update(functions)
+        return sorted(list(all_functions))

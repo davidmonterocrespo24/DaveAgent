@@ -1,0 +1,192 @@
+"""
+Configuración de CodeAgent - Manejo de API keys y URLs
+"""
+import os
+from pathlib import Path
+from typing import Optional
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env si existe
+env_file = Path.cwd() / '.env'
+if env_file.exists():
+    load_dotenv(env_file)
+
+
+class CodeAgentSettings:
+    """Configuración centralizada de CodeAgent"""
+
+    # Valores por defecto
+    DEFAULT_BASE_URL = "https://api.deepseek.com"
+    DEFAULT_MODEL = "deepseek-chat"
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None
+    ):
+        """
+        Inicializa la configuración con prioridad:
+        1. Parámetros pasados directamente
+        2. Variables de entorno
+        3. Valores por defecto
+
+        Args:
+            api_key: API key para el modelo LLM
+            base_url: URL base de la API
+            model: Nombre del modelo a usar
+        """
+        # API Key (requerida)
+        self.api_key = (
+            api_key
+            or os.getenv("CODEAGENT_API_KEY")
+            or os.getenv("OPENAI_API_KEY")  # Compatibilidad
+            or os.getenv("DEEPSEEK_API_KEY")  # Compatibilidad
+        )
+
+        # Base URL (opcional, con valor por defecto)
+        self.base_url = (
+            base_url
+            or os.getenv("CODEAGENT_BASE_URL")
+            or os.getenv("OPENAI_BASE_URL")  # Compatibilidad
+            or self.DEFAULT_BASE_URL
+        )
+
+        # Modelo (opcional, con valor por defecto)
+        self.model = (
+            model
+            or os.getenv("CODEAGENT_MODEL")
+            or os.getenv("OPENAI_MODEL")  # Compatibilidad
+            or self.DEFAULT_MODEL
+        )
+
+    def validate(self, interactive: bool = True) -> tuple[bool, Optional[str]]:
+        """
+        Valida que la configuración sea correcta
+
+        Args:
+            interactive: Si True, puede iniciar setup interactivo si falta API key
+
+        Returns:
+            Tupla (is_valid, error_message)
+        """
+        if not self.api_key:
+            if interactive:
+                # Iniciar setup interactivo
+                from src.utils import run_interactive_setup
+
+                try:
+                    print()
+                    print("⚠️  No se encontró una API key configurada.")
+                    print()
+                    response = input("¿Quieres configurar CodeAgent ahora? (S/n): ").strip().lower()
+
+                    if response == 'n' or response == 'no':
+                        return False, (
+                            "❌ API key no configurada.\n\n"
+                            "Opciones para configurarla:\n"
+                            "  1. Variable de entorno: export CODEAGENT_API_KEY='tu-api-key'\n"
+                            "  2. Archivo .env: CODEAGENT_API_KEY=tu-api-key\n"
+                            "  3. Argumento CLI: codeagent --api-key 'tu-api-key'\n\n"
+                            "Obtén tu API key en: https://platform.deepseek.com/api_keys"
+                        )
+
+                    # Ejecutar setup interactivo
+                    api_key, base_url, model = run_interactive_setup()
+
+                    # Actualizar configuración
+                    self.api_key = api_key
+                    if base_url:
+                        self.base_url = base_url
+                    if model:
+                        self.model = model
+
+                    # Validar de nuevo (sin interactividad para evitar loop)
+                    return self.validate(interactive=False)
+
+                except KeyboardInterrupt:
+                    print("\n\n❌ Configuración cancelada por el usuario.")
+                    return False, "Configuración cancelada"
+                except Exception as e:
+                    print(f"\n❌ Error durante la configuración: {e}")
+                    return False, f"Error en configuración: {e}"
+            else:
+                return False, (
+                    "❌ API key no configurada.\n\n"
+                    "Opciones para configurarla:\n"
+                    "  1. Variable de entorno: export CODEAGENT_API_KEY='tu-api-key'\n"
+                    "  2. Archivo .env: CODEAGENT_API_KEY=tu-api-key\n"
+                    "  3. Argumento CLI: codeagent --api-key 'tu-api-key'\n\n"
+                    "Obtén tu API key en: https://platform.deepseek.com/api_keys"
+                )
+
+        if not self.base_url:
+            return False, "❌ Base URL no configurada"
+
+        if not self.model:
+            return False, "❌ Modelo no configurado"
+
+        return True, None
+
+    def get_model_capabilities(self) -> dict:
+        """
+        Obtiene las capacidades del modelo según la base URL
+
+        Returns:
+            Diccionario con capacidades del modelo
+        """
+        # Capacidades para DeepSeek
+        if "deepseek" in self.base_url.lower():
+            return {
+                "vision": False,
+                "function_calling": True,
+                "json_output": True,
+                "structured_output": False,
+            }
+
+        # Capacidades para OpenAI
+        if "openai" in self.base_url.lower():
+            return {
+                "vision": True,  # GPT-4 Vision
+                "function_calling": True,
+                "json_output": True,
+                "structured_output": True,
+            }
+
+        # Capacidades genéricas por defecto
+        return {
+            "vision": False,
+            "function_calling": True,
+            "json_output": True,
+            "structured_output": False,
+        }
+
+    def __repr__(self) -> str:
+        """Representación en string (ocultando API key)"""
+        masked_key = f"{self.api_key[:8]}...{self.api_key[-4:]}" if self.api_key else "No configurada"
+        return (
+            f"CodeAgentSettings(\n"
+            f"  api_key={masked_key},\n"
+            f"  base_url={self.base_url},\n"
+            f"  model={self.model}\n"
+            f")"
+        )
+
+
+def get_settings(
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    model: Optional[str] = None
+) -> CodeAgentSettings:
+    """
+    Factory function para obtener configuración
+
+    Args:
+        api_key: API key (opcional)
+        base_url: URL base (opcional)
+        model: Nombre del modelo (opcional)
+
+    Returns:
+        Instancia de CodeAgentSettings
+    """
+    return CodeAgentSettings(api_key=api_key, base_url=base_url, model=model)

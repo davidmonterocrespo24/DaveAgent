@@ -22,8 +22,22 @@ from src.utils import get_logger
 class CodeAgentCLI:
     """Aplicación CLI principal del agente de código"""
 
-    def __init__(self, debug: bool = False):
-        """Inicializa todos los componentes del agente"""
+    def __init__(
+        self,
+        debug: bool = False,
+        api_key: str = None,
+        base_url: str = None,
+        model: str = None
+    ):
+        """
+        Inicializa todos los componentes del agente
+
+        Args:
+            debug: Modo debug activado
+            api_key: API key para el modelo LLM
+            base_url: URL base de la API
+            model: Nombre del modelo a usar
+        """
         # Configurar logging
         log_level = logging.DEBUG if debug else logging.INFO
         log_file = f"logs/codeagent_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -31,18 +45,27 @@ class CodeAgentCLI:
 
         self.logger.info("🚀 Inicializando CodeAgent CLI")
 
+        # Cargar configuración (API key, URL, modelo)
+        from src.config import get_settings
+
+        self.settings = get_settings(api_key=api_key, base_url=base_url, model=model)
+
+        # Validar configuración
+        is_valid, error_msg = self.settings.validate()
+        if not is_valid:
+            self.logger.error(f"❌ Configuración inválida: {error_msg}")
+            print(error_msg)
+            raise ValueError("Configuración inválida")
+
+        self.logger.info(f"✓ Configuración cargada: {self.settings}")
+
         # Crear cliente del modelo
-        self.logger.debug("Configurando cliente del modelo OpenAI")
+        self.logger.debug(f"Configurando cliente del modelo: {self.settings.model}")
         self.model_client = OpenAIChatCompletionClient(
-            model="deepseek-chat",
-            base_url="https://api.deepseek.com",
-            api_key="sk-8cb1f4fc5bd74bd3a83f31204b942d60",
-            model_capabilities={
-                "vision": False,
-                "function_calling": True,
-                "json_output": True,
-                "structured_output": False,
-            },
+            model=self.settings.model,
+            base_url=self.settings.base_url,
+            api_key=self.settings.api_key,
+            model_capabilities=self.settings.get_model_capabilities(),
         )
 
         # Importar todas las herramientas desde la nueva estructura
@@ -558,14 +581,22 @@ Lee el historial arriba, analiza la intención del usuario, y selecciona UN agen
             await self.model_client.close()
 
 
-async def main(debug: bool = False):
+async def main(
+    debug: bool = False,
+    api_key: str = None,
+    base_url: str = None,
+    model: str = None
+):
     """
     Punto de entrada principal
 
     Args:
         debug: Si True, activa el modo debug con logging detallado
+        api_key: API key para el modelo LLM
+        base_url: URL base de la API
+        model: Nombre del modelo a usar
     """
-    app = CodeAgentCLI(debug=debug)
+    app = CodeAgentCLI(debug=debug, api_key=api_key, base_url=base_url, model=model)
     await app.run()
 
 

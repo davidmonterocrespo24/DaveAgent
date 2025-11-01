@@ -5,7 +5,53 @@ Este archivo se ejecuta cuando el usuario escribe 'codeagent' en la terminal
 import asyncio
 import sys
 import os
+import argparse
 from pathlib import Path
+
+
+def parse_arguments():
+    """Parsea los argumentos de línea de comandos"""
+    parser = argparse.ArgumentParser(
+        prog='codeagent',
+        description='CodeAgent - AI-powered coding assistant',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    # Argumentos de configuración
+    parser.add_argument(
+        '--api-key',
+        type=str,
+        help='API key para el modelo LLM (o usar CODEAGENT_API_KEY en .env)'
+    )
+
+    parser.add_argument(
+        '--base-url',
+        type=str,
+        default=None,
+        help='Base URL de la API (default: https://api.deepseek.com)'
+    )
+
+    parser.add_argument(
+        '--model',
+        type=str,
+        default=None,
+        help='Nombre del modelo a usar (default: deepseek-chat)'
+    )
+
+    # Argumentos de modo
+    parser.add_argument(
+        '-d', '--debug',
+        action='store_true',
+        help='Activa modo debug con logs detallados'
+    )
+
+    parser.add_argument(
+        '-v', '--version',
+        action='store_true',
+        help='Muestra la versión de CodeAgent'
+    )
+
+    return parser.parse_args()
 
 
 def main():
@@ -13,6 +59,14 @@ def main():
     Punto de entrada principal para el comando 'codeagent'
     Se ejecuta cuando el usuario escribe 'codeagent' en cualquier directorio
     """
+    # Parsear argumentos
+    args = parse_arguments()
+
+    # Mostrar versión
+    if args.version:
+        print_version()
+        return 0
+
     # Agregar el directorio raíz del paquete al path
     package_root = Path(__file__).parent.parent
     if str(package_root) not in sys.path:
@@ -20,21 +74,6 @@ def main():
 
     # Importar main desde el directorio raíz
     from main import main as run_codeagent
-
-    # Detectar flags
-    debug_mode = "--debug" in sys.argv or "-d" in sys.argv
-    help_mode = "--help" in sys.argv or "-h" in sys.argv
-    version_mode = "--version" in sys.argv or "-v" in sys.argv
-
-    # Mostrar ayuda
-    if help_mode:
-        print_help()
-        return 0
-
-    # Mostrar versión
-    if version_mode:
-        print_version()
-        return 0
 
     # Mostrar información del directorio de trabajo
     working_dir = Path.cwd()
@@ -44,12 +83,17 @@ def main():
     # Cambiar al directorio de trabajo actual (donde el usuario ejecutó el comando)
     os.chdir(working_dir)
 
-    if debug_mode:
+    if args.debug:
         print("🐛 Modo DEBUG activado\n")
 
-    # Ejecutar CodeAgent
+    # Ejecutar CodeAgent con configuración
     try:
-        asyncio.run(run_codeagent(debug=debug_mode))
+        asyncio.run(run_codeagent(
+            debug=args.debug,
+            api_key=args.api_key,
+            base_url=args.base_url,
+            model=args.model
+        ))
         return 0
     except KeyboardInterrupt:
         print("\n\n👋 CodeAgent terminado por el usuario")
@@ -62,35 +106,9 @@ def main():
 
 
 def print_help():
-    """Muestra la ayuda del comando"""
-    print("=" * 60)
-    print("         CodeAgent CLI - AI Coding Assistant")
-    print("=" * 60)
-    print()
-    print("USAGE:")
-    print("    codeagent [OPTIONS]")
-    print()
-    print("OPTIONS:")
-    print("    -h, --help      Muestra esta ayuda")
-    print("    -v, --version   Muestra la version")
-    print("    -d, --debug     Activa modo debug")
-    print()
-    print("DESCRIPTION:")
-    print("    CodeAgent trabaja en tu directorio actual.")
-    print("    Puede crear/editar archivos, buscar codigo,")
-    print("    ejecutar Git, trabajar con JSON/CSV, y mas.")
-    print()
-    print("EXAMPLES:")
-    print("    codeagent              # Iniciar normalmente")
-    print("    codeagent --debug      # Con logs detallados")
-    print()
-    print("COMANDOS INTERNOS:")
-    print("    /help      - Ayuda")
-    print("    /debug     - Toggle debug")
-    print("    /logs      - Ver ubicacion de logs")
-    print("    /exit      - Salir")
-    print()
-    print("=" * 60)
+    """Muestra la ayuda del comando (no se usa, argparse lo maneja)"""
+    # Esta función ya no es necesaria, argparse maneja --help automáticamente
+    pass
 
 
 def print_version():

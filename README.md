@@ -55,11 +55,21 @@ Tu: crear una rama feature/nueva-funcionalidad
 
 ## 📦 Instalación
 
-### Instalación Rápida
+### Instalación desde PyPI (Próximamente)
+
+**Cuando esté publicado en PyPI**:
+
+```bash
+pip install codeagent-ai
+codeagent
+```
+
+### Instalación desde Código Fuente
 
 ```bash
 # 1. Clona o descarga el proyecto
-cd E:\AI\CodeAgent
+git clone https://github.com/CodeAgent-AI/codeagent.git
+cd codeagent
 
 # 2. Instala en modo desarrollo
 pip install -e .
@@ -342,12 +352,18 @@ mypy src/
 
 ## 📚 Documentación
 
+### Guías de Usuario
 - [Guía de Instalación](INSTALACION.md) - Instalación detallada
 - [Guía de CodeSearcher](docs/CODESEARCHER_GUIDE.md) - 🔍 Búsqueda y análisis de código
 - [Guía de Logging](LOGGING_GUIDE.md) - Sistema de logs
 - [Visualización en Tiempo Real](VISUALIZACION_TIEMPO_REAL.md) - Ver pensamientos del agente
 - [Cambios Realizados](CAMBIOS_REALIZADOS.md) - Historial de cambios
 - [Mejoras Implementadas](MEJORAS_IMPLEMENTACION.md) - Análisis técnico
+
+### Para Desarrolladores
+- [Publicar en PyPI](PUBLICAR_PYPI.md) - Guía completa para publicar en PyPI
+- [Inicio Rápido PyPI](INICIO_RAPIDO_PYPI.md) - Publicar en 10 minutos
+- [Integración de Agentes](docs/TEAM_INTEGRATION.md) - Arquitectura del equipo de agentes
 
 ## 🐛 Problemas Conocidos
 

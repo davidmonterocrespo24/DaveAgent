@@ -9,14 +9,19 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding='utf-8') if (this_directory / "README.md").exists() else ""
 
 setup(
-    name="codeagent-cli",
-    version="1.0.0",
-    author="CodeAgent Team",
-    author_email="contact@codeagent.ai",
-    description="AI-powered coding assistant with intelligent agent orchestration",
+    name="codeagent-ai",  # Nombre único en PyPI
+    version="1.1.0",
+    author="CodeAgent Contributors",
+    author_email="",  # Dejar vacío si no tienes email público
+    description="AI-powered coding assistant with intelligent agent orchestration - search, plan, and code with AI",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/codeagent",
+    url="https://github.com/CodeAgent-AI/codeagent",  # Actualizar cuando tengas repo
+    project_urls={
+        "Bug Tracker": "https://github.com/CodeAgent-AI/codeagent/issues",
+        "Documentation": "https://github.com/CodeAgent-AI/codeagent#readme",
+        "Source Code": "https://github.com/CodeAgent-AI/codeagent",
+    },
     packages=find_packages(include=['src', 'src.*']),
     include_package_data=True,
     python_requires=">=3.10",
