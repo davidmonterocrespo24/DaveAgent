@@ -58,49 +58,29 @@ def get_api_key_interactive() -> str:
         return api_key
 
 
-def get_provider_choice() -> tuple[Optional[str], Optional[str]]:
+def get_provider_choice() -> tuple[Optional[str], Optional[str], Optional[str]]:
     """
-    Pregunta qué proveedor quiere usar
+    Pregunta qué proveedor quiere usar con menú mejorado
 
     Returns:
-        Tupla (base_url, model_name) o (None, None) para usar defaults
+        Tupla (provider_name, base_url, model_name) o (None, None, None) para defaults
     """
+    from src.utils.model_settings import interactive_model_selection
+
     print()
-    print("🌐 Selección de Proveedor")
-    print("-" * 70)
-    print()
-    print("¿Qué proveedor de IA quieres usar?")
-    print()
-    print("  1. DeepSeek (Recomendado - Rápido y económico)")
-    print("  2. OpenAI (GPT-4 - Más potente pero costoso)")
-    print("  3. Personalizado (Otra API compatible con OpenAI)")
-    print("  4. Usar configuración por defecto (DeepSeek)")
-    print()
+    use_defaults = input("¿Quieres usar la configuración por defecto (DeepSeek)? (s/N): ").strip().lower()
 
-    while True:
-        choice = input("Selecciona una opción (1-4): ").strip()
+    if use_defaults == 's' or use_defaults == 'si':
+        return None, None, None
 
-        if choice == "1":
-            return "https://api.deepseek.com", "deepseek-chat"
-
-        elif choice == "2":
-            return "https://api.openai.com/v1", "gpt-4"
-
-        elif choice == "3":
-            print()
-            base_url = input("URL base de la API: ").strip()
-            model = input("Nombre del modelo: ").strip()
-            if base_url and model:
-                return base_url, model
-            else:
-                print("❌ Debes ingresar ambos valores.")
-                continue
-
-        elif choice == "4" or choice == "":
-            return None, None
-
-        else:
-            print("❌ Opción inválida. Selecciona 1, 2, 3 o 4.")
+    # Usar menú interactivo completo
+    try:
+        provider_name, base_url, model_name, extra_config = interactive_model_selection()
+        # TODO: Guardar extra_config si es necesario (Azure)
+        return provider_name, base_url, model_name
+    except KeyboardInterrupt:
+        print("\n❌ Selección cancelada. Usando configuración por defecto.")
+        return None, None, None
 
 
 def ask_save_to_env(api_key: str, base_url: Optional[str] = None, model: Optional[str] = None) -> bool:
@@ -195,8 +175,8 @@ def run_interactive_setup() -> tuple[str, Optional[str], Optional[str]]:
     # Paso 1: Obtener API key
     api_key = get_api_key_interactive()
 
-    # Paso 2: Seleccionar proveedor
-    base_url, model = get_provider_choice()
+    # Paso 2: Seleccionar proveedor y modelo
+    provider_name, base_url, model = get_provider_choice()
 
     # Paso 3: Preguntar si guardar
     ask_save_to_env(api_key, base_url, model)
