@@ -11,6 +11,7 @@ CodeAgent es un asistente de codificación inteligente con IA que trabaja en tu 
 - 🚀 **Comando CLI Global**: Usa `codeagent` desde cualquier directorio
 - 📂 **Trabajo Contextual**: Opera en tu directorio actual automáticamente
 - 🔍 **CodeSearcher**: Agente especializado para buscar y analizar código
+- 📎 **File Mentions con @**: Menciona archivos específicos con `@` para darles prioridad máxima en el contexto
 - 🔧 **42 Herramientas Integradas**: Filesystem, Git, JSON, CSV, Wikipedia, y más
 - 🤖 **Agentes Inteligentes**: Selección automática del agente apropiado
 - 📊 **Logging Completo**: Sistema de logs detallado para debugging
@@ -26,6 +27,10 @@ codeagent
 
 # Buscar código antes de modificar
 Tu: /search sistema de autenticación actual
+
+# Mencionar archivos específicos con @
+Tu: @main.py fix the authentication bug in this file
+Tu: @config.py @.env update the API configuration
 
 # Modificar con contexto
 Tu: crear un módulo de autenticación con JWT
@@ -124,6 +129,7 @@ Dentro de CodeAgent, puedes usar estos comandos:
 |---------|-------------|
 | `/help` | Muestra ayuda de comandos |
 | `/search <consulta>` | 🔍 Busca y analiza código (nuevo) |
+| `@<archivo>` | 📎 Menciona archivo específico con prioridad alta (nuevo) |
 | `/debug` | Activa/desactiva modo debug |
 | `/logs` | Muestra ubicación de logs |
 | `/stats` | Muestra estadísticas |
@@ -149,6 +155,25 @@ Tu: /search cómo funciona el sistema de logging
 - 💡 Recomendaciones de qué modificar
 
 Ver [docs/CODESEARCHER_GUIDE.md](docs/CODESEARCHER_GUIDE.md) para más detalles.
+
+#### 📎 File Mentions con @
+
+Menciona archivos específicos en tu consulta usando `@`:
+
+```bash
+Tu: @main.py explain how this file works
+Tu: @config.py @.env update the database connection settings
+Tu: @src/agents/code_searcher.py add docstrings to all methods
+```
+
+**Características:**
+- ✅ Selector interactivo con navegación por teclado (↑↓)
+- ✅ Búsqueda y filtrado en tiempo real
+- ✅ Los archivos mencionados tienen **prioridad máxima** en el contexto
+- ✅ Soporta múltiples archivos en una sola consulta
+- ✅ Excluye automáticamente archivos ocultos y binarios
+
+Ver [docs/FILE_MENTIONS.md](docs/FILE_MENTIONS.md) y [examples/file_mentions_demo.md](examples/file_mentions_demo.md) para ejemplos detallados.
 
 ## 🛠️ Herramientas Disponibles
 
@@ -355,6 +380,8 @@ mypy src/
 ### Guías de Usuario
 - [Guía de Instalación](INSTALACION.md) - Instalación detallada
 - [Guía de CodeSearcher](docs/CODESEARCHER_GUIDE.md) - 🔍 Búsqueda y análisis de código
+- [Guía de File Mentions](docs/FILE_MENTIONS.md) - 📎 Mencionar archivos con @
+- [Demo de File Mentions](examples/file_mentions_demo.md) - Ejemplos interactivos
 - [Guía de Logging](LOGGING_GUIDE.md) - Sistema de logs
 - [Visualización en Tiempo Real](VISUALIZACION_TIEMPO_REAL.md) - Ver pensamientos del agente
 - [Cambios Realizados](CAMBIOS_REALIZADOS.md) - Historial de cambios

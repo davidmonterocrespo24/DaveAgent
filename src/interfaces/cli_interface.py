@@ -75,6 +75,11 @@ Este agente puede ayudarte a:
   • `/stats` - Muestra estadísticas de la sesión
   • `/exit` o `/quit` - Salir del agente
 
+**Mencionar archivos específicos:**
+  • Escribe `@` seguido del nombre del archivo para incluirlo en tu consulta
+  • Ejemplo: `@main.py fix the bug in this file`
+  • Los archivos mencionados con @ tienen alta prioridad en el contexto
+
 Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutará.
         """
         self.console.print(Panel(Markdown(welcome), title="Información", border_style="green"))
@@ -345,6 +350,21 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 • `/debug` - Activa/desactiva el modo debug
 • `/logs` - Muestra la ubicación del archivo de logs
 • `/exit` o `/quit` - Salir del agente
+
+**Mencionar Archivos Específicos:**
+
+• Escribe `@` seguido del nombre del archivo para incluirlo con alta prioridad
+• Usa las flechas ↑↓ para navegar por los archivos
+• Escribe para filtrar archivos en tiempo real
+• Presiona Enter para seleccionar, Esc para cancelar
+
+**Ejemplos con @:**
+
+`@main.py fix the authentication bug in this file`
+
+`@src/config/settings.py @.env update the API configuration`
+
+`explain how @src/agents/code_searcher.py works`
 
 **Uso:**
 
