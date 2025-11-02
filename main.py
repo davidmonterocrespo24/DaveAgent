@@ -6,7 +6,7 @@ import asyncio
 import logging
 from autogen_agentchat.agents import AssistantAgent
 # Importaciones añadidas para el nuevo flujo
-from autogen_agentchat.teams import SelectorGroupChat
+from autogen_agentchat.teams import SelectorGroupChat, RoundRobinGroupChat
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
@@ -14,10 +14,17 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 from src.config import (
     CODER_AGENT_DESCRIPTION,
     CODER_AGENT_SYSTEM_MESSAGE,
+    CODE_SEARCHER_DESCRIPTION,
+    CODE_SEARCHER_SYSTEM_MESSAGE,
     TASK_COMPLETION_SUMMARY_PROMPT,
-    SELECTOR_PROMPT
+    SELECTOR_PROMPT,
+    COMPLEXITY_DETECTOR_PROMPT,
+    PLANNING_AGENT_DESCRIPTION,
+    PLANNING_AGENT_SYSTEM_MESSAGE,
+    SUMMARY_AGENT_DESCRIPTION,
+    SUMMARY_AGENT_SYSTEM_MESSAGE
 )
-from src.agents import TaskPlanner, TaskExecutor, CodeSearcher
+from src.agents import CodeSearcher
 from src.managers import ConversationManager
 from src.interfaces import CLIInterface
 from src.utils import get_logger, get_conversation_tracker
@@ -131,7 +138,6 @@ class DaveAgentCLI:
             max_tokens=8000,
             summary_threshold=6000
         )
-        self.planner = TaskPlanner(self.model_client)
         self.cli = CLIInterface()
 
         # Crear CodeSearcher con las herramientas de análisis
@@ -145,45 +151,27 @@ class DaveAgentCLI:
         ]
         self.code_searcher = CodeSearcher(self.model_client, search_tools)
 
-        self.executor = TaskExecutor(
-            coder_agent=self.coder_agent,
-            planner=self.planner,
-            conversation_manager=self.conversation_manager,
-            cli=self.cli,
-            model_client=self.model_client
-        )
+        # ============= NUEVOS AGENTES PARA ARQUITECTURA OPTIMIZADA =============
 
-        # Crear agente de resumen de tareas completadas
-        self.summary_agent = AssistantAgent(
-            name="TaskSummarizer",
-            description="Agent that creates friendly summaries of completed tasks",
-            system_message=TASK_COMPLETION_SUMMARY_PROMPT,
+        # PlanningAgent: Crea y gestiona planes para tareas complejas
+        self.planning_agent = AssistantAgent(
+            name="Planner",
+            description=PLANNING_AGENT_DESCRIPTION,
+            system_message=PLANNING_AGENT_SYSTEM_MESSAGE,
             model_client=self.model_client,
-            tools=[],  # No tools needed for summarization
+            tools=[],  # No necesita herramientas, solo planifica
         )
 
-        # Configurar el equipo de agentes con SelectorGroupChat
-        self._setup_team()
+        # SummaryAgent: Crea resúmenes finales de trabajo completado
+        self.summary_agent = AssistantAgent(
+            name="SummaryAgent",
+            description=SUMMARY_AGENT_DESCRIPTION,
+            system_message=SUMMARY_AGENT_SYSTEM_MESSAGE,
+            model_client=self.model_client,
+            tools=[],  # No necesita herramientas, solo resume
+        )
 
         self.running = True
-
-    def _setup_team(self):
-        """Configura el equipo de agentes con SelectorGroupChat para orquestación inteligente"""
-
-        # Condición de terminación
-        termination = TextMentionTermination("TERMINATE") | MaxMessageTermination(30)
-
-        # Crear el team con los 3 agentes: CodeSearcher, Planner, Coder
-        self.team = SelectorGroupChat(
-            participants=[
-                self.code_searcher.searcher_agent,  # Agente de búsqueda
-                self.planner.planner_agent,          # Agente de planificación
-                self.coder_agent                     # Agente de ejecución
-            ],
-            model_client=self.model_client,
-            termination_condition=termination,
-            selector_prompt=SELECTOR_PROMPT,
-        )
 
     async def handle_command(self, command: str) -> bool:
         """Maneja comandos especiales del usuario"""
@@ -203,14 +191,7 @@ class DaveAgentCLI:
 
         elif cmd == "/new":
             self.conversation_manager.clear()
-            self.planner.current_plan = None
             self.cli.print_success("Nueva conversación iniciada")
-
-        elif cmd == "/plan":
-            if self.planner.current_plan:
-                self.cli.print_plan(self.planner.get_plan_summary())
-            else:
-                self.cli.print_info("No hay un plan de ejecución activo")
 
         elif cmd == "/stats":
             stats = self.conversation_manager.get_statistics()
@@ -273,6 +254,56 @@ class DaveAgentCLI:
             self.cli.print_info("Usa /help para ver los comandos disponibles")
 
         return True
+
+    # =========================================================================
+    # COMPLEXITY DETECTION - Detección de complejidad de tareas
+    # =========================================================================
+
+    async def _detect_task_complexity(self, user_input: str) -> str:
+        """
+        🔀 ENRUTADOR SIMPLE: Detecta complejidad con llamada directa al modelo.
+
+        NO usa agentes, solo llama al modelo con un prompt optimizado.
+
+        FLUJOS:
+        - SIMPLE → SelectorGroupChat (CodeSearcher + Coder)
+        - COMPLEX → Planner + TaskExecutor + Agentes
+
+        Returns:
+            "simple" o "complex"
+        """
+        try:
+            self.logger.debug(f"🔀 Enrutador: analizando complejidad...")
+
+            # Crear prompt con la solicitud del usuario
+            prompt = COMPLEXITY_DETECTOR_PROMPT.format(user_input=user_input)
+
+            # Llamada DIRECTA al modelo (sin agentes, más rápido)
+            from autogen_core.models import UserMessage
+
+            result = await self.model_client.create(
+                messages=[UserMessage(content=prompt, source="user")]
+            )
+
+            # Extraer respuesta
+            response = result.content.strip().lower()
+            self.logger.debug(f"🔀 Respuesta del modelo: {response}")
+
+            # Determinar complejidad
+            if "complex" in response:
+                complexity = "complex"
+            else:
+                # Por defecto: simple (más seguro, menos overhead)
+                complexity = "simple"
+
+            self.logger.info(f"✅ Enrutador decidió: {complexity.upper()}")
+            return complexity
+
+        except Exception as e:
+            # Fallback seguro
+            self.logger.error(f"❌ Error en enrutador: {str(e)}")
+            self.logger.warning("⚠️ Fallback: usando flujo SIMPLE")
+            return "simple"
 
     # =========================================================================
     # CODE SEARCHER - Búsqueda de código
@@ -354,13 +385,169 @@ class DaveAgentCLI:
             self.cli.print_error(f"Error en búsqueda de código: {str(e)}")
 
     # =========================================================================
+    # COMPLEX TASK EXECUTION - SelectorGroupChat con selector_func
+    # =========================================================================
+
+    async def _execute_complex_task(self, user_input: str):
+        """
+        Ejecuta tareas complejas usando SelectorGroupChat con re-planificación dinámica.
+
+        ARQUITECTURA:
+        - PlanningAgent: Crea plan, revisa progreso, re-planifica
+        - CodeSearcher: Busca y analiza código existente
+        - Coder: Ejecuta modificaciones, crea archivos
+        - SummaryAgent: Crea resumen final
+
+        FLUJO:
+        1. Planner crea plan inicial
+        2. Selector LLM elige CodeSearcher o Coder para cada tarea
+        3. selector_func fuerza a Planner a revisar después de cada acción
+        4. Planner puede re-planificar si es necesario
+        5. Cuando todo está completo, Planner delega a SummaryAgent
+        """
+        try:
+            self.logger.info("🎯 Usando flujo COMPLEJO: SelectorGroupChat + re-planificación")
+            self.cli.print_info("📋 Tarea compleja detectada. Iniciando planificación...\n")
+
+            # Función de selección personalizada para re-planificación dinámica
+            def custom_selector_func(messages):
+                """
+                Controla el flujo para permitir re-planificación:
+                - Después de Planner → Selector LLM decide (Coder/CodeSearcher)
+                - Después de Coder/CodeSearcher → Volver a Planner (revisar progreso)
+                - Si Planner dice DELEGATE_TO_SUMMARY → Ir a SummaryAgent
+                """
+                if not messages:
+                    return None
+
+                last_message = messages[-1]
+
+                # Si el PlanningAgent acaba de hablar
+                if last_message.source == "Planner":
+                    # Verificar si delegó a summary
+                    if "DELEGATE_TO_SUMMARY" in last_message.content:
+                        return "SummaryAgent"
+                    # De lo contrario, dejar que el selector LLM elija
+                    return None  # None = usar selector LLM por defecto
+
+                # Si Coder o CodeSearcher actuaron, SIEMPRE volver a Planner
+                # para que revise progreso y actualice el plan
+                if last_message.source in ["Coder", "CodeSearcher"]:
+                    return "Planner"
+
+                # Para SummaryAgent u otros, usar selector por defecto
+                return None
+
+            # Crear equipo complejo con selector_func
+            termination = TextMentionTermination("TERMINATE") | MaxMessageTermination(50)
+
+            complex_team = SelectorGroupChat(
+                participants=[
+                    self.planning_agent,
+                    self.code_searcher.searcher_agent,
+                    self.coder_agent,
+                    self.summary_agent
+                ],
+                model_client=self.model_client,
+                termination_condition=termination,
+                selector_func=custom_selector_func  # ← Clave para re-planificación
+            )
+
+            # Ejecutar con streaming
+            self.logger.debug("Iniciando SelectorGroupChat con streaming...")
+
+            agent_messages_shown = set()
+            message_count = 0
+            spinner_active = False
+
+            async for msg in complex_team.run_stream(task=user_input):
+                message_count += 1
+                msg_type = type(msg).__name__
+
+                if hasattr(msg, 'source') and msg.source != "user":
+                    agent_name = msg.source
+
+                    if hasattr(msg, 'content'):
+                        content = msg.content
+                    else:
+                        content = str(msg)
+
+                    # Crear clave única
+                    try:
+                        content_str = str(content) if isinstance(content, list) else content
+                        message_key = f"{agent_name}:{hash(content_str)}"
+                    except TypeError:
+                        message_key = f"{agent_name}:{hash(str(content))}"
+
+                    if message_key not in agent_messages_shown:
+                        # Mostrar mensajes según tipo
+                        if msg_type == "TextMessage":
+                            if spinner_active:
+                                self.cli.stop_thinking(clear=True)
+                                spinner_active = False
+
+                            self.cli.print_agent_message(content_str, agent_name)
+                            self.logger.debug(f"[{agent_name}] {content_str[:100]}")
+                            agent_messages_shown.add(message_key)
+
+                        elif msg_type == "ToolCallRequestEvent":
+                            if spinner_active:
+                                self.cli.stop_thinking(clear=True)
+
+                            if isinstance(content, list):
+                                for tool_call in content:
+                                    if hasattr(tool_call, 'name'):
+                                        tool_name = tool_call.name
+                                        self.cli.print_info(f"🔧 Ejecutando: {tool_name}", agent_name)
+                                        self.cli.start_thinking(message=f"ejecutando {tool_name}")
+                                        spinner_active = True
+                            agent_messages_shown.add(message_key)
+
+                        elif msg_type == "ToolCallExecutionEvent":
+                            if spinner_active:
+                                self.cli.stop_thinking(clear=True)
+                                spinner_active = False
+
+                            if isinstance(content, list):
+                                for result in content:
+                                    if hasattr(result, 'name'):
+                                        tool_name = result.name
+                                        result_preview = str(result.content)[:100] if hasattr(result, 'content') else "OK"
+                                        self.cli.print_thinking(f"✅ {tool_name}: {result_preview}...")
+
+                            self.cli.start_thinking()
+                            spinner_active = True
+                            agent_messages_shown.add(message_key)
+
+            # Asegurar que el spinner esté detenido
+            if spinner_active:
+                self.cli.stop_thinking(clear=True)
+
+            self.logger.info("✅ Flujo complejo completado")
+            self.cli.print_success("\n✅ Tarea compleja completada!")
+
+        except Exception as e:
+            if spinner_active:
+                self.cli.stop_thinking(clear=True)
+            self.logger.log_error_with_context(e, "_execute_complex_task")
+            self.cli.print_error(f"Error en tarea compleja: {str(e)}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+
+    # =========================================================================
     # PROCESAMIENTO DE SOLICITUDES DEL USUARIO
     # =========================================================================
 
     async def process_user_request(self, user_input: str):
         """
-        Procesa una solicitud del usuario usando el equipo de agentes (SelectorGroupChat)
-        El selector inteligente elige entre CodeSearcher, Planner o Coder según la tarea
+        Procesa una solicitud del usuario con detección inteligente de complejidad.
+
+        FLUJO CONDICIONAL:
+        - Tareas SIMPLES → SelectorGroupChat (CodeSearcher/Planner/Coder)
+        - Tareas COMPLEJAS → Planner + Executor con re-planificación
+
+        El sistema detecta automáticamente la complejidad basándose en palabras clave
+        y la naturaleza de la solicitud.
         """
         try:
             self.logger.info(f"📝 Nueva solicitud del usuario: {user_input[:100]}...")
@@ -379,24 +566,48 @@ class DaveAgentCLI:
 
             self.conversation_manager.add_message("user", full_input)
 
-            # Start vibe spinner while agent is thinking
+            # ============= DETECCIÓN DE COMPLEJIDAD =============
+            task_complexity = await self._detect_task_complexity(user_input)
+            self.logger.info(f"🎯 Complejidad detectada: {task_complexity}")
+
+            # ============= RUTA COMPLEJA: Planner + Executor =============
+            if task_complexity == "complex":
+                self.logger.info("📋 Usando flujo complejo: Planner + Executor")
+                await self._execute_complex_task(user_input)
+
+                # Generar resumen final
+                await self._generate_task_summary(user_input)
+                return
+
+            # ============= RUTA SIMPLE: RoundRobinGroupChat =============
+            self.logger.info("⚡ Usando flujo SIMPLE: RoundRobinGroupChat (CodeSearcher ↔ Coder)")
+
+            # Crear equipo simple con RoundRobinGroupChat
+            termination_simple = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(15)
+
+            simple_team = RoundRobinGroupChat(
+                participants=[
+                    self.code_searcher.searcher_agent,  # Turno 1, 3, 5...
+                    self.coder_agent                     # Turno 2, 4, 6...
+                ],
+                termination_condition=termination_simple
+            )
+
+            # Start spinner
             self.cli.start_thinking()
-            self.logger.debug("Iniciando ejecución con SelectorGroupChat (CodeSearcher, Planner, Coder)")
+            self.logger.debug("Iniciando RoundRobinGroupChat (CodeSearcher ↔ Coder)")
 
-            # USAR run_stream() del TEAM para selección inteligente de agentes
-            self.logger.debug("Llamando a team.run_stream() para orquestación inteligente en tiempo real")
-
-            agent_messages_shown = set()  # Para evitar duplicados
+            agent_messages_shown = set()
             message_count = 0
-            spinner_active = True  # Track if spinner is currently active
+            spinner_active = True
 
-            # Track conversation for logging to JSON
+            # Track para logging
             all_agent_responses = []
             agents_used = []
             tools_called = []
 
-            # Procesar mensajes conforme llegan del TEAM (STREAMING)
-            async for msg in self.team.run_stream(task=full_input):
+            # Procesar mensajes con streaming
+            async for msg in simple_team.run_stream(task=full_input):
                 message_count += 1
                 msg_type = type(msg).__name__
                 self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
@@ -527,10 +738,10 @@ class DaveAgentCLI:
             # Generate task completion summary
             await self._generate_task_summary(user_input)
 
-            # Comprimir historial si es necesario
-            if self.conversation_manager.needs_compression():
-                self.logger.warning("⚠️ Historial necesita compresión")
-                await self.executor._compress_conversation_history()
+            # Comprimir historial si es necesario (DISABLED - ya no usamos TaskExecutor)
+            # if self.conversation_manager.needs_compression():
+            #     self.logger.warning("⚠️ Historial necesita compresión")
+            #     # TODO: Implementar compresión directa sin TaskExecutor
 
             self.logger.info("✅ Solicitud procesada exitosamente")
 
