@@ -446,12 +446,20 @@ class DaveAgentCLI:
                         # MOSTRAR DIFERENTES TIPOS DE MENSAJES EN CONSOLA EN TIEMPO REAL
                         if msg_type == "ThoughtEvent":
                             # 💭 Mostrar pensamientos/reflexiones del agente
+                            # Stop spinner for thoughts to show them clearly
+                            if spinner_active:
+                                self.cli.stop_thinking(clear=True)
+                                spinner_active = False
                             self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
                             self.logger.debug(f"💭 Thought: {content_str}")
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "ToolCallRequestEvent":
                             # 🔧 Mostrar herramientas que se van a llamar
+                            # Stop spinner to show tool call, then restart with specific message
+                            if spinner_active:
+                                self.cli.stop_thinking(clear=True)
+
                             if isinstance(content, list):
                                 for tool_call in content:
                                     if hasattr(tool_call, 'name'):
@@ -462,10 +470,19 @@ class DaveAgentCLI:
                                         # Track tools called
                                         if tool_name not in tools_called:
                                             tools_called.append(tool_name)
+
+                                        # Restart spinner with tool name
+                                        self.cli.start_thinking(message=f"ejecutando {tool_name}")
+                                        spinner_active = True
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "ToolCallExecutionEvent":
                             # ✅ Mostrar resultados de herramientas
+                            # Stop spinner to show results
+                            if spinner_active:
+                                self.cli.stop_thinking(clear=True)
+                                spinner_active = False
+
                             if isinstance(content, list):
                                 for execution_result in content:
                                     if hasattr(execution_result, 'name'):
@@ -474,10 +491,19 @@ class DaveAgentCLI:
                                         # Usar print_thinking en lugar de print_success para mostrar resultado
                                         self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
                                         self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
+
+                            # Restart spinner for next action
+                            self.cli.start_thinking()
+                            spinner_active = True
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "TextMessage":
                             # 💬 Mostrar respuesta final del agente
+                            # Stop spinner permanently for final response
+                            if spinner_active:
+                                self.cli.stop_thinking(clear=True)
+                                spinner_active = False
+
                             preview = content_str[:100] if len(content_str) > 100 else content_str
                             self.logger.log_message_processing(msg_type, agent_name, preview)
                             self.cli.print_agent_message(content_str, agent_name)
