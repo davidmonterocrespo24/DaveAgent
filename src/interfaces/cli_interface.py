@@ -19,7 +19,8 @@ from datetime import datetime
 import sys
 from pathlib import Path
 from src.utils import FileIndexer, select_file_interactive, VibeSpinner
-
+import random
+import time
 
 class CLIInterface:
     """Interfaz CLI rica e interactiva para el agente de código"""
@@ -36,8 +37,9 @@ class CLIInterface:
         self.vibe_spinner: Optional[VibeSpinner] = None  # Spinner for thinking animation
 
     def print_banner(self):
-        """Muestra el banner de bienvenida"""
-        banner = """
+        """Muestra el banner de bienvenida con una animación de 'partículas'"""
+        
+        banner_lines = """
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║   ██████╗ ██████╗ ██████╗ ███████╗     █████╗  ██████╗     ║
@@ -50,8 +52,65 @@ class CLIInterface:
 ║              Agente Inteligente de Desarrollo               ║
 ║                    Versión 1.0.0                            ║
 ╚══════════════════════════════════════════════════════════════╝
-        """
-        self.console.print(banner, style="bold cyan")
+        """.strip('\n').split('\n')
+        
+        height = len(banner_lines)
+        width = max(len(line) for line in banner_lines)
+        
+        # Caracteres a usar como "partículas"
+        particles = ['.', ':', '*', '°', '·', ' '] 
+        
+        # 1. Crear el estado inicial (campo de partículas)
+        # Usamos una lista de listas de caracteres para poder mutarla
+        current_state = []
+        for r in range(height):
+            row = []
+            for c in range(width):
+                # Si hay un caracter en el banner final, poner una partícula
+                if c < len(banner_lines[r]) and banner_lines[r][c] != ' ':
+                    row.append(random.choice(particles))
+                else:
+                    row.append(' ') # Mantener los espacios vacíos
+            current_state.append(row)
+
+        # 2. Obtener todas las coordenadas (fila, col) de los caracteres reales
+        coords = []
+        for r in range(height):
+            for c in range(width):
+                # Solo queremos "resolver" los caracteres que no son espacios
+                if c < len(banner_lines[r]) and banner_lines[r][c] != ' ':
+                    coords.append((r, c))
+        
+        # 3. Barajar las coordenadas para un efecto de ensamblado aleatorio
+        random.shuffle(coords)
+        
+        # 4. Configurar la animación con Rich Live
+        # Definimos cuántos caracteres revelar por cuadro (más bajo = más lento)
+        reveal_per_frame = max(1, len(coords) // 20) # Apunta a ~20 cuadros
+        
+        with Live(console=self.console, refresh_per_second=15, transient=True) as live:
+            # Mostrar el campo de partículas inicial por un momento
+            text = Text('\n'.join(''.join(row) for row in current_state), style="bold cyan")
+            live.update(text)
+            time.sleep(0.3) # Pausa inicial
+
+            # 5. Empezar a revelar los caracteres en lotes
+            for i in range(0, len(coords), reveal_per_frame):
+                batch = coords[i : i + reveal_per_frame]
+                
+                for r, c in batch:
+                    # Reemplazar la partícula con el caracter correcto
+                    current_state[r][c] = banner_lines[r][c]
+                
+                # Actualizar el Live con el nuevo estado
+                text = Text('\n'.join(''.join(row) for row in current_state), style="bold cyan")
+                live.update(text)
+                time.sleep(0.02) # Pequeña pausa entre cuadros
+
+        # 6. Imprimir el banner final de forma permanente
+        # (El Live con transient=True desaparece, así que lo imprimimos de nuevo)
+        final_text = Text('\n'.join(banner_lines), style="bold cyan")
+        self.console.print(final_text)
         self.console.print()
 
     def print_welcome_message(self):
@@ -477,7 +536,7 @@ Simplemente escribe lo que necesitas que el agente haga. El agente:
         goodbye = """
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║              Gracias por usar Code Agent                    ║
+║              Gracias por usar Dave Agent                    ║
 ║                   ¡Hasta pronto!                            ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝

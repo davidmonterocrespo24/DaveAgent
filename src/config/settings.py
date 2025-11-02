@@ -1,19 +1,25 @@
 """
-Configuración de CodeAgent - Manejo de API keys y URLs
+Configuración de DaveAgent - Manejo de API keys y URLs
+Variables de entorno se cargan desde .daveagent/.env
 """
 import os
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 
-# Cargar variables de entorno desde .env si existe
-env_file = Path.cwd() / '.env'
-if env_file.exists():
-    load_dotenv(env_file)
+# Cargar variables de entorno desde .daveagent/.env si existe
+# Prioridad: .daveagent/.env > .env (para compatibilidad)
+daveagent_env = Path.cwd() / '.daveagent' / '.env'
+legacy_env = Path.cwd() / '.env'
+
+if daveagent_env.exists():
+    load_dotenv(daveagent_env)
+elif legacy_env.exists():
+    load_dotenv(legacy_env)
 
 
-class CodeAgentSettings:
-    """Configuración centralizada de CodeAgent"""
+class DaveAgentSettings:
+    """Configuración centralizada de DaveAgent"""
 
     # Valores por defecto
     DEFAULT_BASE_URL = "https://api.deepseek.com"
@@ -39,7 +45,8 @@ class CodeAgentSettings:
         # API Key (requerida)
         self.api_key = (
             api_key
-            or os.getenv("CODEAGENT_API_KEY")
+            or os.getenv("DAVEAGENT_API_KEY")
+            or os.getenv("CODEAGENT_API_KEY")  # Compatibilidad
             or os.getenv("OPENAI_API_KEY")  # Compatibilidad
             or os.getenv("DEEPSEEK_API_KEY")  # Compatibilidad
         )
@@ -47,7 +54,8 @@ class CodeAgentSettings:
         # Base URL (opcional, con valor por defecto)
         self.base_url = (
             base_url
-            or os.getenv("CODEAGENT_BASE_URL")
+            or os.getenv("DAVEAGENT_BASE_URL")
+            or os.getenv("CODEAGENT_BASE_URL")  # Compatibilidad
             or os.getenv("OPENAI_BASE_URL")  # Compatibilidad
             or self.DEFAULT_BASE_URL
         )
@@ -55,7 +63,8 @@ class CodeAgentSettings:
         # Modelo (opcional, con valor por defecto)
         self.model = (
             model
-            or os.getenv("CODEAGENT_MODEL")
+            or os.getenv("DAVEAGENT_MODEL")
+            or os.getenv("CODEAGENT_MODEL")  # Compatibilidad
             or os.getenv("OPENAI_MODEL")  # Compatibilidad
             or self.DEFAULT_MODEL
         )
@@ -79,15 +88,15 @@ class CodeAgentSettings:
                     print()
                     print("⚠️  No se encontró una API key configurada.")
                     print()
-                    response = input("¿Quieres configurar CodeAgent ahora? (S/n): ").strip().lower()
+                    response = input("¿Quieres configurar DaveAgent ahora? (S/n): ").strip().lower()
 
                     if response == 'n' or response == 'no':
                         return False, (
                             "❌ API key no configurada.\n\n"
                             "Opciones para configurarla:\n"
-                            "  1. Variable de entorno: export CODEAGENT_API_KEY='tu-api-key'\n"
-                            "  2. Archivo .env: CODEAGENT_API_KEY=tu-api-key\n"
-                            "  3. Argumento CLI: codeagent --api-key 'tu-api-key'\n\n"
+                            "  1. Variable de entorno: export DAVEAGENT_API_KEY='tu-api-key'\n"
+                            "  2. Archivo .daveagent/.env: DAVEAGENT_API_KEY=tu-api-key\n"
+                            "  3. Argumento CLI: daveagent --api-key 'tu-api-key'\n\n"
                             "Obtén tu API key en: https://platform.deepseek.com/api_keys"
                         )
 
@@ -114,9 +123,9 @@ class CodeAgentSettings:
                 return False, (
                     "❌ API key no configurada.\n\n"
                     "Opciones para configurarla:\n"
-                    "  1. Variable de entorno: export CODEAGENT_API_KEY='tu-api-key'\n"
-                    "  2. Archivo .env: CODEAGENT_API_KEY=tu-api-key\n"
-                    "  3. Argumento CLI: codeagent --api-key 'tu-api-key'\n\n"
+                    "  1. Variable de entorno: export DAVEAGENT_API_KEY='tu-api-key'\n"
+                    "  2. Archivo .daveagent/.env: DAVEAGENT_API_KEY=tu-api-key\n"
+                    "  3. Argumento CLI: daveagent --api-key 'tu-api-key'\n\n"
                     "Obtén tu API key en: https://platform.deepseek.com/api_keys"
                 )
 
@@ -165,7 +174,7 @@ class CodeAgentSettings:
         """Representación en string (ocultando API key)"""
         masked_key = f"{self.api_key[:8]}...{self.api_key[-4:]}" if self.api_key else "No configurada"
         return (
-            f"CodeAgentSettings(\n"
+            f"DaveAgentSettings(\n"
             f"  api_key={masked_key},\n"
             f"  base_url={self.base_url},\n"
             f"  model={self.model}\n"
@@ -177,7 +186,7 @@ def get_settings(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     model: Optional[str] = None
-) -> CodeAgentSettings:
+) -> DaveAgentSettings:
     """
     Factory function para obtener configuración
 
@@ -187,6 +196,10 @@ def get_settings(
         model: Nombre del modelo (opcional)
 
     Returns:
-        Instancia de CodeAgentSettings
+        Instancia de DaveAgentSettings
     """
-    return CodeAgentSettings(api_key=api_key, base_url=base_url, model=model)
+    return DaveAgentSettings(api_key=api_key, base_url=base_url, model=model)
+
+
+# Mantener compatibilidad con código antiguo
+CodeAgentSettings = DaveAgentSettings

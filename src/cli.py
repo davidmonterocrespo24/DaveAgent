@@ -1,6 +1,6 @@
 """
-CLI Entry point for CodeAgent
-Este archivo se ejecuta cuando el usuario escribe 'codeagent' en la terminal
+CLI Entry point for DaveAgent
+Este archivo se ejecuta cuando el usuario escribe 'daveagent' en la terminal
 """
 import asyncio
 import sys
@@ -12,8 +12,8 @@ from pathlib import Path
 def parse_arguments():
     """Parsea los argumentos de línea de comandos"""
     parser = argparse.ArgumentParser(
-        prog='codeagent',
-        description='CodeAgent - AI-powered coding assistant',
+        prog='daveagent',
+        description='DaveAgent - AI-powered coding assistant',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
@@ -21,7 +21,7 @@ def parse_arguments():
     parser.add_argument(
         '--api-key',
         type=str,
-        help='API key para el modelo LLM (o usar CODEAGENT_API_KEY en .env)'
+        help='API key para el modelo LLM (o usar DAVEAGENT_API_KEY en .daveagent/.env)'
     )
 
     parser.add_argument(
@@ -48,7 +48,7 @@ def parse_arguments():
     parser.add_argument(
         '-v', '--version',
         action='store_true',
-        help='Muestra la versión de CodeAgent'
+        help='Muestra la versión de DaveAgent'
     )
 
     return parser.parse_args()
@@ -56,8 +56,8 @@ def parse_arguments():
 
 def main():
     """
-    Punto de entrada principal para el comando 'codeagent'
-    Se ejecuta cuando el usuario escribe 'codeagent' en cualquier directorio
+    Punto de entrada principal para el comando 'daveagent'
+    Se ejecuta cuando el usuario escribe 'daveagent' en cualquier directorio
     """
     # Parsear argumentos
     args = parse_arguments()
@@ -73,11 +73,11 @@ def main():
         sys.path.insert(0, str(package_root))
 
     # Importar main desde el directorio raíz
-    from main import main as run_codeagent
+    from main import main as run_daveagent
 
     # Mostrar información del directorio de trabajo
     working_dir = Path.cwd()
-    print(f"🚀 Iniciando CodeAgent en: {working_dir}")
+    print(f"🚀 Iniciando DaveAgent en: {working_dir}")
     print(f"📂 Directorio de trabajo: {working_dir.absolute()}\n")
 
     # Cambiar al directorio de trabajo actual (donde el usuario ejecutó el comando)
@@ -86,9 +86,9 @@ def main():
     if args.debug:
         print("🐛 Modo DEBUG activado\n")
 
-    # Ejecutar CodeAgent con configuración
+    # Ejecutar DaveAgent con configuración
     try:
-        asyncio.run(run_codeagent(
+        asyncio.run(run_daveagent(
             debug=args.debug,
             api_key=args.api_key,
             base_url=args.base_url,
@@ -96,7 +96,7 @@ def main():
         ))
         return 0
     except KeyboardInterrupt:
-        print("\n\n👋 CodeAgent terminado por el usuario")
+        print("\n\n👋 DaveAgent terminado por el usuario")
         return 0
     except Exception as e:
         print(f"\n❌ Error fatal: {e}")
@@ -112,9 +112,9 @@ def print_help():
 
 
 def print_version():
-    """Muestra la versión de CodeAgent"""
+    """Muestra la versión de DaveAgent"""
     print("=" * 60)
-    print("         CodeAgent CLI v1.0.0")
+    print("         DaveAgent CLI v1.0.0")
     print("=" * 60)
     print(f"Python:   {sys.version.split()[0]}")
     print(f"Platform: {sys.platform}")

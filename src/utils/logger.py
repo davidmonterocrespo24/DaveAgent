@@ -1,6 +1,7 @@
 """
-Sistema de logging para CodeAgent
+Sistema de logging para DaveAgent
 Proporciona logging detallado con niveles y colores
+Logs se guardan en .daveagent/logs/
 """
 import logging
 import sys
@@ -11,16 +12,16 @@ from rich.logging import RichHandler
 from typing import Optional
 
 
-class CodeAgentLogger:
-    """Logger personalizado para CodeAgent con soporte de colores y archivos"""
+class DaveAgentLogger:
+    """Logger personalizado para DaveAgent con soporte de colores y archivos"""
 
-    def __init__(self, name: str = "CodeAgent", log_file: Optional[str] = None, level: int = logging.DEBUG):
+    def __init__(self, name: str = "DaveAgent", log_file: Optional[str] = None, level: int = logging.DEBUG):
         """
         Inicializa el logger
 
         Args:
             name: Nombre del logger
-            log_file: Ruta al archivo de log (opcional)
+            log_file: Ruta al archivo de log (opcional, por defecto .daveagent/logs/)
             level: Nivel de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
         self.logger = logging.getLogger(name)
@@ -45,7 +46,13 @@ class CodeAgentLogger:
         console_handler.setFormatter(console_formatter)
         self.logger.addHandler(console_handler)
 
-        # Handler para archivo (si se especifica)
+        # Handler para archivo (si se especifica o usar default)
+        if log_file is None:
+            # Default: .daveagent/logs/daveagent_YYYYMMDD_HHMMSS.log
+            log_dir = Path(".daveagent") / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_file = str(log_dir / f"daveagent_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+
         if log_file:
             log_path = Path(log_file)
             log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -125,10 +132,10 @@ class CodeAgentLogger:
 
 
 # Instancia global del logger
-_global_logger: Optional[CodeAgentLogger] = None
+_global_logger: Optional[DaveAgentLogger] = None
 
 
-def get_logger(log_file: Optional[str] = None, level: int = logging.DEBUG) -> CodeAgentLogger:
+def get_logger(log_file: Optional[str] = None, level: int = logging.DEBUG) -> DaveAgentLogger:
     """
     Obtiene la instancia global del logger
 
@@ -137,13 +144,13 @@ def get_logger(log_file: Optional[str] = None, level: int = logging.DEBUG) -> Co
         level: Nivel de logging
 
     Returns:
-        CodeAgentLogger: Instancia del logger
+        DaveAgentLogger: Instancia del logger
     """
     global _global_logger
 
     if _global_logger is None:
-        _global_logger = CodeAgentLogger(
-            name="CodeAgent",
+        _global_logger = DaveAgentLogger(
+            name="DaveAgent",
             log_file=log_file,
             level=level
         )
@@ -163,3 +170,7 @@ def set_log_level(level: int):
     for handler in logger.logger.handlers:
         if isinstance(handler, RichHandler):
             handler.setLevel(level)
+
+
+# Mantener compatibilidad con código antiguo
+CodeAgentLogger = DaveAgentLogger

@@ -1,5 +1,5 @@
 """
-Setup configuration for CodeAgent
+Setup configuration for DaveAgent
 """
 from setuptools import setup, find_packages
 from pathlib import Path
@@ -9,18 +9,18 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding='utf-8') if (this_directory / "README.md").exists() else ""
 
 setup(
-    name="codeagent-ai",  # Nombre único en PyPI
+    name="daveagent-ai",  # Nombre único en PyPI
     version="1.1.0",
-    author="CodeAgent Contributors",
+    author="DaveAgent Contributors",
     author_email="",  # Dejar vacío si no tienes email público
     description="AI-powered coding assistant with intelligent agent orchestration - search, plan, and code with AI",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/CodeAgent-AI/codeagent",  # Actualizar cuando tengas repo
+    url="https://github.com/DaveAgent-AI/daveagent",  # Actualizar cuando tengas repo
     project_urls={
-        "Bug Tracker": "https://github.com/CodeAgent-AI/codeagent/issues",
-        "Documentation": "https://github.com/CodeAgent-AI/codeagent#readme",
-        "Source Code": "https://github.com/CodeAgent-AI/codeagent",
+        "Bug Tracker": "https://github.com/DaveAgent-AI/daveagent/issues",
+        "Documentation": "https://github.com/DaveAgent-AI/daveagent#readme",
+        "Source Code": "https://github.com/DaveAgent-AI/daveagent",
     },
     packages=find_packages(include=['src', 'src.*']),
     include_package_data=True,
@@ -54,7 +54,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'codeagent=src.cli:main',
+            'daveagent=src.cli:main',
         ],
     },
     classifiers=[

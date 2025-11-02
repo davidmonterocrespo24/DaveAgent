@@ -4,7 +4,6 @@ NUEVA ESTRUCTURA REORGANIZADA (CORREGIDA CON LOGGING)
 """
 import asyncio
 import logging
-from datetime import datetime
 from autogen_agentchat.agents import AssistantAgent
 # Importaciones añadidas para el nuevo flujo
 from autogen_agentchat.teams import SelectorGroupChat
@@ -22,10 +21,10 @@ from src.config import (
 from src.agents import TaskPlanner, TaskExecutor, CodeSearcher
 from src.managers import ConversationManager
 from src.interfaces import CLIInterface
-from src.utils import get_logger
+from src.utils import get_logger, get_conversation_tracker
 
 
-class CodeAgentCLI:
+class DaveAgentCLI:
     """Aplicación CLI principal del agente de código"""
 
     def __init__(
@@ -44,12 +43,14 @@ class CodeAgentCLI:
             base_url: URL base de la API
             model: Nombre del modelo a usar
         """
-        # Configurar logging
+        # Configurar logging (ahora en .daveagent/logs/)
         log_level = logging.DEBUG if debug else logging.INFO
-        log_file = f"logs/codeagent_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        self.logger = get_logger(log_file=log_file, level=log_level)
+        self.logger = get_logger(log_file=None, level=log_level)  # Use default path
 
-        self.logger.info("🚀 Inicializando CodeAgent CLI")
+        # Configurar conversation tracker (logs to .daveagent/conversations.json)
+        self.conversation_tracker = get_conversation_tracker()
+
+        self.logger.info("🚀 Inicializando DaveAgent CLI")
 
         # Cargar configuración (API key, URL, modelo)
         from src.config import get_settings
@@ -388,6 +389,11 @@ class CodeAgentCLI:
             message_count = 0
             first_response = True  # Track if this is the first response from agent
 
+            # Track conversation for logging to JSON
+            all_agent_responses = []
+            agents_used = []
+            tools_called = []
+
             # Procesar mensajes conforme llegan del TEAM (STREAMING)
             async for msg in self.team.run_stream(task=full_input):
                 message_count += 1
@@ -397,6 +403,10 @@ class CodeAgentCLI:
                 # Solo procesar mensajes que NO sean del usuario
                 if hasattr(msg, 'source') and msg.source != "user":
                     agent_name = msg.source
+
+                    # Track which agents were used
+                    if agent_name not in agents_used:
+                        agents_used.append(agent_name)
 
                     # Determinar el contenido del mensaje
                     if hasattr(msg, 'content'):
@@ -449,6 +459,9 @@ class CodeAgentCLI:
                                         tool_args = tool_call.arguments if hasattr(tool_call, 'arguments') else ""
                                         self.cli.print_info(f"🔧 Llamando herramienta: {tool_name}", agent_name)
                                         self.logger.debug(f"🔧 Tool call: {tool_name}({tool_args})")
+                                        # Track tools called
+                                        if tool_name not in tools_called:
+                                            tools_called.append(tool_name)
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "ToolCallExecutionEvent":
@@ -468,6 +481,8 @@ class CodeAgentCLI:
                             preview = content_str[:100] if len(content_str) > 100 else content_str
                             self.logger.log_message_processing(msg_type, agent_name, preview)
                             self.cli.print_agent_message(content_str, agent_name)
+                            # Collect agent responses for logging
+                            all_agent_responses.append(f"[{agent_name}] {content_str}")
                             agent_messages_shown.add(message_key)
 
                         else:
@@ -478,6 +493,14 @@ class CodeAgentCLI:
 
             # Ensure spinner is stopped
             self.cli.stop_thinking()
+
+            # Log interaction to JSON
+            self._log_interaction_to_json(
+                user_input=user_input,
+                agent_responses=all_agent_responses,
+                agents_used=agents_used,
+                tools_called=tools_called
+            )
 
             # Generate task completion summary
             await self._generate_task_summary(user_input)
@@ -498,6 +521,60 @@ class CodeAgentCLI:
             error_traceback = traceback.format_exc()
             self.logger.error(f"Traceback completo:\n{error_traceback}")
             self.cli.print_error(f"Detalles:\n{error_traceback}")
+
+    # =========================================================================
+    # CONVERSATION TRACKING - Log to JSON
+    # =========================================================================
+
+    def _log_interaction_to_json(
+        self,
+        user_input: str,
+        agent_responses: list,
+        agents_used: list,
+        tools_called: list
+    ):
+        """
+        Registra la interacción con el LLM en el archivo JSON
+
+        Args:
+            user_input: La solicitud del usuario
+            agent_responses: Lista de respuestas de los agentes
+            agents_used: Lista de agentes que participaron
+            tools_called: Lista de herramientas llamadas
+        """
+        try:
+            # Combine all agent responses
+            combined_response = "\n\n".join(agent_responses) if agent_responses else "No response"
+
+            # Determine provider from base URL
+            provider = "unknown"
+            if "deepseek" in self.settings.base_url.lower():
+                provider = "DeepSeek"
+            elif "openai" in self.settings.base_url.lower():
+                provider = "OpenAI"
+            elif "anthropic" in self.settings.base_url.lower():
+                provider = "Anthropic"
+
+            # Log the interaction
+            interaction_id = self.conversation_tracker.log_interaction(
+                user_request=user_input,
+                agent_response=combined_response,
+                model=self.settings.model,
+                provider=provider,
+                agent_name="DaveAgent",
+                metadata={
+                    "agents_used": agents_used,
+                    "tools_called": tools_called,
+                    "total_agents": len(agents_used),
+                    "total_tools": len(tools_called)
+                }
+            )
+
+            self.logger.debug(f"📝 Interacción registrada en JSON con ID: {interaction_id}")
+
+        except Exception as e:
+            self.logger.error(f"Error registrando interacción en JSON: {str(e)}")
+            # Don't fail the whole request if logging fails
 
     # =========================================================================
     # TASK SUMMARY - Resumen de tarea completada
@@ -590,7 +667,7 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
             self.cli.print_error(f"Error fatal: {str(e)}")
 
         finally:
-            self.logger.info("🔚 Cerrando CodeAgent CLI")
+            self.logger.info("🔚 Cerrando DaveAgent CLI")
             self.cli.print_goodbye()
             await self.model_client.close()
 
@@ -610,7 +687,7 @@ async def main(
         base_url: URL base de la API
         model: Nombre del modelo a usar
     """
-    app = CodeAgentCLI(debug=debug, api_key=api_key, base_url=base_url, model=model)
+    app = DaveAgentCLI(debug=debug, api_key=api_key, base_url=base_url, model=model)
     await app.run()
 
 
