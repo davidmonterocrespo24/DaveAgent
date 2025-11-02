@@ -1,14 +1,14 @@
-# 🤖 CodeAgent - AI-Powered Coding Assistant
+# 🤖 DaveAgent - AI-Powered Coding Assistant
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![AutoGen](https://img.shields.io/badge/powered%20by-AutoGen%200.4-orange.svg)](https://microsoft.github.io/autogen/)
 
-CodeAgent es un asistente de codificación inteligente con IA que trabaja en tu directorio actual. Utiliza AutoGen 0.4 para orquestar agentes especializados que te ayudan con tareas de desarrollo.
+DaveAgent es un asistente de codificación inteligente con IA que trabaja en tu directorio actual. Utiliza AutoGen 0.4 para orquestar agentes especializados que te ayudan con tareas de desarrollo.
 
 ## ✨ Características
 
-- 🚀 **Comando CLI Global**: Usa `codeagent` desde cualquier directorio
+- 🚀 **Comando CLI Global**: Usa `daveagent` desde cualquier directorio
 - 📂 **Trabajo Contextual**: Opera en tu directorio actual automáticamente
 - 🔍 **CodeSearcher**: Agente especializado para buscar y analizar código
 - 📎 **File Mentions con @**: Menciona archivos específicos con `@` para darles prioridad máxima en el contexto
@@ -23,7 +23,7 @@ CodeAgent es un asistente de codificación inteligente con IA que trabaja en tu 
 ### Desarrollo de Software
 ```bash
 cd mi-proyecto
-codeagent
+daveagent
 
 # Buscar código antes de modificar
 Tu: /search sistema de autenticación actual
@@ -41,7 +41,7 @@ Tu: buscar todos los TODOs en el proyecto
 ### Análisis de Datos
 ```bash
 cd datos-proyecto
-codeagent
+daveagent
 
 Tu: leer el archivo ventas.csv y mostrar un resumen
 Tu: combinar todos los CSV en la carpeta data/ en uno solo
@@ -51,7 +51,7 @@ Tu: convertir el JSON de configuración a CSV
 ### Operaciones Git
 ```bash
 cd mi-repo
-codeagent
+daveagent
 
 Tu: hacer commit de los cambios con un mensaje descriptivo
 Tu: mostrar el diff de los últimos 3 commits
@@ -65,22 +65,22 @@ Tu: crear una rama feature/nueva-funcionalidad
 **Cuando esté publicado en PyPI**:
 
 ```bash
-pip install codeagent-ai
-codeagent
+pip install daveagent-ai
+daveagent
 ```
 
 ### Instalación desde Código Fuente
 
 ```bash
 # 1. Clona o descarga el proyecto
-git clone https://github.com/CodeAgent-AI/codeagent.git
-cd codeagent
+git clone https://github.com/DaveAgent-AI/daveagent.git
+cd daveagent
 
 # 2. Instala en modo desarrollo
 pip install -e .
 
 # 3. ¡Usa desde cualquier directorio!
-codeagent
+daveagent
 ```
 
 ### Requisitos
@@ -105,25 +105,25 @@ Ver [INSTALACION.md](INSTALACION.md) para instrucciones detalladas.
 ```bash
 # Desde cualquier directorio
 cd tu-proyecto
-codeagent
+daveagent
 ```
 
 ### Opciones
 
 ```bash
 # Modo debug (logs detallados)
-codeagent --debug
+daveagent --debug
 
 # Ver versión
-codeagent --version
+daveagent --version
 
 # Ver ayuda
-codeagent --help
+daveagent --help
 ```
 
 ### Comandos Internos
 
-Dentro de CodeAgent, puedes usar estos comandos:
+Dentro de DaveAgent, puedes usar estos comandos:
 
 | Comando | Descripción |
 |---------|-------------|
@@ -135,7 +135,7 @@ Dentro de CodeAgent, puedes usar estos comandos:
 | `/stats` | Muestra estadísticas |
 | `/clear` | Limpia el historial |
 | `/new` | Nueva conversación |
-| `/exit` | Salir de CodeAgent |
+| `/exit` | Salir de DaveAgent |
 
 #### 🔍 Comando /search
 
@@ -237,7 +237,7 @@ Ver [docs/FILE_MENTIONS.md](docs/FILE_MENTIONS.md) y [examples/file_mentions_dem
 
 ```bash
 cd mi-proyecto
-codeagent
+daveagent
 
 # Primero, buscar contexto
 Tu: /search sistema de utilidades existente
@@ -251,13 +251,13 @@ Tu: crear un módulo utils.py con funciones para:
     - calcular hash MD5
 ```
 
-CodeAgent primero analiza el código existente y luego crea el archivo `mi-proyecto/utils.py` con las funciones solicitadas, evitando duplicados y manteniendo consistencia.
+DaveAgent primero analiza el código existente y luego crea el archivo `mi-proyecto/utils.py` con las funciones solicitadas, evitando duplicados y manteniendo consistencia.
 
 ### Ejemplo 2: Analizar un Proyecto
 
 ```bash
 cd proyecto-existente
-codeagent
+daveagent
 
 Tu: analiza la estructura del proyecto y dame un resumen
 Tu: cuántas funciones hay en total?
@@ -268,7 +268,7 @@ Tu: encuentra todos los archivos que usan la librería requests
 
 ```bash
 cd datos
-codeagent
+daveagent
 
 Tu: lee el archivo ventas.csv y muestra las 10 ventas más altas
 Tu: crea un nuevo CSV con solo las ventas de 2024
@@ -281,11 +281,11 @@ Tu: convierte el archivo config.json a CSV
 
 ```bash
 # Iniciar con logs detallados
-codeagent --debug
+daveagent --debug
 
-# Dentro de CodeAgent
+# Dentro de DaveAgent
 Tu: /logs
-📄 Archivo de logs: logs/codeagent_20250131_154022.log
+📄 Archivo de logs: logs/daveagent_20250131_154022.log
 ```
 
 ### Ubicación de Logs
@@ -293,12 +293,12 @@ Tu: /logs
 Los logs se guardan en:
 ```
 logs/
-└── codeagent_YYYYMMDD_HHMMSS.log
+└── daveagent_YYYYMMDD_HHMMSS.log
 ```
 
 Cada archivo contiene logs detallados con formato:
 ```
-2025-01-31 15:40:22 | CodeAgent | INFO | process_user_request:257 | 📝 Nueva solicitud...
+2025-01-31 15:40:22 | DaveAgent | INFO | process_user_request:257 | 📝 Nueva solicitud...
 ```
 
 Ver [LOGGING_GUIDE.md](LOGGING_GUIDE.md) para más detalles.
@@ -306,7 +306,7 @@ Ver [LOGGING_GUIDE.md](LOGGING_GUIDE.md) para más detalles.
 ## 🏗️ Arquitectura
 
 ```
-CodeAgent/
+DaveAgent/
 ├── src/
 │   ├── agents/          # Agentes especializados
 │   │   ├── task_planner.py      # Planificación de tareas
@@ -332,7 +332,7 @@ CodeAgent/
 
 ### API Key
 
-CodeAgent usa DeepSeek por defecto. Para cambiar el modelo:
+DaveAgent usa DeepSeek por defecto. Para cambiar el modelo:
 
 1. Edita `main.py`:
 ```python
@@ -397,7 +397,7 @@ mypy src/
 Ver [CAMBIOS_REALIZADOS.md](CAMBIOS_REALIZADOS.md) para problemas resueltos.
 
 Si encuentras un problema:
-1. Revisa los [issues existentes](https://github.com/yourusername/codeagent/issues)
+1. Revisa los [issues existentes](https://github.com/yourusername/daveagent/issues)
 2. Crea un nuevo issue con detalles
 
 ## 📝 Licencia
@@ -412,9 +412,9 @@ Este proyecto está bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más detal
 
 ## 📞 Contacto
 
-- Website: https://github.com/yourusername/codeagent
-- Issues: https://github.com/yourusername/codeagent/issues
-- Email: contact@codeagent.ai
+- Website: https://github.com/yourusername/daveagent
+- Issues: https://github.com/yourusername/daveagent/issues
+- Email: contact@daveagent.ai
 
 ---
 

@@ -1,9 +1,9 @@
-# Estructura del Proyecto CodeAgent
+# Estructura del Proyecto DaveAgent
 
 ## 📁 Nueva Organización por Responsabilidades
 
 ```
-CodeAgent/
+DaveAgent/
 ├── src/                          # Código fuente principal
 │   ├── __init__.py
 │   │

@@ -1,28 +1,28 @@
-# 🚀 Instalación Rápida - CodeAgent
+# 🚀 Instalación Rápida - DaveAgent
 
 ## 📦 Instalar en 3 Pasos
 
 ```bash
 # 1. Ve al directorio del proyecto
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 
 # 2. Instala el paquete
 pip install -e .
 
 # 3. ¡Úsalo desde cualquier directorio!
-codeagent
+daveagent
 ```
 
 ## ✅ Verificar
 
 ```bash
-codeagent --version
+daveagent --version
 ```
 
 Deberías ver:
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║                    🤖 CodeAgent CLI                          ║
+║                    🤖 DaveAgent CLI                          ║
 ╚══════════════════════════════════════════════════════════════╝
 
 Version: 1.0.0
@@ -34,13 +34,13 @@ Version: 1.0.0
 # 1. Ve a cualquier proyecto
 cd C:\Users\tuusuario\mi-proyecto
 
-# 2. Inicia CodeAgent
-codeagent
+# 2. Inicia DaveAgent
+daveagent
 
 # 3. Pide algo
 Tu: crear un archivo README.md con descripción del proyecto
 
-# ¡CodeAgent trabaja en tu directorio actual!
+# ¡DaveAgent trabaja en tu directorio actual!
 ```
 
 ## 📚 Más Información

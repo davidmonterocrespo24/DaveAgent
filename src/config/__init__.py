@@ -2,7 +2,7 @@
 Configuración del sistema
 """
 
-from src.config.settings import CodeAgentSettings, get_settings
+from src.config.settings import DaveAgentSettings, get_settings
 from src.config.prompts import (
     AGENT_SYSTEM_PROMPT,
     CODER_AGENT_DESCRIPTION,
@@ -19,7 +19,7 @@ from src.config.prompts import (
 
 __all__ = [
     "AGENT_SYSTEM_PROMPT",
-    "CodeAgentSettings",
+    "DaveAgentSettings",
     "get_settings",
     "CODER_AGENT_DESCRIPTION",
     "CODER_AGENT_SYSTEM_MESSAGE",

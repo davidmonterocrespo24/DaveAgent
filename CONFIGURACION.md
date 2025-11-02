@@ -1,6 +1,6 @@
-# ⚙️ Guía de Configuración de CodeAgent
+# ⚙️ Guía de Configuración de DaveAgent
 
-CodeAgent necesita una API key para funcionar. Puedes configurarla de 3 formas diferentes.
+DaveAgent necesita una API key para funcionar. Puedes configurarla de 3 formas diferentes.
 
 ## 📋 Requisitos
 
@@ -25,7 +25,7 @@ La forma más segura y conveniente.
 #### Paso 1: Crear archivo .env
 
 ```bash
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 copy .env.example .env
 ```
 
@@ -40,19 +40,19 @@ Abre `.env` con un editor de texto y completa:
 
 ```bash
 # API Key (REQUERIDA)
-CODEAGENT_API_KEY=sk-tu-api-key-aqui
+DAVEAGENT_API_KEY=sk-tu-api-key-aqui
 
 # URL base (OPCIONAL - por defecto usa DeepSeek)
-# CODEAGENT_BASE_URL=https://api.deepseek.com
+# DAVEAGENT_BASE_URL=https://api.deepseek.com
 
 # Modelo (OPCIONAL - por defecto usa deepseek-chat)
-# CODEAGENT_MODEL=deepseek-chat
+# DAVEAGENT_MODEL=deepseek-chat
 ```
 
-#### Paso 3: Usar CodeAgent
+#### Paso 3: Usar DaveAgent
 
 ```bash
-codeagent
+daveagent
 ```
 
 ✅ **Ventajas**:
@@ -68,27 +68,27 @@ Configurar variables de entorno del sistema.
 
 ```powershell
 # Temporal (solo para esta sesión)
-$env:CODEAGENT_API_KEY="sk-tu-api-key-aqui"
+$env:DAVEAGENT_API_KEY="sk-tu-api-key-aqui"
 
 # Permanente (todas las sesiones)
-[Environment]::SetEnvironmentVariable("CODEAGENT_API_KEY", "sk-tu-api-key-aqui", "User")
+[Environment]::SetEnvironmentVariable("DAVEAGENT_API_KEY", "sk-tu-api-key-aqui", "User")
 ```
 
 #### Linux / Mac
 
 ```bash
 # Temporal (solo para esta sesión)
-export CODEAGENT_API_KEY="sk-tu-api-key-aqui"
+export DAVEAGENT_API_KEY="sk-tu-api-key-aqui"
 
 # Permanente (agregar a ~/.bashrc o ~/.zshrc)
-echo 'export CODEAGENT_API_KEY="sk-tu-api-key-aqui"' >> ~/.bashrc
+echo 'export DAVEAGENT_API_KEY="sk-tu-api-key-aqui"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-#### Usar CodeAgent
+#### Usar DaveAgent
 
 ```bash
-codeagent
+daveagent
 ```
 
 ✅ **Ventajas**:
@@ -104,7 +104,7 @@ codeagent
 Pasar la API key directamente en la línea de comandos.
 
 ```bash
-codeagent --api-key "sk-tu-api-key-aqui"
+daveagent --api-key "sk-tu-api-key-aqui"
 ```
 
 ✅ **Ventajas**:
@@ -121,18 +121,18 @@ codeagent --api-key "sk-tu-api-key-aqui"
 
 ```bash
 # Opción 1: Argumentos CLI
-codeagent --api-key "sk-proj-..." --base-url "https://api.openai.com/v1" --model "gpt-4"
+daveagent --api-key "sk-proj-..." --base-url "https://api.openai.com/v1" --model "gpt-4"
 
 # Opción 2: Archivo .env
-CODEAGENT_API_KEY=sk-proj-tu-openai-key
-CODEAGENT_BASE_URL=https://api.openai.com/v1
-CODEAGENT_MODEL=gpt-4
+DAVEAGENT_API_KEY=sk-proj-tu-openai-key
+DAVEAGENT_BASE_URL=https://api.openai.com/v1
+DAVEAGENT_MODEL=gpt-4
 ```
 
 ### Ollama (Local)
 
 ```bash
-codeagent --base-url "http://localhost:11434/v1" --model "llama2" --api-key "not-needed"
+daveagent --base-url "http://localhost:11434/v1" --model "llama2" --api-key "not-needed"
 ```
 
 ### Otros Proveedores Compatibles con OpenAI
@@ -140,15 +140,15 @@ codeagent --base-url "http://localhost:11434/v1" --model "llama2" --api-key "not
 Cualquier API compatible con OpenAI puede usarse:
 
 ```bash
-codeagent --api-key "tu-key" --base-url "https://api.provider.com" --model "nombre-modelo"
+daveagent --api-key "tu-key" --base-url "https://api.provider.com" --model "nombre-modelo"
 ```
 
 ## 📊 Prioridad de Configuración
 
-CodeAgent usa esta prioridad (de mayor a menor):
+DaveAgent usa esta prioridad (de mayor a menor):
 
 1. **Argumentos CLI** (`--api-key`, `--base-url`, `--model`)
-2. **Variables de entorno** (`CODEAGENT_*`)
+2. **Variables de entorno** (`DAVEAGENT_*`)
 3. **Archivo .env**
 4. **Valores por defecto** (DeepSeek)
 
@@ -156,10 +156,10 @@ CodeAgent usa esta prioridad (de mayor a menor):
 
 ```bash
 # .env tiene:
-CODEAGENT_API_KEY=sk-deepseek-key
+DAVEAGENT_API_KEY=sk-deepseek-key
 
 # Ejecutas:
-codeagent --model "gpt-4"
+daveagent --model "gpt-4"
 
 # Resultado:
 # API Key: sk-deepseek-key (de .env)
@@ -169,14 +169,14 @@ codeagent --model "gpt-4"
 
 ## 🔍 Verificar Configuración
 
-Para ver qué configuración está usando CodeAgent:
+Para ver qué configuración está usando DaveAgent:
 
 ```bash
 # Iniciar con debug
-codeagent --debug
+daveagent --debug
 
 # Verás en los logs:
-# ✓ Configuración cargada: CodeAgentSettings(
+# ✓ Configuración cargada: DaveAgentSettings(
 #   api_key=sk-8cb1f...942d60,
 #   base_url=https://api.deepseek.com,
 #   model=deepseek-chat
@@ -191,9 +191,9 @@ codeagent --debug
 ❌ API key no configurada.
 
 Opciones para configurarla:
-  1. Variable de entorno: export CODEAGENT_API_KEY='tu-api-key'
-  2. Archivo .env: CODEAGENT_API_KEY=tu-api-key
-  3. Argumento CLI: codeagent --api-key 'tu-api-key'
+  1. Variable de entorno: export DAVEAGENT_API_KEY='tu-api-key'
+  2. Archivo .env: DAVEAGENT_API_KEY=tu-api-key
+  3. Argumento CLI: daveagent --api-key 'tu-api-key'
 
 Obtén tu API key en: https://platform.deepseek.com/api_keys
 ```
@@ -249,17 +249,17 @@ Si crees que tu key fue comprometida:
 
 ```bash
 # 1. Crear .env
-echo "CODEAGENT_API_KEY=sk-tu-deepseek-key" > .env
+echo "DAVEAGENT_API_KEY=sk-tu-deepseek-key" > .env
 
 # 2. Usar
-codeagent
+daveagent
 ```
 
 ### Ejemplo 2: Usar OpenAI Temporalmente
 
 ```bash
 # Sin cambiar .env
-codeagent --api-key "sk-proj-openai-key" --base-url "https://api.openai.com/v1" --model "gpt-4"
+daveagent --api-key "sk-proj-openai-key" --base-url "https://api.openai.com/v1" --model "gpt-4"
 ```
 
 ### Ejemplo 3: Múltiples Proyectos
@@ -267,52 +267,52 @@ codeagent --api-key "sk-proj-openai-key" --base-url "https://api.openai.com/v1" 
 ```bash
 # Proyecto 1 (DeepSeek)
 cd proyecto1
-echo "CODEAGENT_API_KEY=sk-deepseek-key" > .env
-codeagent
+echo "DAVEAGENT_API_KEY=sk-deepseek-key" > .env
+daveagent
 
 # Proyecto 2 (OpenAI)
 cd proyecto2
-echo "CODEAGENT_API_KEY=sk-proj-openai-key" > .env
-echo "CODEAGENT_BASE_URL=https://api.openai.com/v1" >> .env
-echo "CODEAGENT_MODEL=gpt-4" >> .env
-codeagent
+echo "DAVEAGENT_API_KEY=sk-proj-openai-key" > .env
+echo "DAVEAGENT_BASE_URL=https://api.openai.com/v1" >> .env
+echo "DAVEAGENT_MODEL=gpt-4" >> .env
+daveagent
 ```
 
 ## 📝 Referencia de Variables
 
 | Variable | Descripción | Default | Requerida |
 |----------|-------------|---------|-----------|
-| `CODEAGENT_API_KEY` | API key del modelo LLM | - | ✅ Sí |
-| `CODEAGENT_BASE_URL` | URL base de la API | `https://api.deepseek.com` | ❌ No |
-| `CODEAGENT_MODEL` | Nombre del modelo | `deepseek-chat` | ❌ No |
+| `DAVEAGENT_API_KEY` | API key del modelo LLM | - | ✅ Sí |
+| `DAVEAGENT_BASE_URL` | URL base de la API | `https://api.deepseek.com` | ❌ No |
+| `DAVEAGENT_MODEL` | Nombre del modelo | `deepseek-chat` | ❌ No |
 
 ### Alias Compatibles
 
 También puedes usar estos nombres (para compatibilidad):
 
-- `OPENAI_API_KEY` → `CODEAGENT_API_KEY`
-- `DEEPSEEK_API_KEY` → `CODEAGENT_API_KEY`
-- `OPENAI_BASE_URL` → `CODEAGENT_BASE_URL`
-- `OPENAI_MODEL` → `CODEAGENT_MODEL`
+- `OPENAI_API_KEY` → `DAVEAGENT_API_KEY`
+- `DEEPSEEK_API_KEY` → `DAVEAGENT_API_KEY`
+- `OPENAI_BASE_URL` → `DAVEAGENT_BASE_URL`
+- `OPENAI_MODEL` → `DAVEAGENT_MODEL`
 
 ## 🆘 Ayuda Adicional
 
 ### Ver todos los argumentos disponibles
 
 ```bash
-codeagent --help
+daveagent --help
 ```
 
 ### Ver versión
 
 ```bash
-codeagent --version
+daveagent --version
 ```
 
 ### Modo debug
 
 ```bash
-codeagent --debug
+daveagent --debug
 ```
 
 Muestra configuración detallada y logs de todas las operaciones.
@@ -327,4 +327,4 @@ Muestra configuración detallada y logs de todas las operaciones.
 4. **Prueba con DeepSeek primero** - Es más barato y rápido
 5. **Usa --debug si hay problemas** - Te ayudará a diagnosticar
 
-¿Tienes problemas? Revisa los logs en `logs/codeagent_*.log` o ejecuta con `--debug`.
+¿Tienes problemas? Revisa los logs en `logs/daveagent_*.log` o ejecuta con `--debug`.

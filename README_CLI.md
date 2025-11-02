@@ -1,4 +1,4 @@
-# Code Agent CLI - Interfaz Interactiva
+# DaveAgent CLI - Interfaz Interactiva
 
 Agente inteligente de desarrollo con planificación dinámica de tareas y gestión automática de historial de conversaciones.
 
@@ -145,7 +145,7 @@ Plan completado → Muestra resumen
 ## Estructura de Archivos
 
 ```
-CodeAgent/
+DaveAgent/
 ├── main.py                      # Punto de entrada principal
 ├── conversation_manager.py       # Gestión de historial
 ├── task_planner.py              # Planificación de tareas

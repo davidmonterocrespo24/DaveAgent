@@ -3,7 +3,7 @@
 .agent_history
 test/site_dump/*
 logs/*
-codeagent_cli.egg-info/*
+daveagent_cli.egg-info/*
 
 # Environment variables - NO SUBIR API KEYS
 .env

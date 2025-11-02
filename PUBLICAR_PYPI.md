@@ -1,9 +1,9 @@
-# 📦 Guía para Publicar CodeAgent en PyPI
+# 📦 Guía para Publicar DaveAgent en PyPI
 
-Esta guía te llevará paso a paso para publicar CodeAgent en PyPI y que cualquier persona pueda instalarlo con:
+Esta guía te llevará paso a paso para publicar DaveAgent en PyPI y que cualquier persona pueda instalarlo con:
 
 ```bash
-pip install codeagent-ai
+pip install daveagent-ai
 ```
 
 ## 📋 Prerrequisitos
@@ -34,7 +34,7 @@ PyPI requiere 2FA para publicar paquetes:
 #### Para TestPyPI:
 1. Ve a https://test.pypi.org/manage/account/token/
 2. Clic en "Add API token"
-3. Nombre: `codeagent-upload`
+3. Nombre: `daveagent-upload`
 4. Scope: "Entire account" (o específico del proyecto después de la primera subida)
 5. **Copia el token** (empieza con `pypi-`) - solo se muestra una vez
 
@@ -60,10 +60,10 @@ pip install --upgrade build twine
 ### 1. Limpiar builds anteriores
 
 ```bash
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 
 # Eliminar builds anteriores si existen
-rmdir /s /q dist build src\codeagent_ai.egg-info 2>nul
+rmdir /s /q dist build src\daveagent_ai.egg-info 2>nul
 ```
 
 En Linux/Mac:
@@ -76,7 +76,7 @@ rm -rf dist/ build/ *.egg-info src/*.egg-info
 Asegúrate de que tienes estos archivos:
 
 ```
-CodeAgent/
+DaveAgent/
 ├── setup.py          ✓ Configuración del paquete
 ├── pyproject.toml    ✓ Build system moderno
 ├── MANIFEST.in       ✓ Archivos a incluir
@@ -98,15 +98,15 @@ CodeAgent/
 **IMPORTANTE**: Antes de publicar, actualiza en `setup.py`:
 
 ```python
-name="codeagent-ai",  # Verifica que este nombre esté disponible en PyPI
+name="daveagent-ai",  # Verifica que este nombre esté disponible en PyPI
 version="1.1.0",      # Versión actual
-url="https://github.com/TU_USUARIO/codeagent",  # Tu repositorio real
+url="https://github.com/TU_USUARIO/daveagent",  # Tu repositorio real
 ```
 
 Para verificar si el nombre está disponible:
 ```bash
-pip search codeagent-ai
-# O visita: https://pypi.org/project/codeagent-ai/
+pip search daveagent-ai
+# O visita: https://pypi.org/project/daveagent-ai/
 ```
 
 ## 🏗️ Construir el Paquete
@@ -118,14 +118,14 @@ python -m build
 ```
 
 Esto creará en el directorio `dist/`:
-- `codeagent_ai-1.1.0-py3-none-any.whl` (wheel - instalación rápida)
-- `codeagent_ai-1.1.0.tar.gz` (source distribution)
+- `daveagent_ai-1.1.0-py3-none-any.whl` (wheel - instalación rápida)
+- `daveagent_ai-1.1.0.tar.gz` (source distribution)
 
 ### 2. Verificar el contenido del paquete
 
 ```bash
 # Ver contenido del wheel
-python -m zipfile -l dist/codeagent_ai-1.1.0-py3-none-any.whl
+python -m zipfile -l dist/daveagent_ai-1.1.0-py3-none-any.whl
 
 # Verificar con twine
 python -m twine check dist/*
@@ -133,8 +133,8 @@ python -m twine check dist/*
 
 Deberías ver:
 ```
-Checking dist/codeagent_ai-1.1.0-py3-none-any.whl: PASSED
-Checking dist/codeagent_ai-1.1.0.tar.gz: PASSED
+Checking dist/daveagent_ai-1.1.0-py3-none-any.whl: PASSED
+Checking dist/daveagent_ai-1.1.0.tar.gz: PASSED
 ```
 
 ## 🧪 Publicar en TestPyPI (Pruebas)
@@ -153,7 +153,7 @@ Te pedirá:
 
 ### 2. Verificar en TestPyPI
 
-Ve a: https://test.pypi.org/project/codeagent-ai/
+Ve a: https://test.pypi.org/project/daveagent-ai/
 
 Deberías ver tu paquete publicado.
 
@@ -168,11 +168,11 @@ python -m venv test_env
 test_env\Scripts\activate
 
 # Instalar desde TestPyPI
-pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ codeagent-ai
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ daveagent-ai
 
 # Probar que funciona
-codeagent --version
-codeagent --help
+daveagent --version
+daveagent --help
 ```
 
 **Nota**: Usamos `--extra-index-url https://pypi.org/simple/` para que las dependencias (autogen, etc.) se instalen desde PyPI real.
@@ -182,7 +182,7 @@ codeagent --help
 ```bash
 # En cualquier directorio
 cd C:\Temp\mi_proyecto
-codeagent
+daveagent
 
 # Probar comandos
 Tu: /help
@@ -217,12 +217,12 @@ Te pedirá:
 
 ### 3. ¡Publicado! 🎊
 
-Tu paquete ahora está disponible en: https://pypi.org/project/codeagent-ai/
+Tu paquete ahora está disponible en: https://pypi.org/project/daveagent-ai/
 
 Cualquier persona puede instalarlo con:
 
 ```bash
-pip install codeagent-ai
+pip install daveagent-ai
 ```
 
 ## 📦 Después de la Primera Publicación
@@ -231,8 +231,8 @@ pip install codeagent-ai
 
 Ahora que tu paquete existe, puedes crear tokens más seguros:
 
-1. Ve a https://pypi.org/manage/project/codeagent-ai/settings/
-2. Crea un nuevo token con scope "Project: codeagent-ai"
+1. Ve a https://pypi.org/manage/project/daveagent-ai/settings/
+2. Crea un nuevo token con scope "Project: daveagent-ai"
 3. Usa este token en el futuro (más seguro que "Entire account")
 
 ## 🔄 Publicar Actualizaciones
@@ -262,7 +262,7 @@ En `CHANGELOG.md`:
 
 ```bash
 # Limpiar builds anteriores
-rmdir /s /q dist build src\codeagent_ai.egg-info
+rmdir /s /q dist build src\daveagent_ai.egg-info
 
 # Construir nueva versión
 python -m build
@@ -285,13 +285,13 @@ python -m twine upload dist/*
 
 ### Ver estadísticas de descargas
 
-- PyPI Stats: https://pypistats.org/packages/codeagent-ai
-- Biblioteca PEP 381: https://pypi.org/project/codeagent-ai/#data
+- PyPI Stats: https://pypistats.org/packages/daveagent-ai
+- Biblioteca PEP 381: https://pypi.org/project/daveagent-ai/#data
 
 ### Monitorear issues
 
 Si pusiste un repositorio de GitHub:
-- Revisa issues: https://github.com/TU_USUARIO/codeagent/issues
+- Revisa issues: https://github.com/TU_USUARIO/daveagent/issues
 - Acepta pull requests de la comunidad
 
 ## 🔐 Seguridad
@@ -343,13 +343,13 @@ Revisa los errores reportados.
 
 **Solución**: Verifica `install_requires` en `setup.py`. Todas las dependencias deben estar en PyPI.
 
-### No se encuentra el comando `codeagent`
+### No se encuentra el comando `daveagent`
 
 **Solución**: Verifica `entry_points` en `setup.py`:
 ```python
 entry_points={
     'console_scripts': [
-        'codeagent=src.cli:main',
+        'daveagent=src.cli:main',
     ],
 },
 ```
@@ -372,8 +372,8 @@ Antes de publicar:
 - [ ] Instalación desde TestPyPI funciona
 - [ ] Todas las funcionalidades probadas
 - [ ] Publicado en PyPI
-- [ ] Verificado en https://pypi.org/project/codeagent-ai/
-- [ ] Instalación con `pip install codeagent-ai` funciona
+- [ ] Verificado en https://pypi.org/project/daveagent-ai/
+- [ ] Instalación con `pip install daveagent-ai` funciona
 
 ## 🎓 Recursos Adicionales
 
@@ -388,14 +388,14 @@ Una vez publicado, tu paquete estará disponible para millones de desarrolladore
 
 Comparte tu paquete:
 ```bash
-pip install codeagent-ai
+pip install daveagent-ai
 ```
 
 🌟 No olvides agregar un badge en tu README:
 
 ```markdown
-[![PyPI version](https://badge.fury.io/py/codeagent-ai.svg)](https://pypi.org/project/codeagent-ai/)
-[![Downloads](https://pepy.tech/badge/codeagent-ai)](https://pepy.tech/project/codeagent-ai)
+[![PyPI version](https://badge.fury.io/py/daveagent-ai.svg)](https://pypi.org/project/daveagent-ai/)
+[![Downloads](https://pepy.tech/badge/daveagent-ai)](https://pepy.tech/project/daveagent-ai)
 ```
 
 ---

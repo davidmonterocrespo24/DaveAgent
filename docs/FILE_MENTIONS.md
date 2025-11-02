@@ -2,11 +2,11 @@
 
 ## Overview
 
-CodeAgent now supports **file mentions** using the `@` symbol. This feature allows you to reference specific files in your queries, giving them **high priority** in the context when the AI processes your request.
+DaveAgent now supports **file mentions** using the `@` symbol. This feature allows you to reference specific files in your queries, giving them **high priority** in the context when the AI processes your request.
 
 ## How It Works
 
-When you type `@` followed by a file name or path, CodeAgent:
+When you type `@` followed by a file name or path, DaveAgent:
 
 1. **Detects the @ symbol** in your input
 2. **Indexes all files** in your project directory (excluding hidden files and common ignore patterns)
@@ -175,7 +175,7 @@ The file indexer automatically excludes:
 
 4. **Large files**: Be mindful that very large files will consume context tokens
 
-5. **Verification**: After selection, CodeAgent shows which files were selected
+5. **Verification**: After selection, DaveAgent shows which files were selected
 
 ## Examples
 

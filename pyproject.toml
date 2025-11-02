@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "codeagent-cli"
+name = "daveagent-cli"
 version = "1.0.0"
 description = "AI-powered coding assistant with intelligent agent orchestration"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "CodeAgent Team", email = "contact@codeagent.ai"}
+    {name = "DaveAgent Team", email = "contact@daveagent.ai"}
 ]
 keywords = ["ai", "agent", "coding", "assistant", "llm", "autogen"]
 classifiers = [
@@ -44,13 +44,13 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/codeagent"
-Documentation = "https://codeagent.readthedocs.io"
-Repository = "https://github.com/yourusername/codeagent"
-"Bug Tracker" = "https://github.com/yourusername/codeagent/issues"
+Homepage = "https://github.com/yourusername/daveagent"
+Documentation = "https://daveagent.readthedocs.io"
+Repository = "https://github.com/yourusername/daveagent"
+"Bug Tracker" = "https://github.com/yourusername/daveagent/issues"
 
 [project.scripts]
-codeagent = "src.cli:main"
+daveagent = "src.cli:main"
 
 [tool.setuptools]
 packages = ["src", "src.agents", "src.config", "src.interfaces", "src.managers", "src.tools", "src.tools.filesystem", "src.tools.git", "src.tools.data", "src.tools.web", "src.tools.analysis", "src.utils"]

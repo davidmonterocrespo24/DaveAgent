@@ -1,8 +1,8 @@
-# 📦 Guía de Instalación de CodeAgent
+# 📦 Guía de Instalación de DaveAgent
 
 ## 🎯 Resumen
 
-Esta guía te mostrará cómo instalar CodeAgent como un paquete de Python para poder usarlo desde **cualquier directorio** ejecutando simplemente `codeagent`.
+Esta guía te mostrará cómo instalar DaveAgent como un paquete de Python para poder usarlo desde **cualquier directorio** ejecutando simplemente `daveagent`.
 
 ---
 
@@ -14,21 +14,21 @@ Esta opción te permite editar el código y que los cambios se reflejen inmediat
 
 ```bash
 # 1. Navega al directorio del proyecto
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 
 # 2. Instala en modo desarrollo (editable)
 pip install -e .
 
-# 3. ¡Listo! Ahora puedes usar 'codeagent' desde cualquier directorio
+# 3. ¡Listo! Ahora puedes usar 'daveagent' desde cualquier directorio
 ```
 
 ### Opción 2: Instalación Normal
 
-Esta opción instala CodeAgent como un paquete regular:
+Esta opción instala DaveAgent como un paquete regular:
 
 ```bash
 # 1. Navega al directorio del proyecto
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 
 # 2. Instala el paquete
 pip install .
@@ -53,20 +53,20 @@ Después de instalar, verifica que todo funcione:
 
 ```bash
 # Ver la versión
-codeagent --version
+daveagent --version
 
 # Ver la ayuda
-codeagent --help
+daveagent --help
 
-# Iniciar CodeAgent
-codeagent
+# Iniciar DaveAgent
+daveagent
 ```
 
 Deberías ver algo como:
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║                    🤖 CodeAgent CLI                          ║
+║                    🤖 DaveAgent CLI                          ║
 ╚══════════════════════════════════════════════════════════════╝
 
 Version: 1.0.0
@@ -82,27 +82,27 @@ Built with ❤️ using AutoGen 0.4
 
 ### Usar en Cualquier Directorio
 
-Una vez instalado, puedes usar CodeAgent desde **cualquier directorio**:
+Una vez instalado, puedes usar DaveAgent desde **cualquier directorio**:
 
 ```bash
 # Ejemplo 1: Trabajar en un proyecto web
 cd C:\Users\tuusuario\proyectos\mi-web
-codeagent
+daveagent
 
-# CodeAgent trabajará en C:\Users\tuusuario\proyectos\mi-web
+# DaveAgent trabajará en C:\Users\tuusuario\proyectos\mi-web
 ```
 
 ```bash
 # Ejemplo 2: Trabajar en un proyecto de Python
 cd D:\Python\mi-proyecto
-codeagent --debug
+daveagent --debug
 
-# CodeAgent trabajará en D:\Python\mi-proyecto con logs detallados
+# DaveAgent trabajará en D:\Python\mi-proyecto con logs detallados
 ```
 
 ### Directorio de Trabajo
 
-El directorio de trabajo de CodeAgent es **el directorio actual** donde ejecutas el comando `codeagent`.
+El directorio de trabajo de DaveAgent es **el directorio actual** donde ejecutas el comando `daveagent`.
 
 Por ejemplo:
 
@@ -111,9 +111,9 @@ Por ejemplo:
 cd C:\Users\tuusuario\proyectos\mi-app
 
 # Y ejecutas:
-codeagent
+daveagent
 
-# CodeAgent verá y trabajará con los archivos en:
+# DaveAgent verá y trabajará con los archivos en:
 # C:\Users\tuusuario\proyectos\mi-app
 ```
 
@@ -123,33 +123,33 @@ codeagent
 
 ```bash
 # Iniciar normalmente
-codeagent
+daveagent
 
 # Iniciar con modo debug (logs detallados)
-codeagent --debug
+daveagent --debug
 # o
-codeagent -d
+daveagent -d
 
 # Ver la versión
-codeagent --version
+daveagent --version
 # o
-codeagent -v
+daveagent -v
 
 # Ver la ayuda
-codeagent --help
+daveagent --help
 # o
-codeagent -h
+daveagent -h
 ```
 
 ---
 
 ## 📂 Estructura del Paquete Instalado
 
-Cuando instalas CodeAgent, se crea esta estructura:
+Cuando instalas DaveAgent, se crea esta estructura:
 
 ```
 Python/Lib/site-packages/
-└── codeagent-cli/
+└── daveagent-cli/
     ├── src/
     │   ├── agents/
     │   ├── config/
@@ -157,11 +157,11 @@ Python/Lib/site-packages/
     │   ├── managers/
     │   ├── tools/
     │   ├── utils/
-    │   └── cli.py          # ← Punto de entrada del comando 'codeagent'
+    │   └── cli.py          # ← Punto de entrada del comando 'daveagent'
     └── main.py
 ```
 
-El comando `codeagent` ejecuta el archivo `src/cli.py`, que a su vez llama a `main.py`.
+El comando `daveagent` ejecuta el archivo `src/cli.py`, que a su vez llama a `main.py`.
 
 ---
 
@@ -178,7 +178,7 @@ Si haces cambios en el código y quieres actualizarlo:
 ### Si instalaste sin `-e`:
 ```bash
 # 1. Navega al directorio del proyecto
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 
 # 2. Reinstala
 pip install --upgrade --force-reinstall .
@@ -188,17 +188,17 @@ pip install --upgrade --force-reinstall .
 
 ## 🗑️ Desinstalar
 
-Si quieres desinstalar CodeAgent:
+Si quieres desinstalar DaveAgent:
 
 ```bash
-pip uninstall codeagent-cli
+pip uninstall daveagent-cli
 ```
 
 ---
 
 ## 🐛 Solución de Problemas
 
-### Error: "command not found: codeagent"
+### Error: "command not found: daveagent"
 
 **Causa**: El directorio de scripts de Python no está en tu PATH.
 
@@ -226,10 +226,10 @@ pip uninstall codeagent-cli
 **Solución**:
 ```bash
 # Desinstala
-pip uninstall codeagent-cli
+pip uninstall daveagent-cli
 
 # Reinstala en modo desarrollo
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 pip install -e .
 ```
 
@@ -255,7 +255,7 @@ pip install -e .
 ### ✅ Antes (Sin Instalar)
 ```bash
 # Tenías que hacer esto cada vez:
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 python main.py
 
 # Y solo funcionaba en ese directorio
@@ -265,13 +265,13 @@ python main.py
 ```bash
 # Desde CUALQUIER directorio:
 cd C:\Users\tuusuario\mi-proyecto
-codeagent
+daveagent
 
-# ¡Y CodeAgent trabaja en ese directorio!
+# ¡Y DaveAgent trabaja en ese directorio!
 ```
 
 ### Beneficios:
-- ✅ Usa `codeagent` desde cualquier ubicación
+- ✅ Usa `daveagent` desde cualquier ubicación
 - ✅ El directorio de trabajo es donde ejecutes el comando
 - ✅ No necesitas recordar la ruta del proyecto
 - ✅ Integración perfecta con tu flujo de trabajo
@@ -282,20 +282,20 @@ codeagent
 ## 📝 Ejemplo de Uso Completo
 
 ```bash
-# 1. Instalar CodeAgent (solo una vez)
-cd E:\AI\CodeAgent
+# 1. Instalar DaveAgent (solo una vez)
+cd E:\AI\DaveAgent
 pip install -e .
 
 # 2. Ir a tu proyecto
 cd C:\Users\tuusuario\proyectos\mi-web
 
-# 3. Iniciar CodeAgent
-codeagent --debug
+# 3. Iniciar DaveAgent
+daveagent --debug
 
-# 4. Dentro de CodeAgent:
+# 4. Dentro de DaveAgent:
 Tu: crear un archivo utils.js con una función para validar emails
 
-# CodeAgent creará el archivo en:
+# DaveAgent creará el archivo en:
 # C:\Users\tuusuario\proyectos\mi-web\utils.js
 ```
 
@@ -307,8 +307,8 @@ Si quieres contribuir al proyecto:
 
 ```bash
 # 1. Clona el repositorio
-git clone https://github.com/yourusername/codeagent.git
-cd codeagent
+git clone https://github.com/yourusername/daveagent.git
+cd daveagent
 
 # 2. Instala en modo desarrollo con dependencias de desarrollo
 pip install -e ".[dev]"
@@ -337,24 +337,24 @@ pip install build
 python -m build
 
 # Esto creará archivos en:
-# dist/codeagent_cli-1.0.0-py3-none-any.whl
-# dist/codeagent-cli-1.0.0.tar.gz
+# dist/daveagent_cli-1.0.0-py3-none-any.whl
+# dist/daveagent-cli-1.0.0.tar.gz
 ```
 
 Luego puedes instalar ese paquete con:
 
 ```bash
-pip install dist/codeagent_cli-1.0.0-py3-none-any.whl
+pip install dist/daveagent_cli-1.0.0-py3-none-any.whl
 ```
 
 ---
 
 ## 🎉 ¡Listo!
 
-Ahora tienes CodeAgent instalado como un paquete de Python y puedes usarlo desde cualquier directorio ejecutando simplemente:
+Ahora tienes DaveAgent instalado como un paquete de Python y puedes usarlo desde cualquier directorio ejecutando simplemente:
 
 ```bash
-codeagent
+daveagent
 ```
 
-¿Tienes preguntas? Consulta la [documentación completa](https://codeagent.readthedocs.io) o abre un [issue en GitHub](https://github.com/yourusername/codeagent/issues).
+¿Tienes preguntas? Consulta la [documentación completa](https://daveagent.readthedocs.io) o abre un [issue en GitHub](https://github.com/yourusername/daveagent/issues).

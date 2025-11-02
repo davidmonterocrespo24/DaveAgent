@@ -1,8 +1,8 @@
-# 🎉 ¡CodeAgent Instalado Como Paquete!
+# 🎉 ¡DaveAgent Instalado Como Paquete!
 
 ## ✅ Estado Actual
 
-CodeAgent ya está instalado y listo para usar. Ahora puedes ejecutar `codeagent` desde **cualquier directorio**.
+DaveAgent ya está instalado y listo para usar. Ahora puedes ejecutar `daveagent` desde **cualquier directorio**.
 
 ---
 
@@ -14,24 +14,24 @@ CodeAgent ya está instalado y listo para usar. Ahora puedes ejecutar `codeagent
 # Ejemplo: Ir a un proyecto web
 cd C:\Users\tuusuario\proyectos\mi-web
 
-# Iniciar CodeAgent
-codeagent
+# Iniciar DaveAgent
+daveagent
 ```
 
-### 2. CodeAgent trabajará en ese directorio
+### 2. DaveAgent trabajará en ese directorio
 
 ```
-🚀 Iniciando CodeAgent en: C:\Users\tuusuario\proyectos\mi-web
+🚀 Iniciando DaveAgent en: C:\Users\tuusuario\proyectos\mi-web
 📂 Directorio de trabajo: C:\Users\tuusuario\proyectos\mi-web
 
 ╔════════════════════════════════════════════╗
-║        🤖 CodeAgent - Asistente IA         ║
+║        🤖 DaveAgent - Asistente IA         ║
 ╚════════════════════════════════════════════╝
 
 Tu: crear un archivo index.html
 ```
 
-CodeAgent creará `C:\Users\tuusuario\proyectos\mi-web\index.html`
+DaveAgent creará `C:\Users\tuusuario\proyectos\mi-web\index.html`
 
 ---
 
@@ -43,13 +43,13 @@ CodeAgent creará `C:\Users\tuusuario\proyectos\mi-web\index.html`
 # 1. Ve a tu proyecto
 cd D:\Python\mi-app
 
-# 2. Inicia CodeAgent
-codeagent
+# 2. Inicia DaveAgent
+daveagent
 
 # 3. Pide algo
 Tu: crear un módulo utils.py con funciones para validar emails y fechas
 
-# 4. CodeAgent crea el archivo en D:\Python\mi-app\utils.py
+# 4. DaveAgent crea el archivo en D:\Python\mi-app\utils.py
 ```
 
 ### Ejemplo 2: Analizar código existente
@@ -59,7 +59,7 @@ Tu: crear un módulo utils.py con funciones para validar emails y fechas
 cd C:\proyectos\backend
 
 # 2. Inicia con debug
-codeagent --debug
+daveagent --debug
 
 # 3. Analiza
 Tu: analiza la estructura del proyecto y dame un resumen
@@ -72,7 +72,7 @@ Tu: muestra las funciones en main.py
 ```bash
 cd mi-repo
 
-codeagent
+daveagent
 
 Tu: muestra el status de git
 Tu: haz commit de los cambios con mensaje descriptivo
@@ -87,21 +87,21 @@ Tu: muestra el diff de los últimos 3 commits
 
 ```bash
 # Ver versión
-codeagent --version
+daveagent --version
 
 # Ver ayuda
-codeagent --help
+daveagent --help
 
 # Iniciar con debug
-codeagent --debug
+daveagent --debug
 
 # Iniciar normalmente
-codeagent
+daveagent
 ```
 
-### Comandos Dentro de CodeAgent
+### Comandos Dentro de DaveAgent
 
-Una vez dentro de CodeAgent:
+Una vez dentro de DaveAgent:
 
 | Comando | Descripción |
 |---------|-------------|
@@ -111,7 +111,7 @@ Una vez dentro de CodeAgent:
 | `/stats` | Muestra estadísticas |
 | `/clear` | Limpia historial |
 | `/new` | Nueva conversación |
-| `/exit` | Salir de CodeAgent |
+| `/exit` | Salir de DaveAgent |
 
 ---
 
@@ -119,23 +119,23 @@ Una vez dentro de CodeAgent:
 
 ### Regla Simple
 
-**El directorio de trabajo es donde ejecutas `codeagent`**
+**El directorio de trabajo es donde ejecutas `daveagent`**
 
 ### Ejemplos
 
 ```bash
 # Si estás en:
 cd C:\Users\tuusuario\Desktop
-codeagent
-# → CodeAgent trabaja en C:\Users\tuusuario\Desktop
+daveagent
+# → DaveAgent trabaja en C:\Users\tuusuario\Desktop
 
 # Si estás en:
 cd D:\proyectos\web\frontend
-codeagent
-# → CodeAgent trabaja en D:\proyectos\web\frontend
+daveagent
+# → DaveAgent trabaja en D:\proyectos\web\frontend
 ```
 
-### Lo que CodeAgent puede hacer en ese directorio
+### Lo que DaveAgent puede hacer en ese directorio
 
 - ✅ Leer archivos existentes
 - ✅ Crear nuevos archivos
@@ -151,7 +151,7 @@ codeagent
 
 ## 🔧 42 Herramientas Disponibles
 
-CodeAgent tiene 42 herramientas organizadas en 6 categorías:
+DaveAgent tiene 42 herramientas organizadas en 6 categorías:
 
 ### 📁 Filesystem (6 tools)
 - Leer/escribir/editar archivos
@@ -189,7 +189,7 @@ CodeAgent tiene 42 herramientas organizadas en 6 categorías:
 
 ### Tip 1: Usa rutas relativas
 
-CodeAgent entiende rutas relativas al directorio actual:
+DaveAgent entiende rutas relativas al directorio actual:
 
 ```
 Tu: lee el archivo src/main.py
@@ -199,7 +199,7 @@ Tu: crea un nuevo archivo en utils/helpers.js
 ### Tip 2: Modo debug para ver qué hace
 
 ```bash
-codeagent --debug
+daveagent --debug
 ```
 
 Verás logs detallados de cada operación:
@@ -213,7 +213,7 @@ Verás logs detallados de cada operación:
 
 ```
 Tu: /logs
-📄 Archivo de logs: logs/codeagent_20250131_154022.log
+📄 Archivo de logs: logs/daveagent_20250131_154022.log
 ```
 
 Luego puedes abrir ese archivo para revisar todo lo que pasó.
@@ -230,13 +230,13 @@ Tu: crea un archivo main.py con una clase User,
 
 ## 🐛 Si Algo Sale Mal
 
-### CodeAgent no responde
+### DaveAgent no responde
 
 1. Presiona `Ctrl+C` para cancelar
 2. Revisa los logs con `/logs`
-3. Reinicia con `codeagent --debug`
+3. Reinicia con `daveagent --debug`
 
-### Error: "command not found: codeagent"
+### Error: "command not found: daveagent"
 
 El directorio de scripts de Python no está en tu PATH.
 
@@ -249,7 +249,7 @@ python -c "import sys; print(sys.executable)"
 # o /usr/local/bin (Linux/Mac)
 ```
 
-### CodeAgent trabaja en el directorio incorrecto
+### DaveAgent trabaja en el directorio incorrecto
 
 Verifica donde estás con:
 ```bash
@@ -258,12 +258,12 @@ cd           # Windows
 
 # Luego ve al directorio correcto
 cd ruta/correcta
-codeagent
+daveagent
 ```
 
 ---
 
-## 🔄 Actualizar CodeAgent
+## 🔄 Actualizar DaveAgent
 
 Si haces cambios al código:
 
@@ -276,7 +276,7 @@ Si haces cambios al código:
 Si quieres reinstalar:
 
 ```bash
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 pip install --upgrade --force-reinstall -e .
 ```
 
@@ -284,10 +284,10 @@ pip install --upgrade --force-reinstall -e .
 
 ## 🗑️ Desinstalar
 
-Si quieres desinstalar CodeAgent:
+Si quieres desinstalar DaveAgent:
 
 ```bash
-pip uninstall codeagent-cli
+pip uninstall daveagent-cli
 ```
 
 ---
@@ -298,7 +298,7 @@ pip uninstall codeagent-cli
 
 ```bash
 # Tenías que hacer esto cada vez:
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 python main.py
 
 # Y solo funcionaba en ese directorio específico
@@ -309,7 +309,7 @@ python main.py
 ```bash
 # Desde CUALQUIER directorio:
 cd donde-quieras
-codeagent
+daveagent
 
 # ¡Y funciona en ese directorio!
 ```
@@ -322,7 +322,7 @@ codeagent
 
 ```bash
 cd C:\proyectos\mi-web
-codeagent
+daveagent
 
 Tu: crea un componente React para un formulario de login
 Tu: agrega estilos CSS para que sea responsive
@@ -333,7 +333,7 @@ Tu: crea tests para el componente
 
 ```bash
 cd D:\datos\ventas-2024
-codeagent
+daveagent
 
 Tu: lee todos los CSV en esta carpeta
 Tu: combínalos en un solo archivo
@@ -345,7 +345,7 @@ Tu: crea un resumen en formato JSON
 
 ```bash
 cd C:\scripts
-codeagent
+daveagent
 
 Tu: crea un script que haga backup de archivos .py
 Tu: agrega logging al script
@@ -356,7 +356,7 @@ Tu: crea un README explicando cómo usarlo
 
 ## 🎉 ¡Listo Para Usar!
 
-Ahora tienes CodeAgent instalado como un paquete de Python profesional.
+Ahora tienes DaveAgent instalado como un paquete de Python profesional.
 
 **Para empezar**:
 
@@ -364,8 +364,8 @@ Ahora tienes CodeAgent instalado como un paquete de Python profesional.
 # 1. Ve a tu proyecto
 cd tu-proyecto
 
-# 2. Inicia CodeAgent
-codeagent
+# 2. Inicia DaveAgent
+daveagent
 
 # 3. ¡Empieza a trabajar!
 Tu: hola, ayúdame a crear un módulo de autenticación
@@ -384,4 +384,4 @@ Tu: hola, ayúdame a crear un módulo de autenticación
 
 ¿Tienes preguntas? Abre un issue en el repositorio o consulta la documentación.
 
-**¡Feliz codificación con CodeAgent! 🚀**
+**¡Feliz codificación con DaveAgent! 🚀**

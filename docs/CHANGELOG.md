@@ -8,9 +8,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [1.0.0] - 2025-01-31
 
 ### Añadido
-- 🎉 Versión inicial de CodeAgent
+- 🎉 Versión inicial de DaveAgent
 - 📦 Configuración como paquete instalable de Python
-- 🚀 Comando CLI global `codeagent`
+- 🚀 Comando CLI global `daveagent`
 - 🔧 42 herramientas integradas (filesystem, git, JSON, CSV, web, analysis)
 - 🤖 Sistema de agentes inteligentes con AutoGen 0.4
 - 📊 Sistema de logging completo con Rich
@@ -76,5 +76,5 @@ El proyecto usa [Semantic Versioning](https://semver.org/):
 
 ---
 
-[1.0.0]: https://github.com/yourusername/codeagent/releases/tag/v1.0.0
-[Unreleased]: https://github.com/yourusername/codeagent/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/yourusername/daveagent/releases/tag/v1.0.0
+[Unreleased]: https://github.com/yourusername/daveagent/compare/v1.0.0...HEAD

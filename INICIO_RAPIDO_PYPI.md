@@ -1,6 +1,6 @@
 # 🚀 Inicio Rápido - Publicar en PyPI en 10 Minutos
 
-Guía ultra rápida para publicar CodeAgent en PyPI.
+Guía ultra rápida para publicar DaveAgent en PyPI.
 
 ## Paso 1: Crear Cuentas (5 minutos)
 
@@ -26,7 +26,7 @@ Guía ultra rápida para publicar CodeAgent en PyPI.
 **TestPyPI**:
 1. https://test.pypi.org/manage/account/token/
 2. "Add API token"
-3. Nombre: `codeagent-upload`
+3. Nombre: `daveagent-upload`
 4. Scope: "Entire account"
 5. **COPIA EL TOKEN** (empieza con `pypi-`) - ¡solo se muestra una vez!
 6. Guárdalo en un archivo temporal
@@ -41,7 +41,7 @@ Guía ultra rápida para publicar CodeAgent en PyPI.
 En tu terminal:
 
 ```bash
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 
 # Opción 1: Script automático (Windows)
 install_publish_tools.bat
@@ -76,15 +76,15 @@ En una nueva terminal:
 ```bash
 # Crear entorno de prueba
 cd C:\Temp
-python -m venv test_codeagent
-test_codeagent\Scripts\activate
+python -m venv test_daveagent
+test_daveagent\Scripts\activate
 
 # Instalar desde TestPyPI
-pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ codeagent-ai
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ daveagent-ai
 
 # Probar
-codeagent --version
-codeagent --help
+daveagent --version
+daveagent --help
 ```
 
 Si funciona, ¡continúa! Si no, revisa [PUBLICAR_PYPI.md](PUBLICAR_PYPI.md).
@@ -95,7 +95,7 @@ Si funciona, ¡continúa! Si no, revisa [PUBLICAR_PYPI.md](PUBLICAR_PYPI.md).
 
 ```bash
 # Volver al proyecto
-cd E:\AI\CodeAgent
+cd E:\AI\DaveAgent
 
 # Publicar en PyPI
 python publish.py prod
@@ -110,12 +110,12 @@ Confirmación:
 
 ## ✅ ¡Listo!
 
-Tu paquete ahora está publicado en: https://pypi.org/project/codeagent-ai/
+Tu paquete ahora está publicado en: https://pypi.org/project/daveagent-ai/
 
 Cualquiera puede instalarlo:
 
 ```bash
-pip install codeagent-ai
+pip install daveagent-ai
 ```
 
 ---
@@ -123,8 +123,8 @@ pip install codeagent-ai
 ## 📊 Siguientes Pasos
 
 ### Ver estadísticas
-- PyPI: https://pypi.org/project/codeagent-ai/
-- Descargas: https://pypistats.org/packages/codeagent-ai
+- PyPI: https://pypi.org/project/daveagent-ai/
+- Descargas: https://pypistats.org/packages/daveagent-ai
 
 ### Publicar actualizaciones
 
@@ -158,9 +158,9 @@ pip install codeagent-ai
 - Ya publicaste esta versión
 - Incrementa el número de versión en `setup.py`
 
-### "Command not found: codeagent"
+### "Command not found: daveagent"
 - Reinicia tu terminal
-- O ejecuta: `pip install --force-reinstall codeagent-ai`
+- O ejecuta: `pip install --force-reinstall daveagent-ai`
 
 ---
 

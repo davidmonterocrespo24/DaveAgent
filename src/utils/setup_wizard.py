@@ -1,5 +1,5 @@
 """
-Setup Wizard - Asistente interactivo para configurar CodeAgent
+Setup Wizard - Asistente interactivo para configurar DaveAgent
 """
 from pathlib import Path
 from typing import Optional
@@ -8,7 +8,7 @@ from typing import Optional
 def print_welcome_banner():
     """Muestra banner de bienvenida para primera vez"""
     print("\n" + "=" * 70)
-    print("  🎉 Bienvenido a CodeAgent - Configuración Inicial")
+    print("  🎉 Bienvenido a DaveAgent - Configuración Inicial")
     print("=" * 70)
     print()
 
@@ -23,7 +23,7 @@ def get_api_key_interactive() -> str:
     print("📝 Configuración de API Key")
     print("-" * 70)
     print()
-    print("CodeAgent necesita una API key para funcionar.")
+    print("DaveAgent necesita una API key para funcionar.")
     print()
     print("Opciones recomendadas:")
     print("  1. DeepSeek (Gratis) - https://platform.deepseek.com/api_keys")
@@ -102,26 +102,28 @@ def ask_save_to_env(api_key: str, base_url: Optional[str] = None, model: Optiona
     print("¿Quieres guardar esta configuración en un archivo .env?")
     print()
     print("Ventajas:")
-    print("  ✓ No tendrás que configurar cada vez que uses CodeAgent")
+    print("  ✓ No tendrás que configurar cada vez que uses DaveAgent")
     print("  ✓ La configuración se aplica automáticamente a este directorio")
-    print("  ✓ Es seguro (el archivo .env no se sube a Git)")
+    print("  ✓ Es seguro (el archivo .daveagent/.env no se sube a Git)")
     print()
 
-    save = input("¿Guardar en .env? (S/n): ").strip().lower()
+    save = input("¿Guardar en .daveagent/.env? (S/n): ").strip().lower()
 
     if save == 'n' or save == 'no':
         print()
         print("⚠️  Configuración NO guardada.")
-        print("   Deberás configurar la API key cada vez que uses CodeAgent.")
+        print("   Deberás configurar la API key cada vez que uses DaveAgent.")
         print()
         print("   Puedes configurarla con:")
-        print(f"     codeagent --api-key \"{api_key[:10]}...\"")
+        print(f"     daveagent --api-key \"{api_key[:10]}...\"")
         print()
         return False
 
-    # Guardar en .env
+    # Guardar en .daveagent/.env
     try:
-        env_path = Path.cwd() / '.env'
+        daveagent_dir = Path.cwd() / '.daveagent'
+        daveagent_dir.mkdir(exist_ok=True)
+        env_path = daveagent_dir / '.env'
 
         # Verificar si ya existe
         if env_path.exists():
@@ -133,15 +135,15 @@ def ask_save_to_env(api_key: str, base_url: Optional[str] = None, model: Optiona
                 return False
 
         # Crear contenido del .env
-        env_content = f"# Configuración de CodeAgent\n"
+        env_content = f"# Configuración de DaveAgent\n"
         env_content += f"# Generado automáticamente\n\n"
-        env_content += f"CODEAGENT_API_KEY={api_key}\n"
+        env_content += f"DAVEAGENT_API_KEY={api_key}\n"
 
         if base_url:
-            env_content += f"CODEAGENT_BASE_URL={base_url}\n"
+            env_content += f"DAVEAGENT_BASE_URL={base_url}\n"
 
         if model:
-            env_content += f"CODEAGENT_MODEL={model}\n"
+            env_content += f"DAVEAGENT_MODEL={model}\n"
 
         # Guardar archivo
         env_path.write_text(env_content, encoding='utf-8')
@@ -150,8 +152,8 @@ def ask_save_to_env(api_key: str, base_url: Optional[str] = None, model: Optiona
         print("✅ Configuración guardada exitosamente!")
         print(f"   Archivo: {env_path}")
         print()
-        print("🎉 ¡Todo listo! Ahora puedes usar CodeAgent simplemente con:")
-        print("   codeagent")
+        print("🎉 ¡Todo listo! Ahora puedes usar DaveAgent simplemente con:")
+        print("   daveagent")
         print()
 
         return True
@@ -198,10 +200,10 @@ def should_run_setup(api_key: Optional[str]) -> bool:
     if api_key:
         return False
 
-    # Verificar si existe .env en el directorio actual
-    env_path = Path.cwd() / '.env'
+    # Verificar si existe .env en el directorio .daveagent
+    env_path = Path.cwd() / '.daveagent' / '.env'
     if env_path.exists():
-        # Hay .env pero no tiene CODEAGENT_API_KEY
+        # Hay .env pero no tiene DAVEAGENT_API_KEY
         # Probablemente configurado mal
         return True
 

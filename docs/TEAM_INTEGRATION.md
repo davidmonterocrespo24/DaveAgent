@@ -2,7 +2,7 @@
 
 ## Resumen
 
-CodeAgent ahora utiliza un **SelectorGroupChat** con 3 agentes especializados que trabajan en conjunto de manera inteligente. El sistema selecciona automáticamente el agente más apropiado según la tarea solicitada.
+DaveAgent ahora utiliza un **SelectorGroupChat** con 3 agentes especializados que trabajan en conjunto de manera inteligente. El sistema selecciona automáticamente el agente más apropiado según la tarea solicitada.
 
 ## Arquitectura del Team
 
@@ -53,7 +53,7 @@ CodeSearcher busca en el código con:
 
 Resultado: Análisis completo con:
 - Archivos relevantes (src/utils/logger.py, main.py)
-- Clase CodeAgentLogger con código completo
+- Clase DaveAgentLogger con código completo
 - Métodos disponibles (debug, info, warning, error)
 - Ejemplos de uso en el código
 - Recomendaciones de modificación

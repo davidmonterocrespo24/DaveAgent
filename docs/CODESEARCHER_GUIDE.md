@@ -86,7 +86,7 @@ CodeSearcher es un agente especializado en **búsqueda y análisis de código**.
 
 **Resultado esperado:**
 - Archivos relacionados con logging
-- Clase CodeAgentLogger y sus métodos
+- Clase DaveAgentLogger y sus métodos
 - Cómo se configura el logger
 - Ejemplos de uso (logger.info, logger.debug, etc.)
 - Ubicación de archivos de log

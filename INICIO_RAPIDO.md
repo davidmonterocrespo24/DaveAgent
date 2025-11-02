@@ -1,36 +1,36 @@
-# 🚀 Inicio Rápido - CodeAgent
+# 🚀 Inicio Rápido - DaveAgent
 
-Comienza a usar CodeAgent en menos de 2 minutos.
+Comienza a usar DaveAgent en menos de 2 minutos.
 
 ## Paso 1: Instalar
 
 ```bash
-pip install codeagent-ai
+pip install daveagent-ai
 ```
 
 O desde código fuente:
 ```bash
-git clone https://github.com/CodeAgent-AI/codeagent.git
-cd codeagent
+git clone https://github.com/DaveAgent-AI/daveagent.git
+cd daveagent
 pip install -e .
 ```
 
 ## Paso 2: Ejecutar
 
 ```bash
-codeagent
+daveagent
 ```
 
 ## ¿Qué pasa ahora?
 
 ### Primera Vez: Configuración Interactiva
 
-Si es la primera vez que usas CodeAgent, verás:
+Si es la primera vez que usas DaveAgent, verás:
 
 ```
 ⚠️  No se encontró una API key configurada.
 
-¿Quieres configurar CodeAgent ahora? (S/n):
+¿Quieres configurar DaveAgent ahora? (S/n):
 ```
 
 **Presiona Enter** (o escribe 's') para comenzar la configuración guiada.
@@ -43,7 +43,7 @@ Si es la primera vez que usas CodeAgent, verás:
 📝 Configuración de API Key
 ──────────────────────────────────────────────────────────────────────
 
-CodeAgent necesita una API key para funcionar.
+DaveAgent necesita una API key para funcionar.
 
 Opciones recomendadas:
   1. DeepSeek (Gratis) - https://platform.deepseek.com/api_keys
@@ -81,7 +81,7 @@ Selecciona una opción (1-4):
 ¿Quieres guardar esta configuración en un archivo .env?
 
 Ventajas:
-  ✓ No tendrás que configurar cada vez que uses CodeAgent
+  ✓ No tendrás que configurar cada vez que uses DaveAgent
   ✓ La configuración se aplica automáticamente a este directorio
   ✓ Es seguro (el archivo .env no se sube a Git)
 
@@ -96,8 +96,8 @@ Ventajas:
 ✅ Configuración guardada exitosamente!
    Archivo: E:\tu-directorio\.env
 
-🎉 ¡Todo listo! Ahora puedes usar CodeAgent simplemente con:
-   codeagent
+🎉 ¡Todo listo! Ahora puedes usar DaveAgent simplemente con:
+   daveagent
 ```
 
 ## Primer Uso
@@ -129,7 +129,7 @@ Tu:
 Tu: crea un archivo llamado hola.py con una función que imprima "Hola Mundo"
 ```
 
-CodeAgent:
+DaveAgent:
 - Crea el archivo `hola.py`
 - Escribe la función
 - Te muestra el resultado
@@ -140,7 +140,7 @@ CodeAgent:
 Tu: /search función de logging
 ```
 
-CodeAgent:
+DaveAgent:
 - Busca en todo el código
 - Te muestra dónde está implementado
 - Proporciona contexto completo
@@ -151,7 +151,7 @@ CodeAgent:
 Tu: git status
 ```
 
-CodeAgent:
+DaveAgent:
 - Ejecuta `git status`
 - Te muestra los cambios
 
@@ -184,35 +184,35 @@ Si prefieres configurar manualmente sin el asistente:
 
 ```bash
 # Crear archivo .env
-echo "CODEAGENT_API_KEY=sk-tu-api-key-aqui" > .env
+echo "DAVEAGENT_API_KEY=sk-tu-api-key-aqui" > .env
 
-# Usar CodeAgent
-codeagent
+# Usar DaveAgent
+daveagent
 ```
 
 ### Opción 2: Variable de Entorno
 
 ```bash
 # Windows
-$env:CODEAGENT_API_KEY="sk-tu-api-key-aqui"
+$env:DAVEAGENT_API_KEY="sk-tu-api-key-aqui"
 
 # Linux/Mac
-export CODEAGENT_API_KEY="sk-tu-api-key-aqui"
+export DAVEAGENT_API_KEY="sk-tu-api-key-aqui"
 
-codeagent
+daveagent
 ```
 
 ### Opción 3: Argumento CLI
 
 ```bash
-codeagent --api-key "sk-tu-api-key-aqui"
+daveagent --api-key "sk-tu-api-key-aqui"
 ```
 
 ## Solución de Problemas
 
 ### "No se encontró API key"
 
-**Solución**: Ejecuta `codeagent` y sigue el asistente de configuración.
+**Solución**: Ejecuta `daveagent` y sigue el asistente de configuración.
 
 ### "Invalid API key"
 
@@ -224,7 +224,7 @@ codeagent --api-key "sk-tu-api-key-aqui"
 
 ```bash
 # Cambiar a OpenAI
-codeagent --api-key "sk-proj-..." --base-url "https://api.openai.com/v1" --model "gpt-4"
+daveagent --api-key "sk-proj-..." --base-url "https://api.openai.com/v1" --model "gpt-4"
 ```
 
 ## Próximos Pasos
@@ -236,11 +236,11 @@ codeagent --api-key "sk-proj-..." --base-url "https://api.openai.com/v1" --model
 ## ¿Necesitas Ayuda?
 
 ```bash
-codeagent --help
+daveagent --help
 ```
 
-O visita la documentación en: https://github.com/CodeAgent-AI/codeagent
+O visita la documentación en: https://github.com/DaveAgent-AI/daveagent
 
 ---
 
-¡Disfruta usando CodeAgent! 🎉
+¡Disfruta usando DaveAgent! 🎉
