@@ -4,7 +4,7 @@ Herramientas del agente - Organizadas por categoría
 # Filesystem tools
 from src.tools.filesystem import (
     read_file, write_file, list_dir, edit_file,
-    delete_file, file_search
+    delete_file, file_search, reapply
 )
 
 # Git tools
@@ -26,7 +26,8 @@ from src.tools.data import (
 # Web tools
 from src.tools.web import (
     wiki_search, wiki_summary, wiki_content,
-    wiki_page_info, wiki_random, wiki_set_language
+    wiki_page_info, wiki_random, wiki_set_language,
+    web_search, web_search_news
 )
 
 # Analysis tools
@@ -38,7 +39,7 @@ from src.tools.analysis import (
 __all__ = [
     # Filesystem
     "read_file", "write_file", "list_dir", "edit_file",
-    "delete_file", "file_search",
+    "delete_file", "file_search", "reapply",
     # Git
     "git_status", "git_add", "git_commit", "git_push", "git_pull",
     "git_log", "git_branch", "git_diff",
@@ -51,6 +52,7 @@ __all__ = [
     # Web
     "wiki_search", "wiki_summary", "wiki_content",
     "wiki_page_info", "wiki_random", "wiki_set_language",
+    "web_search", "web_search_news",
     # Analysis
     "analyze_python_file", "find_function_definition", "list_all_functions",
     "codebase_search", "grep_search", "run_terminal_cmd", "diff_history"
