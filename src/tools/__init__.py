@@ -36,6 +36,13 @@ from src.tools.analysis import (
     codebase_search, grep_search, run_terminal_cmd, diff_history
 )
 
+# Validation tools
+from src.tools.validation import (
+    validate_python_syntax, validate_javascript_syntax,
+    validate_typescript_syntax, validate_json_file,
+    validate_file_after_edit, validate_generic_file
+)
+
 __all__ = [
     # Filesystem
     "read_file", "write_file", "list_dir", "edit_file",
@@ -55,5 +62,9 @@ __all__ = [
     "web_search", "web_search_news",
     # Analysis
     "analyze_python_file", "find_function_definition", "list_all_functions",
-    "codebase_search", "grep_search", "run_terminal_cmd", "diff_history"
+    "codebase_search", "grep_search", "run_terminal_cmd", "diff_history",
+    # Validation
+    "validate_python_syntax", "validate_javascript_syntax",
+    "validate_typescript_syntax", "validate_json_file",
+    "validate_file_after_edit", "validate_generic_file"
 ]
