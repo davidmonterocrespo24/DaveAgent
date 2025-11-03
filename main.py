@@ -413,6 +413,52 @@ class DaveAgentCLI:
     # STATE MANAGEMENT - Gestión de estado con AutoGen save_state/load_state
     # =========================================================================
 
+    async def _auto_save_agent_states(self):
+        """
+        Auto-guarda el estado de todos los agentes después de cada respuesta.
+        Se ejecuta silenciosamente en background.
+        """
+        try:
+            # Iniciar sesión si no está iniciada
+            if not self.state_manager.session_id:
+                from datetime import datetime
+                session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+                self.state_manager.start_session(session_id)
+
+            # Guardar estado de cada agente
+            await self.state_manager.save_agent_state(
+                "coder",
+                self.coder_agent,
+                metadata={"description": "Main coder agent with tools"}
+            )
+
+            await self.state_manager.save_agent_state(
+                "code_searcher",
+                self.code_searcher.searcher_agent,
+                metadata={"description": "Code search and analysis agent"}
+            )
+
+            await self.state_manager.save_agent_state(
+                "planning",
+                self.planning_agent,
+                metadata={"description": "Planning and task management agent"}
+            )
+
+            await self.state_manager.save_agent_state(
+                "summary",
+                self.summary_agent,
+                metadata={"description": "Summary generation agent"}
+            )
+
+            # Guardar a disco
+            await self.state_manager.save_to_disk()
+
+            self.logger.debug("💾 Auto-save: Estado guardado automáticamente")
+
+        except Exception as e:
+            # No fallar si el auto-save falla, solo log
+            self.logger.warning(f"⚠️ Auto-save falló: {str(e)}")
+
     async def _save_state_command(self, parts: list):
         """
         Comando /save-state: Guarda el estado completo de agentes y teams
@@ -871,6 +917,9 @@ class DaveAgentCLI:
             self.logger.info("✅ Flujo complejo completado")
             self.cli.print_success("\n✅ Tarea compleja completada!")
 
+            # 💾 AUTO-SAVE: Guardar estado de agentes automáticamente después de cada respuesta
+            await self._auto_save_agent_states()
+
         except Exception as e:
             if spinner_active:
                 self.cli.stop_thinking(clear=True)
@@ -922,6 +971,10 @@ class DaveAgentCLI:
 
                 # Generar resumen final
                 await self._generate_task_summary(user_input)
+
+                # 💾 AUTO-SAVE: Guardar estado después del resumen
+                await self._auto_save_agent_states()
+
                 return
 
             # ============= RUTA SIMPLE: RoundRobinGroupChat =============
@@ -1085,6 +1138,9 @@ class DaveAgentCLI:
 
             # Generate task completion summary
             await self._generate_task_summary(user_input)
+
+            # 💾 AUTO-SAVE: Guardar estado de agentes automáticamente después de cada respuesta
+            await self._auto_save_agent_states()
 
             # Comprimir historial si es necesario (DISABLED - ya no usamos TaskExecutor)
             # if self.conversation_manager.needs_compression():
