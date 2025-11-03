@@ -5,7 +5,9 @@
       "Bash(codeagent:*)",
       "Bash(for file in docs/*.md)",
       "Bash(do sed -i 's/CodeAgent/DaveAgent/g' \"$file\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(python -m pytest test/test_deepseek_reasoner.py -v --tb=short)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
