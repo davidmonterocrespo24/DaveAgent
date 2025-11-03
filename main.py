@@ -285,18 +285,43 @@ class DaveAgentCLI:
                 messages=[UserMessage(content=prompt, source="user")]
             )
 
-            # Extraer respuesta
-            response = result.content.strip().lower()
-            self.logger.debug(f"🔀 Respuesta del modelo: {response}")
+            # Extraer y parsear respuesta JSON
+            response = result.content.strip()
+            self.logger.debug(f"🔀 Respuesta del modelo: {response[:200]}")
 
-            # Determinar complejidad
-            if "complex" in response:
-                complexity = "complex"
-            else:
-                # Por defecto: simple (más seguro, menos overhead)
-                complexity = "simple"
+            # Parsear JSON
+            import json
+            import re
 
-            self.logger.info(f"✅ Enrutador decidió: {complexity.upper()}")
+            try:
+                # Limpiar markdown si existe (algunos modelos agregan ```json```)
+                json_match = re.search(r'\{[^{}]*"complexity"[^{}]*\}', response, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(0)
+                    response_data = json.loads(json_str)
+                    complexity = response_data.get("complexity", "simple").lower()
+                    reasoning = response_data.get("reasoning", "No reasoning provided")
+
+                    self.logger.info(f"✅ Enrutador decidió: {complexity.upper()}")
+                    self.logger.debug(f"   Razonamiento: {reasoning}")
+                else:
+                    # Fallback: buscar la palabra en la respuesta
+                    self.logger.warning("⚠️ No se encontró JSON válido, usando fallback")
+                    if "complex" in response.lower():
+                        complexity = "complex"
+                    else:
+                        complexity = "simple"
+                    self.logger.warning(f"   Fallback decidió: {complexity}")
+
+            except json.JSONDecodeError as e:
+                # Si falla el parseo JSON, usar fallback simple
+                self.logger.warning(f"⚠️ Error parseando JSON: {e}, usando fallback")
+                if "complex" in response.lower():
+                    complexity = "complex"
+                else:
+                    complexity = "simple"
+                self.logger.warning(f"   Fallback decidió: {complexity}")
+
             return complexity
 
         except Exception as e:

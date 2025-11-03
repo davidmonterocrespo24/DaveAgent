@@ -648,45 +648,39 @@ ANALYSIS CRITERIA:
 - Projects with 6+ files to create/modify
 - Systems requiring structured planning and dependencies
 
-RESPONSE FORMAT:
+RESPONSE FORMAT (JSON):
 
-You MUST respond with ONLY ONE WORD:
-- "simple" - for straightforward tasks
-- "complex" - for projects requiring planning
-
-DO NOT explain your reasoning. Just respond with one word: "simple" or "complex".
+You MUST respond with a JSON object containing:
+{{
+  "complexity": "simple" or "complex",
+  "reasoning": "Brief explanation of why this task is simple or complex (1-2 sentences)"
+}}
 
 EXAMPLES:
 
 User: "Fix the login bug in auth.py"
-Response: simple
+Response: {{"complexity": "simple", "reasoning": "This is a focused bug fix in a single file that doesn't require multi-step planning."}}
 
 User: "Create a complete REST API with FastAPI for user management"
-Response: complex
+Response: {{"complexity": "complex", "reasoning": "This requires creating multiple files (models, routes, schemas), database setup, and coordinated implementation across components."}}
 
 User: "Find where the authentication function is defined"
-Response: simple
+Response: {{"complexity": "simple", "reasoning": "This is a code search task that doesn't involve modifications or planning."}}
 
 User: "Build a web application with React frontend and Node.js backend"
-Response: complex
+Response: {{"complexity": "complex", "reasoning": "This is a multi-component project requiring frontend, backend, and integration between them with 6+ files."}}
 
 User: "Add error handling to the database connection"
-Response: simple
+Response: {{"complexity": "simple", "reasoning": "This is a targeted improvement to existing code in 1-2 files."}}
 
 User: "Create a microservices architecture with 5 services"
-Response: complex
+Response: {{"complexity": "complex", "reasoning": "This requires designing and implementing multiple services with structured planning and inter-service communication."}}
 
-User: "Read the config.json file and show me its contents"
-Response: simple
-
-User: "Develop a complete e-commerce platform"
-Response: complex
-
-Now analyze this user request and respond with ONE WORD only:
+Now analyze this user request and respond with ONLY the JSON object (no additional text):
 
 USER REQUEST: {user_input}
 
-RESPONSE (one word):"""
+JSON RESPONSE:"""
 
 # =============================================================================
 # PLANNING AGENT (Para flujo COMPLEX con SelectorGroupChat)
