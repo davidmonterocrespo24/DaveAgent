@@ -25,7 +25,7 @@ from src.config import (
     SUMMARY_AGENT_SYSTEM_MESSAGE
 )
 from src.agents import CodeSearcher
-from src.managers import ConversationManager
+from src.managers import ConversationManager, StateManager
 from src.interfaces import CLIInterface
 from src.utils import get_logger, get_conversation_tracker
 from src.memory import MemoryManager, DocumentIndexer
@@ -87,6 +87,13 @@ class DaveAgentCLI:
         self.memory_manager = MemoryManager(
             k=5,  # Top 5 resultados más relevantes
             score_threshold=0.3  # Umbral de similitud
+        )
+
+        # Sistema de gestión de estado (AutoGen save_state/load_state)
+        self.logger.info("💾 Inicializando sistema de estado...")
+        self.state_manager = StateManager(
+            auto_save_enabled=True,
+            auto_save_interval=300  # Auto-save cada 5 minutos
         )
 
         # Importar todas las herramientas desde la nueva estructura
@@ -217,14 +224,28 @@ class DaveAgentCLI:
             self.cli.print_statistics(stats)
 
         elif cmd == "/save":
+            # Guardar historial de conversación (legacy)
             if len(parts) < 2:
                 self.cli.print_error("Uso: /save <archivo>")
+                self.cli.print_info("Tip: Usa /save-state para guardar estado completo de agentes")
             else:
                 try:
                     self.conversation_manager.save_to_file(parts[1])
                     self.cli.print_success(f"Historial guardado en {parts[1]}")
                 except Exception as e:
                     self.cli.print_error(f"Error al guardar: {str(e)}")
+
+        elif cmd == "/save-state":
+            # Guardar estado completo usando AutoGen save_state
+            await self._save_state_command(parts)
+
+        elif cmd == "/load-state":
+            # Cargar estado usando AutoGen load_state
+            await self._load_state_command(parts)
+
+        elif cmd == "/list-sessions":
+            # Listar sesiones guardadas
+            self._list_sessions_command()
 
         elif cmd == "/load":
             if len(parts) < 2:
@@ -387,6 +408,167 @@ class DaveAgentCLI:
         except Exception as e:
             self.logger.log_error_with_context(e, "_clear_memory")
             self.cli.print_error(f"Error limpiando memoria: {str(e)}")
+
+    # =========================================================================
+    # STATE MANAGEMENT - Gestión de estado con AutoGen save_state/load_state
+    # =========================================================================
+
+    async def _save_state_command(self, parts: list):
+        """
+        Comando /save-state: Guarda el estado completo de agentes y teams
+
+        Uso:
+            /save-state                  # Auto-genera nombre de sesión
+            /save-state my_session       # Usa nombre específico
+        """
+        try:
+            self.cli.start_thinking()
+            self.logger.info("💾 Guardando estado de agentes...")
+
+            # Determinar session_id
+            if len(parts) > 1:
+                session_id = parts[1]
+            else:
+                # Auto-generar session_id
+                from datetime import datetime
+                session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            # Iniciar sesión si no está iniciada
+            if not self.state_manager.session_id:
+                self.state_manager.start_session(session_id)
+
+            # Guardar estado de cada agente
+            await self.state_manager.save_agent_state(
+                "coder",
+                self.coder_agent,
+                metadata={"description": "Main coder agent with tools"}
+            )
+
+            await self.state_manager.save_agent_state(
+                "code_searcher",
+                self.code_searcher.searcher_agent,
+                metadata={"description": "Code search and analysis agent"}
+            )
+
+            await self.state_manager.save_agent_state(
+                "planning",
+                self.planning_agent,
+                metadata={"description": "Planning and task management agent"}
+            )
+
+            await self.state_manager.save_agent_state(
+                "summary",
+                self.summary_agent,
+                metadata={"description": "Summary generation agent"}
+            )
+
+            # Guardar a disco
+            state_path = await self.state_manager.save_to_disk(session_id)
+
+            self.cli.stop_thinking()
+
+            self.cli.print_success(f"✅ Estado guardado correctamente!")
+            self.cli.print_info(f"  • Session ID: {session_id}")
+            self.cli.print_info(f"  • Ubicación: {state_path}")
+            self.cli.print_info(f"  • Agentes guardados: 4")
+
+            self.logger.info(f"✅ Estado guardado en sesión: {session_id}")
+
+        except Exception as e:
+            self.cli.stop_thinking()
+            self.logger.log_error_with_context(e, "_save_state_command")
+            self.cli.print_error(f"Error guardando estado: {str(e)}")
+
+    async def _load_state_command(self, parts: list):
+        """
+        Comando /load-state: Carga el estado de agentes desde una sesión
+
+        Uso:
+            /load-state                  # Carga sesión más reciente
+            /load-state my_session       # Carga sesión específica
+        """
+        try:
+            self.cli.start_thinking()
+            self.logger.info("📂 Cargando estado de agentes...")
+
+            # Determinar session_id
+            if len(parts) > 1:
+                session_id = parts[1]
+            else:
+                # Usar sesión más reciente
+                sessions = self.state_manager.list_sessions()
+                if not sessions:
+                    self.cli.stop_thinking()
+                    self.cli.print_error("No hay sesiones guardadas")
+                    return
+
+                session_id = sessions[0]["session_id"]
+                self.cli.print_info(f"Cargando sesión más reciente: {session_id}")
+
+            # Cargar desde disco
+            loaded = await self.state_manager.load_from_disk(session_id)
+
+            if not loaded:
+                self.cli.stop_thinking()
+                self.cli.print_error(f"No se encontró sesión: {session_id}")
+                return
+
+            # Cargar estado en cada agente
+            agents_loaded = 0
+
+            if await self.state_manager.load_agent_state("coder", self.coder_agent):
+                agents_loaded += 1
+
+            if await self.state_manager.load_agent_state("code_searcher", self.code_searcher.searcher_agent):
+                agents_loaded += 1
+
+            if await self.state_manager.load_agent_state("planning", self.planning_agent):
+                agents_loaded += 1
+
+            if await self.state_manager.load_agent_state("summary", self.summary_agent):
+                agents_loaded += 1
+
+            self.cli.stop_thinking()
+
+            self.cli.print_success(f"✅ Estado cargado correctamente!")
+            self.cli.print_info(f"  • Session ID: {session_id}")
+            self.cli.print_info(f"  • Agentes restaurados: {agents_loaded}")
+
+            self.logger.info(f"✅ Estado cargado desde sesión: {session_id}")
+
+        except Exception as e:
+            self.cli.stop_thinking()
+            self.logger.log_error_with_context(e, "_load_state_command")
+            self.cli.print_error(f"Error cargando estado: {str(e)}")
+
+    def _list_sessions_command(self):
+        """
+        Comando /list-sessions: Lista todas las sesiones guardadas
+        """
+        try:
+            sessions = self.state_manager.list_sessions()
+
+            if not sessions:
+                self.cli.print_info("No hay sesiones guardadas")
+                return
+
+            self.cli.print_info(f"\n📋 Sesiones Guardadas ({len(sessions)} total)\n")
+
+            for i, session in enumerate(sessions, 1):
+                session_id = session.get("session_id", "unknown")
+                saved_at = session.get("saved_at", "unknown")
+                num_agents = session.get("num_agents", 0)
+
+                self.cli.print_info(f"{i}. {session_id}")
+                self.cli.print_info(f"   Guardado: {saved_at}")
+                self.cli.print_info(f"   Agentes: {num_agents}")
+                self.cli.print_info("")
+
+            self.cli.print_info("💡 Usa /load-state <session_id> para cargar una sesión")
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_list_sessions_command")
+            self.cli.print_error(f"Error listando sesiones: {str(e)}")
 
     # =========================================================================
     # COMPLEXITY DETECTION - Detección de complejidad de tareas
@@ -1085,6 +1267,13 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
         finally:
             self.logger.info("🔚 Cerrando DaveAgent CLI")
             self.cli.print_goodbye()
+
+            # Cerrar sistema de estado (guarda estado final automáticamente)
+            try:
+                await self.state_manager.close()
+                self.logger.info("✅ Sistema de estado cerrado correctamente")
+            except Exception as e:
+                self.logger.error(f"Error cerrando estado: {e}")
 
             # Cerrar sistema de memoria
             try:

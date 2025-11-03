@@ -481,15 +481,22 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 
 • `/help` - Muestra este mensaje de ayuda
 • `/search <consulta>` - Busca y analiza código antes de modificarlo
+
+**Memoria y Estado:**
 • `/index` - Indexa el proyecto en memoria vectorial (ChromaDB)
 • `/memory` - Muestra estadísticas de memoria vectorial
-• `/memory clear` - Limpia toda la memoria vectorial
+• `/save-state [session]` - Guarda estado completo de agentes (AutoGen)
+• `/load-state [session]` - Carga estado de agentes desde sesión
+• `/list-sessions` - Lista todas las sesiones guardadas
+
+**Conversación:**
 • `/new` - Inicia una nueva conversación sin historial
 • `/clear` - Limpia el historial de conversación
-• `/plan` - Muestra el plan de ejecución actual
 • `/stats` - Muestra estadísticas de la sesión
-• `/save <archivo>` - Guarda el historial en un archivo
-• `/load <archivo>` - Carga un historial desde un archivo
+• `/save <archivo>` - Guarda el historial en un archivo (legacy)
+• `/load <archivo>` - Carga un historial desde un archivo (legacy)
+
+**Sistema:**
 • `/debug` - Activa/desactiva el modo debug
 • `/logs` - Muestra la ubicación del archivo de logs
 • `/exit` o `/quit` - Salir del agente
