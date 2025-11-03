@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Any, AsyncGenerator
 import re
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_core.memory import Memory
 from src.config import CODE_SEARCHER_DESCRIPTION, CODE_SEARCHER_SYSTEM_MESSAGE
 
 
@@ -14,13 +15,19 @@ class CodeSearcher:
     Agente especializado en buscar y analizar código para proporcionar contexto completo
     """
 
-    def __init__(self, model_client: OpenAIChatCompletionClient, tools: List):
+    def __init__(
+        self,
+        model_client: OpenAIChatCompletionClient,
+        tools: List,
+        memory: Optional[List[Memory]] = None
+    ):
         """
         Inicializa el agente CodeSearcher
 
         Args:
             model_client: Cliente del modelo LLM
             tools: Lista de herramientas disponibles para el agente
+            memory: Lista de memorias vectoriales (opcional)
         """
         self.model_client = model_client
         self._search_history: List[Dict[str, Any]] = []  # Historial de búsquedas
@@ -34,6 +41,7 @@ class CodeSearcher:
             tools=tools,
             max_tool_iterations=10,  # Permitir más iteraciones para búsqueda exhaustiva
             reflect_on_tool_use=True,  # Reflexionar sobre resultados de herramientas
+            memory=memory or []  # Memoria de código base indexado
         )
 
     async def search_code_context(self, query: str) -> Dict[str, Any]:

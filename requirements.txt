@@ -21,3 +21,9 @@ black>=23.0.0
 autopep8>=2.0.0
 pylint>=3.0.0
 jsonschema>=4.0.0
+
+# Memory system with ChromaDB
+chromadb>=0.4.22
+sentence-transformers>=2.2.2
+aiofiles>=23.0.0
+aiohttp>=3.9.0

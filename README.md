@@ -10,6 +10,7 @@ DaveAgent es un asistente de codificación inteligente con IA que trabaja en tu 
 
 - 🚀 **Comando CLI Global**: Usa `daveagent` desde cualquier directorio
 - 📂 **Trabajo Contextual**: Opera en tu directorio actual automáticamente
+- 🧠 **Memoria Vectorial con ChromaDB**: Recuerda conversaciones, código y decisiones entre sesiones
 - 🔍 **CodeSearcher**: Agente especializado para buscar y analizar código
 - 📎 **File Mentions con @**: Menciona archivos específicos con `@` para darles prioridad máxima en el contexto
 - 🔧 **42 Herramientas Integradas**: Filesystem, Git, JSON, CSV, Wikipedia, y más
@@ -128,8 +129,10 @@ Dentro de DaveAgent, puedes usar estos comandos:
 | Comando | Descripción |
 |---------|-------------|
 | `/help` | Muestra ayuda de comandos |
-| `/search <consulta>` | 🔍 Busca y analiza código (nuevo) |
-| `@<archivo>` | 📎 Menciona archivo específico con prioridad alta (nuevo) |
+| `/search <consulta>` | 🔍 Busca y analiza código |
+| `/index` | 🧠 Indexa el proyecto en memoria vectorial |
+| `/memory` | 📊 Muestra estadísticas de memoria |
+| `@<archivo>` | 📎 Menciona archivo específico con prioridad alta |
 | `/debug` | Activa/desactiva modo debug |
 | `/logs` | Muestra ubicación de logs |
 | `/stats` | Muestra estadísticas |
@@ -174,6 +177,42 @@ Tu: @src/agents/code_searcher.py add docstrings to all methods
 - ✅ Excluye automáticamente archivos ocultos y binarios
 
 Ver [docs/FILE_MENTIONS.md](docs/FILE_MENTIONS.md) y [examples/file_mentions_demo.md](examples/file_mentions_demo.md) para ejemplos detallados.
+
+#### 🧠 Sistema de Memoria Vectorial
+
+DaveAgent utiliza **ChromaDB** para mantener memoria persistente entre sesiones:
+
+```bash
+# Indexar tu proyecto una vez
+Tu: /index
+📚 Indexando proyecto en memoria vectorial...
+✅ Indexación completada!
+  • Archivos indexados: 45
+  • Chunks creados: 234
+
+# Ver estadísticas de memoria
+Tu: /memory
+🧠 Estadísticas de Memoria Vectorial
+
+📚 Sistema de memoria activo con 4 colecciones:
+  • Conversations: Historial de conversaciones
+  • Codebase: Código fuente indexado
+  • Decisions: Decisiones arquitectónicas
+  • Preferences: Preferencias del usuario
+```
+
+**Beneficios de la Memoria:**
+- 💬 **Conversaciones**: Recuerda interacciones previas y mantiene contexto
+- 📝 **Código Base**: Búsquedas semánticas en tu código sin grep
+- 🎯 **Decisiones**: Mantiene consistencia en decisiones arquitectónicas
+- ⚙️ **Preferencias**: Aprende tu estilo de código preferido
+
+**Los agentes usan memoria automáticamente:**
+- **CodeSearcher**: Consulta código indexado para búsquedas más rápidas
+- **Coder**: Recuerda soluciones previas y preferencias de estilo
+- **PlanningAgent**: Mantiene consistencia con decisiones pasadas
+
+Ver [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md) para documentación completa y [examples/memory_usage_example.py](examples/memory_usage_example.py) para ejemplos de uso.
 
 ## 🛠️ Herramientas Disponibles
 

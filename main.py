@@ -28,6 +28,7 @@ from src.agents import CodeSearcher
 from src.managers import ConversationManager
 from src.interfaces import CLIInterface
 from src.utils import get_logger, get_conversation_tracker
+from src.memory import MemoryManager, DocumentIndexer
 
 
 class DaveAgentCLI:
@@ -81,6 +82,13 @@ class DaveAgentCLI:
             model_capabilities=self.settings.get_model_capabilities(),
         )
 
+        # Sistema de memoria con ChromaDB (inicializar ANTES de crear agentes)
+        self.logger.info("🧠 Inicializando sistema de memoria...")
+        self.memory_manager = MemoryManager(
+            k=5,  # Top 5 resultados más relevantes
+            score_threshold=0.3  # Umbral de similitud
+        )
+
         # Importar todas las herramientas desde la nueva estructura
         from src.tools import (
             # Filesystem
@@ -122,7 +130,7 @@ class DaveAgentCLI:
             codebase_search, grep_search, run_terminal_cmd, diff_history
         ]
 
-        # Crear agente de código
+        # Crear agente de código con memoria de conversaciones y código base
         self.coder_agent = AssistantAgent(
             name="Coder",
             description=CODER_AGENT_DESCRIPTION,
@@ -131,6 +139,11 @@ class DaveAgentCLI:
             tools=coder_tools,
             max_tool_iterations=5,
             reflect_on_tool_use=False,
+            memory=[
+                self.memory_manager.conversation_memory,  # Conversaciones previas
+                self.memory_manager.codebase_memory,  # Código base indexado
+                self.memory_manager.preferences_memory  # Preferencias del usuario
+            ]
         )
 
         # Componentes del sistema
@@ -140,7 +153,7 @@ class DaveAgentCLI:
         )
         self.cli = CLIInterface()
 
-        # Crear CodeSearcher con las herramientas de análisis
+        # Crear CodeSearcher con las herramientas de análisis y memoria de código
         search_tools = [
             # Herramientas de búsqueda
             codebase_search, grep_search, file_search,
@@ -149,17 +162,23 @@ class DaveAgentCLI:
             # Herramientas de análisis Python
             analyze_python_file, find_function_definition, list_all_functions,
         ]
-        self.code_searcher = CodeSearcher(self.model_client, search_tools)
+        self.code_searcher = CodeSearcher(
+            self.model_client,
+            search_tools,
+            memory=[self.memory_manager.codebase_memory]  # Memoria de código indexado
+        )
 
         # ============= NUEVOS AGENTES PARA ARQUITECTURA OPTIMIZADA =============
 
         # PlanningAgent: Crea y gestiona planes para tareas complejas
+        # Con memoria de decisiones previas y planes exitosos
         self.planning_agent = AssistantAgent(
             name="Planner",
             description=PLANNING_AGENT_DESCRIPTION,
             system_message=PLANNING_AGENT_SYSTEM_MESSAGE,
             model_client=self.model_client,
             tools=[],  # No necesita herramientas, solo planifica
+            memory=[self.memory_manager.decision_memory]  # Memoria de decisiones
         )
 
         # SummaryAgent: Crea resúmenes finales de trabajo completado
@@ -249,11 +268,125 @@ class DaveAgentCLI:
                 self.cli.print_thinking(f"🔍 Buscando en el código: {query}")
                 await self._run_code_searcher(query)
 
+        elif cmd == "/index":
+            # Indexar el proyecto en memoria
+            self.cli.print_info("📚 Indexando proyecto en memoria vectorial...")
+            await self._index_project()
+
+        elif cmd == "/memory":
+            # Mostrar estadísticas de memoria
+            if len(parts) < 2:
+                await self._show_memory_stats()
+            else:
+                subcommand = parts[1].lower()
+                if subcommand == "clear":
+                    await self._clear_memory()
+                elif subcommand == "query":
+                    self.cli.print_info("Uso: /memory query <texto>")
+                else:
+                    self.cli.print_error(f"Subcomando desconocido: {subcommand}")
+                    self.cli.print_info("Uso: /memory [clear|query]")
+
         else:
             self.cli.print_error(f"Comando desconocido: {cmd}")
             self.cli.print_info("Usa /help para ver los comandos disponibles")
 
         return True
+
+    # =========================================================================
+    # MEMORY MANAGEMENT - Gestión de memoria vectorial
+    # =========================================================================
+
+    async def _index_project(self):
+        """Indexa el proyecto actual en memoria vectorial"""
+        try:
+            from pathlib import Path
+
+            self.cli.start_thinking()
+            self.logger.info("📚 Iniciando indexación del proyecto...")
+
+            # Crear indexer
+            indexer = DocumentIndexer(
+                memory=self.memory_manager.codebase_memory,
+                chunk_size=1500
+            )
+
+            # Indexar directorio actual
+            project_dir = Path.cwd()
+            stats = await indexer.index_project(
+                project_dir=project_dir,
+                max_files=500  # Limitar a 500 archivos para no sobrecargar
+            )
+
+            self.cli.stop_thinking()
+
+            # Mostrar estadísticas
+            self.cli.print_success(f"✅ Indexación completada!")
+            self.cli.print_info(f"  • Archivos indexados: {stats['files_indexed']}")
+            self.cli.print_info(f"  • Chunks creados: {stats['chunks_created']}")
+            self.cli.print_info(f"  • Archivos omitidos: {stats['files_skipped']}")
+            if stats['errors'] > 0:
+                self.cli.print_warning(f"  • Errores: {stats['errors']}")
+
+            self.logger.info(f"✅ Proyecto indexado: {stats}")
+
+        except Exception as e:
+            self.cli.stop_thinking()
+            self.logger.log_error_with_context(e, "_index_project")
+            self.cli.print_error(f"Error indexando proyecto: {str(e)}")
+
+    async def _show_memory_stats(self):
+        """Muestra estadísticas de memoria"""
+        try:
+            self.cli.print_info("\n🧠 Estadísticas de Memoria Vectorial\n")
+
+            # Nota: ChromaDB no expone fácilmente el conteo de items
+            # Podríamos hacer queries dummy o mantener contadores
+            # Por ahora, mostrar información general
+
+            self.cli.print_info("📚 Sistema de memoria activo con 4 colecciones:")
+            self.cli.print_info("  • Conversations: Historial de conversaciones")
+            self.cli.print_info("  • Codebase: Código fuente indexado")
+            self.cli.print_info("  • Decisions: Decisiones arquitectónicas")
+            self.cli.print_info("  • Preferences: Preferencias del usuario")
+
+            memory_path = self.memory_manager.persistence_path
+            self.cli.print_info(f"\n💾 Ubicación: {memory_path}")
+
+            # Calcular tamaño del directorio de memoria
+            try:
+                from pathlib import Path
+                total_size = sum(f.stat().st_size for f in Path(memory_path).rglob('*') if f.is_file())
+                size_mb = total_size / (1024 * 1024)
+                self.cli.print_info(f"📊 Tamaño total: {size_mb:.2f} MB")
+            except Exception as e:
+                self.logger.warning(f"No se pudo calcular tamaño: {e}")
+
+            self.cli.print_info("\n💡 Comandos disponibles:")
+            self.cli.print_info("  • /index - Indexar proyecto actual")
+            self.cli.print_info("  • /memory clear - Limpiar toda la memoria")
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_show_memory_stats")
+            self.cli.print_error(f"Error mostrando estadísticas: {str(e)}")
+
+    async def _clear_memory(self):
+        """Limpia toda la memoria vectorial"""
+        try:
+            self.cli.print_warning("⚠️  ¿Estás seguro de que quieres borrar TODA la memoria?")
+            self.cli.print_info("Esto eliminará:")
+            self.cli.print_info("  • Historial de conversaciones")
+            self.cli.print_info("  • Código base indexado")
+            self.cli.print_info("  • Decisiones arquitectónicas")
+            self.cli.print_info("  • Preferencias del usuario")
+
+            # En CLI no tenemos confirmación interactiva fácil
+            # Por seguridad, requerir un segundo comando
+            self.cli.print_warning("\n⚠️  Para confirmar, ejecuta: /memory clear confirm")
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_clear_memory")
+            self.cli.print_error(f"Error limpiando memoria: {str(e)}")
 
     # =========================================================================
     # COMPLEXITY DETECTION - Detección de complejidad de tareas
@@ -520,12 +653,17 @@ class DaveAgentCLI:
                                 self.cli.stop_thinking(clear=True)
 
                             if isinstance(content, list):
+                                tool_names = []
                                 for tool_call in content:
                                     if hasattr(tool_call, 'name'):
                                         tool_name = tool_call.name
                                         self.cli.print_info(f"🔧 Ejecutando: {tool_name}", agent_name)
-                                        self.cli.start_thinking(message=f"ejecutando {tool_name}")
-                                        spinner_active = True
+                                        tool_names.append(tool_name)
+
+                                # Restart spinner ONCE with first tool name (not in loop)
+                                if tool_names:
+                                    self.cli.start_thinking(message=f"ejecutando {tool_names[0]}")
+                                    spinner_active = True
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "ToolCallExecutionEvent":
@@ -693,6 +831,7 @@ class DaveAgentCLI:
                                 self.cli.stop_thinking(clear=True)
 
                             if isinstance(content, list):
+                                tool_names = []
                                 for tool_call in content:
                                     if hasattr(tool_call, 'name'):
                                         tool_name = tool_call.name
@@ -702,10 +841,12 @@ class DaveAgentCLI:
                                         # Track tools called
                                         if tool_name not in tools_called:
                                             tools_called.append(tool_name)
+                                        tool_names.append(tool_name)
 
-                                        # Restart spinner with tool name
-                                        self.cli.start_thinking(message=f"ejecutando {tool_name}")
-                                        spinner_active = True
+                                # Restart spinner ONCE with first tool name (not in loop)
+                                if tool_names:
+                                    self.cli.start_thinking(message=f"ejecutando {tool_names[0]}")
+                                    spinner_active = True
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "ToolCallExecutionEvent":
@@ -792,7 +933,7 @@ class DaveAgentCLI:
         tools_called: list
     ):
         """
-        Registra la interacción con el LLM en el archivo JSON
+        Registra la interacción con el LLM en el archivo JSON y en memoria vectorial
 
         Args:
             user_input: La solicitud del usuario
@@ -813,7 +954,7 @@ class DaveAgentCLI:
             elif "anthropic" in self.settings.base_url.lower():
                 provider = "Anthropic"
 
-            # Log the interaction
+            # Log the interaction to JSON file
             interaction_id = self.conversation_tracker.log_interaction(
                 user_request=user_input,
                 agent_response=combined_response,
@@ -829,6 +970,23 @@ class DaveAgentCLI:
             )
 
             self.logger.debug(f"📝 Interacción registrada en JSON con ID: {interaction_id}")
+
+            # NUEVO: También guardar en memoria vectorial (async)
+            # Esto permite que futuros agentes encuentren conversaciones relevantes
+            import asyncio
+            asyncio.create_task(
+                self.memory_manager.add_conversation(
+                    user_input=user_input,
+                    agent_response=combined_response,
+                    metadata={
+                        "agents_used": agents_used,
+                        "tools_called": tools_called,
+                        "interaction_id": interaction_id,
+                        "model": self.settings.model,
+                        "provider": provider
+                    }
+                )
+            )
 
         except Exception as e:
             self.logger.error(f"Error registrando interacción en JSON: {str(e)}")
@@ -927,6 +1085,15 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
         finally:
             self.logger.info("🔚 Cerrando DaveAgent CLI")
             self.cli.print_goodbye()
+
+            # Cerrar sistema de memoria
+            try:
+                await self.memory_manager.close()
+                self.logger.info("✅ Sistema de memoria cerrado correctamente")
+            except Exception as e:
+                self.logger.error(f"Error cerrando memoria: {e}")
+
+            # Cerrar cliente del modelo
             await self.model_client.close()
 
 

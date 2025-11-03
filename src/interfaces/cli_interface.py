@@ -129,9 +129,10 @@ Este agente puede ayudarte a:
 **Comandos principales:**
   • `/help` - Muestra la ayuda completa
   • `/search <consulta>` - Busca en tu código antes de modificar
+  • `/index` - Indexa el proyecto en memoria vectorial
+  • `/memory` - Muestra estadísticas de memoria
   • `/new` - Inicia una nueva conversación sin historial
   • `/clear` - Limpia el historial de conversación
-  • `/plan` - Muestra el plan de ejecución actual
   • `/stats` - Muestra estadísticas de la sesión
   • `/exit` o `/quit` - Salir del agente
 
@@ -480,6 +481,9 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 
 • `/help` - Muestra este mensaje de ayuda
 • `/search <consulta>` - Busca y analiza código antes de modificarlo
+• `/index` - Indexa el proyecto en memoria vectorial (ChromaDB)
+• `/memory` - Muestra estadísticas de memoria vectorial
+• `/memory clear` - Limpia toda la memoria vectorial
 • `/new` - Inicia una nueva conversación sin historial
 • `/clear` - Limpia el historial de conversación
 • `/plan` - Muestra el plan de ejecución actual

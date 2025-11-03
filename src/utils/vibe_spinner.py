@@ -218,8 +218,8 @@ class VibeSpinner:
         self._thread.join(timeout=1.0)
 
         if clear_line:
-            # Clear the line
-            sys.stdout.write("\r" + " " * 80 + "\r")
+            # Clear the line (use more spaces to ensure full cleanup)
+            sys.stdout.write("\r" + " " * 120 + "\r")
             sys.stdout.flush()
 
     def update_message(self, message: str):
