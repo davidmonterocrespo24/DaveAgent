@@ -35,7 +35,7 @@ def parse_arguments():
         '--model',
         type=str,
         default=None,
-        help='Nombre del modelo a usar (default: deepseek-chat)'
+        help='Nombre del modelo a usar (default: deepseek-reasoner)'
     )
 
     # Argumentos de modo

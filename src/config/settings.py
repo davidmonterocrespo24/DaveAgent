@@ -23,7 +23,7 @@ class DaveAgentSettings:
 
     # Valores por defecto
     DEFAULT_BASE_URL = "https://api.deepseek.com"
-    DEFAULT_MODEL = "deepseek-chat"
+    DEFAULT_MODEL = "deepseek-reasoner"
 
     def __init__(
         self,
