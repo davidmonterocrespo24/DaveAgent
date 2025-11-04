@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "daveagent-cli"
-version = "1.0.0"
+version = "1.010"
 description = "AI-powered coding assistant with intelligent agent orchestration"
 readme = "README.md"
 requires-python = ">=3.10"

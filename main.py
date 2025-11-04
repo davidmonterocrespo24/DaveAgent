@@ -13,11 +13,6 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 # Importar desde nueva estructura
 from src.config import (
     CODER_AGENT_DESCRIPTION,
-    CODER_AGENT_SYSTEM_MESSAGE,
-    CODE_SEARCHER_DESCRIPTION,
-    CODE_SEARCHER_SYSTEM_MESSAGE,
-    TASK_COMPLETION_SUMMARY_PROMPT,
-    SELECTOR_PROMPT,
     COMPLEXITY_DETECTOR_PROMPT,
     PLANNING_AGENT_DESCRIPTION,
     PLANNING_AGENT_SYSTEM_MESSAGE,
@@ -25,6 +20,7 @@ from src.config import (
     SUMMARY_AGENT_SYSTEM_MESSAGE
 )
 from src.agents import CodeSearcher
+from src.config.prompts import AGENT_SYSTEM_PROMPT
 from src.managers import ConversationManager, StateManager
 from src.interfaces import CLIInterface
 from src.utils import get_logger, get_conversation_tracker
@@ -148,7 +144,7 @@ class DaveAgentCLI:
         self.coder_agent = AssistantAgent(
             name="Coder",
             description=CODER_AGENT_DESCRIPTION,
-            system_message=CODER_AGENT_SYSTEM_MESSAGE,
+            system_message=AGENT_SYSTEM_PROMPT,
             model_client=self.model_client,
             tools=coder_tools,
             max_tool_iterations=5,

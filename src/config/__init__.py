@@ -6,7 +6,6 @@ from src.config.settings import DaveAgentSettings, get_settings
 from src.config.prompts import (
     AGENT_SYSTEM_PROMPT,
     CODER_AGENT_DESCRIPTION,
-    CODER_AGENT_SYSTEM_MESSAGE,
     CODE_SEARCHER_DESCRIPTION,
     CODE_SEARCHER_SYSTEM_MESSAGE,
     TASK_PLANNER_DESCRIPTION,
@@ -27,7 +26,6 @@ __all__ = [
     "DaveAgentSettings",
     "get_settings",
     "CODER_AGENT_DESCRIPTION",
-    "CODER_AGENT_SYSTEM_MESSAGE",
     "CODE_SEARCHER_DESCRIPTION",
     "CODE_SEARCHER_SYSTEM_MESSAGE",
     "TASK_PLANNER_DESCRIPTION",
