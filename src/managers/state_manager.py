@@ -56,6 +56,7 @@ class StateManager:
         # Track current session
         self.session_id: Optional[str] = None
         self.last_save_time: Optional[datetime] = None
+        self.session_metadata: Dict[str, Any] = {}
 
         # State cache
         self._agent_states: Dict[str, Dict] = {}
@@ -67,12 +68,21 @@ class StateManager:
     # Session Management
     # =========================================================================
 
-    def start_session(self, session_id: Optional[str] = None) -> str:
+    def start_session(
+        self, 
+        session_id: Optional[str] = None,
+        title: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        description: Optional[str] = None
+    ) -> str:
         """
         Start a new session or resume existing one
 
         Args:
             session_id: Session ID to resume, or None for new session
+            title: Descriptive title for the session
+            tags: List of tags for categorization
+            description: Session description
 
         Returns:
             Session ID
@@ -82,7 +92,17 @@ class StateManager:
             session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         self.session_id = session_id
-        self.logger.info(f"📝 Session started: {session_id}")
+        
+        # Store session metadata
+        self.session_metadata = {
+            "title": title or "Untitled Session",
+            "tags": tags or [],
+            "description": description or "",
+            "created_at": datetime.now().isoformat(),
+            "last_interaction": datetime.now().isoformat()
+        }
+        
+        self.logger.info(f"📝 Session started: {session_id} - {title or 'Untitled'}")
 
         # Start auto-save if enabled
         if self.auto_save_enabled and self._auto_save_task is None:
@@ -97,10 +117,10 @@ class StateManager:
 
     def list_sessions(self) -> List[Dict[str, Any]]:
         """
-        List all available sessions
+        List all available sessions with enhanced metadata
 
         Returns:
-            List of session info dicts
+            List of session info dicts with metadata
         """
         sessions = []
 
@@ -109,19 +129,37 @@ class StateManager:
                 with open(state_file, "r") as f:
                     data = json.load(f)
 
+                # Extract session metadata
+                metadata = data.get("session_metadata", {})
+                
+                # Count total messages in all agents
+                total_messages = 0
+                agent_states = data.get("agent_states", {})
+                for agent_data in agent_states.values():
+                    state = agent_data.get("state", {})
+                    llm_context = state.get("llm_context", {})
+                    messages = llm_context.get("messages", [])
+                    total_messages += len(messages)
+
                 sessions.append({
                     "session_id": data.get("session_id"),
+                    "title": metadata.get("title", "Untitled"),
+                    "description": metadata.get("description", ""),
+                    "tags": metadata.get("tags", []),
+                    "created_at": metadata.get("created_at"),
                     "saved_at": data.get("saved_at"),
+                    "last_interaction": metadata.get("last_interaction"),
                     "num_agents": len(data.get("agent_states", {})),
                     "num_teams": len(data.get("team_states", {})),
+                    "total_messages": total_messages,
                     "file_path": str(state_file)
                 })
 
             except Exception as e:
                 self.logger.warning(f"Failed to read session {state_file}: {e}")
 
-        # Sort by saved_at descending
-        sessions.sort(key=lambda x: x.get("saved_at", ""), reverse=True)
+        # Sort by last_interaction descending
+        sessions.sort(key=lambda x: x.get("last_interaction", ""), reverse=True)
 
         return sessions
 
@@ -284,10 +322,15 @@ class StateManager:
         state_path = self.get_session_path(session_id)
 
         try:
+            # Update last interaction time
+            if self.session_metadata:
+                self.session_metadata["last_interaction"] = datetime.now().isoformat()
+            
             # Prepare data
             data = {
                 "session_id": session_id,
                 "saved_at": datetime.now().isoformat(),
+                "session_metadata": self.session_metadata,
                 "agent_states": self._agent_states,
                 "team_states": self._team_states,
             }
@@ -338,6 +381,7 @@ class StateManager:
             self._agent_states = data.get("agent_states", {})
             self._team_states = data.get("team_states", {})
             self.session_id = data.get("session_id", session_id)
+            self.session_metadata = data.get("session_metadata", {})
 
             self.logger.info(
                 f"📂 State loaded from: {state_path} "
@@ -457,6 +501,82 @@ class StateManager:
         except Exception as e:
             self.logger.error(f"Failed to delete session {session_id}: {e}")
             raise
+
+    def get_session_history(self, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Extract conversation history from current session
+
+        Args:
+            session_id: Session ID (defaults to current)
+
+        Returns:
+            List of messages in chronological order
+        """
+        try:
+            # Use current session if none specified
+            if session_id is None:
+                # Use cached state
+                agent_states = self._agent_states
+            else:
+                # Load from disk
+                state_path = self.get_session_path(session_id)
+                if not state_path.exists():
+                    return []
+                
+                with open(state_path, "r") as f:
+                    data = json.load(f)
+                agent_states = data.get("agent_states", {})
+
+            # Extract all messages from all agents
+            all_messages = []
+            
+            for agent_name, agent_data in agent_states.items():
+                state = agent_data.get("state", {})
+                llm_context = state.get("llm_context", {})
+                messages = llm_context.get("messages", [])
+                
+                for msg in messages:
+                    all_messages.append({
+                        "agent": agent_name,
+                        "source": msg.get("source", "unknown"),
+                        "type": msg.get("type", "unknown"),
+                        "content": msg.get("content", ""),
+                        "thought": msg.get("thought"),
+                    })
+
+            return all_messages
+
+        except Exception as e:
+            self.logger.error(f"Failed to get session history: {e}")
+            return []
+
+    def get_session_metadata(self, session_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get metadata for a session
+
+        Args:
+            session_id: Session ID (defaults to current)
+
+        Returns:
+            Session metadata dict
+        """
+        try:
+            if session_id is None or session_id == self.session_id:
+                return self.session_metadata.copy()
+            
+            # Load from disk
+            state_path = self.get_session_path(session_id)
+            if not state_path.exists():
+                return {}
+            
+            with open(state_path, "r") as f:
+                data = json.load(f)
+            
+            return data.get("session_metadata", {})
+
+        except Exception as e:
+            self.logger.error(f"Failed to get session metadata: {e}")
+            return {}
 
     # =========================================================================
     # Statistics

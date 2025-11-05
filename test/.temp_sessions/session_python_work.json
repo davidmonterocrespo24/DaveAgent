@@ -1,0 +1,50 @@
+{
+  "session_id": "python_work",
+  "saved_at": "2025-11-05T14:45:44.404857",
+  "metadata": {
+    "num_messages": 3,
+    "last_user_message": "Can you give me an example?",
+    "last_agent_response": "Sure! Here are two examples:\n\n**Basic example:**\n```python\n# Create list of squares\nsquares = [x**2 for x in range(5)]\nprint(squares)  # Output: [0, 1, 4, 9, 16]\n```\n\n**With condition:**\n```python\n# Only even squares\neven_squares = [x**2 for x in range(10) if x % 2 == 0]\nprint(even_squares)  # Output: [0, 4, 16, 36, 64]\n```\n\nThe first creates squares of numbers 0-4, the second only squares even numbers."
+  },
+  "agent_state": {
+    "type": "AssistantAgentState",
+    "version": "1.0.0",
+    "llm_context": {
+      "messages": [
+        {
+          "content": "I'm learning Python. Can you help me?",
+          "source": "user",
+          "type": "UserMessage"
+        },
+        {
+          "content": "Of course! What specific Python topic or problem are you working on?",
+          "thought": null,
+          "source": "assistant",
+          "type": "AssistantMessage"
+        },
+        {
+          "content": "What is a list comprehension?",
+          "source": "user",
+          "type": "UserMessage"
+        },
+        {
+          "content": "A list comprehension is a concise way to create lists in Python.\n\nBasic structure:  \n`[expression for item in iterable if condition]`\n\nExample:  \n`[x**2 for x in range(5)]` creates `[0, 1, 4, 9, 16]`\n\nIt's equivalent to writing a for-loop but more compact and often faster.",
+          "thought": null,
+          "source": "assistant",
+          "type": "AssistantMessage"
+        },
+        {
+          "content": "Can you give me an example?",
+          "source": "user",
+          "type": "UserMessage"
+        },
+        {
+          "content": "Sure! Here are two examples:\n\n**Basic example:**\n```python\n# Create list of squares\nsquares = [x**2 for x in range(5)]\nprint(squares)  # Output: [0, 1, 4, 9, 16]\n```\n\n**With condition:**\n```python\n# Only even squares\neven_squares = [x**2 for x in range(10) if x % 2 == 0]\nprint(even_squares)  # Output: [0, 4, 16, 36, 64]\n```\n\nThe first creates squares of numbers 0-4, the second only squares even numbers.",
+          "thought": null,
+          "source": "assistant",
+          "type": "AssistantMessage"
+        }
+      ]
+    }
+  }
+}

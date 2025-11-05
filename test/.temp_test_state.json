@@ -1,0 +1,30 @@
+{
+  "type": "AssistantAgentState",
+  "version": "1.0.0",
+  "llm_context": {
+    "messages": [
+      {
+        "content": "What is the capital of France?",
+        "source": "user",
+        "type": "UserMessage"
+      },
+      {
+        "content": "The capital of France is Paris.",
+        "thought": null,
+        "source": "test_agent",
+        "type": "AssistantMessage"
+      },
+      {
+        "content": "What about Spain?",
+        "source": "user",
+        "type": "UserMessage"
+      },
+      {
+        "content": "The capital of Spain is Madrid.",
+        "thought": null,
+        "source": "test_agent",
+        "type": "AssistantMessage"
+      }
+    ]
+  }
+}

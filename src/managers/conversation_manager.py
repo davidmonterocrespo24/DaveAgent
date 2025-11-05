@@ -1,29 +1,31 @@
 """
-Gestión de historial de conversaciones con compresión inteligente
+Gestión de historial de conversaciones en memoria durante la sesión activa.
+
+NOTA: Para persistencia entre sesiones, usar StateManager con save_state/load_state de AutoGen.
+Este manager solo mantiene el historial en memoria para estadísticas y tracking durante la sesión.
 """
 from typing import List, Dict, Any, Optional
-import json
 from datetime import datetime
-from pathlib import Path
 
 
 class ConversationManager:
-    """Gestiona el historial de conversaciones con compresión automática"""
+    """
+    Gestiona el historial de conversaciones EN MEMORIA durante la sesión activa.
+    
+    Para persistencia usa StateManager + AutoGen save_state/load_state.
+    """
 
-    def __init__(self, max_tokens: int = 8000, summary_threshold: int = 6000):
-        """
-        Args:
-            max_tokens: Límite máximo de tokens antes de forzar compresión
-            summary_threshold: Umbral para considerar crear un resumen
-        """
-        self.max_tokens = max_tokens
-        self.summary_threshold = summary_threshold
+    def __init__(self):
+        """Initialize conversation manager for in-memory tracking only"""
         self.conversation_history: List[Dict[str, Any]] = []
-        self.summary: Optional[str] = None
-        self.compressed_count = 0
 
     def add_message(self, role: str, content: str, metadata: Optional[Dict] = None):
-        """Añade un mensaje al historial"""
+        """
+        Añade un mensaje al historial en memoria
+        
+        NOTA: Este historial es solo para estadísticas. El contexto de los agentes
+        se maneja automáticamente por AutoGen save_state/load_state.
+        """
         message = {
             "role": role,
             "content": content,
@@ -32,112 +34,22 @@ class ConversationManager:
         }
         self.conversation_history.append(message)
 
-    def estimate_tokens(self, text: str) -> int:
-        """Estima el número de tokens (aproximación simple)"""
-        # Aproximación: 1 token ≈ 4 caracteres para español
-        return len(text) // 4
+    def get_recent_messages(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Obtiene los mensajes más recientes"""
+        return self.conversation_history[-limit:]
 
-    def get_total_tokens(self) -> int:
-        """Calcula el total de tokens en el historial actual"""
-        total = 0
-        if self.summary:
-            total += self.estimate_tokens(self.summary)
-
-        for msg in self.conversation_history:
-            total += self.estimate_tokens(msg["content"])
-
-        return total
-
-    def needs_compression(self) -> bool:
-        """Determina si el historial necesita ser comprimido"""
-        return self.get_total_tokens() > self.summary_threshold
-
-    def create_summary_prompt(self) -> str:
-        """Crea un prompt para generar un resumen del historial"""
-        conversation_text = ""
-
-        if self.summary:
-            conversation_text += f"RESUMEN PREVIO:\n{self.summary}\n\n"
-
-        conversation_text += "CONVERSACIÓN RECIENTE:\n"
-        for msg in self.conversation_history:
-            role = msg["role"].upper()
-            content = msg["content"]
-            conversation_text += f"{role}: {content}\n\n"
-
-        prompt = f"""Crea un resumen conciso pero completo de la siguiente conversación.
-El resumen debe incluir:
-1. Objetivos principales del usuario
-2. Tareas completadas y resultados
-3. Problemas encontrados y soluciones aplicadas
-4. Estado actual del proyecto
-5. Próximos pasos o tareas pendientes
-
-{conversation_text}
-
-Proporciona un resumen estructurado en español:"""
-
-        return prompt
-
-    def compress_history(self, summary_text: str):
-        """Comprime el historial usando un resumen"""
-        self.summary = summary_text
-        # Mantener solo los últimos 3 mensajes para contexto inmediato
-        self.conversation_history = self.conversation_history[-3:]
-        self.compressed_count += 1
-
-    def get_context_for_agent(self, max_recent_messages: int = 10) -> str:
-        """Obtiene el contexto formateado para el agente"""
-        context = ""
-
-        if self.summary:
-            context += f"=== RESUMEN DE CONVERSACIÓN PREVIA ===\n{self.summary}\n\n"
-
-        context += "=== CONVERSACIÓN ACTUAL ===\n"
-        recent_messages = self.conversation_history[-max_recent_messages:]
-
-        for msg in recent_messages:
-            role = msg["role"].upper()
-            content = msg["content"]
-            context += f"{role}: {content}\n\n"
-
-        return context
-
-    def save_to_file(self, filepath: str):
-        """Guarda el historial en un archivo JSON"""
-        data = {
-            "summary": self.summary,
-            "conversation_history": self.conversation_history,
-            "compressed_count": self.compressed_count,
-            "total_tokens": self.get_total_tokens(),
-            "saved_at": datetime.now().isoformat()
-        }
-
-        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-
-    def load_from_file(self, filepath: str):
-        """Carga el historial desde un archivo JSON"""
-        with open(filepath, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        self.summary = data.get("summary")
-        self.conversation_history = data.get("conversation_history", [])
-        self.compressed_count = data.get("compressed_count", 0)
+    # REMOVED: save_to_file() and load_from_file()
+    # Use StateManager with AutoGen's save_state()/load_state() instead
+    # This provides official AutoGen support for persisting agent states
 
     def clear(self):
-        """Limpia el historial completo"""
+        """Limpia el historial en memoria"""
         self.conversation_history = []
-        self.summary = None
-        self.compressed_count = 0
 
     def get_statistics(self) -> Dict[str, Any]:
-        """Retorna estadísticas del historial"""
+        """Retorna estadísticas del historial en memoria"""
         return {
             "total_messages": len(self.conversation_history),
-            "total_tokens": self.get_total_tokens(),
-            "compressed_count": self.compressed_count,
-            "has_summary": self.summary is not None,
-            "needs_compression": self.needs_compression()
+            "first_message": self.conversation_history[0]["timestamp"] if self.conversation_history else None,
+            "last_message": self.conversation_history[-1]["timestamp"] if self.conversation_history else None,
         }

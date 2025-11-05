@@ -497,13 +497,14 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
     def print_statistics(self, stats: dict):
         """Muestra estadísticas de la sesión"""
         stats_text = f"""
-**Estadísticas de la Sesión:**
+**Estadísticas de la Sesión Actual:**
 
 • Total de mensajes: {stats.get('total_messages', 0)}
-• Tokens utilizados: {stats.get('total_tokens', 0)}
-• Compresiones realizadas: {stats.get('compressed_count', 0)}
-• Tiene resumen: {'Sí' if stats.get('has_summary') else 'No'}
-• Necesita compresión: {'Sí' if stats.get('needs_compression') else 'No'}
+• Primer mensaje: {stats.get('first_message', 'N/A')}
+• Último mensaje: {stats.get('last_message', 'N/A')}
+
+**Nota:** Para ver el estado completo de los agentes, usa `/list-sessions`
+**Persistencia:** El estado se guarda automáticamente usando AutoGen save_state()
         """
         self.print_info(stats_text, "Estadísticas")
 
@@ -515,19 +516,25 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 • `/help` - Muestra este mensaje de ayuda
 • `/search <consulta>` - Busca y analiza código antes de modificarlo
 
+**Gestión de Sesiones:**
+• `/new-session <título>` - Crea nueva sesión con metadata
+• `/save-session [título]` - Guarda sesión actual (con título opcional)
+• `/load-session [id]` - Carga sesión guardada (más reciente si no se especifica)
+• `/sessions` - Lista todas las sesiones con tabla Rich
+• `/history` - Muestra historial de la sesión actual
+• `/history --all` - Muestra historial completo (sin límite)
+• `/history --thoughts` - Incluye razonamientos del agente
+
 **Memoria y Estado:**
 • `/index` - Indexa el proyecto en memoria vectorial (ChromaDB)
 • `/memory` - Muestra estadísticas de memoria vectorial
-• `/save-state [session]` - Guarda estado completo de agentes (AutoGen)
-• `/load-state [session]` - Carga estado de agentes desde sesión
-• `/list-sessions` - Lista todas las sesiones guardadas
+• `/save-state` - Alias para /save-session
+• `/load-state` - Alias para /load-session
 
 **Conversación:**
 • `/new` - Inicia una nueva conversación sin historial
-• `/clear` - Limpia el historial de conversación
-• `/stats` - Muestra estadísticas de la sesión
-• `/save <archivo>` - Guarda el historial en un archivo (legacy)
-• `/load <archivo>` - Carga un historial desde un archivo (legacy)
+• `/clear` - Limpia el historial de conversación en memoria
+• `/stats` - Muestra estadísticas de la sesión actual
 
 **Sistema:**
 • `/debug` - Activa/desactiva el modo debug
@@ -548,6 +555,23 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 `@src/config/settings.py @.env update the API configuration`
 
 `explain how @src/agents/code_searcher.py works`
+
+**Flujo de Trabajo con Sesiones:**
+
+1. **Crear nueva sesión:** `/new-session "Mi Proyecto API"`
+2. **Trabajar normalmente:** El estado se guarda automáticamente
+3. **Guardar manualmente:** `/save-session` (actualiza la sesión actual)
+4. **Listar sesiones:** `/sessions` para ver todas las sesiones guardadas
+5. **Cargar sesión:** `/load-session 20250105_143000` restaura contexto completo
+6. **Ver historial:** `/history` muestra conversación completa formateada
+
+**Persistencia de Estado:**
+
+El sistema usa **AutoGen save_state/load_state** para guardar el contexto completo:
+- Se guarda automáticamente cada 5 minutos
+- Se guarda al cerrar la aplicación
+- Incluye todo el historial de conversación de todos los agentes
+- Las sesiones incluyen metadata: título, tags, descripción, timestamps
 
 **Uso:**
 

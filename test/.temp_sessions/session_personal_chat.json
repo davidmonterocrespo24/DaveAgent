@@ -1,0 +1,83 @@
+{
+  "session_id": "personal_chat",
+  "saved_at": "2025-11-05T14:46:13.428849",
+  "metadata": {
+    "num_messages": 6,
+    "last_user_message": "What are my hobbies?",
+    "updated_at": "2025-11-05T14:46:13.428849"
+  },
+  "agent_state": {
+    "type": "AssistantAgentState",
+    "version": "1.0.0",
+    "llm_context": {
+      "messages": [
+        {
+          "content": "Hello! My name is David",
+          "source": "user",
+          "type": "UserMessage"
+        },
+        {
+          "content": "Hello, David! How can I help you today?",
+          "thought": null,
+          "source": "assistant",
+          "type": "AssistantMessage"
+        },
+        {
+          "content": "I live in Colombia",
+          "source": "user",
+          "type": "UserMessage"
+        },
+        {
+          "content": "Nice! What part of Colombia are you from?",
+          "thought": null,
+          "source": "assistant",
+          "type": "AssistantMessage"
+        },
+        {
+          "content": "I enjoy coding and coffee",
+          "source": "user",
+          "type": "UserMessage"
+        },
+        {
+          "content": "Great combination! Are you working on any coding projects right now?",
+          "thought": null,
+          "source": "assistant",
+          "type": "AssistantMessage"
+        },
+        {
+          "content": "Do you remember my name?",
+          "source": "user",
+          "type": "UserMessage"
+        },
+        {
+          "content": "Yes, your name is David.",
+          "thought": null,
+          "source": "assistant",
+          "type": "AssistantMessage"
+        },
+        {
+          "content": "Where did I say I live?",
+          "source": "user",
+          "type": "UserMessage"
+        },
+        {
+          "content": "You mentioned that you live in Colombia.",
+          "thought": null,
+          "source": "assistant",
+          "type": "AssistantMessage"
+        },
+        {
+          "content": "What are my hobbies?",
+          "source": "user",
+          "type": "UserMessage"
+        },
+        {
+          "content": "You mentioned that you enjoy coding and drinking coffee.",
+          "thought": null,
+          "source": "assistant",
+          "type": "AssistantMessage"
+        }
+      ]
+    }
+  }
+}

@@ -23,7 +23,7 @@ from src.agents import CodeSearcher
 from src.config.prompts import AGENT_SYSTEM_PROMPT
 from src.managers import ConversationManager, StateManager
 from src.interfaces import CLIInterface
-from src.utils import get_logger, get_conversation_tracker
+from src.utils import get_logger, get_conversation_tracker, HistoryViewer
 from src.memory import MemoryManager, DocumentIndexer
 
 
@@ -162,6 +162,7 @@ class DaveAgentCLI:
             summary_threshold=6000
         )
         self.cli = CLIInterface()
+        self.history_viewer = HistoryViewer(console=self.cli.console)
 
         # Crear CodeSearcher con las herramientas de análisis y memoria de código
         search_tools = [
@@ -222,43 +223,33 @@ class DaveAgentCLI:
             self.conversation_manager.clear()
             self.cli.print_success("Nueva conversación iniciada")
 
+        elif cmd == "/new-session":
+            # Crear nueva sesión con metadata
+            await self._new_session_command(parts)
+
         elif cmd == "/stats":
             stats = self.conversation_manager.get_statistics()
             self.cli.print_statistics(stats)
 
-        elif cmd == "/save":
-            # Guardar historial de conversación (legacy)
-            if len(parts) < 2:
-                self.cli.print_error("Uso: /save <archivo>")
-                self.cli.print_info("Tip: Usa /save-state para guardar estado completo de agentes")
-            else:
-                try:
-                    self.conversation_manager.save_to_file(parts[1])
-                    self.cli.print_success(f"Historial guardado en {parts[1]}")
-                except Exception as e:
-                    self.cli.print_error(f"Error al guardar: {str(e)}")
+        # REMOVED: /save command - Use /save-state instead (AutoGen official)
 
-        elif cmd == "/save-state":
+        elif cmd == "/save-state" or cmd == "/save-session":
             # Guardar estado completo usando AutoGen save_state
             await self._save_state_command(parts)
 
-        elif cmd == "/load-state":
+        elif cmd == "/load-state" or cmd == "/load-session":
             # Cargar estado usando AutoGen load_state
             await self._load_state_command(parts)
 
-        elif cmd == "/list-sessions":
-            # Listar sesiones guardadas
-            self._list_sessions_command()
+        elif cmd == "/list-sessions" or cmd == "/sessions":
+            # Listar sesiones guardadas con tabla Rich
+            await self._list_sessions_command()
 
-        elif cmd == "/load":
-            if len(parts) < 2:
-                self.cli.print_error("Uso: /load <archivo>")
-            else:
-                try:
-                    self.conversation_manager.load_from_file(parts[1])
-                    self.cli.print_success(f"Historial cargado desde {parts[1]}")
-                except Exception as e:
-                    self.cli.print_error(f"Error al cargar: {str(e)}")
+        elif cmd == "/history":
+            # Mostrar historial de la sesión actual
+            await self._show_history_command(parts)
+
+        # REMOVED: /load command - Use /load-state instead (AutoGen official)
 
         elif cmd == "/debug":
             # Cambiar nivel de logging
@@ -416,6 +407,76 @@ class DaveAgentCLI:
     # STATE MANAGEMENT - Gestión de estado con AutoGen save_state/load_state
     # =========================================================================
 
+    async def _new_session_command(self, parts: list):
+        """
+        Comando /new-session: Crea una nueva sesión con metadata
+
+        Uso:
+            /new-session <título>
+            /new-session "Mi proyecto web" --tags backend,api --desc "API REST con FastAPI"
+        """
+        try:
+            # Parse arguments
+            import shlex
+            
+            if len(parts) < 2:
+                self.cli.print_error("Uso: /new-session <título> [--tags tag1,tag2] [--desc descripción]")
+                self.cli.print_info("Ejemplo: /new-session \"Proyecto Web\" --tags python,web --desc \"Desarrollo de API\"")
+                return
+
+            # Join and parse
+            cmd_str = " ".join(parts[1:])
+            
+            # Extract title (first argument)
+            args = shlex.split(cmd_str)
+            if not args:
+                self.cli.print_error("Debes proporcionar un título para la sesión")
+                return
+            
+            title = args[0]
+            tags = []
+            description = ""
+            
+            # Parse optional flags
+            i = 1
+            while i < len(args):
+                if args[i] == "--tags" and i + 1 < len(args):
+                    tags = [t.strip() for t in args[i + 1].split(",")]
+                    i += 2
+                elif args[i] == "--desc" and i + 1 < len(args):
+                    description = args[i + 1]
+                    i += 2
+                else:
+                    i += 1
+
+            # Generate session_id
+            from datetime import datetime
+            session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            # Start new session with metadata
+            self.state_manager.start_session(
+                session_id=session_id,
+                title=title,
+                tags=tags,
+                description=description
+            )
+
+            # Clear current conversation
+            self.conversation_manager.clear()
+
+            self.cli.print_success(f"✅ Nueva sesión creada: {title}")
+            self.cli.print_info(f"  • Session ID: {session_id}")
+            if tags:
+                self.cli.print_info(f"  • Tags: {', '.join(tags)}")
+            if description:
+                self.cli.print_info(f"  • Descripción: {description}")
+
+            self.logger.info(f"✅ Nueva sesión creada: {session_id} - {title}")
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_new_session_command")
+            self.cli.print_error(f"Error creando sesión: {str(e)}")
+
     async def _auto_save_agent_states(self):
         """
         Auto-guarda el estado de todos los agentes después de cada respuesta.
@@ -464,27 +525,36 @@ class DaveAgentCLI:
 
     async def _save_state_command(self, parts: list):
         """
-        Comando /save-state: Guarda el estado completo de agentes y teams
+        Comando /save-state o /save-session: Guarda el estado completo de agentes y teams
 
         Uso:
-            /save-state                  # Auto-genera nombre de sesión
-            /save-state my_session       # Usa nombre específico
+            /save-state                  # Guarda sesión actual
+            /save-state <título>         # Guarda con título específico (crea nueva sesión)
+            /save-session <título>       # Alias
         """
         try:
-            self.cli.start_thinking()
+            self.cli.start_thinking(message="guardando sesión")
             self.logger.info("💾 Guardando estado de agentes...")
 
-            # Determinar session_id
-            if len(parts) > 1:
-                session_id = parts[1]
-            else:
-                # Auto-generar session_id
+            # Determinar si es nueva sesión o actualización
+            if len(parts) > 1 and not self.state_manager.session_id:
+                # Nueva sesión con título
+                title = " ".join(parts[1:])
                 from datetime import datetime
                 session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-            # Iniciar sesión si no está iniciada
-            if not self.state_manager.session_id:
-                self.state_manager.start_session(session_id)
+                
+                self.state_manager.start_session(
+                    session_id=session_id,
+                    title=title
+                )
+            elif not self.state_manager.session_id:
+                # Auto-generar sesión sin título
+                from datetime import datetime
+                session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+                self.state_manager.start_session(session_id, title="Sesión sin título")
+            else:
+                # Actualizar sesión existente
+                session_id = self.state_manager.session_id
 
             # Guardar estado de cada agente
             await self.state_manager.save_agent_state(
@@ -516,10 +586,16 @@ class DaveAgentCLI:
 
             self.cli.stop_thinking()
 
+            # Get metadata and messages for display
+            metadata = self.state_manager.get_session_metadata()
+            messages = self.state_manager.get_session_history()
+
             self.cli.print_success(f"✅ Estado guardado correctamente!")
+            self.cli.print_info(f"  • Título: {metadata.get('title', 'Sin título')}")
             self.cli.print_info(f"  • Session ID: {session_id}")
             self.cli.print_info(f"  • Ubicación: {state_path}")
             self.cli.print_info(f"  • Agentes guardados: 4")
+            self.cli.print_info(f"  • Mensajes guardados: {len(messages)}")
 
             self.logger.info(f"✅ Estado guardado en sesión: {session_id}")
 
@@ -530,14 +606,16 @@ class DaveAgentCLI:
 
     async def _load_state_command(self, parts: list):
         """
-        Comando /load-state: Carga el estado de agentes desde una sesión
+        Comando /load-state o /load-session: Carga el estado de agentes desde una sesión
+        y muestra el historial completo
 
         Uso:
             /load-state                  # Carga sesión más reciente
             /load-state my_session       # Carga sesión específica
+            /load-session <session_id>   # Alias
         """
         try:
-            self.cli.start_thinking()
+            self.cli.start_thinking(message="cargando sesión")
             self.logger.info("📂 Cargando estado de agentes...")
 
             # Determinar session_id
@@ -548,11 +626,12 @@ class DaveAgentCLI:
                 sessions = self.state_manager.list_sessions()
                 if not sessions:
                     self.cli.stop_thinking()
-                    self.cli.print_error("No hay sesiones guardadas")
+                    self.history_viewer.display_no_sessions()
                     return
 
                 session_id = sessions[0]["session_id"]
-                self.cli.print_info(f"Cargando sesión más reciente: {session_id}")
+                title = sessions[0].get("title", "Sesión más reciente")
+                self.history_viewer.display_loading_session(session_id, title)
 
             # Cargar desde disco
             loaded = await self.state_manager.load_from_disk(session_id)
@@ -579,10 +658,36 @@ class DaveAgentCLI:
 
             self.cli.stop_thinking()
 
-            self.cli.print_success(f"✅ Estado cargado correctamente!")
-            self.cli.print_info(f"  • Session ID: {session_id}")
-            self.cli.print_info(f"  • Agentes restaurados: {agents_loaded}")
+            # Get session metadata and history
+            metadata = self.state_manager.get_session_metadata()
+            messages = self.state_manager.get_session_history()
 
+            # Display session info
+            self.history_viewer.display_session_loaded(
+                session_id=session_id,
+                total_messages=len(messages),
+                agents_restored=agents_loaded
+            )
+
+            # Display session metadata
+            self.history_viewer.display_session_metadata(metadata, session_id)
+
+            # Display conversation history
+            if messages:
+                self.cli.print_info("📜 Mostrando historial de conversación:\n")
+                self.history_viewer.display_conversation_history(
+                    messages=messages,
+                    max_messages=20,  # Show last 20 messages
+                    show_thoughts=False
+                )
+                
+                if len(messages) > 20:
+                    self.cli.print_info(f"💡 Se muestran los últimos 20 de {len(messages)} mensajes")
+                    self.cli.print_info("💡 Usa /history --all para ver todos los mensajes")
+            else:
+                self.cli.print_warning("⚠️ No hay mensajes en el historial de esta sesión")
+
+            self.cli.print_info("\n✅ El agente continuará desde donde quedó la conversación")
             self.logger.info(f"✅ Estado cargado desde sesión: {session_id}")
 
         except Exception as e:
@@ -590,34 +695,89 @@ class DaveAgentCLI:
             self.logger.log_error_with_context(e, "_load_state_command")
             self.cli.print_error(f"Error cargando estado: {str(e)}")
 
-    def _list_sessions_command(self):
+    async def _list_sessions_command(self):
         """
-        Comando /list-sessions: Lista todas las sesiones guardadas
+        Comando /list-sessions o /sessions: Lista todas las sesiones guardadas con Rich
         """
         try:
             sessions = self.state_manager.list_sessions()
 
             if not sessions:
-                self.cli.print_info("No hay sesiones guardadas")
+                self.history_viewer.display_no_sessions()
                 return
 
-            self.cli.print_info(f"\n📋 Sesiones Guardadas ({len(sessions)} total)\n")
+            # Display sessions using Rich table
+            self.history_viewer.display_sessions_list(sessions)
 
-            for i, session in enumerate(sessions, 1):
-                session_id = session.get("session_id", "unknown")
-                saved_at = session.get("saved_at", "unknown")
-                num_agents = session.get("num_agents", 0)
-
-                self.cli.print_info(f"{i}. {session_id}")
-                self.cli.print_info(f"   Guardado: {saved_at}")
-                self.cli.print_info(f"   Agentes: {num_agents}")
-                self.cli.print_info("")
-
-            self.cli.print_info("💡 Usa /load-state <session_id> para cargar una sesión")
+            self.cli.print_info("💡 Usa /load-session <session_id> para cargar una sesión")
+            self.cli.print_info("💡 Usa /history para ver el historial de la sesión actual")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "_list_sessions_command")
             self.cli.print_error(f"Error listando sesiones: {str(e)}")
+
+    async def _show_history_command(self, parts: list):
+        """
+        Comando /history: Muestra el historial de la sesión actual
+
+        Uso:
+            /history              # Muestra últimos 20 mensajes
+            /history --all        # Muestra todos los mensajes
+            /history --thoughts   # Incluye pensamientos/razonamientos
+            /history <session_id> # Muestra historial de sesión específica
+        """
+        try:
+            # Parse options
+            show_all = "--all" in parts
+            show_thoughts = "--thoughts" in parts
+            
+            # Check if session_id provided
+            session_id = None
+            for part in parts[1:]:
+                if not part.startswith("--"):
+                    session_id = part
+                    break
+
+            # Get session history
+            if session_id:
+                # Load specific session history
+                messages = self.state_manager.get_session_history(session_id)
+                metadata = self.state_manager.get_session_metadata(session_id)
+            else:
+                # Use current session
+                if not self.state_manager.session_id:
+                    self.cli.print_warning("⚠️ No hay una sesión activa")
+                    self.cli.print_info("💡 Usa /load-session <id> para cargar una sesión")
+                    self.cli.print_info("💡 O usa /new-session <título> para crear una nueva")
+                    return
+                
+                messages = self.state_manager.get_session_history()
+                metadata = self.state_manager.get_session_metadata()
+                session_id = self.state_manager.session_id
+
+            if not messages:
+                self.cli.print_warning("⚠️ No hay mensajes en el historial de esta sesión")
+                return
+
+            # Display metadata
+            self.history_viewer.display_session_metadata(metadata, session_id)
+
+            # Display history
+            max_messages = None if show_all else 20
+            self.history_viewer.display_conversation_history(
+                messages=messages,
+                max_messages=max_messages,
+                show_thoughts=show_thoughts
+            )
+
+            # Show info about truncation
+            if not show_all and len(messages) > 20:
+                self.cli.print_info(f"\n💡 Se muestran los últimos 20 de {len(messages)} mensajes")
+                self.cli.print_info("💡 Usa /history --all para ver todos los mensajes")
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_show_history_command")
+            self.cli.print_error(f"Error mostrando historial: {str(e)}")
 
     # =========================================================================
     # COMPLEXITY DETECTION - Detección de complejidad de tareas
@@ -1356,11 +1516,105 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
     # FUNCIONES SIN CAMBIOS
     # =========================================================================
 
+    async def _check_and_resume_session(self):
+        """
+        Check for previous sessions and offer to resume the most recent one
+        """
+        try:
+            sessions = self.state_manager.list_sessions()
+            
+            if not sessions:
+                # No previous sessions, start fresh
+                self.logger.info("No hay sesiones previas, iniciando sesión nueva")
+                return
+
+            # Get most recent session
+            latest_session = sessions[0]
+            session_id = latest_session.get("session_id")
+            title = latest_session.get("title", "Sin título")
+            total_messages = latest_session.get("total_messages", 0)
+            last_interaction = latest_session.get("last_interaction", "")
+
+            # Format date
+            if last_interaction:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(last_interaction)
+                    formatted_date = dt.strftime("%Y-%m-%d %H:%M")
+                except:
+                    formatted_date = last_interaction
+            else:
+                formatted_date = "Desconocida"
+
+            # Display session info
+            self.cli.print_info("\n📋 Sesión anterior encontrada:")
+            self.cli.print_info(f"  • Título: {title}")
+            self.cli.print_info(f"  • Última interacción: {formatted_date}")
+            self.cli.print_info(f"  • Mensajes: {total_messages}")
+            
+            # Prompt user
+            from prompt_toolkit import prompt as sync_prompt
+            response = sync_prompt("\n¿Deseas continuar con esta sesión? (S/n): ").strip().lower()
+
+            if response in ['s', 'si', 'sí', 'yes', 'y', '']:
+                # Load the session
+                self.cli.print_info(f"\n📂 Cargando sesión: {title}...")
+                
+                # Load state
+                loaded = await self.state_manager.load_from_disk(session_id)
+                
+                if loaded:
+                    # Load agents
+                    agents_loaded = 0
+                    if await self.state_manager.load_agent_state("coder", self.coder_agent):
+                        agents_loaded += 1
+                    if await self.state_manager.load_agent_state("code_searcher", self.code_searcher.searcher_agent):
+                        agents_loaded += 1
+                    if await self.state_manager.load_agent_state("planning", self.planning_agent):
+                        agents_loaded += 1
+                    if await self.state_manager.load_agent_state("summary", self.summary_agent):
+                        agents_loaded += 1
+
+                    # Get metadata and messages
+                    metadata = self.state_manager.get_session_metadata()
+                    messages = self.state_manager.get_session_history()
+
+                    # Display success
+                    self.cli.print_success(f"\n✅ Sesión cargada: {title}")
+                    self.cli.print_info(f"  • Mensajes restaurados: {len(messages)}")
+                    self.cli.print_info(f"  • Agentes restaurados: {agents_loaded}")
+
+                    # Show last few messages
+                    if messages:
+                        self.cli.print_info("\n📜 Últimos mensajes:")
+                        self.history_viewer.display_conversation_history(
+                            messages=messages,
+                            max_messages=5,  # Show last 5 messages
+                            show_thoughts=False
+                        )
+                        
+                        if len(messages) > 5:
+                            self.cli.print_info(f"💡 Usa /history para ver todos los {len(messages)} mensajes")
+
+                    self.cli.print_info("\n✅ Puedes continuar la conversación\n")
+                else:
+                    self.cli.print_error("Error cargando la sesión")
+            else:
+                self.cli.print_info("\n✨ Iniciando nueva sesión")
+                self.cli.print_info("💡 Usa /new-session <título> para crear una sesión con nombre\n")
+
+        except Exception as e:
+            self.logger.error(f"Error checking previous sessions: {e}")
+            # Continue without loading session
+
     async def run(self):
         """Ejecuta el loop principal de la CLI"""
         self.logger.info("▶️ Iniciando loop principal de CLI")
         self.cli.print_banner()
         self.cli.print_welcome_message()
+
+        # Check for previous sessions and offer to resume
+        await self._check_and_resume_session()
 
         try:
             while self.running:

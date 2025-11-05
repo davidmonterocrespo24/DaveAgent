@@ -6,6 +6,7 @@ from .file_indexer import FileIndexer
 from .file_selector import FileSelector, select_file_interactive
 from .vibe_spinner import VibeSpinner, show_vibe_spinner
 from .conversation_tracker import ConversationTracker, get_conversation_tracker
+from .history_viewer import HistoryViewer
 
 __all__ = [
     'DaveAgentLogger',
@@ -22,5 +23,6 @@ __all__ = [
     'VibeSpinner',
     'show_vibe_spinner',
     'ConversationTracker',
-    'get_conversation_tracker'
+    'get_conversation_tracker',
+    'HistoryViewer'
 ]
