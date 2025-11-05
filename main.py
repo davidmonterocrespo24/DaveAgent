@@ -465,17 +465,87 @@ class DaveAgentCLI:
             self.logger.log_error_with_context(e, "_new_session_command")
             self.cli.print_error(f"Error creando sesión: {str(e)}")
 
+    async def _generate_session_title(self) -> str:
+        """
+        Genera un título descriptivo para la sesión usando LLM basado en el historial
+
+        Returns:
+            Título generado (máximo 50 caracteres)
+        """
+        try:
+            # Obtener mensajes del historial actual
+            messages = self.state_manager.get_session_history()
+            
+            if not messages or len(messages) < 2:
+                return "Untitled Session"
+            
+            # Tomar los primeros mensajes para entender el contexto
+            context_messages = messages[:5]  # Primeros 5 mensajes
+            
+            # Formatear contexto
+            conversation_summary = ""
+            for msg in context_messages:
+                role = msg.get("source", "unknown")
+                content = msg.get("content", "")
+                # Limitar longitud de cada mensaje
+                content_preview = content[:200] if len(content) > 200 else content
+                conversation_summary += f"{role}: {content_preview}\n"
+            
+            # Crear prompt para generar título
+            title_prompt = f"""Based on the following conversation, generate a short, descriptive title (maximum 50 characters).
+The title should capture the main topic or task being discussed.
+
+CONVERSATION:
+{conversation_summary}
+
+Generate ONLY the title text, nothing else. Make it concise and descriptive.
+Examples: "Python API Development", "Bug Fix in Authentication", "Database Migration Setup"
+
+TITLE:"""
+
+            # Llamar al LLM
+            from autogen_core.models import UserMessage
+            result = await self.model_client.create(
+                messages=[UserMessage(content=title_prompt, source="user")]
+            )
+            
+            # Extraer título
+            title = result.content.strip()
+            
+            # Limpiar título (remover comillas, etc.)
+            title = title.strip('"').strip("'").strip()
+            
+            # Limitar longitud
+            if len(title) > 50:
+                title = title[:47] + "..."
+            
+            self.logger.info(f"📝 Título generado: {title}")
+            return title
+            
+        except Exception as e:
+            self.logger.warning(f"Error generando título: {e}")
+            return "Untitled Session"
+
     async def _auto_save_agent_states(self):
         """
         Auto-guarda el estado de todos los agentes después de cada respuesta.
         Se ejecuta silenciosamente en background.
+        Genera un título automático si la sesión no tiene uno.
         """
         try:
             # Iniciar sesión si no está iniciada
             if not self.state_manager.session_id:
                 from datetime import datetime
                 session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-                self.state_manager.start_session(session_id)
+                
+                # Generar título automáticamente usando LLM
+                title = await self._generate_session_title()
+                
+                self.state_manager.start_session(
+                    session_id=session_id,
+                    title=title
+                )
+                self.logger.info(f"🎯 Nueva sesión creada con título: {title}")
 
             # Guardar estado de cada agente
             await self.state_manager.save_agent_state(
@@ -526,7 +596,7 @@ class DaveAgentCLI:
 
             # Determinar si es nueva sesión o actualización
             if len(parts) > 1 and not self.state_manager.session_id:
-                # Nueva sesión con título
+                # Nueva sesión con título manual
                 title = " ".join(parts[1:])
                 from datetime import datetime
                 session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -536,10 +606,18 @@ class DaveAgentCLI:
                     title=title
                 )
             elif not self.state_manager.session_id:
-                # Auto-generar sesión sin título
+                # Auto-generar sesión con título automático usando LLM
                 from datetime import datetime
                 session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-                self.state_manager.start_session(session_id, title="Sesión sin título")
+                
+                # Generar título inteligente
+                title = await self._generate_session_title()
+                
+                self.state_manager.start_session(
+                    session_id=session_id,
+                    title=title
+                )
+                self.logger.info(f"📝 Título generado automáticamente: {title}")
             else:
                 # Actualizar sesión existente
                 session_id = self.state_manager.session_id
@@ -1416,14 +1494,15 @@ class DaveAgentCLI:
 
             # NUEVO: También guardar en memoria vectorial (async)
             # Esto permite que futuros agentes encuentren conversaciones relevantes
+            # ChromaDB solo acepta str, int, float, bool en metadata - convertir listas a strings
             import asyncio
             asyncio.create_task(
                 self.memory_manager.add_conversation(
                     user_input=user_input,
                     agent_response=combined_response,
                     metadata={
-                        "agents_used": agents_used,
-                        "tools_called": tools_called,
+                        "agents_used": ", ".join(agents_used) if agents_used else "",
+                        "tools_called": ", ".join(tools_called) if tools_called else "",
                         "interaction_id": interaction_id,
                         "model": self.settings.model,
                         "provider": provider
@@ -1536,9 +1615,14 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
             self.cli.print_info(f"  • Última interacción: {formatted_date}")
             self.cli.print_info(f"  • Mensajes: {total_messages}")
             
-            # Prompt user
-            from prompt_toolkit import prompt as sync_prompt
-            response = sync_prompt("\n¿Deseas continuar con esta sesión? (S/n): ").strip().lower()
+            # Prompt user (use async prompt)
+            from prompt_toolkit import PromptSession
+            from prompt_toolkit.patch_stdout import patch_stdout
+            
+            session = PromptSession()
+            with patch_stdout():
+                response = await session.prompt_async("\n¿Deseas continuar con esta sesión? (S/n): ")
+            response = response.strip().lower()
 
             if response in ['s', 'si', 'sí', 'yes', 'y', '']:
                 # Load the session
