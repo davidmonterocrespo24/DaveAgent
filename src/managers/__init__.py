@@ -1,7 +1,6 @@
 """
-Gestores del sistema - Conversación, Estado, etc.
+Gestores del sistema - Estado y sesiones
 """
-from src.managers.conversation_manager import ConversationManager
 from src.managers.state_manager import StateManager
 
-__all__ = ["ConversationManager", "StateManager"]
+__all__ = ["StateManager"]

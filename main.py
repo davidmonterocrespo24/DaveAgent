@@ -21,7 +21,7 @@ from src.config import (
 )
 from src.agents import CodeSearcher
 from src.config.prompts import AGENT_SYSTEM_PROMPT
-from src.managers import ConversationManager, StateManager
+from src.managers import StateManager
 from src.interfaces import CLIInterface
 from src.utils import get_logger, get_conversation_tracker, HistoryViewer
 from src.memory import MemoryManager, DocumentIndexer
@@ -157,10 +157,6 @@ class DaveAgentCLI:
         )
 
         # Componentes del sistema
-        self.conversation_manager = ConversationManager(
-            max_tokens=8000,
-            summary_threshold=6000
-        )
         self.cli = CLIInterface()
         self.history_viewer = HistoryViewer(console=self.cli.console)
 
@@ -215,23 +211,18 @@ class DaveAgentCLI:
             self.cli.print_help()
 
         elif cmd == "/clear":
-            self.conversation_manager.clear()
+            # Clear screen only - AutoGen handles history
             self.cli.clear_screen()
-            self.cli.print_success("Historial limpiado")
+            self.cli.print_success("Pantalla limpiada")
 
         elif cmd == "/new":
-            self.conversation_manager.clear()
+            # Just clear screen - new session will be auto-created if needed
+            self.cli.clear_screen()
             self.cli.print_success("Nueva conversación iniciada")
 
         elif cmd == "/new-session":
             # Crear nueva sesión con metadata
             await self._new_session_command(parts)
-
-        elif cmd == "/stats":
-            stats = self.conversation_manager.get_statistics()
-            self.cli.print_statistics(stats)
-
-        # REMOVED: /save command - Use /save-state instead (AutoGen official)
 
         elif cmd == "/save-state" or cmd == "/save-session":
             # Guardar estado completo usando AutoGen save_state
@@ -460,9 +451,6 @@ class DaveAgentCLI:
                 tags=tags,
                 description=description
             )
-
-            # Clear current conversation
-            self.conversation_manager.clear()
 
             self.cli.print_success(f"✅ Nueva sesión creada: {title}")
             self.cli.print_info(f"  • Session ID: {session_id}")
@@ -1159,8 +1147,6 @@ class DaveAgentCLI:
             else:
                 full_input = user_input
 
-            self.conversation_manager.add_message("user", full_input)
-
             # ============= DETECCIÓN DE COMPLEJIDAD =============
             task_complexity = await self._detect_task_complexity(user_input)
             self.logger.info(f"🎯 Complejidad detectada: {task_complexity}")
@@ -1239,16 +1225,6 @@ class DaveAgentCLI:
                         message_key = f"{agent_name}:{hash(str(content))}"
 
                     if message_key not in agent_messages_shown:
-                        # Convertir content a string si es necesario para el historial
-                        content_for_history = content_str if isinstance(content, list) else content
-
-                        # Guardar en el historial
-                        self.conversation_manager.add_message(
-                            "assistant",
-                            content_for_history,
-                            metadata={"agent": agent_name, "type": msg_type}
-                        )
-
                         # MOSTRAR DIFERENTES TIPOS DE MENSAJES EN CONSOLA EN TIEMPO REAL
                         if msg_type == "ThoughtEvent":
                             # 💭 Mostrar pensamientos/reflexiones del agente
@@ -1473,8 +1449,16 @@ class DaveAgentCLI:
         try:
             self.logger.info("📋 Generando resumen de tarea completada...")
 
-            # Get recent conversation history
-            recent_messages = self.conversation_manager.get_context_for_agent(max_recent_messages=10)
+            # Get recent conversation history from StateManager
+            messages = self.state_manager.get_session_history()
+            
+            # Format last 10 messages for context
+            recent_messages = ""
+            if messages:
+                for msg in messages[-10:]:
+                    role = msg.get("source", "unknown")
+                    content = msg.get("content", "")
+                    recent_messages += f"{role}: {content}\n\n"
 
             # Create summary request
             summary_request = f"""Based on the following conversation, create a brief, friendly summary of what was accomplished.
