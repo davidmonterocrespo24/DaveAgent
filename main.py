@@ -849,6 +849,10 @@ class DaveAgentCLI:
             message_count = 0
             spinner_active = False
 
+            # Start initial spinner
+            self.cli.start_thinking(message="iniciando planificación")
+            spinner_active = True
+
             async for msg in complex_team.run_stream(task=user_input):
                 message_count += 1
                 msg_type = type(msg).__name__
@@ -878,6 +882,10 @@ class DaveAgentCLI:
                             self.cli.print_agent_message(content_str, agent_name)
                             self.logger.debug(f"[{agent_name}] {content_str[:100]}")
                             agent_messages_shown.add(message_key)
+
+                            # After agent finishes, start spinner waiting for next agent
+                            self.cli.start_thinking(message=f"esperando siguiente acción")
+                            spinner_active = True
 
                         elif msg_type == "ToolCallRequestEvent":
                             if spinner_active:
@@ -1110,7 +1118,7 @@ class DaveAgentCLI:
 
                         elif msg_type == "TextMessage":
                             # 💬 Mostrar respuesta final del agente
-                            # Stop spinner permanently for final response
+                            # Stop spinner for final response
                             if spinner_active:
                                 self.cli.stop_thinking(clear=True)
                                 spinner_active = False
@@ -1121,6 +1129,10 @@ class DaveAgentCLI:
                             # Collect agent responses for logging
                             all_agent_responses.append(f"[{agent_name}] {content_str}")
                             agent_messages_shown.add(message_key)
+
+                            # After agent finishes, start spinner waiting for next agent
+                            self.cli.start_thinking(message=f"esperando siguiente acción")
+                            spinner_active = True
 
                         else:
                             # Otros tipos de mensaje (para debugging)
