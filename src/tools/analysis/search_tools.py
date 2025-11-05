@@ -59,7 +59,11 @@ def _file_contains(pattern: re.Pattern[str], path: Path) -> Optional[Path]:
 
 
 async def grep_search(
-    query, case_sensitive=True, include_pattern=None, exclude_pattern=None, explanation=None
+    query: str,
+    case_sensitive: bool = True,
+    include_pattern: Optional[str] = None,
+    exclude_pattern: Optional[str] = None,
+    explanation: Optional[str] = None
 ) -> str:
     """
     Search for a regex pattern in files using inclusion and exclusion filters.
@@ -182,7 +186,12 @@ async def codebase_search(
     return header + (body or "No relevant files found.")
 
 
-async def run_terminal_cmd(command: str, require_user_approval: bool = False) -> str:
+async def run_terminal_cmd(
+    command: str,
+    is_background: bool = False,
+    require_user_approval: bool = False,
+    explanation: str = ""
+) -> str:
     """Ejecuta un comando de terminal"""
     dangerous_keywords = [
         "rm",
@@ -235,18 +244,11 @@ async def run_terminal_cmd(command: str, require_user_approval: bool = False) ->
         return f"Error executing command: {str(e)}"
 
 
-async def diff_history(target_file: str = "", max_commits: int = 10) -> str:
-    """Muestra el historial de diff de git"""
+async def diff_history(explanation: str = "") -> str:
+    """Muestra el historial de diff de git (últimos 10 commits)"""
     try:
+        max_commits = 10
         cmd = ["git", "log", f"-{max_commits}", "--oneline"]
-
-        if target_file:
-            target = (
-                WORKSPACE / target_file
-                if not Path(target_file).is_absolute()
-                else Path(target_file)
-            )
-            cmd.extend(["--", str(target)])
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, cwd=WORKSPACE)
 
@@ -260,18 +262,6 @@ async def diff_history(target_file: str = "", max_commits: int = 10) -> str:
 
         output = f"Git history (last {max_commits} commits):\n"
         output += result.stdout
-
-        if target_file and result.stdout:
-            diff_cmd = ["git", "log", "-p", "-1", "--", str(target)]
-            diff_result = subprocess.run(
-                diff_cmd, capture_output=True, text=True, timeout=10, cwd=WORKSPACE
-            )
-
-            if diff_result.stdout:
-                lines = diff_result.stdout.split("\n")[:100]
-                output += "\n\nLast change:\n" + "\n".join(lines)
-                if len(diff_result.stdout.split("\n")) > 100:
-                    output += "\n... (output truncated)"
 
         return output
 

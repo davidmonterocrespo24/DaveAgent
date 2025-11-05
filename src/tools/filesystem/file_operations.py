@@ -3,6 +3,7 @@ Operaciones de sistema de archivos - Consolidado
 """
 import os
 from pathlib import Path
+import difflib
 
 WORKSPACE = Path(os.getcwd()).resolve()
 
@@ -163,17 +164,33 @@ async def edit_file(target_file: str, instructions: str, code_edit: str, explana
         
         
         
+        # Generate unified diff
+        diff = difflib.unified_diff(
+            original_content.splitlines(keepends=True),
+            new_content.splitlines(keepends=True),
+            fromfile=f"{target_file} (original)",
+            tofile=f"{target_file} (modified)",
+            lineterm=''
+        )
+        diff_text = ''.join(diff)
+
         # Write the new content
         with open(target_file, 'w', encoding='utf-8') as f:
             f.write(new_content.rstrip('\n') + '\n')
-        
-        return f"""
-Successfully edited file: {target_file}
-Instructions applied: {instructions}
-Original lines: {len(original_lines)}
-New lines: {len(new_content.split('\n'))}
-Changes applied successfully!
-        """
+
+        # Format the result with diff
+        result = f"✅ Successfully edited file: {target_file}\n"
+        result += f"📝 Instructions: {instructions}\n"
+        result += f"📊 Original lines: {len(original_lines)} → New lines: {len(new_content.split('\n'))}\n\n"
+
+        if diff_text:
+            result += "═══════════════════════════════════════════════════════════════\n"
+            result += "📋 DIFF (Changes Applied):\n"
+            result += "═══════════════════════════════════════════════════════════════\n"
+            result += diff_text
+            result += "\n═══════════════════════════════════════════════════════════════\n"
+
+        return result
         
     except FileNotFoundError:
         return f"Error: File '{target_file}' not found"

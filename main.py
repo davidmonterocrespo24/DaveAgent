@@ -914,8 +914,31 @@ class DaveAgentCLI:
                                 for result in content:
                                     if hasattr(result, 'name'):
                                         tool_name = result.name
-                                        result_preview = str(result.content)[:100] if hasattr(result, 'content') else "OK"
-                                        self.cli.print_thinking(f"✅ {tool_name}: {result_preview}...")
+                                        result_content = str(result.content) if hasattr(result, 'content') else "OK"
+
+                                        # Check if this is an edit_file result with diff
+                                        if tool_name == "edit_file" and "DIFF (Changes Applied)" in result_content:
+                                            # Extract and display the diff
+                                            diff_start = result_content.find("═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):")
+                                            diff_end = result_content.find("\n═══════════════════════════════════════════════════════════════", diff_start + 100)
+
+                                            if diff_start != -1 and diff_end != -1:
+                                                diff_text = result_content[diff_start:diff_end + 64]
+                                                # Print file info first
+                                                info_end = result_content.find("\n\n", 0, diff_start)
+                                                if info_end != -1:
+                                                    file_info = result_content[:info_end]
+                                                    self.cli.print_thinking(f"✅ {tool_name}: {file_info}")
+                                                # Display diff with colors
+                                                self.cli.print_diff(diff_text)
+                                            else:
+                                                # Fallback to showing preview
+                                                result_preview = result_content[:100]
+                                                self.cli.print_thinking(f"✅ {tool_name}: {result_preview}...")
+                                        else:
+                                            # Regular tool result
+                                            result_preview = result_content[:100]
+                                            self.cli.print_thinking(f"✅ {tool_name}: {result_preview}...")
 
                             self.cli.start_thinking()
                             spinner_active = True
@@ -924,6 +947,10 @@ class DaveAgentCLI:
             # Asegurar que el spinner esté detenido
             if spinner_active:
                 self.cli.stop_thinking(clear=True)
+
+            # Stop task tracking panel
+            if self.cli.task_panel_active:
+                self.cli.stop_task_tracking()
 
             self.logger.info("✅ Flujo complejo completado")
             self.cli.print_success("\n✅ Tarea compleja completada!")
@@ -934,6 +961,9 @@ class DaveAgentCLI:
         except Exception as e:
             if spinner_active:
                 self.cli.stop_thinking(clear=True)
+            # Stop task tracking on error
+            if self.cli.task_panel_active:
+                self.cli.stop_task_tracking()
             self.logger.log_error_with_context(e, "_execute_complex_task")
             self.cli.print_error(f"Error en tarea compleja: {str(e)}")
             import traceback
@@ -1106,10 +1136,34 @@ class DaveAgentCLI:
                                 for execution_result in content:
                                     if hasattr(execution_result, 'name'):
                                         tool_name = execution_result.name
-                                        result_preview = str(execution_result.content)[:100] if hasattr(execution_result, 'content') else "OK"
-                                        # Usar print_thinking en lugar de print_success para mostrar resultado
-                                        self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
-                                        self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
+                                        result_content = str(execution_result.content) if hasattr(execution_result, 'content') else "OK"
+
+                                        # Check if this is an edit_file result with diff
+                                        if tool_name == "edit_file" and "DIFF (Changes Applied)" in result_content:
+                                            # Extract and display the diff
+                                            diff_start = result_content.find("═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):")
+                                            diff_end = result_content.find("\n═══════════════════════════════════════════════════════════════", diff_start + 100)
+
+                                            if diff_start != -1 and diff_end != -1:
+                                                diff_text = result_content[diff_start:diff_end + 64]
+                                                # Print file info first
+                                                info_end = result_content.find("\n\n", 0, diff_start)
+                                                if info_end != -1:
+                                                    file_info = result_content[:info_end]
+                                                    self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {file_info}")
+                                                # Display diff with colors
+                                                self.cli.print_diff(diff_text)
+                                                self.logger.debug(f"✅ Tool result: {tool_name} -> DIFF displayed")
+                                            else:
+                                                # Fallback to showing preview
+                                                result_preview = result_content[:100]
+                                                self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
+                                                self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
+                                        else:
+                                            # Regular tool result
+                                            result_preview = result_content[:100]
+                                            self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
+                                            self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
 
                             # Restart spinner for next action
                             self.cli.start_thinking()

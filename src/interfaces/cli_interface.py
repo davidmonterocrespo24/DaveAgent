@@ -425,6 +425,32 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
         self.console.print(f"[bold green]✓ {message}[/bold green]")
         self.console.print()
 
+    def print_diff(self, diff_text: str):
+        """
+        Muestra un diff con colores: rojo para eliminaciones, verde para adiciones
+
+        Args:
+            diff_text: Texto del diff en formato unified diff
+        """
+        self.console.print()
+        for line in diff_text.split('\n'):
+            if line.startswith('---') or line.startswith('+++'):
+                # File headers in cyan
+                self.console.print(f"[bold cyan]{line}[/bold cyan]")
+            elif line.startswith('@@'):
+                # Line numbers in yellow
+                self.console.print(f"[bold yellow]{line}[/bold yellow]")
+            elif line.startswith('-') and not line.startswith('---'):
+                # Deleted lines in red
+                self.console.print(f"[bold red]{line}[/bold red]")
+            elif line.startswith('+') and not line.startswith('+++'):
+                # Added lines in green
+                self.console.print(f"[bold green]{line}[/bold green]")
+            else:
+                # Context lines in dim white
+                self.console.print(f"[dim]{line}[/dim]")
+        self.console.print()
+
     def print_task_summary(self, summary: str):
         """
         Muestra el resumen de tarea completada en un formato especial
