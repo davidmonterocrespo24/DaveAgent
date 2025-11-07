@@ -25,6 +25,7 @@ from src.managers import StateManager
 from src.interfaces import CLIInterface
 from src.utils import get_logger, get_conversation_tracker, HistoryViewer
 from src.memory import MemoryManager, DocumentIndexer
+from src.observability import init_langfuse_tracing, is_langfuse_enabled
 
 
 class DaveAgentCLI:
@@ -91,6 +92,22 @@ class DaveAgentCLI:
             auto_save_enabled=True,
             auto_save_interval=300  # Auto-save cada 5 minutos
         )
+
+        # Sistema de observabilidad con Langfuse (método simple con OpenLit)
+        self.logger.info("📊 Inicializando sistema de observabilidad (Langfuse)...")
+        self.langfuse_enabled = False
+        try:
+            # Inicializar Langfuse con OpenLit (tracking automático de AutoGen)
+            self.langfuse_enabled = init_langfuse_tracing(enabled=True, debug=debug)
+
+            if self.langfuse_enabled:
+                self.logger.info("✅ Langfuse + OpenLit habilitado - tracking automático activo")
+                self.logger.info("   Todas las operaciones de AutoGen serán trackeadas automáticamente")
+            else:
+                self.logger.info("ℹ️ Langfuse no disponible - continuando sin tracking")
+        except Exception as e:
+            self.logger.warning(f"⚠️ Error inicializando Langfuse: {e}")
+            self.langfuse_enabled = False
 
         # Importar todas las herramientas desde la nueva estructura
         from src.tools import (
@@ -1728,6 +1745,10 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
                 self.logger.info("✅ Sistema de memoria cerrado correctamente")
             except Exception as e:
                 self.logger.error(f"Error cerrando memoria: {e}")
+
+            # Langfuse: OpenLit hace flush automático al salir
+            if self.langfuse_enabled:
+                self.logger.info("📊 Langfuse: datos enviados automáticamente por OpenLit")
 
             # Cerrar cliente del modelo
             await self.model_client.close()

@@ -158,8 +158,8 @@ class StateManager:
             except Exception as e:
                 self.logger.warning(f"Failed to read session {state_file}: {e}")
 
-        # Sort by last_interaction descending
-        sessions.sort(key=lambda x: x.get("last_interaction", ""), reverse=True)
+        # Sort by last_interaction descending (handle None values)
+        sessions.sort(key=lambda x: x.get("last_interaction") or "", reverse=True)
 
         return sessions
 

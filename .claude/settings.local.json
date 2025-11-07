@@ -7,7 +7,8 @@
       "Bash(do sed -i 's/CodeAgent/DaveAgent/g' \"$file\")",
       "Bash(done)",
       "Bash(python -m pytest test/test_deepseek_reasoner.py -v --tb=short)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(pip show:*)"
     ],
     "deny": [],
     "ask": []
