@@ -533,6 +533,18 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 • `/help` - Muestra este mensaje de ayuda
 • `/search <consulta>` - Busca y analiza código antes de modificarlo
 
+**Configuración del Modelo:**
+• `/config` - Muestra la configuración actual (modelo, URL, API key)
+• `/set-model <modelo>` - Cambia el modelo LLM (ej: deepseek-chat, deepseek-reasoner, gpt-4)
+• `/set-url <url>` - Cambia la URL base del proveedor (ej: https://api.deepseek.com)
+
+**Nota:** También puedes configurar el modelo en `.daveagent/.env`:
+```
+DAVEAGENT_API_KEY=tu-api-key
+DAVEAGENT_BASE_URL=https://api.deepseek.com
+DAVEAGENT_MODEL=deepseek-reasoner
+```
+
 **Modos de Operación:**
 • `/modo-agente` - Activa modo AGENTE (con herramientas de modificación)
 • `/modo-chat` - Activa modo CHAT (solo lectura, sin modificar archivos)

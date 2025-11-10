@@ -74,9 +74,25 @@ def init_langfuse_tracing(
 
         # Inicializar OpenLit con el tracer de Langfuse
         # OpenLit capturará automáticamente todas las operaciones de AutoGen
+        # Silenciar TODOS los logs de OpenLit y OpenTelemetry
+        import logging
+        import sys
+
+        # Silenciar todos los loggers relacionados con telemetría
+        for logger_name in ["openlit", "opentelemetry", "opentelemetry.sdk",
+                           "opentelemetry.exporter", "opentelemetry.metrics"]:
+            logging.getLogger(logger_name).setLevel(logging.CRITICAL)
+            logging.getLogger(logger_name).propagate = False
+
+        # Suprimir stdout de OpenTelemetry
+        import os
+        os.environ["OTEL_LOG_LEVEL"] = "CRITICAL"
+        os.environ["OTEL_PYTHON_LOG_LEVEL"] = "CRITICAL"
+
         openlit.init(
             tracer=langfuse._otel_tracer,
-            disable_batch=True  # Procesar trazas inmediatamente
+            disable_batch=True,  # Procesar trazas inmediatamente
+            disable_metrics=True,  # Desactivar métricas (esto debería detener el output JSON)
         )
 
         if debug:

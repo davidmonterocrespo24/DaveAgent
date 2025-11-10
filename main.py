@@ -164,91 +164,91 @@ class DaveAgentCLI:
             ]
         }
 
-        # Herramientas para modo AGENTE (todas las herramientas)
-        coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
-
-        # Crear agente de código con memoria de conversaciones y código base
-        self.coder_agent = AssistantAgent(
-            name="Coder",
-            description=CODER_AGENT_DESCRIPTION,
-            system_message=AGENT_SYSTEM_PROMPT,
-            model_client=self.model_client,
-            tools=coder_tools,
-            max_tool_iterations=5,
-            reflect_on_tool_use=False,
-            memory=[
-                self.memory_manager.conversation_memory,  # Conversaciones previas
-                self.memory_manager.codebase_memory,  # Código base indexado
-                self.memory_manager.preferences_memory  # Preferencias del usuario
-            ]
-        )
+        # Inicializar agentes según el modo actual
+        self._initialize_agents_for_mode()
 
         # Componentes del sistema
         self.cli = CLIInterface()
         self.history_viewer = HistoryViewer(console=self.cli.console)
 
-        # Crear CodeSearcher con las herramientas de análisis y memoria de código
+        self.running = True
+
+    def _initialize_agents_for_mode(self):
+        """
+        Inicializa todos los agentes del sistema según el modo actual
+
+        Modo AGENTE: Coder con todas las herramientas + AGENT_SYSTEM_PROMPT
+        Modo CHAT: Coder con solo lectura + CHAT_SYSTEM_PROMPT (más conversacional)
+        """
+        if self.current_mode == "agente":
+            # Modo AGENTE: todas las herramientas + prompt técnico
+            coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
+            system_prompt = AGENT_SYSTEM_PROMPT
+            self.logger.info("🔧 Inicializando en modo AGENTE (todas las herramientas)")
+        else:
+            # Modo CHAT: solo lectura + prompt conversacional
+            coder_tools = self.all_tools["read_only"]
+            system_prompt = CHAT_SYSTEM_PROMPT
+            self.logger.info("💬 Inicializando en modo CHAT (solo lectura)")
+
+        # Crear agente de código con memoria
+        self.coder_agent = AssistantAgent(
+            name="Coder",
+            description=CODER_AGENT_DESCRIPTION,
+            system_message=system_prompt,
+            model_client=self.model_client,
+            tools=coder_tools,
+            max_tool_iterations=5,
+            reflect_on_tool_use=False,
+            memory=[
+                self.memory_manager.conversation_memory,
+                self.memory_manager.codebase_memory,
+                self.memory_manager.preferences_memory
+            ]
+        )
+
+        # Crear CodeSearcher con herramientas de búsqueda
         search_tools = [
-            # Herramientas de búsqueda
             codebase_search, grep_search, file_search,
-            # Herramientas de lectura
             read_file, list_dir,
-            # Herramientas de análisis Python
             analyze_python_file, find_function_definition, list_all_functions,
         ]
         self.code_searcher = CodeSearcher(
             self.model_client,
             search_tools,
-            memory=[self.memory_manager.codebase_memory]  # Memoria de código indexado
+            memory=[self.memory_manager.codebase_memory]
         )
 
-        # ============= NUEVOS AGENTES PARA ARQUITECTURA OPTIMIZADA =============
-
-        # PlanningAgent: Crea y gestiona planes para tareas complejas
-        # Con memoria de decisiones previas y planes exitosos
+        # PlanningAgent y SummaryAgent (sin herramientas, no dependen del modo)
         self.planning_agent = AssistantAgent(
             name="Planner",
             description=PLANNING_AGENT_DESCRIPTION,
             system_message=PLANNING_AGENT_SYSTEM_MESSAGE,
             model_client=self.model_client,
-            tools=[],  # No necesita herramientas, solo planifica
-            memory=[self.memory_manager.decision_memory]  # Memoria de decisiones
+            tools=[],
+            memory=[self.memory_manager.decision_memory]
         )
 
-        # SummaryAgent: Crea resúmenes finales de trabajo completado
         self.summary_agent = AssistantAgent(
             name="SummaryAgent",
             description=SUMMARY_AGENT_DESCRIPTION,
             system_message=SUMMARY_AGENT_SYSTEM_MESSAGE,
             model_client=self.model_client,
-            tools=[],  # No necesita herramientas, solo resume
+            tools=[],
         )
 
-        self.running = True
+        self.logger.debug(f"Agentes inicializados en modo: {self.current_mode.upper()}")
+        self.logger.debug(f"Herramientas del Coder: {len(coder_tools)}")
 
     def _update_agent_tools_for_mode(self):
         """
-        Actualiza las herramientas y el system prompt de los agentes según el modo actual
+        Reinicializa completamente el sistema de agentes según el modo actual
 
-        En modo AGENTE: Todas las herramientas están disponibles + AGENT_SYSTEM_PROMPT
-        En modo CHAT: Solo herramientas de lectura + CHAT_SYSTEM_PROMPT (sin modificación de archivos ni comandos)
+        Esto crea nuevas instancias de todos los agentes con la configuración
+        correcta para el modo (herramientas + system prompt).
         """
-        if self.current_mode == "agente":
-            # Modo agente: todas las herramientas + prompt de agente
-            tools = self.all_tools["read_only"] + self.all_tools["modification"]
-            system_message = AGENT_SYSTEM_PROMPT
-            self.logger.info("🔧 Modo AGENTE: Todas las herramientas habilitadas")
-        else:  # modo == "chat"
-            # Modo chat: solo lectura + prompt de chat
-            tools = self.all_tools["read_only"]
-            system_message = CHAT_SYSTEM_PROMPT
-            self.logger.info("💬 Modo CHAT: Solo herramientas de lectura habilitadas")
-
-        # Actualizar herramientas y system message del coder agent
-        self.coder_agent._tools = tools
-        self.coder_agent._system_messages = [{"content": system_message, "role": "system"}]
-        self.logger.debug(f"Total herramientas activas: {len(tools)}")
-        self.logger.debug(f"System prompt actualizado para modo: {self.current_mode}")
+        self.logger.info(f"🔄 Reinicializando sistema de agentes para modo: {self.current_mode.upper()}")
+        self._initialize_agents_for_mode()
 
     async def handle_command(self, command: str) -> bool:
         """Maneja comandos especiales del usuario"""
@@ -341,6 +341,50 @@ class DaveAgentCLI:
                 self.cli.print_info("✗ El agente NO puede modificar archivos ni ejecutar comandos")
                 self.cli.print_info("ℹ️  Usa /modo-agente para volver al modo completo")
                 self.logger.info("Modo cambiado a: CHAT")
+
+        elif cmd == "/config" or cmd == "/configuracion":
+            # Mostrar configuración actual
+            self.cli.print_info("\n⚙️  Configuración Actual\n")
+            masked_key = f"{self.settings.api_key[:8]}...{self.settings.api_key[-4:]}" if self.settings.api_key else "No configurada"
+            self.cli.print_info(f"  • API Key: {masked_key}")
+            self.cli.print_info(f"  • Base URL: {self.settings.base_url}")
+            self.cli.print_info(f"  • Modelo: {self.settings.model}")
+            self.cli.print_info(f"  • Modo: {self.current_mode.upper()}")
+            self.cli.print_info("\n💡 Comandos disponibles:")
+            self.cli.print_info("  • /set-model <modelo> - Cambiar el modelo")
+            self.cli.print_info("  • /set-url <url> - Cambiar la URL base")
+            self.cli.print_info("\n📄 Archivo de configuración: .daveagent/.env")
+
+        elif cmd == "/set-model":
+            # Cambiar el modelo
+            if len(parts) < 2:
+                self.cli.print_error("Uso: /set-model <nombre-del-modelo>")
+                self.cli.print_info("\nEjemplos:")
+                self.cli.print_info("  /set-model deepseek-chat")
+                self.cli.print_info("  /set-model deepseek-reasoner")
+                self.cli.print_info("  /set-model gpt-4")
+            else:
+                new_model = parts[1]
+                old_model = self.settings.model
+                self.settings.model = new_model
+                self.model_client._model = new_model  # Actualizar cliente
+                self.cli.print_success(f"✓ Modelo cambiado: {old_model} → {new_model}")
+                self.logger.info(f"Modelo cambiado de {old_model} a {new_model}")
+
+        elif cmd == "/set-url":
+            # Cambiar la URL base
+            if len(parts) < 2:
+                self.cli.print_error("Uso: /set-url <url-base>")
+                self.cli.print_info("\nEjemplos:")
+                self.cli.print_info("  /set-url https://api.deepseek.com")
+                self.cli.print_info("  /set-url https://api.openai.com/v1")
+            else:
+                new_url = parts[1]
+                old_url = self.settings.base_url
+                self.settings.base_url = new_url
+                self.model_client._base_url = new_url  # Actualizar cliente
+                self.cli.print_success(f"✓ URL cambiada: {old_url} → {new_url}")
+                self.logger.info(f"URL base cambiada de {old_url} a {new_url}")
 
         elif cmd == "/search":
             # Invocar CodeSearcher para buscar en el código
