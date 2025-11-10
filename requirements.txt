@@ -1,6 +1,8 @@
-# AutoGen AgentChat Framework
-autogen-agentchat>=0.4.0
-autogen-ext>=0.4.0
+# AutoGen AgentChat Framework (ÚLTIMAS VERSIONES)
+# Instalación completa con ag2 y autogen más recientes
+autogen-agentchat==0.7.5
+autogen-core==0.7.5
+autogen-ext==0.7.5
 
 # Interfaz CLI rica
 rich>=13.0.0

@@ -35,6 +35,7 @@ class CLIInterface:
         self.file_indexer = None  # Will be initialized on first use
         self.mentioned_files: List[str] = []  # Track files mentioned with @
         self.vibe_spinner: Optional[VibeSpinner] = None  # Spinner for thinking animation
+        self.current_mode = "agente"  # Track current mode for display
 
     def print_banner(self):
         """Muestra el banner de bienvenida con una animación de 'partículas'"""
@@ -133,6 +134,10 @@ Este agente puede ayudarte a:
   • Ejecutar comandos y scripts
   • Buscar y modificar archivos
 
+**Modos de operación:**
+  • `/modo-agente` - Modo completo (lectura + modificación) **[ACTIVO]**
+  • `/modo-chat` - Modo seguro (solo lectura, sin modificar archivos)
+
 **Comandos principales:**
   • `/help` - Muestra la ayuda completa
   • `/search <consulta>` - Busca en tu código antes de modificar
@@ -161,6 +166,15 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
             self.file_indexer.index_directory()
             self.console.print(f"[dim]✓ Indexed {self.file_indexer.get_file_count()} files[/dim]")
 
+    def set_mode(self, mode: str):
+        """
+        Actualiza el modo actual para el display
+
+        Args:
+            mode: "agente" o "chat"
+        """
+        self.current_mode = mode
+
     async def get_user_input(self, prompt: str = "") -> str:
         """
         Obtiene input del usuario de manera asíncrona
@@ -173,7 +187,10 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
             Input del usuario
         """
         if not prompt:
-            prompt = "Tu: "
+            # Crear prompt con indicador de modo
+            mode_indicator = "🔧" if self.current_mode == "agente" else "💬"
+            mode_text = self.current_mode.upper()
+            prompt = f"[{mode_indicator} {mode_text}] Tu: "
 
         try:
             # Ejecutar el prompt en un executor para no bloquear el loop
@@ -516,6 +533,10 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 • `/help` - Muestra este mensaje de ayuda
 • `/search <consulta>` - Busca y analiza código antes de modificarlo
 
+**Modos de Operación:**
+• `/modo-agente` - Activa modo AGENTE (con herramientas de modificación)
+• `/modo-chat` - Activa modo CHAT (solo lectura, sin modificar archivos)
+
 **Gestión de Sesiones:**
 • `/new-session <título>` - Crea nueva sesión con metadata
 • `/save-session [título]` - Guarda sesión actual (con título opcional)
@@ -555,6 +576,24 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 `@src/config/settings.py @.env update the API configuration`
 
 `explain how @src/agents/code_searcher.py works`
+
+**Modos de Operación (NUEVO):**
+
+**Modo AGENTE (predeterminado):**
+- Todas las herramientas habilitadas (lectura + modificación)
+- Puede modificar archivos, ejecutar comandos, hacer commits, etc.
+- Usa el sistema de enrutamiento (simple/complejo)
+- Ideal para desarrollo activo y modificaciones de código
+
+**Modo CHAT:**
+- Solo herramientas de lectura habilitadas
+- Puede leer archivos, buscar código, analizar, consultar APIs
+- NO puede modificar archivos ni ejecutar comandos
+- Ideal para consultas, análisis y aprendizaje sin riesgo
+
+Para cambiar de modo:
+- `/modo-agente` - Activa todas las herramientas
+- `/modo-chat` - Desactiva herramientas de modificación
 
 **Flujo de Trabajo con Sesiones:**
 

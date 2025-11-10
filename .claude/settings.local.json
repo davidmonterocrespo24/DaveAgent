@@ -8,7 +8,8 @@
       "Bash(done)",
       "Bash(python -m pytest test/test_deepseek_reasoner.py -v --tb=short)",
       "Bash(python:*)",
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "Bash(pip uninstall:*)"
     ],
     "deny": [],
     "ask": []

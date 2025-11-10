@@ -20,7 +20,7 @@ from src.config import (
     SUMMARY_AGENT_SYSTEM_MESSAGE
 )
 from src.agents import CodeSearcher
-from src.config.prompts import AGENT_SYSTEM_PROMPT
+from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.managers import StateManager
 from src.interfaces import CLIInterface
 from src.utils import get_logger, get_conversation_tracker, HistoryViewer
@@ -53,6 +53,9 @@ class DaveAgentCLI:
 
         # Configurar conversation tracker (logs to .daveagent/conversations.json)
         self.conversation_tracker = get_conversation_tracker()
+
+        # Sistema de modos: "agente" (con herramientas) o "chat" (sin herramientas de modificación)
+        self.current_mode = "agente"  # Modo por defecto
 
         self.logger.info("🚀 Inicializando DaveAgent CLI")
 
@@ -136,26 +139,33 @@ class DaveAgentCLI:
             validate_file_after_edit, validate_generic_file
         )
 
-        coder_tools = [
-            # Filesystem (7 tools)
-            read_file, write_file, list_dir, edit_file, delete_file, file_search, reapply,
-            # Git (8 tools)
-            git_status, git_add, git_commit, git_push, git_pull, git_log, git_branch, git_diff,
-            # JSON (8 tools)
-            read_json, write_json, merge_json_files, validate_json,
-            format_json, json_get_value, json_set_value, json_to_text,
-            # CSV (7 tools)
-            read_csv, write_csv, csv_info, filter_csv, merge_csv, csv_to_json, sort_csv,
-            # Web (8 tools)
-            wiki_search, wiki_summary, wiki_content, wiki_page_info, wiki_random, wiki_set_language,
-            web_search, web_search_news,
-            # Analysis (7 tools)
-            analyze_python_file, find_function_definition, list_all_functions,
-            codebase_search, grep_search, run_terminal_cmd, diff_history,
-            # Validation (6 tools)
-            validate_python_syntax, validate_javascript_syntax, validate_typescript_syntax,
-            validate_json_file, validate_file_after_edit, validate_generic_file
-        ]
+        # Almacenar todas las herramientas para poder filtrarlas según el modo
+        self.all_tools = {
+            # Herramientas de SOLO LECTURA (disponibles en ambos modos)
+            "read_only": [
+                read_file, list_dir, file_search,
+                git_status, git_log, git_branch, git_diff,
+                read_json, validate_json, json_get_value, json_to_text,
+                read_csv, csv_info, filter_csv,
+                wiki_search, wiki_summary, wiki_content, wiki_page_info, wiki_random, wiki_set_language,
+                web_search, web_search_news,
+                analyze_python_file, find_function_definition, list_all_functions,
+                codebase_search, grep_search, diff_history,
+                validate_python_syntax, validate_javascript_syntax, validate_typescript_syntax,
+                validate_json_file, validate_generic_file
+            ],
+            # Herramientas de MODIFICACIÓN (solo en modo agente)
+            "modification": [
+                write_file, edit_file, delete_file, reapply,
+                git_add, git_commit, git_push, git_pull,
+                write_json, merge_json_files, format_json, json_set_value,
+                write_csv, merge_csv, csv_to_json, sort_csv,
+                run_terminal_cmd, validate_file_after_edit
+            ]
+        }
+
+        # Herramientas para modo AGENTE (todas las herramientas)
+        coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
 
         # Crear agente de código con memoria de conversaciones y código base
         self.coder_agent = AssistantAgent(
@@ -215,6 +225,30 @@ class DaveAgentCLI:
         )
 
         self.running = True
+
+    def _update_agent_tools_for_mode(self):
+        """
+        Actualiza las herramientas y el system prompt de los agentes según el modo actual
+
+        En modo AGENTE: Todas las herramientas están disponibles + AGENT_SYSTEM_PROMPT
+        En modo CHAT: Solo herramientas de lectura + CHAT_SYSTEM_PROMPT (sin modificación de archivos ni comandos)
+        """
+        if self.current_mode == "agente":
+            # Modo agente: todas las herramientas + prompt de agente
+            tools = self.all_tools["read_only"] + self.all_tools["modification"]
+            system_message = AGENT_SYSTEM_PROMPT
+            self.logger.info("🔧 Modo AGENTE: Todas las herramientas habilitadas")
+        else:  # modo == "chat"
+            # Modo chat: solo lectura + prompt de chat
+            tools = self.all_tools["read_only"]
+            system_message = CHAT_SYSTEM_PROMPT
+            self.logger.info("💬 Modo CHAT: Solo herramientas de lectura habilitadas")
+
+        # Actualizar herramientas y system message del coder agent
+        self.coder_agent._tools = tools
+        self.coder_agent._system_messages = [{"content": system_message, "role": "system"}]
+        self.logger.debug(f"Total herramientas activas: {len(tools)}")
+        self.logger.debug(f"System prompt actualizado para modo: {self.current_mode}")
 
     async def handle_command(self, command: str) -> bool:
         """Maneja comandos especiales del usuario"""
@@ -280,6 +314,33 @@ class DaveAgentCLI:
                 self.cli.print_info(f"📄 Archivo de logs: {log_path}")
             else:
                 self.cli.print_info("No hay archivos de log configurados")
+
+        elif cmd == "/modo-agente":
+            # Cambiar a modo agente (con todas las herramientas)
+            if self.current_mode == "agente":
+                self.cli.print_info("Ya estás en modo AGENTE")
+            else:
+                self.current_mode = "agente"
+                self.cli.set_mode("agente")  # Actualizar display del CLI
+                self._update_agent_tools_for_mode()
+                self.cli.print_success("🔧 Modo AGENTE activado")
+                self.cli.print_info("✓ Todas las herramientas habilitadas (lectura + modificación)")
+                self.cli.print_info("✓ El agente puede modificar archivos y ejecutar comandos")
+                self.logger.info("Modo cambiado a: AGENTE")
+
+        elif cmd == "/modo-chat":
+            # Cambiar a modo chat (solo herramientas de lectura)
+            if self.current_mode == "chat":
+                self.cli.print_info("Ya estás en modo CHAT")
+            else:
+                self.current_mode = "chat"
+                self.cli.set_mode("chat")  # Actualizar display del CLI
+                self._update_agent_tools_for_mode()
+                self.cli.print_success("💬 Modo CHAT activado")
+                self.cli.print_info("✓ Solo herramientas de lectura habilitadas")
+                self.cli.print_info("✗ El agente NO puede modificar archivos ni ejecutar comandos")
+                self.cli.print_info("ℹ️  Usa /modo-agente para volver al modo completo")
+                self.logger.info("Modo cambiado a: CHAT")
 
         elif cmd == "/search":
             # Invocar CodeSearcher para buscar en el código
