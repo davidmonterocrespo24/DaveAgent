@@ -121,42 +121,7 @@ class CLIInterface:
         self.console.print(final_text)
         self.console.print()
 
-    def print_welcome_message(self):
-        """Muestra el mensaje de bienvenida"""
-        welcome = """
-Bienvenido al Agente de Código Inteligente
-
-Este agente puede ayudarte a:
-  • Analizar y comprender código
-  • Implementar nuevas funcionalidades
-  • Corregir errores y bugs
-  • Refactorizar código existente
-  • Ejecutar comandos y scripts
-  • Buscar y modificar archivos
-
-**Modos de operación:**
-  • `/modo-agente` - Modo completo (lectura + modificación) **[ACTIVO]**
-  • `/modo-chat` - Modo seguro (solo lectura, sin modificar archivos)
-
-**Comandos principales:**
-  • `/help` - Muestra la ayuda completa
-  • `/search <consulta>` - Busca en tu código antes de modificar
-  • `/index` - Indexa el proyecto en memoria vectorial
-  • `/memory` - Muestra estadísticas de memoria
-  • `/new` - Inicia una nueva conversación sin historial
-  • `/clear` - Limpia el historial de conversación
-  • `/stats` - Muestra estadísticas de la sesión
-  • `/exit` o `/quit` - Salir del agente
-
-**Mencionar archivos específicos:**
-  • Escribe `@` seguido del nombre del archivo para incluirlo en tu consulta
-  • Ejemplo: `@main.py fix the bug in this file`
-  • Los archivos mencionados con @ tienen alta prioridad en el contexto
-
-Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutará.
-        """
-        self.console.print(Panel(Markdown(welcome), title="Información", border_style="green"))
-        self.console.print()
+    
 
     def _initialize_file_indexer(self):
         """Initialize file indexer lazily"""

@@ -82,21 +82,18 @@ class DaveAgentCLI:
         )
 
         # Sistema de memoria con ChromaDB (inicializar ANTES de crear agentes)
-        self.logger.info("🧠 Inicializando sistema de memoria...")
         self.memory_manager = MemoryManager(
             k=5,  # Top 5 resultados más relevantes
             score_threshold=0.3  # Umbral de similitud
         )
 
-        # Sistema de gestión de estado (AutoGen save_state/load_state)
-        self.logger.info("💾 Inicializando sistema de estado...")
+        # Sistema de gestión de estado (AutoGen save_state/load_state)        
         self.state_manager = StateManager(
             auto_save_enabled=True,
             auto_save_interval=300  # Auto-save cada 5 minutos
         )
 
         # Sistema de observabilidad con Langfuse (método simple con OpenLit)
-        self.logger.info("📊 Inicializando sistema de observabilidad (Langfuse)...")
         self.langfuse_enabled = False
         try:
             # Inicializar Langfuse con OpenLit (tracking automático de AutoGen)
@@ -1498,12 +1495,7 @@ TITLE:"""
             # 💾 AUTO-SAVE: Guardar estado de agentes automáticamente después de cada respuesta
             await self._auto_save_agent_states()
 
-            # Comprimir historial si es necesario (DISABLED - ya no usamos TaskExecutor)
-            # if self.conversation_manager.needs_compression():
-            #     self.logger.warning("⚠️ Historial necesita compresión")
-            #     # TODO: Implementar compresión directa sin TaskExecutor
-
-            self.logger.info("✅ Solicitud procesada exitosamente")
+           
 
         except Exception as e:
             # Stop spinner on error
@@ -1684,9 +1676,7 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
 
             # Display session info
             self.cli.print_info("\n📋 Sesión anterior encontrada:")
-            self.cli.print_info(f"  • Título: {title}")
-            self.cli.print_info(f"  • Última interacción: {formatted_date}")
-            self.cli.print_info(f"  • Mensajes: {total_messages}")
+            self.cli.print_info(f"  • Título: {title}  • Última interacción: {formatted_date}  • Mensajes: {total_messages}")
             
             # Prompt user (use async prompt)
             from prompt_toolkit import PromptSession
@@ -1751,7 +1741,6 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
     async def run(self):
         """Ejecuta el loop principal de la CLI"""        
         self.cli.print_banner()
-        self.cli.print_welcome_message()
 
         # Check for previous sessions and offer to resume
         await self._check_and_resume_session()
@@ -1769,7 +1758,6 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
                 if user_input.startswith("/"):
                     should_continue = await self.handle_command(user_input)
                     if not should_continue:
-                        self.logger.info("👋 Usuario solicitó salir")
                         break
                     continue
 
@@ -1783,21 +1771,17 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
             self.logger.log_error_with_context(e, "main loop")
             self.cli.print_error(f"Error fatal: {str(e)}")
 
-        finally:
-            self.logger.info("🔚 Cerrando DaveAgent CLI")
+        finally:            
             self.cli.print_goodbye()
-
             # Cerrar sistema de estado (guarda estado final automáticamente)
             try:
                 await self.state_manager.close()
-                self.logger.info("✅ Sistema de estado cerrado correctamente")
             except Exception as e:
                 self.logger.error(f"Error cerrando estado: {e}")
 
             # Cerrar sistema de memoria
             try:
                 await self.memory_manager.close()
-                self.logger.info("✅ Sistema de memoria cerrado correctamente")
             except Exception as e:
                 self.logger.error(f"Error cerrando memoria: {e}")
 
