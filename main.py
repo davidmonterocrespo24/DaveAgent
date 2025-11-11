@@ -71,8 +71,7 @@ class DaveAgentCLI:
             print(error_msg)
             raise ValueError("Configuración inválida")
 
-        self.logger.info(f"✓ Configuración cargada: {self.settings}")
-
+       
         # Crear cliente del modelo
         self.logger.debug(f"Configurando cliente del modelo: {self.settings.model}")
         self.model_client = OpenAIChatCompletionClient(
@@ -242,8 +241,7 @@ class DaveAgentCLI:
             # Modo chat: solo lectura + prompt de chat
             tools = self.all_tools["read_only"]
             system_message = CHAT_SYSTEM_PROMPT
-            self.logger.info("💬 Modo CHAT: Solo herramientas de lectura habilitadas")
-
+           
         # Actualizar herramientas y system message del coder agent
         self.coder_agent._tools = tools
         self.coder_agent._system_messages = [{"content": system_message, "role": "system"}]
@@ -1305,8 +1303,7 @@ TITLE:"""
 
             # ============= DETECCIÓN DE COMPLEJIDAD =============
             task_complexity = await self._detect_task_complexity(user_input)
-            self.logger.info(f"🎯 Complejidad detectada: {task_complexity}")
-
+            
             # ============= RUTA COMPLEJA: Planner + Executor =============
             if task_complexity == "complex":
                 self.logger.info("📋 Usando flujo complejo: Planner + Executor")
@@ -1321,8 +1318,6 @@ TITLE:"""
                 return
 
             # ============= RUTA SIMPLE: RoundRobinGroupChat =============
-            self.logger.info("⚡ Usando flujo SIMPLE: RoundRobinGroupChat (CodeSearcher ↔ Coder)")
-
             # Crear equipo simple con RoundRobinGroupChat
             termination_simple = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(15)
 
@@ -1754,8 +1749,7 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
             # Continue without loading session
 
     async def run(self):
-        """Ejecuta el loop principal de la CLI"""
-        self.logger.info("▶️ Iniciando loop principal de CLI")
+        """Ejecuta el loop principal de la CLI"""        
         self.cli.print_banner()
         self.cli.print_welcome_message()
 

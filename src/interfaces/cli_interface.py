@@ -408,39 +408,34 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 
     def print_error(self, error: str):
         """Muestra un mensaje de error"""
-        self.console.print()
         self.console.print(Panel(
             error,
             title="[bold red]Error[/bold red]",
             border_style="red"
         ))
-        self.console.print()
 
     def print_warning(self, warning: str):
-        """Muestra un mensaje de advertencia"""
-        self.console.print()
+        """Muestra un mensaje de advertencia""" 
         self.console.print(Panel(
             warning,
             title="[bold yellow]Advertencia[/bold yellow]",
             border_style="yellow"
         ))
-        self.console.print()
+
 
     def print_info(self, info: str, title: str = "Información"):
         """Muestra un mensaje informativo"""
-        self.console.print()
         self.console.print(Panel(
             info,
             title=f"[bold cyan]{title}[/bold cyan]",
             border_style="cyan"
         ))
-        self.console.print()
+
 
     def print_success(self, message: str):
         """Muestra un mensaje de éxito"""
-        self.console.print()
         self.console.print(f"[bold green]✓ {message}[/bold green]")
-        self.console.print()
+
 
     def print_diff(self, diff_text: str):
         """
@@ -449,7 +444,6 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
         Args:
             diff_text: Texto del diff en formato unified diff
         """
-        self.console.print()
         for line in diff_text.split('\n'):
             if line.startswith('---') or line.startswith('+++'):
                 # File headers in cyan
@@ -466,7 +460,6 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
             else:
                 # Context lines in dim white
                 self.console.print(f"[dim]{line}[/dim]")
-        self.console.print()
 
     def print_task_summary(self, summary: str):
         """
@@ -475,17 +468,12 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
         Args:
             summary: Texto del resumen generado por el agente
         """
-        self.console.print()
         self.console.print("─" * 60, style="dim cyan")
-        self.console.print()
-
         # Render as markdown for nice formatting
         md = Markdown(summary)
         self.console.print(md)
-
-        self.console.print()
         self.console.print("─" * 60, style="dim cyan")
-        self.console.print()
+
 
     def create_progress_table(self, tasks: List[dict]) -> Table:
         """Crea una tabla con el progreso de las tareas"""
