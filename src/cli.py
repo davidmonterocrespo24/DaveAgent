@@ -119,7 +119,7 @@ def print_version():
     print(f"Python:   {sys.version.split()[0]}")
     print(f"Platform: {sys.platform}")
     print()
-    print("Built with AutoGen 0.4")
+    print("Built with AutoGen 0.7")
     print("=" * 60)
 
 

@@ -523,7 +523,13 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 **Nota:** Para ver el estado completo de los agentes, usa `/list-sessions`
 **Persistencia:** El estado se guarda automáticamente usando AutoGen save_state()
         """
-        self.print_info(stats_text, "Estadísticas")
+        self.console.print()
+        self.console.print(Panel(
+            Markdown(stats_text),
+            title="[bold cyan]Estadísticas[/bold cyan]",
+            border_style="cyan"
+        ))
+        self.console.print()
 
     def print_help(self):
         """Muestra la ayuda"""
@@ -636,7 +642,13 @@ Simplemente escribe lo que necesitas que el agente haga. El agente:
 
 "/search métodos que modifican la base de datos"
         """
-        self.print_info(help_text, "Ayuda")
+        self.console.print()
+        self.console.print(Panel(
+            Markdown(help_text),
+            title="[bold cyan]Ayuda[/bold cyan]",
+            border_style="cyan"
+        ))
+        self.console.print()
 
     def print_goodbye(self):
         """Muestra el mensaje de despedida"""
