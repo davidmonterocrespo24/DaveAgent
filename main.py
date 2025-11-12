@@ -184,21 +184,44 @@ class DaveAgentCLI:
 
         self.running = True
 
-    def _initialize_agents_for_mode(self):
+    def _initialize_agents_for_mode(self, include_conversation_memory=True):
         """
         Inicializa todos los agentes del sistema según el modo actual
 
         Modo AGENTE: Coder con todas las herramientas + AGENT_SYSTEM_PROMPT
         Modo CHAT: Coder con solo lectura + CHAT_SYSTEM_PROMPT (más conversacional)
+
+        Args:
+            include_conversation_memory: Si False, no incluye conversation_memory
+                                        (usado al cambiar de modo para evitar
+                                        múltiples system messages)
         """
         if self.current_mode == "agente":
             # Modo AGENTE: todas las herramientas + prompt técnico
             coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
             system_prompt = AGENT_SYSTEM_PROMPT
+            self.logger.info("🔧 Inicializando en modo AGENTE (todas las herramientas)")
         else:
             # Modo CHAT: solo lectura + prompt conversacional
             coder_tools = self.all_tools["read_only"]
             system_prompt = CHAT_SYSTEM_PROMPT
+            self.logger.info("💬 Inicializando en modo CHAT (solo lectura)")
+
+        # Determinar qué memorias incluir
+        if include_conversation_memory:
+            # Modo normal: incluir todas las memorias
+            agent_memory = [
+                self.memory_manager.conversation_memory,
+                self.memory_manager.codebase_memory,
+                self.memory_manager.preferences_memory
+            ]
+        else:
+            # Modo cambio: NO incluir conversation_memory para evitar system message anterior
+            agent_memory = [
+                self.memory_manager.codebase_memory,
+                self.memory_manager.preferences_memory
+            ]
+            self.logger.debug("🧹 Agentes creados SIN conversation_memory para evitar conflicto de system messages")
 
         # Crear agente de código con memoria
         self.coder_agent = AssistantAgent(
@@ -209,11 +232,7 @@ class DaveAgentCLI:
             tools=coder_tools,
             max_tool_iterations=5,
             reflect_on_tool_use=False,
-            memory=[
-                self.memory_manager.conversation_memory,
-                self.memory_manager.codebase_memory,
-                self.memory_manager.preferences_memory
-            ]
+            memory=agent_memory
         )
 
         # Crear CodeSearcher con herramientas de búsqueda (siempre disponibles)
@@ -261,7 +280,9 @@ class DaveAgentCLI:
         if self.state_manager.session_id:
             self.state_manager.clear_current_session()
 
-        self._initialize_agents_for_mode()
+        # Reinicializar agentes SIN incluir conversation_memory para evitar
+        # que los agentes nuevos hereden el historial con el system message anterior
+        self._initialize_agents_for_mode(include_conversation_memory=False)
 
     async def handle_command(self, command: str) -> bool:
         """Maneja comandos especiales del usuario"""
