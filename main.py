@@ -161,6 +161,12 @@ class DaveAgentCLI:
                 write_json, merge_json_files, format_json, json_set_value,
                 write_csv, merge_csv, csv_to_json, sort_csv,
                 run_terminal_cmd, validate_file_after_edit
+            ],
+            # Herramientas específicas para CodeSearcher (siempre disponibles)
+            "search": [
+                codebase_search, grep_search, file_search,
+                read_file, list_dir,
+                analyze_python_file, find_function_definition, list_all_functions
             ]
         }
 
@@ -207,15 +213,10 @@ class DaveAgentCLI:
             ]
         )
 
-        # Crear CodeSearcher con herramientas de búsqueda
-        search_tools = [
-            codebase_search, grep_search, file_search,
-            read_file, list_dir,
-            analyze_python_file, find_function_definition, list_all_functions,
-        ]
+        # Crear CodeSearcher con herramientas de búsqueda (siempre disponibles)
         self.code_searcher = CodeSearcher(
             self.model_client,
-            search_tools,
+            self.all_tools["search"],
             memory=[self.memory_manager.codebase_memory]
         )
 
@@ -246,8 +247,19 @@ class DaveAgentCLI:
 
         Esto crea nuevas instancias de todos los agentes con la configuración
         correcta para el modo (herramientas + system prompt).
+
+        IMPORTANTE: También limpia el historial de conversación actual para
+        evitar conflictos con múltiples system messages en modelos como DeepSeek.
         """
         self.logger.info(f"🔄 Reinicializando sistema de agentes para modo: {self.current_mode.upper()}")
+
+        # CRÍTICO: Limpiar la sesión actual para evitar múltiples system messages
+        # Cuando cambiamos de modo, los mensajes anteriores contienen el system message anterior
+        # y DeepSeek no soporta múltiples system messages
+        if self.state_manager.session_id:
+            self.logger.debug("🧹 Limpiando sesión actual para evitar conflicto de system messages")
+            self.state_manager.clear_current_session()
+
         self._initialize_agents_for_mode()
 
     async def handle_command(self, command: str) -> bool:

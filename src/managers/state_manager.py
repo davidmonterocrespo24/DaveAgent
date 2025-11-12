@@ -477,6 +477,18 @@ class StateManager:
         self._team_states = {}
         self.logger.info("🗑️ State cache cleared")
 
+    def clear_current_session(self):
+        """
+        Clear the current session's agent states without losing session metadata.
+
+        This is useful when reinitializing agents (e.g., changing modes) to avoid
+        conflicts with multiple system messages in the conversation history.
+        """
+        self._agent_states = {}
+        self._team_states = {}
+        self.logger.info(f"🧹 Current session cleared: {self.session_id}")
+        self.logger.debug("   Agent and team states reset (metadata preserved)")
+
     async def delete_session(self, session_id: str) -> bool:
         """
         Delete a session from disk
