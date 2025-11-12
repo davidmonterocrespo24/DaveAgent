@@ -6,7 +6,7 @@ import asyncio
 import logging
 from autogen_agentchat.agents import AssistantAgent
 # Importaciones añadidas para el nuevo flujo
-from autogen_agentchat.teams import SelectorGroupChat, RoundRobinGroupChat
+from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
@@ -261,28 +261,81 @@ class DaveAgentCLI:
             tools=[],
         )
 
+        # =====================================================================
+        # ROUTER TEAM: SelectorGroupChat único que enruta automáticamente
+        # =====================================================================
+        # Este team decide automáticamente qué agente usar según el contexto:
+        # - Planner: Para tareas complejas multi-paso
+        # - CodeSearcher: Para búsqueda y análisis de código
+        # - Coder: Para modificaciones directas de código
+        # - SummaryAgent: Para resúmenes finales
+        #
+        # Ventajas:
+        # - No necesita detección manual de complejidad
+        # - Un solo team que persiste (no se recrea en cada request)
+        # - El LLM router decide inteligentemente
+        # - Elimina problema de "multiple system messages"
+        # =====================================================================
 
-    def _update_agent_tools_for_mode(self):
+        termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(30)
+
+        self.main_team = SelectorGroupChat(
+            participants=[
+                self.planning_agent,
+                self.code_searcher.searcher_agent,
+                self.coder_agent,
+                self.summary_agent
+            ],
+            model_client=self.model_client,
+            termination_condition=termination_condition,
+            allow_repeated_speaker=True  # Permite que el mismo agente hable varias veces
+        )
+
+        self.logger.debug(f"✅ Router team creado con {len(self.main_team._participants)} agentes")
+
+
+    async def _update_agent_tools_for_mode(self):
         """
         Reinicializa completamente el sistema de agentes según el modo actual
 
         Esto crea nuevas instancias de todos los agentes con la configuración
         correcta para el modo (herramientas + system prompt).
 
-        IMPORTANTE: También limpia el historial de conversación actual para
-        evitar conflictos con múltiples system messages en modelos como DeepSeek.
+        IMPORTANTE: También limpia el historial de conversación y RECREÀ el MemoryManager
+        para evitar conflictos con múltiples system messages en modelos como DeepSeek.
         """
-        self.logger.info(f"🔄 Reinicializando sistema de agentes para modo: {self.current_mode.upper()}")
+        self.logger.info(f"🔄 Reinicializando sistema completo para modo: {self.current_mode.upper()}")
 
-        # CRÍTICO: Limpiar la sesión actual para evitar múltiples system messages
-        # Cuando cambiamos de modo, los mensajes anteriores contienen el system message anterior
-        # y DeepSeek no soporta múltiples system messages
+        # PASO 1: Limpiar la sesión actual del StateManager
         if self.state_manager.session_id:
+            self.logger.debug("🧹 Limpiando sesión del StateManager...")
             self.state_manager.clear_current_session()
 
-        # Reinicializar agentes SIN incluir conversation_memory para evitar
-        # que los agentes nuevos hereden el historial con el system message anterior
+        # PASO 2: RECREAR el MemoryManager completamente para obtener memorias limpias
+        # Esto es CRÍTICO porque incluso sin conversation_memory, AutoGen mantiene
+        # historial interno en las colecciones de ChromaDB
+        self.logger.debug("🧹 Reinicializando MemoryManager completo...")
+        old_memory = self.memory_manager
+
+        # Crear NUEVO MemoryManager con colecciones completamente limpias
+        self.memory_manager = MemoryManager(
+            k=5,
+            score_threshold=0.3
+        )
+
+        # Cerrar el anterior (async)
+        try:
+            await old_memory.close()
+            self.logger.debug("✅ MemoryManager anterior cerrado")
+        except Exception as e:
+            self.logger.warning(f"⚠️  Error cerrando MemoryManager anterior: {e}")
+
+        # PASO 3: Reinicializar agentes SIN incluir conversation_memory
+        # Los agentes nuevos ahora tendrán memorias completamente limpias
+        self.logger.debug("🔧 Creando nuevos agentes...")
         self._initialize_agents_for_mode(include_conversation_memory=False)
+
+        self.logger.info(f"✅ Sistema completamente reinicializado en modo: {self.current_mode.upper()}")
 
     async def handle_command(self, command: str) -> bool:
         """Maneja comandos especiales del usuario"""
@@ -356,7 +409,7 @@ class DaveAgentCLI:
             else:
                 self.current_mode = "agente"
                 self.cli.set_mode("agente")  # Actualizar display del CLI
-                self._update_agent_tools_for_mode()
+                await self._update_agent_tools_for_mode()
                 self.cli.print_success("🔧 Modo AGENTE activado")
                 self.cli.print_info("✓ Todas las herramientas habilitadas (lectura + modificación)")
                 self.cli.print_info("✓ El agente puede modificar archivos y ejecutar comandos")
@@ -369,7 +422,7 @@ class DaveAgentCLI:
             else:
                 self.current_mode = "chat"
                 self.cli.set_mode("chat")  # Actualizar display del CLI
-                self._update_agent_tools_for_mode()
+                await self._update_agent_tools_for_mode()
                 self.cli.print_success("💬 Modo CHAT activado")
                 self.cli.print_info("✓ Solo herramientas de lectura habilitadas")
                 self.cli.print_info("✗ El agente NO puede modificar archivos ni ejecutar comandos")
@@ -1357,14 +1410,20 @@ TITLE:"""
 
     async def process_user_request(self, user_input: str):
         """
-        Procesa una solicitud del usuario con detección inteligente de complejidad.
+        Procesa una solicitud del usuario usando el ROUTER TEAM único.
 
-        FLUJO CONDICIONAL:
-        - Tareas SIMPLES → SelectorGroupChat (CodeSearcher/Planner/Coder)
-        - Tareas COMPLEJAS → Planner + Executor con re-planificación
+        NUEVA ARQUITECTURA (SIMPLIFICADA):
+        - Un solo SelectorGroupChat (self.main_team) que enruta automáticamente
+        - El LLM router decide qué agente usar según el contexto
+        - No más detección manual de complejidad
+        - No más recreación de teams
+        - El team persiste y maneja todo automáticamente
 
-        El sistema detecta automáticamente la complejidad basándose en palabras clave
-        y la naturaleza de la solicitud.
+        AGENTES DISPONIBLES EN EL ROUTER:
+        - Planner: Tareas complejas multi-paso
+        - CodeSearcher: Búsqueda y análisis de código
+        - Coder: Modificaciones directas de código
+        - SummaryAgent: Resúmenes finales
         """
         try:
             self.logger.info(f"📝 Nueva solicitud del usuario: {user_input[:100]}...")
@@ -1381,40 +1440,12 @@ TITLE:"""
             else:
                 full_input = user_input
 
-            # ============= DETECCIÓN DE COMPLEJIDAD =============
-            task_complexity = await self._detect_task_complexity(user_input)
-            self.logger.info(f"🎯 Complejidad detectada: {task_complexity}")
-
-            # ============= RUTA COMPLEJA: Planner + Executor =============
-            if task_complexity == "complex":
-                self.logger.info("📋 Usando flujo complejo: Planner + Executor")
-                await self._execute_complex_task(user_input)
-
-                # Generar resumen final
-                await self._generate_task_summary(user_input)
-
-                # 💾 AUTO-SAVE: Guardar estado después del resumen
-                await self._auto_save_agent_states()
-
-                return
-
-            # ============= RUTA SIMPLE: RoundRobinGroupChat =============
-            self.logger.info("⚡ Usando flujo SIMPLE: RoundRobinGroupChat (CodeSearcher ↔ Coder)")
-
-            # Crear equipo simple con RoundRobinGroupChat
-            termination_simple = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(15)
-
-            simple_team = RoundRobinGroupChat(
-                participants=[
-                    self.code_searcher.searcher_agent,  # Turno 1, 3, 5...
-                    self.coder_agent                     # Turno 2, 4, 6...
-                ],
-                termination_condition=termination_simple
-            )
+            # ============= USAR ROUTER TEAM ÚNICO =============
+            self.logger.info("🎯 Usando ROUTER TEAM (SelectorGroupChat automático)")
 
             # Start spinner
             self.cli.start_thinking()
-            self.logger.debug("Iniciando RoundRobinGroupChat (CodeSearcher ↔ Coder)")
+            self.logger.debug("Iniciando SelectorGroupChat (router automático)")
 
             agent_messages_shown = set()
             message_count = 0
@@ -1425,8 +1456,8 @@ TITLE:"""
             agents_used = []
             tools_called = []
 
-            # Procesar mensajes con streaming
-            async for msg in simple_team.run_stream(task=full_input):
+            # Procesar mensajes con streaming usando el ROUTER TEAM
+            async for msg in self.main_team.run_stream(task=full_input):
                 message_count += 1
                 msg_type = type(msg).__name__
                 self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
