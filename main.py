@@ -230,6 +230,7 @@ class DaveAgentCLI:
             memory=[self.memory_manager.decision_memory]
         )
 
+        # SummaryAgent: Crea resúmenes finales de trabajo completado
         self.summary_agent = AssistantAgent(
             name="SummaryAgent",
             description=SUMMARY_AGENT_DESCRIPTION,
@@ -238,8 +239,6 @@ class DaveAgentCLI:
             tools=[],
         )
 
-        self.logger.debug(f"Agentes inicializados en modo: {self.current_mode.upper()}")
-        self.logger.debug(f"Herramientas del Coder: {len(coder_tools)}")
 
     def _update_agent_tools_for_mode(self):
         """
@@ -257,7 +256,6 @@ class DaveAgentCLI:
         # Cuando cambiamos de modo, los mensajes anteriores contienen el system message anterior
         # y DeepSeek no soporta múltiples system messages
         if self.state_manager.session_id:
-            self.logger.debug("🧹 Limpiando sesión actual para evitar conflicto de system messages")
             self.state_manager.clear_current_session()
 
         self._initialize_agents_for_mode()

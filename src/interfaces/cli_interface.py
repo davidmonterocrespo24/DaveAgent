@@ -121,42 +121,7 @@ class CLIInterface:
         self.console.print(final_text)
         self.console.print()
 
-    def print_welcome_message(self):
-        """Muestra el mensaje de bienvenida"""
-        welcome = """
-Bienvenido al Agente de Código Inteligente
-
-Este agente puede ayudarte a:
-  • Analizar y comprender código
-  • Implementar nuevas funcionalidades
-  • Corregir errores y bugs
-  • Refactorizar código existente
-  • Ejecutar comandos y scripts
-  • Buscar y modificar archivos
-
-**Modos de operación:**
-  • `/modo-agente` - Modo completo (lectura + modificación) **[ACTIVO]**
-  • `/modo-chat` - Modo seguro (solo lectura, sin modificar archivos)
-
-**Comandos principales:**
-  • `/help` - Muestra la ayuda completa
-  • `/search <consulta>` - Busca en tu código antes de modificar
-  • `/index` - Indexa el proyecto en memoria vectorial
-  • `/memory` - Muestra estadísticas de memoria
-  • `/new` - Inicia una nueva conversación sin historial
-  • `/clear` - Limpia el historial de conversación
-  • `/stats` - Muestra estadísticas de la sesión
-  • `/exit` o `/quit` - Salir del agente
-
-**Mencionar archivos específicos:**
-  • Escribe `@` seguido del nombre del archivo para incluirlo en tu consulta
-  • Ejemplo: `@main.py fix the bug in this file`
-  • Los archivos mencionados con @ tienen alta prioridad en el contexto
-
-Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutará.
-        """
-        self.console.print(Panel(Markdown(welcome), title="Información", border_style="green"))
-        self.console.print()
+    
 
     def _initialize_file_indexer(self):
         """Initialize file indexer lazily"""
@@ -408,39 +373,34 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 
     def print_error(self, error: str):
         """Muestra un mensaje de error"""
-        self.console.print()
         self.console.print(Panel(
             error,
             title="[bold red]Error[/bold red]",
             border_style="red"
         ))
-        self.console.print()
 
     def print_warning(self, warning: str):
-        """Muestra un mensaje de advertencia"""
-        self.console.print()
+        """Muestra un mensaje de advertencia""" 
         self.console.print(Panel(
             warning,
             title="[bold yellow]Advertencia[/bold yellow]",
             border_style="yellow"
         ))
-        self.console.print()
+
 
     def print_info(self, info: str, title: str = "Información"):
         """Muestra un mensaje informativo"""
-        self.console.print()
         self.console.print(Panel(
             info,
             title=f"[bold cyan]{title}[/bold cyan]",
             border_style="cyan"
         ))
-        self.console.print()
+
 
     def print_success(self, message: str):
         """Muestra un mensaje de éxito"""
-        self.console.print()
         self.console.print(f"[bold green]✓ {message}[/bold green]")
-        self.console.print()
+
 
     def print_diff(self, diff_text: str):
         """
@@ -449,7 +409,6 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
         Args:
             diff_text: Texto del diff en formato unified diff
         """
-        self.console.print()
         for line in diff_text.split('\n'):
             if line.startswith('---') or line.startswith('+++'):
                 # File headers in cyan
@@ -466,7 +425,6 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
             else:
                 # Context lines in dim white
                 self.console.print(f"[dim]{line}[/dim]")
-        self.console.print()
 
     def print_task_summary(self, summary: str):
         """
@@ -475,17 +433,12 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
         Args:
             summary: Texto del resumen generado por el agente
         """
-        self.console.print()
         self.console.print("─" * 60, style="dim cyan")
-        self.console.print()
-
         # Render as markdown for nice formatting
         md = Markdown(summary)
         self.console.print(md)
-
-        self.console.print()
         self.console.print("─" * 60, style="dim cyan")
-        self.console.print()
+
 
     def create_progress_table(self, tasks: List[dict]) -> Table:
         """Crea una tabla con el progreso de las tareas"""
@@ -523,7 +476,13 @@ Simplemente describe lo que necesitas y el agente creará un plan y lo ejecutar�
 **Nota:** Para ver el estado completo de los agentes, usa `/list-sessions`
 **Persistencia:** El estado se guarda automáticamente usando AutoGen save_state()
         """
-        self.print_info(stats_text, "Estadísticas")
+        self.console.print()
+        self.console.print(Panel(
+            Markdown(stats_text),
+            title="[bold cyan]Estadísticas[/bold cyan]",
+            border_style="cyan"
+        ))
+        self.console.print()
 
     def print_help(self):
         """Muestra la ayuda"""
@@ -648,7 +607,13 @@ Simplemente escribe lo que necesitas que el agente haga. El agente:
 
 "/search métodos que modifican la base de datos"
         """
-        self.print_info(help_text, "Ayuda")
+        self.console.print()
+        self.console.print(Panel(
+            Markdown(help_text),
+            title="[bold cyan]Ayuda[/bold cyan]",
+            border_style="cyan"
+        ))
+        self.console.print()
 
     def print_goodbye(self):
         """Muestra el mensaje de despedida"""
