@@ -11,6 +11,7 @@ prompt-toolkit>=3.0.0
 # Modelos y utilidades
 pydantic>=2.0.0
 httpcore
+httpx>=0.24.0
 
 # Additional dependencies for file operations
 beautifulsoup4

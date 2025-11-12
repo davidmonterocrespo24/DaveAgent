@@ -36,7 +36,8 @@ class DaveAgentCLI:
         debug: bool = False,
         api_key: str = None,
         base_url: str = None,
-        model: str = None
+        model: str = None,
+        ssl_verify: bool = None
     ):
         """
         Inicializa todos los componentes del agente
@@ -46,6 +47,7 @@ class DaveAgentCLI:
             api_key: API key para el modelo LLM
             base_url: URL base de la API
             model: Nombre del modelo a usar
+            ssl_verify: Si verificar certificados SSL (por defecto True)
         """
         # Configurar logging (ahora en .daveagent/logs/)
         log_level = logging.DEBUG if debug else logging.INFO
@@ -57,12 +59,11 @@ class DaveAgentCLI:
         # Sistema de modos: "agente" (con herramientas) o "chat" (sin herramientas de modificación)
         self.current_mode = "agente"  # Modo por defecto
 
-        self.logger.info("🚀 Inicializando DaveAgent CLI")
 
         # Cargar configuración (API key, URL, modelo)
         from src.config import get_settings
 
-        self.settings = get_settings(api_key=api_key, base_url=base_url, model=model)
+        self.settings = get_settings(api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify)
 
         # Validar configuración
         is_valid, error_msg = self.settings.validate()
@@ -75,29 +76,33 @@ class DaveAgentCLI:
 
         # Crear cliente del modelo
         self.logger.debug(f"Configurando cliente del modelo: {self.settings.model}")
+        self.logger.debug(f"SSL verify: {self.settings.ssl_verify}")
+        
+        # Crear cliente HTTP personalizado con configuración SSL
+        import httpx
+        http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
+        
         self.model_client = OpenAIChatCompletionClient(
             model=self.settings.model,
             base_url=self.settings.base_url,
             api_key=self.settings.api_key,
             model_capabilities=self.settings.get_model_capabilities(),
+            http_client=http_client
         )
 
         # Sistema de memoria con ChromaDB (inicializar ANTES de crear agentes)
-        self.logger.info("🧠 Inicializando sistema de memoria...")
         self.memory_manager = MemoryManager(
             k=5,  # Top 5 resultados más relevantes
             score_threshold=0.3  # Umbral de similitud
         )
 
-        # Sistema de gestión de estado (AutoGen save_state/load_state)
-        self.logger.info("💾 Inicializando sistema de estado...")
+        # Sistema de gestión de estado (AutoGen save_state/load_state)        
         self.state_manager = StateManager(
             auto_save_enabled=True,
             auto_save_interval=300  # Auto-save cada 5 minutos
         )
 
         # Sistema de observabilidad con Langfuse (método simple con OpenLit)
-        self.logger.info("📊 Inicializando sistema de observabilidad (Langfuse)...")
         self.langfuse_enabled = False
         try:
             # Inicializar Langfuse con OpenLit (tracking automático de AutoGen)
@@ -190,12 +195,10 @@ class DaveAgentCLI:
             # Modo AGENTE: todas las herramientas + prompt técnico
             coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
             system_prompt = AGENT_SYSTEM_PROMPT
-            self.logger.info("🔧 Inicializando en modo AGENTE (todas las herramientas)")
         else:
             # Modo CHAT: solo lectura + prompt conversacional
             coder_tools = self.all_tools["read_only"]
             system_prompt = CHAT_SYSTEM_PROMPT
-            self.logger.info("💬 Inicializando en modo CHAT (solo lectura)")
 
         # Crear agente de código con memoria
         self.coder_agent = AssistantAgent(
@@ -1808,10 +1811,8 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
             # Continue without loading session
 
     async def run(self):
-        """Ejecuta el loop principal de la CLI"""
-        self.logger.info("▶️ Iniciando loop principal de CLI")
+        """Ejecuta el loop principal de la CLI"""        
         self.cli.print_banner()
-        self.cli.print_welcome_message()
 
         # Check for previous sessions and offer to resume
         await self._check_and_resume_session()
@@ -1849,15 +1850,13 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
 
             # Cerrar sistema de estado (guarda estado final automáticamente)
             try:
-                await self.state_manager.close()
-                self.logger.info("✅ Sistema de estado cerrado correctamente")
+                await self.state_manager.close()                
             except Exception as e:
                 self.logger.error(f"Error cerrando estado: {e}")
 
             # Cerrar sistema de memoria
             try:
-                await self.memory_manager.close()
-                self.logger.info("✅ Sistema de memoria cerrado correctamente")
+                await self.memory_manager.close()                
             except Exception as e:
                 self.logger.error(f"Error cerrando memoria: {e}")
 
@@ -1873,7 +1872,8 @@ async def main(
     debug: bool = False,
     api_key: str = None,
     base_url: str = None,
-    model: str = None
+    model: str = None,
+    ssl_verify: bool = None
 ):
     """
     Punto de entrada principal
@@ -1883,8 +1883,9 @@ async def main(
         api_key: API key para el modelo LLM
         base_url: URL base de la API
         model: Nombre del modelo a usar
+        ssl_verify: Si verificar certificados SSL (por defecto True)
     """
-    app = DaveAgentCLI(debug=debug, api_key=api_key, base_url=base_url, model=model)
+    app = DaveAgentCLI(debug=debug, api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify)
     await app.run()
 
 

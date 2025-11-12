@@ -38,6 +38,19 @@ def parse_arguments():
         help='Nombre del modelo a usar (default: deepseek-reasoner)'
     )
 
+    parser.add_argument(
+        '--no-ssl-verify',
+        action='store_true',
+        help='Desactiva la verificación de certificados SSL'
+    )
+
+    parser.add_argument(
+        '--ssl-verify',
+        type=str,
+        choices=['true', 'false'],
+        help='Habilita/deshabilita verificación SSL explícitamente (true/false)'
+    )
+
     # Argumentos de modo
     parser.add_argument(
         '-d', '--debug',
@@ -88,11 +101,19 @@ def main():
 
     # Ejecutar DaveAgent con configuración
     try:
+        # Determinar configuración SSL
+        ssl_verify = None
+        if args.no_ssl_verify:
+            ssl_verify = False
+        elif args.ssl_verify:
+            ssl_verify = args.ssl_verify.lower() == 'true'
+
         asyncio.run(run_daveagent(
             debug=args.debug,
             api_key=args.api_key,
             base_url=args.base_url,
-            model=args.model
+            model=args.model,
+            ssl_verify=ssl_verify
         ))
         return 0
     except KeyboardInterrupt:

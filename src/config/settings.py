@@ -24,12 +24,14 @@ class DaveAgentSettings:
     # Valores por defecto
     DEFAULT_BASE_URL = "https://api.deepseek.com"
     DEFAULT_MODEL = "deepseek-reasoner"
+    DEFAULT_SSL_VERIFY = True
 
     def __init__(
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        ssl_verify: Optional[bool] = None
     ):
         """
         Inicializa la configuración con prioridad:
@@ -41,6 +43,7 @@ class DaveAgentSettings:
             api_key: API key para el modelo LLM
             base_url: URL base de la API
             model: Nombre del modelo a usar
+            ssl_verify: Si True, verifica certificados SSL (por defecto True)
         """
         # API Key (requerida)
         self.api_key = (
@@ -68,6 +71,20 @@ class DaveAgentSettings:
             or os.getenv("OPENAI_MODEL")  # Compatibilidad
             or self.DEFAULT_MODEL
         )
+
+        # SSL Verify (opcional, con valor por defecto)
+        if ssl_verify is not None:
+            self.ssl_verify = ssl_verify
+        else:
+            # Leer de variable de entorno (puede ser "true", "false", "1", "0")
+            env_ssl = (
+                os.getenv("DAVEAGENT_SSL_VERIFY") 
+                or os.getenv("SSL_VERIFY")
+            )
+            if env_ssl:
+                self.ssl_verify = env_ssl.lower() in ("true", "1", "yes", "on")
+            else:
+                self.ssl_verify = self.DEFAULT_SSL_VERIFY
 
     def validate(self, interactive: bool = True) -> tuple[bool, Optional[str]]:
         """
@@ -177,7 +194,8 @@ class DaveAgentSettings:
             f"DaveAgentSettings(\n"
             f"  api_key={masked_key},\n"
             f"  base_url={self.base_url},\n"
-            f"  model={self.model}\n"
+            f"  model={self.model},\n"
+            f"  ssl_verify={self.ssl_verify}\n"
             f")"
         )
 
@@ -185,7 +203,8 @@ class DaveAgentSettings:
 def get_settings(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
-    model: Optional[str] = None
+    model: Optional[str] = None,
+    ssl_verify: Optional[bool] = None
 ) -> DaveAgentSettings:
     """
     Factory function para obtener configuración
@@ -194,11 +213,12 @@ def get_settings(
         api_key: API key (opcional)
         base_url: URL base (opcional)
         model: Nombre del modelo (opcional)
+        ssl_verify: Si verificar SSL (opcional)
 
     Returns:
         Instancia de DaveAgentSettings
     """
-    return DaveAgentSettings(api_key=api_key, base_url=base_url, model=model)
+    return DaveAgentSettings(api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify)
 
 
 # Mantener compatibilidad con código antiguo

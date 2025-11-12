@@ -382,10 +382,33 @@ self.model_client = OpenAIChatCompletionClient(
 )
 ```
 
-2. O usa variables de entorno:
+2. O usa variables de entorno en `.daveagent/.env`:
 ```bash
-export OPENAI_API_KEY="tu-api-key"
-export OPENAI_MODEL="gpt-4"
+DAVEAGENT_API_KEY=tu-api-key
+DAVEAGENT_MODEL=gpt-4
+DAVEAGENT_BASE_URL=https://api.openai.com/v1
+```
+
+### Problemas de SSL (Redes Corporativas)
+
+Si experimentas errores de certificado SSL:
+
+1. **Método 1:** Variable de entorno en `.daveagent/.env`:
+```bash
+DAVEAGENT_SSL_VERIFY=false
+```
+
+2. **Método 2:** Argumento de línea de comandos:
+```bash
+daveagent --no-ssl-verify
+# o
+daveagent --ssl-verify=false
+```
+
+3. **Método 3:** Variable de entorno del sistema:
+```bash
+export DAVEAGENT_SSL_VERIFY=false  # Linux/macOS
+set DAVEAGENT_SSL_VERIFY=false     # Windows
 ```
 
 ## 🤝 Contribuir
