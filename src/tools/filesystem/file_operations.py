@@ -84,16 +84,22 @@ async def list_dir(target_dir: str = ".") -> str:
         return f"Error listing directory: {str(e)}"
 
 
-async def edit_file(target_file: str, instructions: str, code_edit: str, explanation: str = "") -> str:
+async def edit_file(target_file: str, instructions: str, code_edit: str) -> str:
     """
-    Apply edits to an existing file using the // ... existing code ... marker system.
-    
+    Apply SURGICAL edits to an existing file using the // ... existing code ... marker system.
+
+    STRATEGY:
+    1. Extract context blocks (code before/after markers) from code_edit
+    2. Find exact match location in original file using context
+    3. Replace ONLY the matched section with new code
+    4. Keep everything else untouched
+
     Parameters:
         target_file (str): Path to the file to be edited
         instructions (str): Description of the changes to be made
-        code_edit (str): The new code content with markers indicating where existing code should be preserved
+        code_edit (str): The new code with markers indicating context
         explanation (str): Optional explanation for the edit operation
-    
+
     Returns:
         str: Success message with edit summary or error message if operation failed
     """
@@ -101,69 +107,135 @@ async def edit_file(target_file: str, instructions: str, code_edit: str, explana
         # Read the current file
         with open(target_file, 'r', encoding='utf-8') as f:
             original_content = f.read()
-        
-        # Parse the code_edit to find the edits and markers
-        lines = code_edit.split('\n')
-        new_content = ""
+
         original_lines = original_content.split('\n')
-        current_line_index = 0
-        
+        edit_lines = code_edit.split('\n')
+
+        # Patterns that indicate "existing code" markers in various languages
+        marker_patterns = [
+            "... existing code ...",
+            "existing code",
+            "resto del código",
+            "código existente"
+        ]
+
+        def is_marker_line(line: str) -> bool:
+            """Check if line is an 'existing code' marker"""
+            line_stripped = line.strip()
+            for marker in marker_patterns:
+                if marker in line_stripped.lower():
+                    return True
+            return False
+
+        # STEP 1: Extract context blocks from code_edit
+        # We need to find the FIRST non-marker block (context before edit)
+        # and the LAST non-marker block (context after edit)
+
+        context_before = []
+        context_after = []
+        edited_content = []
+
+        found_first_marker = False
+
         i = 0
-        while i < len(lines):
-            line = lines[i].strip()
-            
-            # Check if this is an "existing code" marker
-            if "... existing code ..." in line or "existing code" in line:
-                # Find the next non-marker line to determine how much to skip
-                next_edit_line = None
-                for j in range(i + 1, len(lines)):
-                    if "... existing code ..." not in lines[j] and lines[j].strip():
-                        next_edit_line = lines[j]
-                        break
-                
-                # If we have a next edit line, find it in the original content
-                if next_edit_line:
-                    # Look for the next edit line in the original content
-                    found_index = -1
-                    for k in range(current_line_index, len(original_lines)):
-                        if next_edit_line.strip() in original_lines[k] or original_lines[k].strip() == next_edit_line.strip():
-                            found_index = k
-                            break
-                    
-                    if found_index != -1:
-                        # Add the skipped original lines
-                        for k in range(current_line_index, found_index):
-                            new_content += original_lines[k] + '\n'
-                        current_line_index = found_index
-                    else:
-                        # If we can't find the next line, add some original content
-                        skip_lines = min(5, len(original_lines) - current_line_index)
-                        for k in range(current_line_index, current_line_index + skip_lines):
-                            if k < len(original_lines):
-                                new_content += original_lines[k] + '\n'
-                        current_line_index += skip_lines
+        while i < len(edit_lines):
+            line = edit_lines[i]
+
+            if is_marker_line(line):
+                if not found_first_marker:
+                    # This is the FIRST marker - everything before is context_before
+                    found_first_marker = True
                 else:
-                    # No next edit line found, skip to end or add remaining original content
-                    remaining_lines = min(10, len(original_lines) - current_line_index)
-                    for k in range(current_line_index, current_line_index + remaining_lines):
-                        if k < len(original_lines):
-                            new_content += original_lines[k] + '\n'
-                    current_line_index += remaining_lines
-                
-            elif line and not ("..." in line and "existing" in line):
-                # This is actual new/edited code
-                new_content += lines[i] + '\n'
-                current_line_index += 1
-            
+                    # This is a marker AFTER the edit section started
+                    # Everything after this until next non-marker is context_after
+                    # Collect remaining non-marker lines as context_after
+                    for j in range(i + 1, len(edit_lines)):
+                        if not is_marker_line(edit_lines[j]) and edit_lines[j].strip():
+                            context_after.append(edit_lines[j])
+                        elif is_marker_line(edit_lines[j]):
+                            break
+                    break
+                i += 1
+                continue
+
+            if not found_first_marker:
+                # Before first marker = context before edit
+                if line.strip():
+                    context_before.append(line)
+            else:
+                # After first marker but before last = actual edit
+                edited_content.append(line)
+
             i += 1
-        
-        # Add any remaining original content
-        while current_line_index < len(original_lines):
-            new_content += original_lines[current_line_index] + '\n'
-            current_line_index += 1
-        
-        
-        
+
+        # STEP 2: Find the location in original file using context
+        # We look for a sequence of lines matching context_before
+
+        if not context_before:
+            # No context provided - this is risky but we'll try to match edited_content
+            return await _fallback_edit(target_file, original_lines, edited_content)
+
+        # Find where context_before appears in original file
+        match_start_idx = -1
+        context_len = len(context_before)
+
+        for idx in range(len(original_lines) - context_len + 1):
+            # Check if lines match (with flexible whitespace)
+            matches = True
+            for ctx_idx, ctx_line in enumerate(context_before):
+                orig_line = original_lines[idx + ctx_idx]
+                # Compare stripped versions for flexibility
+                if ctx_line.strip() != orig_line.strip():
+                    matches = False
+                    break
+
+            if matches:
+                match_start_idx = idx
+                break
+
+        if match_start_idx == -1:
+            # Context not found - fallback to simpler strategy
+            return await _fallback_edit(target_file, original_lines, edited_content)
+
+        # STEP 3: Find where context_after appears (if provided)
+        match_end_idx = len(original_lines)
+
+        if context_after:
+            # Look for context_after starting from after context_before
+            context_after_len = len(context_after)
+            for idx in range(match_start_idx + context_len, len(original_lines) - context_after_len + 1):
+                matches = True
+                for ctx_idx, ctx_line in enumerate(context_after):
+                    orig_line = original_lines[idx + ctx_idx]
+                    if ctx_line.strip() != orig_line.strip():
+                        matches = False
+                        break
+
+                if matches:
+                    match_end_idx = idx
+                    break
+
+        # STEP 4: Build new content with surgical replacement
+        new_lines = []
+
+        # Keep everything before the match
+        new_lines.extend(original_lines[:match_start_idx])
+
+        # Add context_before (preserved)
+        new_lines.extend(context_before)
+
+        # Add edited content
+        new_lines.extend(edited_content)
+
+        # Add context_after (preserved)
+        new_lines.extend(context_after)
+
+        # Keep everything after the match
+        if match_end_idx + len(context_after) < len(original_lines):
+            new_lines.extend(original_lines[match_end_idx + len(context_after):])
+
+        new_content = '\n'.join(new_lines)
+
         # Generate unified diff
         diff = difflib.unified_diff(
             original_content.splitlines(keepends=True),
@@ -176,26 +248,65 @@ async def edit_file(target_file: str, instructions: str, code_edit: str, explana
 
         # Write the new content
         with open(target_file, 'w', encoding='utf-8') as f:
-            f.write(new_content.rstrip('\n') + '\n')
+            f.write(new_content)
 
         # Format the result with diff
-        result = f"✅ Successfully edited file: {target_file}\n"
-        result += f"📝 Instructions: {instructions}\n"
-        result += f"📊 Original lines: {len(original_lines)} → New lines: {len(new_content.split('\n'))}\n\n"
+        result = f"[OK] Successfully edited file: {target_file}\n"
+        result += f"Instructions: {instructions}\n"
+        result += f"Edit location: lines {match_start_idx + 1} to {match_end_idx + len(context_after)}\n"
+        result += f"Original lines: {len(original_lines)} -> New lines: {len(new_lines)}\n\n"
 
         if diff_text:
-            result += "═══════════════════════════════════════════════════════════════\n"
-            result += "📋 DIFF (Changes Applied):\n"
-            result += "═══════════════════════════════════════════════════════════════\n"
+            result += "===============================================================\n"
+            result += "DIFF (Changes Applied):\n"
+            result += "===============================================================\n"
             result += diff_text
-            result += "\n═══════════════════════════════════════════════════════════════\n"
+            result += "\n===============================================================\n"
 
         return result
-        
+
     except FileNotFoundError:
         return f"Error: File '{target_file}' not found"
     except Exception as e:
-        return f"Error editing file: {str(e)}"
+        return f"Error editing file: {str(e)}\n\nPlease provide more context around the code to edit."
+
+
+async def _fallback_edit(target_file: str, original_lines: list, edited_content: list) -> str:
+    """
+    Fallback strategy when context matching fails.
+    Tries to find edited_content directly in original file.
+    """
+    # Try to find first line of edited_content in original
+    if not edited_content:
+        return f"Error: No edited content provided in code_edit parameter"
+
+    first_edit_line = next((line for line in edited_content if line.strip()), None)
+    if not first_edit_line:
+        return f"Error: No non-empty lines in edited content"
+
+    # Search for this line in original
+    match_idx = -1
+    for idx, orig_line in enumerate(original_lines):
+        if first_edit_line.strip() in orig_line or orig_line.strip() == first_edit_line.strip():
+            match_idx = idx
+            break
+
+    if match_idx == -1:
+        return f"Error: Could not locate edit position in file. Please provide more context lines before and after the edit."
+
+    # Replace from match_idx for len(edited_content) lines
+    new_lines = []
+    new_lines.extend(original_lines[:match_idx])
+    new_lines.extend(edited_content)
+    new_lines.extend(original_lines[match_idx + len(edited_content):])
+
+    new_content = '\n'.join(new_lines)
+
+    # Write the new content
+    with open(target_file, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+
+    return f"[OK] Edited file: {target_file} (fallback mode - matched at line {match_idx + 1})\nNote: Context matching failed, used fallback strategy. Consider providing more context."
 
 
 async def delete_file(target_file: str, explanation: str = "") -> str:
