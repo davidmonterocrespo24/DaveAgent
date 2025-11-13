@@ -117,6 +117,11 @@ class DaveAgentCLI:
             self.logger.warning(f"⚠️ Error inicializando Langfuse: {e}")
             self.langfuse_enabled = False
 
+        # Sistema de logging JSON completo (SIEMPRE activo, independiente de Langfuse)
+        from src.utils.json_logger import JSONLogger
+        self.json_logger = JSONLogger()
+        self.logger.info("✅ JSONLogger inicializado - capturando todas las interacciones")
+
         # Importar todas las herramientas desde la nueva estructura
         from src.tools import (
             # Filesystem
@@ -1428,6 +1433,18 @@ TITLE:"""
         try:
             self.logger.info(f"📝 Nueva solicitud del usuario: {user_input[:100]}...")
 
+            # ============= INICIAR SESIÓN DE JSON LOGGING =============
+            # Captura TODAS las interacciones en JSON (independiente de Langfuse)
+            self.json_logger.start_session(
+                mode=self.current_mode,
+                model=self.settings.model,
+                base_url=self.settings.base_url
+            )
+            self.json_logger.log_user_message(
+                content=user_input,
+                mentioned_files=[str(f) for f in self.cli.mentioned_files] if self.cli.mentioned_files else []
+            )
+
             # Check if there are mentioned files and add their context
             mentioned_files_content = ""
             if self.cli.mentioned_files:
@@ -1499,6 +1516,8 @@ TITLE:"""
                                 spinner_active = False
                             self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
                             self.logger.debug(f"💭 Thought: {content_str}")
+                            # JSON Logger: Capturar pensamiento
+                            self.json_logger.log_thought(agent_name, content_str)
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "ToolCallRequestEvent":
@@ -1512,9 +1531,15 @@ TITLE:"""
                                 for tool_call in content:
                                     if hasattr(tool_call, 'name'):
                                         tool_name = tool_call.name
-                                        tool_args = tool_call.arguments if hasattr(tool_call, 'arguments') else ""
+                                        tool_args = tool_call.arguments if hasattr(tool_call, 'arguments') else {}
                                         self.cli.print_info(f"🔧 Llamando herramienta: {tool_name}", agent_name)
                                         self.logger.debug(f"🔧 Tool call: {tool_name}({tool_args})")
+                                        # JSON Logger: Capturar llamada a herramienta
+                                        self.json_logger.log_tool_call(
+                                            agent_name=agent_name,
+                                            tool_name=tool_name,
+                                            arguments=tool_args if isinstance(tool_args, dict) else {}
+                                        )
                                         # Track tools called
                                         if tool_name not in tools_called:
                                             tools_called.append(tool_name)
@@ -1566,6 +1591,14 @@ TITLE:"""
                                             self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
                                             self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
 
+                                        # JSON Logger: Capturar resultado de herramienta
+                                        self.json_logger.log_tool_result(
+                                            agent_name=agent_name,
+                                            tool_name=tool_name,
+                                            result=result_content,
+                                            success=True
+                                        )
+
                             # Restart spinner for next action
                             self.cli.start_thinking()
                             spinner_active = True
@@ -1581,6 +1614,12 @@ TITLE:"""
                             preview = content_str[:100] if len(content_str) > 100 else content_str
                             self.logger.log_message_processing(msg_type, agent_name, preview)
                             self.cli.print_agent_message(content_str, agent_name)
+                            # JSON Logger: Capturar mensaje de agente
+                            self.json_logger.log_agent_message(
+                                agent_name=agent_name,
+                                content=content_str,
+                                message_type="text"
+                            )
                             # Collect agent responses for logging
                             all_agent_responses.append(f"[{agent_name}] {content_str}")
                             agent_messages_shown.add(message_key)
@@ -1612,6 +1651,11 @@ TITLE:"""
             # 💾 AUTO-SAVE: Guardar estado de agentes automáticamente después de cada respuesta
             await self._auto_save_agent_states()
 
+            # ============= FINALIZAR SESIÓN DE JSON LOGGING =============
+            # Guardar todos los eventos capturados a archivo JSON timestamped
+            self.json_logger.end_session(summary="Request completed successfully")
+            self.logger.debug("📝 JSON logging session finalizada y guardada")
+
             # Comprimir historial si es necesario (DISABLED - ya no usamos TaskExecutor)
             # if self.conversation_manager.needs_compression():
             #     self.logger.warning("⚠️ Historial necesita compresión")
@@ -1622,6 +1666,11 @@ TITLE:"""
         except Exception as e:
             # Stop spinner on error
             self.cli.stop_thinking()
+
+            # JSON Logger: Capturar error
+            self.json_logger.log_error(e, context="process_user_request")
+            self.json_logger.end_session(summary=f"Request failed with error: {str(e)}")
+
             self.logger.log_error_with_context(e, "process_user_request")
             self.cli.print_error(f"Error al procesar solicitud: {str(e)}")
             import traceback

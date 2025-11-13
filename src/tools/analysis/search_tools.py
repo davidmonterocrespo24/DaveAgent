@@ -34,12 +34,44 @@ CASE_SENSITIVE: bool = False  # búsqueda case-insensitive
 # --------------------------------------------------------------------------- #
 # Implementación auxiliar
 # --------------------------------------------------------------------------- #
+
+# Directorios que deben excluirse de todas las búsquedas
+EXCLUDED_DIRS = {
+    'node_modules',
+    '__pycache__',
+    '.git',
+    '.venv',
+    'venv',
+    'env',
+    '.pytest_cache',
+    '.mypy_cache',
+    '.tox',
+    'dist',
+    'build',
+    '.egg-info',
+    'site-packages',
+    '.next',
+    '.nuxt',
+    'coverage',
+    '.coverage',
+    '.idea',
+    '.vscode',
+}
+
+def _should_exclude_path(path: Path) -> bool:
+    """Verifica si un path debe ser excluido de la búsqueda"""
+    # Verificar si algún directorio excluido está en el path
+    for part in path.parts:
+        if part in EXCLUDED_DIRS:
+            return True
+    return False
+
 def _iter_code_files(roots: Sequence[Path], exts: Sequence[str]) -> list[Path]:
     """Recorre recursivamente los directorios dados devolviendo paths con extensiones deseadas."""
     paths: list[Path] = []
     for root in roots:
         for p in root.rglob("*"):
-            if p.is_file() and p.suffix.lower() in exts:
+            if p.is_file() and p.suffix.lower() in exts and not _should_exclude_path(p):
                 paths.append(p)
     return paths
 
@@ -80,6 +112,39 @@ async def grep_search(
     """
     results = []
 
+    # Extensiones que siempre deben excluirse
+    EXCLUDED_EXTENSIONS = [
+        '.pyc',
+        '.pyo',
+        '.pyd',
+        '.so',
+        '.dll',
+        '.dylib',
+        '.exe',
+        '.bin',
+        '.obj',
+        '.o',
+        '.a',
+        '.lib',
+        '.min.js',
+        '.min.css',
+        '.map',
+        '.lock',
+        '.log',
+        '.sqlite',
+        '.db',
+        '.jpg',
+        '.jpeg',
+        '.png',
+        '.gif',
+        '.ico',
+        '.svg',
+        '.woff',
+        '.woff2',
+        '.ttf',
+        '.eot',
+    ]
+
     # Configurar flags para regex
     flags = 0 if case_sensitive else re.IGNORECASE
 
@@ -88,6 +153,27 @@ async def grep_search(
         pattern = re.compile(query, flags)
     except re.error as e:
         return [{"error": f"Patrón regex inválido: {e}"}]
+
+    # Función auxiliar para verificar si un path debe excluirse
+    def should_exclude(file_path: str) -> bool:
+        """Verifica si un archivo debe ser excluido de la búsqueda"""
+        path_parts = Path(file_path).parts
+
+        # Verificar si algún directorio excluido está en el path
+        for excluded_dir in EXCLUDED_DIRS:
+            if excluded_dir in path_parts:
+                return True
+
+        # Verificar extensión
+        file_ext = Path(file_path).suffix.lower()
+        if file_ext in EXCLUDED_EXTENSIONS:
+            return True
+
+        # Aplicar patrón de exclusión personalizado si existe
+        if exclude_pattern and fnmatch.fnmatch(file_path, exclude_pattern):
+            return True
+
+        return False
 
     # Obtener lista de archivos a procesar
     files_to_search = []
@@ -99,12 +185,11 @@ async def grep_search(
         # Buscar todos los archivos en el directorio actual
         files_to_search = glob.glob("**/*", recursive=True)
 
-    # Filtrar solo archivos (no directorios)
-    files_to_search = [f for f in files_to_search if os.path.isfile(f)]
-
-    # Aplicar patrón de exclusión si existe
-    if exclude_pattern:
-        files_to_search = [f for f in files_to_search if not fnmatch.fnmatch(f, exclude_pattern)]
+    # Filtrar solo archivos (no directorios) y aplicar exclusiones
+    files_to_search = [
+        f for f in files_to_search
+        if os.path.isfile(f) and not should_exclude(f)
+    ]
 
     # Buscar en cada archivo
     for file_path in files_to_search:
