@@ -1532,7 +1532,7 @@ TITLE:"""
                                     if hasattr(tool_call, 'name'):
                                         tool_name = tool_call.name
                                         tool_args = tool_call.arguments if hasattr(tool_call, 'arguments') else {}
-                                        self.cli.print_info(f"🔧 Llamando herramienta: {tool_name}", agent_name)
+                                        self.cli.print_info(f"🔧 Llamando herramienta: {tool_name} con los parámetros {tool_args}",  agent_name)
                                         self.logger.debug(f"🔧 Tool call: {tool_name}({tool_args})")
                                         # JSON Logger: Capturar llamada a herramienta
                                         self.json_logger.log_tool_call(
