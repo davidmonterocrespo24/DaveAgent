@@ -48,14 +48,13 @@ class LoggingModelClientWrapper:
     async def create(
         self,
         messages: Sequence[LLMMessage],
-        *,
-        tools: Sequence[Any] = [],
-        json_output: Optional[bool] = None,
-        extra_create_args: Dict[str, Any] = {},
-        cancellation_token: Any = None
+        **kwargs
     ) -> CreateResult:
         """
         Intercepta el método create() y registra entrada/salida
+
+        Acepta cualquier argumento que el cliente wrapped pueda necesitar
+        (tools, json_output, extra_create_args, cancellation_token, tool_choice, etc.)
         """
         # Extraer contenido de los mensajes para logging
         input_messages = []
@@ -72,13 +71,10 @@ class LoggingModelClientWrapper:
         start_time = datetime.now()
 
         try:
-            # Llamar al cliente real
+            # Llamar al cliente real con TODOS los kwargs
             result = await self._wrapped.create(
                 messages=messages,
-                tools=tools,
-                json_output=json_output,
-                extra_create_args=extra_create_args,
-                cancellation_token=cancellation_token
+                **kwargs
             )
 
             end_time = datetime.now()
