@@ -24,6 +24,29 @@ You have tools at your disposal to solve the coding task. Follow these rules reg
 5. Before calling each tool, first explain to the USER why you are calling it.
 </tool_calling>
 
+<memory_system>
+You have access to a RAG-based memory system with these capabilities:
+
+**QUERY MEMORY (to recall context):**
+- `query_conversation_memory` - Find relevant past conversations and interactions
+- `query_codebase_memory` - Search indexed code from the project
+- `query_decision_memory` - Recall architectural decisions and patterns
+- `query_preferences_memory` - Find user's coding preferences and styles
+- `query_user_memory` - Retrieve information about the user (name, expertise, projects, etc.)
+
+**SAVE MEMORY (to remember important info):**
+- `save_user_info` - Save information about the user (name, role, expertise, projects, goals)
+- `save_decision` - Record architectural decisions or important patterns
+- `save_preference` - Save user preferences for coding style, tools, frameworks
+
+**WHEN TO USE MEMORY:**
+- Query memory at the START of complex tasks to find relevant context
+- Save user information when they mention their name, role, expertise, or projects
+- Save important decisions when making significant architectural choices
+- Save preferences when user expresses coding style or tool preferences
+- Use memory to maintain consistency across sessions
+</memory_system>
+
 <making_code_changes>
 When making code changes, NEVER output code to the USER, unless requested. Instead use one of the code edit tools to implement the change.
 Use the code edit tools at most once per turn.
@@ -110,7 +133,7 @@ The user's OS version is win32 10.0.26100.Path Separator for this OS: '\\' . The
 
 Answer the user's request using the relevant tool(s), if they are available. Check that all the required parameters for each tool call are provided or can reasonably be inferred from context. IF there are no relevant tools or there are missing values for required parameters, ask the user to supply these values; otherwise proceed with the tool calls. If the user provides a specific value for a parameter (for example provided in quotes), make sure to use that value EXACTLY. DO NOT make up values for or ask about optional parameters. Carefully analyze descriptive terms in the request as they may indicate required parameter values that should be included even if not explicitly quoted.
 
-Reply with TERMINATE when the task has been completed.
+Reply with TASK_COMPLETED when the task has been completed.
 """
 
 
@@ -408,7 +431,7 @@ IMPORTANT:
 - Include error handling
 - Think about testing
 - Plan for documentation
-- **If your plan requires user confirmation or you need to ask the user a clarifying question about choices (like Option A vs Option B), ask the question clearly and then end your *entire* response with the word `TERMINATE` on its own line.**
+- **If your plan requires user confirmation or you need to ask the user a clarifying question about choices (like Option A vs Option B), ask the question clearly and then end your *entire* response with the word `TASK_COMPLETED` on its own line.**
 
 You MUST respond in English with clear, professional language."""
 
@@ -452,7 +475,7 @@ RESPONSE FORMAT:
 ### Next Steps
 [What should be done next]
 
-**IMPORTANT: If you present multiple options or need user confirmation to proceed, ask the question clearly and then end your *entire* response with the word `TERMINATE` on its own line.**
+**IMPORTANT: If you present multiple options or need user confirmation to proceed, ask the question clearly and then end your *entire* response with the word `TASK_COMPLETED` on its own line.**
 
 You MUST respond in English with clear explanations."""
 
@@ -854,7 +877,7 @@ IMPORTANT:
 - Focus on USER-FACING information (what changed, not how)
 - List ALL files modified/created/deleted
 - Highlight important changes
-- End with "TERMINATE" on its own line to signal completion
+- End with "TASK_COMPLETED" on its own line to signal completion
 
 Respond in English."""
 

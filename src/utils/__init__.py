@@ -7,6 +7,7 @@ from .file_selector import FileSelector, select_file_interactive
 from .vibe_spinner import VibeSpinner, show_vibe_spinner
 from .conversation_tracker import ConversationTracker, get_conversation_tracker
 from .history_viewer import HistoryViewer
+from .logging_model_client import LoggingModelClientWrapper
 
 __all__ = [
     'DaveAgentLogger',
@@ -24,5 +25,6 @@ __all__ = [
     'show_vibe_spinner',
     'ConversationTracker',
     'get_conversation_tracker',
-    'HistoryViewer'
+    'HistoryViewer',
+    'LoggingModelClientWrapper'
 ]

@@ -15,15 +15,13 @@ from src.config import (
     CODER_AGENT_DESCRIPTION,
     COMPLEXITY_DETECTOR_PROMPT,
     PLANNING_AGENT_DESCRIPTION,
-    PLANNING_AGENT_SYSTEM_MESSAGE,
-    SUMMARY_AGENT_DESCRIPTION,
-    SUMMARY_AGENT_SYSTEM_MESSAGE
+    PLANNING_AGENT_SYSTEM_MESSAGE
 )
 from src.agents import CodeSearcher
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.managers import StateManager
 from src.interfaces import CLIInterface
-from src.utils import get_logger, get_conversation_tracker, HistoryViewer
+from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
 from src.memory import MemoryManager, DocumentIndexer
 from src.observability import init_langfuse_tracing, is_langfuse_enabled
 
@@ -81,8 +79,15 @@ class DaveAgentCLI:
         # Crear cliente HTTP personalizado con configuración SSL
         import httpx
         http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
-        
-        self.model_client = OpenAIChatCompletionClient(
+
+        # Sistema de logging JSON completo (SIEMPRE activo, independiente de Langfuse)
+        # IMPORTANTE: Inicializar JSONLogger ANTES de crear el model_client wrapper
+        from src.utils.json_logger import JSONLogger
+        self.json_logger = JSONLogger()
+        self.logger.info("✅ JSONLogger inicializado - capturando todas las interacciones")
+
+        # Crear cliente del modelo base
+        base_model_client = OpenAIChatCompletionClient(
             model=self.settings.model,
             base_url=self.settings.base_url,
             api_key=self.settings.api_key,
@@ -90,13 +95,21 @@ class DaveAgentCLI:
             http_client=http_client
         )
 
+        # Envolver el model_client con LoggingModelClientWrapper para capturar llamadas LLM
+        self.model_client = LoggingModelClientWrapper(
+            wrapped_client=base_model_client,
+            json_logger=self.json_logger,
+            agent_name="SystemRouter"  # Se actualizará por agente
+        )
+        self.logger.info("✅ Model client wrapped con logging interceptor")
+
         # Sistema de memoria con ChromaDB (inicializar ANTES de crear agentes)
         self.memory_manager = MemoryManager(
             k=5,  # Top 5 resultados más relevantes
             score_threshold=0.3  # Umbral de similitud
         )
 
-        # Sistema de gestión de estado (AutoGen save_state/load_state)        
+        # Sistema de gestión de estado (AutoGen save_state/load_state)
         self.state_manager = StateManager(
             auto_save_enabled=True,
             auto_save_interval=300  # Auto-save cada 5 minutos
@@ -116,11 +129,6 @@ class DaveAgentCLI:
         except Exception as e:
             self.logger.warning(f"⚠️ Error inicializando Langfuse: {e}")
             self.langfuse_enabled = False
-
-        # Sistema de logging JSON completo (SIEMPRE activo, independiente de Langfuse)
-        from src.utils.json_logger import JSONLogger
-        self.json_logger = JSONLogger()
-        self.logger.info("✅ JSONLogger inicializado - capturando todas las interacciones")
 
         # Importar todas las herramientas desde la nueva estructura
         from src.tools import (
@@ -146,8 +154,17 @@ class DaveAgentCLI:
             # Validation
             validate_python_syntax, validate_javascript_syntax,
             validate_typescript_syntax, validate_json_file,
-            validate_file_after_edit, validate_generic_file
+            validate_file_after_edit, validate_generic_file,
+            # Memory (RAG)
+            query_conversation_memory, query_codebase_memory,
+            query_decision_memory, query_preferences_memory,
+            query_user_memory, save_user_info,
+            save_decision, save_preference,
+            set_memory_manager
         )
+
+        # Configure memory manager for memory tools
+        set_memory_manager(self.memory_manager)
 
         # Almacenar todas las herramientas para poder filtrarlas según el modo
         self.all_tools = {
@@ -162,7 +179,11 @@ class DaveAgentCLI:
                 analyze_python_file, find_function_definition, list_all_functions,
                 codebase_search, grep_search, diff_history,
                 validate_python_syntax, validate_javascript_syntax, validate_typescript_syntax,
-                validate_json_file, validate_generic_file
+                validate_json_file, validate_generic_file,
+                # Memory query tools (read-only, available in both modes)
+                query_conversation_memory, query_codebase_memory,
+                query_decision_memory, query_preferences_memory,
+                query_user_memory
             ],
             # Herramientas de MODIFICACIÓN (solo en modo agente)
             "modification": [
@@ -170,13 +191,17 @@ class DaveAgentCLI:
                 git_add, git_commit, git_push, git_pull,
                 write_json, merge_json_files, format_json, json_set_value,
                 write_csv, merge_csv, csv_to_json, sort_csv,
-                run_terminal_cmd, validate_file_after_edit
+                run_terminal_cmd, validate_file_after_edit,
+                # Memory save tools (modification mode only)
+                save_user_info, save_decision, save_preference
             ],
             # Herramientas específicas para CodeSearcher (siempre disponibles)
             "search": [
                 codebase_search, grep_search, file_search,
                 read_file, list_dir,
-                analyze_python_file, find_function_definition, list_all_functions
+                analyze_python_file, find_function_definition, list_all_functions,
+                # Memory query tools for CodeSearcher
+                query_codebase_memory, query_conversation_memory
             ]
         }
 
@@ -189,17 +214,16 @@ class DaveAgentCLI:
 
         self.running = True
 
-    def _initialize_agents_for_mode(self, include_conversation_memory=True):
+    def _initialize_agents_for_mode(self):
         """
         Inicializa todos los agentes del sistema según el modo actual
 
         Modo AGENTE: Coder con todas las herramientas + AGENT_SYSTEM_PROMPT
         Modo CHAT: Coder con solo lectura + CHAT_SYSTEM_PROMPT (más conversacional)
 
-        Args:
-            include_conversation_memory: Si False, no incluye conversation_memory
-                                        (usado al cambiar de modo para evitar
-                                        múltiples system messages)
+        NOTA: Los agentes NO usan el parámetro 'memory' de AutoGen para evitar
+        errores de "multiple system messages" en modelos como DeepSeek.
+        En su lugar, usan herramientas RAG (query_*_memory, save_*).
         """
         if self.current_mode == "agente":
             # Modo AGENTE: todas las herramientas + prompt técnico
@@ -212,59 +236,48 @@ class DaveAgentCLI:
             system_prompt = CHAT_SYSTEM_PROMPT
             self.logger.info("💬 Inicializando en modo CHAT (solo lectura)")
 
-        # Determinar qué memorias incluir
-        if include_conversation_memory:
-            # Modo normal: incluir todas las memorias
-            agent_memory = [
-                self.memory_manager.conversation_memory,
-                self.memory_manager.codebase_memory,
-                self.memory_manager.preferences_memory
-            ]
-        else:
-            # Modo cambio: NO incluir conversation_memory para evitar system message anterior
-            agent_memory = [
-                self.memory_manager.codebase_memory,
-                self.memory_manager.preferences_memory
-            ]
-            self.logger.debug("🧹 Agentes creados SIN conversation_memory para evitar conflicto de system messages")
+        # =====================================================================
+        # IMPORTANTE: NO usar parámetro 'memory' - CAUSA ERROR CON DEEPSEEK
+        # =====================================================================
+        # DeepSeek y otros LLMs no soportan múltiples system messages.
+        # El parámetro 'memory' en AutoGen inyecta system messages adicionales.
+        #
+        # SOLUCIÓN: Usar herramientas RAG en su lugar (query_*_memory, save_*)
+        # Las herramientas RAG están disponibles en coder_tools y no causan
+        # conflictos con system messages.
+        # =====================================================================
 
-        # Crear agente de código con memoria
+        # Crear agente de código con herramientas RAG (sin memory parameter)
         self.coder_agent = AssistantAgent(
             name="Coder",
             description=CODER_AGENT_DESCRIPTION,
             system_message=system_prompt,
             model_client=self.model_client,
-            tools=coder_tools,
+            tools=coder_tools,  # Incluye herramientas RAG de memoria
             max_tool_iterations=5,
-            reflect_on_tool_use=False,
-            memory=agent_memory
+            reflect_on_tool_use=False
+            # NO memory parameter - uses RAG tools instead
         )
 
-        # Crear CodeSearcher con herramientas de búsqueda (siempre disponibles)
+        # Crear CodeSearcher con herramientas de búsqueda (sin memory parameter)
         self.code_searcher = CodeSearcher(
             self.model_client,
-            self.all_tools["search"],
-            memory=[self.memory_manager.codebase_memory]
+            self.all_tools["search"]  # Incluye query_codebase_memory, query_conversation_memory
+            # NO memory parameter - uses RAG tools instead
         )
 
-        # PlanningAgent y SummaryAgent (sin herramientas, no dependen del modo)
+        # PlanningAgent (sin herramientas, sin memory)
         self.planning_agent = AssistantAgent(
             name="Planner",
             description=PLANNING_AGENT_DESCRIPTION,
             system_message=PLANNING_AGENT_SYSTEM_MESSAGE,
             model_client=self.model_client,
-            tools=[],
-            memory=[self.memory_manager.decision_memory]
+            tools=[]  # Planner no tiene herramientas, solo planifica
+            # NO memory parameter
         )
 
-        # SummaryAgent: Crea resúmenes finales de trabajo completado
-        self.summary_agent = AssistantAgent(
-            name="SummaryAgent",
-            description=SUMMARY_AGENT_DESCRIPTION,
-            system_message=SUMMARY_AGENT_SYSTEM_MESSAGE,
-            model_client=self.model_client,
-            tools=[],
-        )
+        # SummaryAgent ELIMINADO - Causaba conflictos y no era necesario
+        # Los agentes Coder y Planner pueden generar sus propios resúmenes
 
         # =====================================================================
         # ROUTER TEAM: SelectorGroupChat único que enruta automáticamente
@@ -273,7 +286,6 @@ class DaveAgentCLI:
         # - Planner: Para tareas complejas multi-paso
         # - CodeSearcher: Para búsqueda y análisis de código
         # - Coder: Para modificaciones directas de código
-        # - SummaryAgent: Para resúmenes finales
         #
         # Ventajas:
         # - No necesita detección manual de complejidad
@@ -288,8 +300,7 @@ class DaveAgentCLI:
             participants=[
                 self.planning_agent,
                 self.code_searcher.searcher_agent,
-                self.coder_agent,
-                self.summary_agent
+                self.coder_agent
             ],
             model_client=self.model_client,
             termination_condition=termination_condition,
@@ -335,10 +346,10 @@ class DaveAgentCLI:
         except Exception as e:
             self.logger.warning(f"⚠️  Error cerrando MemoryManager anterior: {e}")
 
-        # PASO 3: Reinicializar agentes SIN incluir conversation_memory
-        # Los agentes nuevos ahora tendrán memorias completamente limpias
+        # PASO 3: Reinicializar agentes con herramientas RAG (sin parámetro memory)
+        # Los agentes usarán herramientas RAG en lugar del parámetro memory
         self.logger.debug("🔧 Creando nuevos agentes...")
-        self._initialize_agents_for_mode(include_conversation_memory=False)
+        self._initialize_agents_for_mode()
 
         self.logger.info(f"✅ Sistema completamente reinicializado en modo: {self.current_mode.upper()}")
 
@@ -564,11 +575,12 @@ class DaveAgentCLI:
             # Podríamos hacer queries dummy o mantener contadores
             # Por ahora, mostrar información general
 
-            self.cli.print_info("📚 Sistema de memoria activo con 4 colecciones:")
+            self.cli.print_info("📚 Sistema de memoria activo con 5 colecciones:")
             self.cli.print_info("  • Conversations: Historial de conversaciones")
             self.cli.print_info("  • Codebase: Código fuente indexado")
             self.cli.print_info("  • Decisions: Decisiones arquitectónicas")
             self.cli.print_info("  • Preferences: Preferencias del usuario")
+            self.cli.print_info("  • User Info: Información del usuario (nombre, experiencia, proyectos)")
 
             memory_path = self.memory_manager.persistence_path
             self.cli.print_info(f"\n💾 Ubicación: {memory_path}")
@@ -780,12 +792,6 @@ TITLE:"""
                 metadata={"description": "Planning and task management agent"}
             )
 
-            await self.state_manager.save_agent_state(
-                "summary",
-                self.summary_agent,
-                metadata={"description": "Summary generation agent"}
-            )
-
             # Guardar a disco
             await self.state_manager.save_to_disk()
 
@@ -855,12 +861,6 @@ TITLE:"""
                 metadata={"description": "Planning and task management agent"}
             )
 
-            await self.state_manager.save_agent_state(
-                "summary",
-                self.summary_agent,
-                metadata={"description": "Summary generation agent"}
-            )
-
             # Guardar a disco
             state_path = await self.state_manager.save_to_disk(session_id)
 
@@ -874,7 +874,7 @@ TITLE:"""
             self.cli.print_info(f"  • Título: {metadata.get('title', 'Sin título')}")
             self.cli.print_info(f"  • Session ID: {session_id}")
             self.cli.print_info(f"  • Ubicación: {state_path}")
-            self.cli.print_info(f"  • Agentes guardados: 4")
+            self.cli.print_info(f"  • Agentes guardados: 3")
             self.cli.print_info(f"  • Mensajes guardados: {len(messages)}")
 
             self.logger.info(f"✅ Estado guardado en sesión: {session_id}")
@@ -931,9 +931,6 @@ TITLE:"""
                 agents_loaded += 1
 
             if await self.state_manager.load_agent_state("planning", self.planning_agent):
-                agents_loaded += 1
-
-            if await self.state_manager.load_agent_state("summary", self.summary_agent):
                 agents_loaded += 1
 
             self.cli.stop_thinking()
@@ -1225,14 +1222,13 @@ TITLE:"""
         - PlanningAgent: Crea plan, revisa progreso, re-planifica
         - CodeSearcher: Busca y analiza código existente
         - Coder: Ejecuta modificaciones, crea archivos
-        - SummaryAgent: Crea resumen final
 
         FLUJO:
         1. Planner crea plan inicial
         2. Selector LLM elige CodeSearcher o Coder para cada tarea
         3. selector_func fuerza a Planner a revisar después de cada acción
         4. Planner puede re-planificar si es necesario
-        5. Cuando todo está completo, Planner delega a SummaryAgent
+        5. Cuando todo está completo, Planner marca TASK_COMPLETED
         """
         try:
             self.logger.info("🎯 Usando flujo COMPLEJO: SelectorGroupChat + re-planificación")
@@ -1244,7 +1240,6 @@ TITLE:"""
                 Controla el flujo para permitir re-planificación:
                 - Después de Planner → Selector LLM decide (Coder/CodeSearcher)
                 - Después de Coder/CodeSearcher → Volver a Planner (revisar progreso)
-                - Si Planner dice DELEGATE_TO_SUMMARY → Ir a SummaryAgent
                 """
                 if not messages:
                     return None
@@ -1253,10 +1248,7 @@ TITLE:"""
 
                 # Si el PlanningAgent acaba de hablar
                 if last_message.source == "Planner":
-                    # Verificar si delegó a summary
-                    if "DELEGATE_TO_SUMMARY" in last_message.content:
-                        return "SummaryAgent"
-                    # De lo contrario, dejar que el selector LLM elija
+                    # Dejar que el selector LLM elija entre Coder/CodeSearcher
                     return None  # None = usar selector LLM por defecto
 
                 # Si Coder o CodeSearcher actuaron, SIEMPRE volver a Planner
@@ -1264,18 +1256,17 @@ TITLE:"""
                 if last_message.source in ["Coder", "CodeSearcher"]:
                     return "Planner"
 
-                # Para SummaryAgent u otros, usar selector por defecto
+                # Para otros casos, usar selector por defecto
                 return None
 
             # Crear equipo complejo con selector_func
-            termination = TextMentionTermination("TERMINATE") | MaxMessageTermination(50)
+            termination = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(50)
 
             complex_team = SelectorGroupChat(
                 participants=[
                     self.planning_agent,
                     self.code_searcher.searcher_agent,
-                    self.coder_agent,
-                    self.summary_agent
+                    self.coder_agent
                 ],
                 model_client=self.model_client,
                 termination_condition=termination,
@@ -1428,7 +1419,6 @@ TITLE:"""
         - Planner: Tareas complejas multi-paso
         - CodeSearcher: Búsqueda y análisis de código
         - Coder: Modificaciones directas de código
-        - SummaryAgent: Resúmenes finales
         """
         try:
             self.logger.info(f"📝 Nueva solicitud del usuario: {user_input[:100]}...")
@@ -1756,58 +1746,17 @@ TITLE:"""
 
     async def _generate_task_summary(self, original_request: str):
         """
-        Genera un resumen amigable de la tarea completada
+        Muestra un mensaje de tarea completada
+        (Simplificado - ya no usa SummaryAgent)
 
         Args:
             original_request: La solicitud original del usuario
         """
         try:
-            self.logger.info("📋 Generando resumen de tarea completada...")
-
-            # Get recent conversation history from StateManager
-            messages = self.state_manager.get_session_history()
-            
-            # Format last 10 messages for context
-            recent_messages = ""
-            if messages:
-                for msg in messages[-10:]:
-                    role = msg.get("source", "unknown")
-                    content = msg.get("content", "")
-                    recent_messages += f"{role}: {content}\n\n"
-
-            # Create summary request
-            summary_request = f"""Based on the following conversation, create a brief, friendly summary of what was accomplished.
-
-ORIGINAL REQUEST:
-{original_request}
-
-CONVERSATION HISTORY:
-{recent_messages}
-
-Create a concise summary (2-5 sentences) explaining what was done to fulfill the user's request."""
-
-            # Run summary agent
-            result = await self.summary_agent.run(task=summary_request)
-
-            # Extract summary from result
-            summary_text = None
-            for message in reversed(result.messages):
-                if hasattr(message, 'content') and hasattr(message, 'source'):
-                    if message.source != "user":
-                        summary_text = message.content
-                        break
-
-            if summary_text:
-                # Display summary in a special format
-                self.cli.print_task_summary(summary_text)
-                self.logger.info("✅ Resumen generado exitosamente")
-            else:
-                # Fallback message
-                self.cli.print_success("\n✅ Task completed successfully.")
-                self.logger.warning("⚠️ No se pudo generar resumen, usando mensaje por defecto")
-
+            self.logger.info("✅ Tarea completada")
+            self.cli.print_success("\n✅ Task completed successfully.")
         except Exception as e:
-            self.logger.error(f"Error generando resumen: {str(e)}")
+            self.logger.error(f"Error mostrando resumen: {str(e)}")
             # Fail silently with default message
             self.cli.print_success("\n✅ Task completed.")
 
@@ -1875,8 +1824,6 @@ Create a concise summary (2-5 sentences) explaining what was done to fulfill the
                     if await self.state_manager.load_agent_state("code_searcher", self.code_searcher.searcher_agent):
                         agents_loaded += 1
                     if await self.state_manager.load_agent_state("planning", self.planning_agent):
-                        agents_loaded += 1
-                    if await self.state_manager.load_agent_state("summary", self.summary_agent):
                         agents_loaded += 1
 
                     # Get metadata and messages

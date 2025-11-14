@@ -60,6 +60,7 @@ class MemoryManager:
         self._codebase_memory: Optional[ChromaDBVectorMemory] = None
         self._decision_memory: Optional[ChromaDBVectorMemory] = None
         self._preferences_memory: Optional[ChromaDBVectorMemory] = None
+        self._user_memory: Optional[ChromaDBVectorMemory] = None
 
         self.logger.info(f"📚 MemoryManager initialized with persistence path: {self.persistence_path}")
 
@@ -312,6 +313,61 @@ class MemoryManager:
             return []
 
     # =========================================================================
+    # User Memory - Information about the user
+    # =========================================================================
+
+    @property
+    def user_memory(self) -> ChromaDBVectorMemory:
+        """Get or create user memory store"""
+        if self._user_memory is None:
+            self._user_memory = self._create_memory_store("user_info")
+        return self._user_memory
+
+    async def add_user_info(
+        self,
+        info: str,
+        category: str = "general",
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """
+        Add user information to memory
+
+        Args:
+            info: Information about the user
+            category: Category (personal, expertise, project, goal, etc.)
+            metadata: Additional metadata
+        """
+        try:
+            mem_metadata = metadata or {}
+            mem_metadata.update({
+                "type": "user_info",
+                "category": category
+            })
+
+            await self.user_memory.add(
+                MemoryContent(
+                    content=info,
+                    mime_type=MemoryMimeType.TEXT,
+                    metadata=mem_metadata
+                )
+            )
+
+            self.logger.debug(f"👤 User info added: {category}")
+
+        except Exception as e:
+            self.logger.error(f"Failed to add user info: {e}")
+
+    async def query_user_info(self, query: str) -> List[MemoryContent]:
+        """Query user memory for relevant user information"""
+        try:
+            results = await self.user_memory.query(query)
+            self.logger.debug(f"🔍 Found {len(results)} relevant user info")
+            return results
+        except Exception as e:
+            self.logger.error(f"Failed to query user info: {e}")
+            return []
+
+    # =========================================================================
     # Utility Methods
     # =========================================================================
 
@@ -357,6 +413,10 @@ class MemoryManager:
                 await self._preferences_memory.clear()
                 self.logger.info("🗑️ Preferences memory cleared")
 
+            if self._user_memory:
+                await self._user_memory.clear()
+                self.logger.info("🗑️ User memory cleared")
+
         except Exception as e:
             self.logger.error(f"Failed to clear memory: {e}")
 
@@ -374,6 +434,9 @@ class MemoryManager:
 
             if self._preferences_memory:
                 await self._preferences_memory.close()
+
+            if self._user_memory:
+                await self._user_memory.close()
 
             self.logger.info("📚 Memory manager closed")
 

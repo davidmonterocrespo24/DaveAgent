@@ -43,6 +43,15 @@ from src.tools.validation import (
     validate_file_after_edit, validate_generic_file
 )
 
+# Memory tools (RAG-based)
+from src.tools.memory_tools import (
+    query_conversation_memory, query_codebase_memory,
+    query_decision_memory, query_preferences_memory,
+    query_user_memory, save_user_info,
+    save_decision, save_preference,
+    set_memory_manager
+)
+
 __all__ = [
     # Filesystem
     "read_file", "write_file", "list_dir", "edit_file",
@@ -66,5 +75,11 @@ __all__ = [
     # Validation
     "validate_python_syntax", "validate_javascript_syntax",
     "validate_typescript_syntax", "validate_json_file",
-    "validate_file_after_edit", "validate_generic_file"
+    "validate_file_after_edit", "validate_generic_file",
+    # Memory (RAG)
+    "query_conversation_memory", "query_codebase_memory",
+    "query_decision_memory", "query_preferences_memory",
+    "query_user_memory", "save_user_info",
+    "save_decision", "save_preference",
+    "set_memory_manager"
 ]
