@@ -93,37 +93,34 @@ class FileSelector:
         scroll_pos = int((position / max(total - 1, 1)) * (height - 1))
         return '█' if scroll_pos == position % height else '│'
 
-    def _clear_screen(self):
-        """Clear the selector from screen"""
-        for _ in range(self.lines_drawn):
-            sys.stdout.write('\033[A\033[2K')  # Move up and clear line
-        sys.stdout.write('\r')
-        sys.stdout.flush()
-        self.lines_drawn = 0
+    def _move_cursor_up(self, lines: int):
+        """Move cursor up by n lines"""
+        if lines > 0:
+            sys.stdout.write(f'\033[{lines}A')
 
     def _render_file_list(self, files: List[str], query: str):
         """
         Render the file list with scrollbar
-
+        
         Args:
             files: List of file paths to display
             query: Current search query
         """
-        # Clear previous render (except on first render)
+        # Move cursor up to overwrite previous render
         if self.lines_drawn > 0:
-            self._clear_screen()
+            self._move_cursor_up(self.lines_drawn)
 
         lines = []
 
         # Header
         lines.append("\033[1m\033[96m📁 File Selector\033[0m \033[2m(↑↓ navigate | Enter select | Esc cancel)\033[0m")
-        lines.append(f"\033[2mSearch:\033[0m @{query}")
+        lines.append(f"\033[2mSearch:\033[0m @{query}\033[K") # Clear to end of line
         lines.append("\033[2m" + "─" * 70 + "\033[0m")
 
         if not files:
-            lines.append("\033[93m⚠ No files found\033[0m")
+            lines.append("\033[93m⚠ No files found\033[0m\033[K")
             for _ in range(self.max_display_items - 1):
-                lines.append("")
+                lines.append("\033[K") # Empty line with clear
         else:
             # Calculate visible range
             total_files = len(files)
@@ -139,7 +136,7 @@ class FileSelector:
                     # Calculate if scrollbar should show indicator here
                     scrollbar_height = self.max_display_items
                     indicator_pos = int((self.selected_index / max(total_files - 1, 1)) * (scrollbar_height - 1))
-
+                    
                     if i == indicator_pos:
                         scrollbar = "\033[96m█\033[0m"  # Indicator
                     else:
@@ -151,36 +148,47 @@ class FileSelector:
                 if file_idx < total_files:
                     file_path = files[file_idx]
                     is_selected = (file_idx == self.selected_index)
-
+                    
                     if is_selected:
                         # Highlighted selection
                         line = f"{scrollbar} \033[1m\033[92m▶ {file_path}\033[0m"
                     else:
                         # Normal file
                         line = f"{scrollbar}   \033[2m{file_path}\033[0m"
-
-                    lines.append(line)
+                    
+                    lines.append(line + "\033[K") # Clear rest of line
                 else:
                     # Empty line
-                    lines.append(scrollbar)
+                    lines.append(scrollbar + "\033[K")
 
         # Footer with position info
         if files:
             total = len(files)
             current = self.selected_index + 1
             lines.append("\033[2m" + "─" * 70 + "\033[0m")
-            lines.append(f"\033[2mFile {current}/{total} | Showing {start_idx + 1}-{min(end_idx, total)}\033[0m")
+            lines.append(f"\033[2mFile {current}/{total} | Showing {start_idx + 1}-{min(end_idx, total)}\033[0m\033[K")
         else:
             lines.append("\033[2m" + "─" * 70 + "\033[0m")
-            lines.append("\033[2mNo files to display\033[0m")
+            lines.append("\033[2mNo files to display\033[0m\033[K")
+
+        # Clear any remaining lines from previous render if new render is shorter
+        # (Though in this fixed height implementation, it shouldn't vary much)
+        lines.append("\033[J") 
 
         # Write all lines at once to reduce flickering
         output = '\n'.join(lines)
-        sys.stdout.write(output + '\n')
+        sys.stdout.write(output) # No extra newline at end to avoid scrolling issues
         sys.stdout.flush()
 
-        # Track lines for clearing (add 1 for the trailing newline)
-        self.lines_drawn = len(lines) + 1
+        # Track lines for clearing (number of \n in output + 1 for the last line)
+        # We count the actual lines we printed
+        self.lines_drawn = len(lines) - 1 # -1 because the last \033[J is not a new line visually but part of the last line logic
+        # Actually, let's be precise: we printed len(lines) lines separated by \n.
+        # So the cursor is now at the end of the last line.
+        # If we want to move back up to the start, we need to move up len(lines) - 1 times?
+        # No, if we print "A\nB", we are on line B. To go to A, we move up 1.
+        # So we need to move up len(lines) - 1.
+        self.lines_drawn = len(lines) - 1
 
     def select_file(self, initial_query: str = "") -> Optional[str]:
         """
