@@ -58,7 +58,7 @@ class CLIInterface:
 ║   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝                  ║
 ║                                                              ║
 ║              Agente Inteligente de Desarrollo                ║
-║                    Versión 1.0.1                             ║
+║                    Versión 1.2.1                             ║
 ╚══════════════════════════════════════════════════════════════╝
         """.strip('\n').split('\n')
         

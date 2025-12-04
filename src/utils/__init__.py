@@ -8,6 +8,7 @@ from .vibe_spinner import VibeSpinner, show_vibe_spinner
 from .conversation_tracker import ConversationTracker, get_conversation_tracker
 from .history_viewer import HistoryViewer
 from .logging_model_client import LoggingModelClientWrapper
+from .deepseek_reasoning_client import DeepSeekReasoningClient
 
 __all__ = [
     'DaveAgentLogger',
@@ -26,5 +27,6 @@ __all__ = [
     'ConversationTracker',
     'get_conversation_tracker',
     'HistoryViewer',
-    'LoggingModelClientWrapper'
+    'LoggingModelClientWrapper',
+    'DeepSeekReasoningClient'
 ]

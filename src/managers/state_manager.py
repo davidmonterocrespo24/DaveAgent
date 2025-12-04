@@ -35,16 +35,15 @@ class StateManager:
         Initialize State Manager
 
         Args:
-            state_dir: Directory to store state files (defaults to ~/.daveagent/state)
+            state_dir: Directory to store state files (defaults to .daveagent/state in workspace)
             auto_save_enabled: Enable automatic periodic state saving
             auto_save_interval: Auto-save interval in seconds
         """
         self.logger = logging.getLogger(__name__)
 
-        # Set up state directory
+        # Set up state directory (workspace-relative, like logs and conversations)
         if state_dir is None:
-            home = Path.home()
-            state_dir = home / ".daveagent" / "state"
+            state_dir = Path(".daveagent") / "state"
 
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)

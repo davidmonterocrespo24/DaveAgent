@@ -10,7 +10,13 @@
       "Bash(python:*)",
       "Bash(pip show:*)",
       "Bash(pip uninstall:*)",
-      "Bash(del test_surgical_edit.py)"
+      "Bash(del test_surgical_edit.py)",
+      "Bash(daveagent:*)",
+      "Bash(chmod:*)",
+      "Bash(build_and_install.bat)",
+      "Bash(bash:*)",
+      "Bash(del srcutilsdeepseek_reasoner_client.py)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

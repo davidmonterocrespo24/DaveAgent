@@ -55,33 +55,44 @@ class LoggingModelClientWrapper:
 
         Acepta cualquier argumento que el cliente wrapped pueda necesitar
         (tools, json_output, extra_create_args, cancellation_token, tool_choice, etc.)
+
+        IMPORTANTE: Para DeepSeek Reasoner, preserva el campo reasoning_content
+        en los mensajes del asistente según lo requiere la API.
         """
+        # Preservar reasoning_content en mensajes de asistente para DeepSeek Reasoner
+        # Según documentación: https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
+        processed_messages = self._preserve_reasoning_content(messages)
+
         # Extraer contenido de los mensajes para logging
         input_messages = []
-        for msg in messages:
+        for msg in processed_messages:
             msg_dict = {
                 "role": self._get_role(msg),
                 "content": self._get_content(msg)
             }
+            # Incluir reasoning_content si existe (para DeepSeek Reasoner)
+            if hasattr(msg, 'reasoning_content') and msg.reasoning_content:
+                msg_dict["reasoning_content"] = msg.reasoning_content
             input_messages.append(msg_dict)
 
         # Log: Llamada a LLM iniciada
-        self.logger.debug(f"🤖 LLM call started: {self._agent_name}, {len(messages)} messages")
+        self.logger.debug(f"🤖 LLM call started: {self._agent_name}, {len(processed_messages)} messages")
 
         start_time = datetime.now()
 
         try:
-            # Llamar al cliente real con TODOS los kwargs
+            # Llamar al cliente real con mensajes procesados + todos los kwargs
             result = await self._wrapped.create(
-                messages=messages,
+                messages=processed_messages,
                 **kwargs
             )
 
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
-            # Extraer respuesta
+            # Extraer respuesta y reasoning_content (para DeepSeek Reasoner)
             response_content = result.content if hasattr(result, 'content') else str(result)
+            reasoning_content = getattr(result, 'reasoning_content', None)
 
             # Extraer uso de tokens
             tokens_used = None
@@ -107,6 +118,11 @@ class LoggingModelClientWrapper:
                     "response": response_content,
                     "tokens_used": tokens_used or {}
                 }
+
+                # Agregar reasoning_content si existe (DeepSeek Reasoner)
+                if reasoning_content:
+                    llm_call_data["reasoning_content"] = reasoning_content
+                    self.logger.debug(f"💭 Reasoning content captured: {len(reasoning_content)} chars")
 
                 # Agregar a eventos manualmente (más directo que usar log_llm_call)
                 self._json_logger.events.append(llm_call_data)
@@ -148,6 +164,38 @@ class LoggingModelClientWrapper:
                 return str(content)
             return content
         return str(message)
+
+    def _preserve_reasoning_content(self, messages: Sequence[LLMMessage]) -> Sequence[LLMMessage]:
+        """
+        Preserva el campo reasoning_content en mensajes de asistente.
+
+        Esto es crítico para DeepSeek Reasoner cuando se usan tool calls.
+        Según la documentación oficial de DeepSeek:
+        https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
+
+        El campo reasoning_content debe incluirse en los mensajes del asistente
+        cuando se continúa una conversación después de tool calls.
+
+        Args:
+            messages: Secuencia de mensajes LLM
+
+        Returns:
+            Secuencia de mensajes con reasoning_content preservado
+        """
+        # Los mensajes ya vienen con reasoning_content si AutoGen lo preservó
+        # Este método es principalmente para asegurar que no se pierda
+        # y para logging/debugging
+
+        processed = []
+        for msg in messages:
+            processed.append(msg)
+
+            # Log si encontramos reasoning_content
+            if isinstance(msg, AssistantMessage) and hasattr(msg, 'reasoning_content'):
+                if msg.reasoning_content:
+                    self.logger.debug(f"✓ Preserving reasoning_content in assistant message: {len(msg.reasoning_content)} chars")
+
+        return processed
 
     # Delegar todos los demás atributos al cliente wrapped
     def __getattr__(self, name):

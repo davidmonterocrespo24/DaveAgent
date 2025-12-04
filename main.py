@@ -72,10 +72,14 @@ class DaveAgentCLI:
 
         self.logger.info(f"✓ Configuración cargada: {self.settings}")
 
+        # DEEPSEEK REASONER SUPPORT
+        # Usar DeepSeekReasoningClient para modelos con thinking mode
+        from src.utils.deepseek_fix import should_use_reasoning_client, DEEPSEEK_REASONER_INFO
+
         # Crear cliente del modelo
         self.logger.debug(f"Configurando cliente del modelo: {self.settings.model}")
         self.logger.debug(f"SSL verify: {self.settings.ssl_verify}")
-        
+
         # Crear cliente HTTP personalizado con configuración SSL
         import httpx
         http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
@@ -86,14 +90,32 @@ class DaveAgentCLI:
         self.json_logger = JSONLogger()
         self.logger.info("✅ JSONLogger inicializado - capturando todas las interacciones")
 
-        # Crear cliente del modelo base
-        base_model_client = OpenAIChatCompletionClient(
-            model=self.settings.model,
-            base_url=self.settings.base_url,
-            api_key=self.settings.api_key,
-            model_capabilities=self.settings.get_model_capabilities(),
-            http_client=http_client
-        )
+        # Crear cliente del modelo base (con soporte para DeepSeek Reasoner)
+        if should_use_reasoning_client(self.settings):
+            # Usar DeepSeekReasoningClient para preservar reasoning_content
+            from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
+
+            base_model_client = DeepSeekReasoningClient(
+                model=self.settings.model,
+                base_url=self.settings.base_url,
+                api_key=self.settings.api_key,
+                model_capabilities=self.settings.get_model_capabilities(),
+                http_client=http_client,
+                enable_thinking=None  # Auto-detect based on model name
+            )
+
+            print(DEEPSEEK_REASONER_INFO)
+            self.logger.info(f"🧠 DeepSeek Reasoner habilitado para {self.settings.model}")
+        else:
+            # Usar cliente estándar para otros modelos
+            base_model_client = OpenAIChatCompletionClient(
+                model=self.settings.model,
+                base_url=self.settings.base_url,
+                api_key=self.settings.api_key,
+                model_capabilities=self.settings.get_model_capabilities(),
+                http_client=http_client
+            )
+            self.logger.info(f"🤖 Cliente estándar para {self.settings.model}")
 
         # Envolver el model_client con LoggingModelClientWrapper para capturar llamadas LLM
         self.model_client = LoggingModelClientWrapper(

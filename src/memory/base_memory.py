@@ -36,17 +36,16 @@ class MemoryManager:
         Initialize the memory manager
 
         Args:
-            persistence_path: Path to store ChromaDB data (defaults to .daveagent/memory)
+            persistence_path: Path to store ChromaDB data (defaults to .daveagent/memory in workspace)
             embedding_model: Sentence transformer model for embeddings
             k: Number of results to retrieve per query
             score_threshold: Minimum similarity score for retrieval
         """
         self.logger = logging.getLogger(__name__)
 
-        # Set up persistence path
+        # Set up persistence path (workspace-relative, like logs and state)
         if persistence_path is None:
-            home = Path.home()
-            persistence_path = str(home / ".daveagent" / "memory")
+            persistence_path = str(Path(".daveagent") / "memory")
 
         self.persistence_path = Path(persistence_path)
         self.persistence_path.mkdir(parents=True, exist_ok=True)
