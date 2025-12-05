@@ -114,8 +114,13 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
         if self.enable_thinking:
             # Inyectar thinking parameter según documentación DeepSeek
-            if "thinking" not in modified_extra_args:
-                modified_extra_args["thinking"] = {"type": "enabled"}
+            # Usamos extra_body para pasar parámetros no estándar y evitar errores de validación
+            if "extra_body" not in modified_extra_args:
+                modified_extra_args["extra_body"] = {}
+            
+            # Asegurar que thinking está en extra_body
+            if "thinking" not in modified_extra_args["extra_body"]:
+                modified_extra_args["extra_body"]["thinking"] = {"type": "enabled"}
                 self.logger.debug("💭 Thinking mode injected via extra_body")
 
         # PASO 2: INTENTAR inyectar reasoning_content en mensajes
@@ -178,9 +183,12 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         modified_extra_args = dict(extra_create_args)
 
         if self.enable_thinking:
-            if "thinking" not in modified_extra_args:
-                modified_extra_args["thinking"] = {"type": "enabled"}
-                self.logger.debug("💭 Thinking mode injected in streaming")
+            if "extra_body" not in modified_extra_args:
+                modified_extra_args["extra_body"] = {}
+                
+            if "thinking" not in modified_extra_args["extra_body"]:
+                modified_extra_args["extra_body"]["thinking"] = {"type": "enabled"}
+                self.logger.debug("💭 Thinking mode injected in streaming via extra_body")
 
         # Llamar al stream base
         async for chunk in super().create_stream(
