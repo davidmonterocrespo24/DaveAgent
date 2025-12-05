@@ -27,6 +27,16 @@ class SWESolver:
         try:
             os.chdir(repo_path)
             
+            # FORCE CLEAN MEMORY
+            daveagent_dir = Path(".daveagent")
+            if daveagent_dir.exists():
+                import shutil
+                print(f"Cleaning previous memory at {daveagent_dir}...")
+                try:
+                    shutil.rmtree(daveagent_dir)
+                except Exception as e:
+                    print(f"Warning: Failed to clean .daveagent: {e}")
+
             # Reset agent state (memory, tools) for the new context
             # This effectively clears memory and re-indexes if we call index later
             await self.app._update_agent_tools_for_mode()
@@ -36,6 +46,12 @@ class SWESolver:
             await self.app._index_project()
             
             print(f"Solving problem: {problem_statement[:100]}...")
+            print("\n" + "="*50)
+            print("📝 PROBLEM STATEMENT")
+            print("="*50)
+            print(problem_statement)
+            print("="*50 + "\n")
+            
             task = TextMessage(content=problem_statement, source="user")
             
             # Run the agent
