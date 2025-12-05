@@ -454,6 +454,33 @@ mypy src/
 - [Inicio Rápido PyPI](INICIO_RAPIDO_PYPI.md) - Publicar en 10 minutos
 - [Integración de Agentes](docs/TEAM_INTEGRATION.md) - Arquitectura del equipo de agentes
 
+
+## 🧪 Evaluación con SWE-bench (Linux)
+
+Para evaluar el rendimiento del agente usando el estándar **SWE-bench Verified**, hemos incluido un script automatizado que funciona en entornos Linux (o WSL2).
+
+### Requisitos Previos
+- Entorno Linux o WSL2
+- Docker instalado y corriendo (necesario para el harness de evaluación)
+- Python 3.10+
+
+### Ejecución
+
+El script `setup_and_run_linux.sh` automatiza todo el proceso:
+1. Compila e instala el agente
+2. Ejecuta inferencia sobre 10 tareas de prueba
+3. Corre la evaluación oficial usando Docker
+
+```bash
+# 1. Dar permisos de ejecución
+chmod +x setup_and_run_linux.sh
+
+# 2. Ejecutar el script
+./setup_and_run_linux.sh
+```
+
+**Nota:** La evaluación completa puede tomar tiempo dependiendo de la velocidad de tu conexión y CPU.
+
 ## 🐛 Problemas Conocidos
 
 Ver [CAMBIOS_REALIZADOS.md](CAMBIOS_REALIZADOS.md) para problemas resueltos.

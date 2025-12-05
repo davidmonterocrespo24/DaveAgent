@@ -47,6 +47,17 @@ class SWESolver:
                 # Capture result
                 result = await self.app.main_team.run(task=task)
                 print(f"Agent finished. Result messages: {len(result.messages)}")
+                
+                # CHECK FOR CHANGES
+                import subprocess
+                diff_check = subprocess.run(["git", "diff"], capture_output=True, text=True).stdout
+                
+                if not diff_check.strip():
+                    print("⚠️ No changes detected. Prompting agent to apply fix...")
+                    retry_msg = TextMessage(content="I don't see any changes in the file system. You MUST use 'edit_file' or 'write_file' to apply your fix to the actual files. Please apply the fix now.", source="user")
+                    result = await self.app.main_team.run(task=retry_msg)
+                    print(f"Retry finished. Result messages: {len(result.messages)}")
+                
                 # Show last message if available
                 if result.messages:
                     last_msg = result.messages[-1]
