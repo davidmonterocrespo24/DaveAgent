@@ -137,7 +137,8 @@ class MemoryManager:
         """Query conversation memory for relevant past conversations"""
         try:
             results = await self.conversation_memory.query(query)
-            self.logger.debug(f"🔍 Found {len(results)} relevant conversations")
+            count = len(results.results) if hasattr(results, 'results') else len(results)
+            self.logger.debug(f"🔍 Found {count} relevant conversations")
             return results
         except Exception as e:
             self.logger.error(f"Failed to query conversations: {e}")
@@ -193,7 +194,8 @@ class MemoryManager:
         """Query codebase memory for relevant code"""
         try:
             results = await self.codebase_memory.query(query)
-            self.logger.debug(f"🔍 Found {len(results)} relevant code chunks")
+            count = len(results.results) if hasattr(results, 'results') else len(results)
+            self.logger.debug(f"🔍 Found {count} relevant code chunks")
             return results
         except Exception as e:
             self.logger.error(f"Failed to query codebase: {e}")
@@ -250,7 +252,8 @@ class MemoryManager:
         """Query decision memory for relevant past decisions"""
         try:
             results = await self.decision_memory.query(query)
-            self.logger.debug(f"🔍 Found {len(results)} relevant decisions")
+            count = len(results.results) if hasattr(results, 'results') else len(results)
+            self.logger.debug(f"🔍 Found {count} relevant decisions")
             return results
         except Exception as e:
             self.logger.error(f"Failed to query decisions: {e}")
@@ -305,7 +308,8 @@ class MemoryManager:
         """Query preferences memory for relevant preferences"""
         try:
             results = await self.preferences_memory.query(query)
-            self.logger.debug(f"🔍 Found {len(results)} relevant preferences")
+            count = len(results.results) if hasattr(results, 'results') else len(results)
+            self.logger.debug(f"🔍 Found {count} relevant preferences")
             return results
         except Exception as e:
             self.logger.error(f"Failed to query preferences: {e}")
@@ -360,7 +364,8 @@ class MemoryManager:
         """Query user memory for relevant user information"""
         try:
             results = await self.user_memory.query(query)
-            self.logger.debug(f"🔍 Found {len(results)} relevant user info")
+            count = len(results.results) if hasattr(results, 'results') else len(results)
+            self.logger.debug(f"🔍 Found {count} relevant user info")
             return results
         except Exception as e:
             self.logger.error(f"Failed to query user info: {e}")
