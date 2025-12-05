@@ -177,7 +177,7 @@ echo.
 echo Para usar:
 echo   1. Comando directo: daveagent
 echo   2. Como módulo: python -m src.cli
-echo   3. Desde Python: python main.py
+echo   3. Desde Python: python src/main.py
 echo.
 echo Para desinstalar:
 echo   pip uninstall daveagent-cli

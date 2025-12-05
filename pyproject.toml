@@ -53,10 +53,13 @@ Repository = "https://github.com/yourusername/daveagent"
 daveagent = "src.cli:main"
 
 [tool.setuptools]
-packages = ["src", "src.agents", "src.config", "src.interfaces", "src.managers", "src.tools", "src.tools.filesystem", "src.tools.git", "src.tools.data", "src.tools.web", "src.tools.analysis", "src.utils"]
+# Auto-discover all packages in src/
+# This includes main.py and all subpackages
+packages.find.where = ["."]
+packages.find.include = ["src*"]
 
 [tool.setuptools.package-data]
-src = ["*.md", "*.txt"]
+src = ["*.md", "*.txt", "*.py"]
 
 [tool.black]
 line-length = 100

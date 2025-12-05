@@ -85,8 +85,8 @@ def main():
     if str(package_root) not in sys.path:
         sys.path.insert(0, str(package_root))
 
-    # Importar main desde el directorio raíz
-    from main import main as run_daveagent
+    # Importar main desde src
+    from src.main import main as run_daveagent
 
     # Mostrar información del directorio de trabajo
     working_dir = Path.cwd()
