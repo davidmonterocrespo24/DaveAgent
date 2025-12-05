@@ -263,7 +263,15 @@ class DocumentIndexer:
 
                 # Add function/class info to first chunk
                 if chunk_data["chunk_index"] == 0:
-                    chunk_metadata.update(metadata_extra)
+                    # ChromaDB doesn't support lists in metadata, so we join them
+                    flat_metadata = {}
+                    for key, value in metadata_extra.items():
+                        if isinstance(value, list):
+                            flat_metadata[key] = ", ".join(str(v) for v in value)
+                        else:
+                            flat_metadata[key] = value
+                    
+                    chunk_metadata.update(flat_metadata)
 
                 await self.memory.add(
                     MemoryContent(
