@@ -16,7 +16,8 @@
       "Bash(build_and_install.bat)",
       "Bash(bash:*)",
       "Bash(del srcutilsdeepseek_reasoner_client.py)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(cmd /c:*)"
     ],
     "deny": [],
     "ask": []

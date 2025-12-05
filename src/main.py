@@ -125,6 +125,24 @@ class DaveAgentCLI:
         )
         self.logger.info("✅ Model client wrapped con logging interceptor")
 
+        # ROUTER CLIENT: Crear cliente separado SIN thinking para el SelectorGroupChat
+        # El router no soporta extra_body parameters como {"thinking": ...}
+        if self.settings.model == "deepseek-reasoner":
+            # Para deepseek-reasoner, usar deepseek-chat en el router
+            router_model = "deepseek-chat"
+            self.logger.info(f"🔀 Router usará {router_model} (sin thinking mode)")
+        else:
+            router_model = self.settings.model
+
+        self.router_client = OpenAIChatCompletionClient(
+            model=router_model,
+            base_url=self.settings.base_url,
+            api_key=self.settings.api_key,
+            model_capabilities=self.settings.get_model_capabilities(),
+            http_client=http_client
+        )
+        self.logger.info(f"✅ Router client creado con modelo: {router_model}")
+
         # Sistema de memoria con ChromaDB (inicializar ANTES de crear agentes)
         self.memory_manager = MemoryManager(
             k=5,  # Top 5 resultados más relevantes
@@ -324,7 +342,7 @@ class DaveAgentCLI:
                 self.code_searcher.searcher_agent,
                 self.coder_agent
             ],
-            model_client=self.model_client,
+            model_client=self.router_client,
             termination_condition=termination_condition,
             allow_repeated_speaker=True  # Permite que el mismo agente hable varias veces
         )
@@ -474,10 +492,12 @@ class DaveAgentCLI:
             self.cli.print_info(f"  • API Key: {masked_key}")
             self.cli.print_info(f"  • Base URL: {self.settings.base_url}")
             self.cli.print_info(f"  • Modelo: {self.settings.model}")
+            self.cli.print_info(f"  • SSL Verify: {self.settings.ssl_verify}")
             self.cli.print_info(f"  • Modo: {self.current_mode.upper()}")
             self.cli.print_info("\n💡 Comandos disponibles:")
             self.cli.print_info("  • /set-model <modelo> - Cambiar el modelo")
             self.cli.print_info("  • /set-url <url> - Cambiar la URL base")
+            self.cli.print_info("  • /set-ssl <true|false> - Cambiar verificación SSL")
             self.cli.print_info("\n📄 Archivo de configuración: .daveagent/.env")
 
         elif cmd == "/set-model":
@@ -510,6 +530,44 @@ class DaveAgentCLI:
                 self.model_client._base_url = new_url  # Actualizar cliente
                 self.cli.print_success(f"✓ URL cambiada: {old_url} → {new_url}")
                 self.logger.info(f"URL base cambiada de {old_url} a {new_url}")
+
+        elif cmd == "/set-ssl":
+            # Cambiar verificación SSL
+            if len(parts) < 2:
+                self.cli.print_error("Uso: /set-ssl <true|false>")
+                self.cli.print_info("\nEjemplos:")
+                self.cli.print_info("  /set-ssl true   # Verificar certificados SSL (por defecto)")
+                self.cli.print_info("  /set-ssl false  # Deshabilitar verificación SSL")
+                self.cli.print_warning("\n⚠️  Advertencia: Deshabilitar SSL reduce la seguridad")
+            else:
+                ssl_value = parts[1].lower()
+                if ssl_value in ("true", "1", "yes", "on"):
+                    new_ssl = True
+                elif ssl_value in ("false", "0", "no", "off"):
+                    new_ssl = False
+                else:
+                    self.cli.print_error(f"Valor inválido: {ssl_value}")
+                    self.cli.print_info("Usa: true o false")
+                    return True
+
+                old_ssl = self.settings.ssl_verify
+                self.settings.ssl_verify = new_ssl
+
+                # Recrear el cliente HTTP con nueva configuración SSL
+                import httpx
+                http_client = httpx.AsyncClient(verify=new_ssl)
+
+                # Actualizar el cliente del modelo
+                if hasattr(self.model_client, '_wrapped_client'):
+                    # Es LoggingModelClientWrapper, actualizar el wrapped client
+                    self.model_client._wrapped_client._http_client = http_client
+                else:
+                    self.model_client._http_client = http_client
+
+                self.cli.print_success(f"✓ SSL Verify cambiado: {old_ssl} → {new_ssl}")
+                if not new_ssl:
+                    self.cli.print_warning("⚠️  Verificación SSL deshabilitada - Las conexiones no son seguras")
+                self.logger.info(f"SSL verify cambiado de {old_ssl} a {new_ssl}")
 
         elif cmd == "/search":
             # Invocar CodeSearcher para buscar en el código
@@ -1290,7 +1348,7 @@ TITLE:"""
                     self.code_searcher.searcher_agent,
                     self.coder_agent
                 ],
-                model_client=self.model_client,
+                model_client=self.router_client,
                 termination_condition=termination,
                 selector_func=custom_selector_func  # ← Clave para re-planificación
             )
