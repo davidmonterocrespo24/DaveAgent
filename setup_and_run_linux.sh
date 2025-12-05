@@ -54,9 +54,9 @@ else
 fi
 
 # 4. Run Inference
-echo -e "${GREEN}[4/5] Running Inference (Limit 10)...${NC}"
+echo -e "${GREEN}[4/5] Running Inference (Limit 5 - Quick Test)...${NC}"
 # Use the correct path for the script
-python3 eval/run_inference.py --limit 10 --output eval/predictions.jsonl --repo_dir_base eval/repos
+python3 eval/run_inference.py --limit 5 --output eval/predictions.jsonl --repo_dir_base eval/repos
 
 # 5. Run Evaluation Harness
 echo -e "${GREEN}[5/5] Running Evaluation Harness...${NC}"

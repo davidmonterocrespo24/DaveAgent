@@ -334,7 +334,7 @@ class DaveAgentCLI:
         # - Elimina problema de "multiple system messages"
         # =====================================================================
 
-        termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(30)
+        termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(10)
 
         self.main_team = SelectorGroupChat(
             participants=[
@@ -1348,7 +1348,7 @@ TITLE:"""
                 return None
 
             # Crear equipo complejo con selector_func
-            termination = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(50)
+            termination = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(15)
 
             complex_team = SelectorGroupChat(
                 participants=[

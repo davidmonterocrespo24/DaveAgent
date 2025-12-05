@@ -26,7 +26,7 @@ class SWESolver:
         current_dir = os.getcwd()
         try:
             os.chdir(repo_path)
-            
+
             # FORCE CLEAN MEMORY
             daveagent_dir = Path(".daveagent")
             if daveagent_dir.exists():
@@ -38,67 +38,77 @@ class SWESolver:
                     print(f"Warning: Failed to clean .daveagent: {e}")
 
             # Reset agent state (memory, tools) for the new context
-            # This effectively clears memory and re-indexes if we call index later
             await self.app._update_agent_tools_for_mode()
-            
-            # Index the repo
-            print(f"Indexing repository at {repo_path}...")
-            await self.app._index_project()
-            
+
+            # SKIP INDEXING - Too slow and not necessary for evaluation
+            print(f"⚡ Skipping repository indexing for faster evaluation...")
+
+            # Create focused task with explicit instructions
+            focused_task = f"""You are a code repair agent. Your ONLY job is to fix the bug described below.
+
+CRITICAL INSTRUCTIONS:
+1. Read the relevant files mentioned in the problem
+2. Identify the exact bug location
+3. Generate the minimal fix using edit_file or write_file
+4. Do NOT write summaries, documentation, or explanations
+5. Do NOT create test files unless explicitly required
+6. FOCUS on generating the patch that fixes the issue
+
+PROBLEM TO SOLVE:
+{problem_statement}
+
+Now analyze the problem, locate the bug, and IMMEDIATELY apply the fix to the files."""
+
             print(f"Solving problem: {problem_statement[:100]}...")
             print("\n" + "="*50)
             print("📝 PROBLEM STATEMENT")
             print("="*50)
             print(problem_statement)
             print("="*50 + "\n")
-            
-            task = TextMessage(content=problem_statement, source="user")
-            
-            # Run the agent
-            # We need to collect the stream or just let it finish
-            # The agent loop usually terminates with 'TASK_COMPLETED' or max messages
-            # We wrap in a timeout just in case
-            # Run the agent using .run() which might be more stable than run_stream with current autogen version
+
+            task = TextMessage(content=focused_task, source="user")
+
+            # Run the agent with TIMEOUT
             try:
-                # Capture result
-                result = await self.app.main_team.run(task=task)
-                
-                # PRINT INTERACTION HISTORY
+                # Set timeout to 10 minutes (600 seconds)
+                print("⏱️  Starting agent with 10-minute timeout...")
+                result = await asyncio.wait_for(
+                    self.app.main_team.run(task=task),
+                    timeout=600.0
+                )
+
+                # PRINT INTERACTION HISTORY (condensed)
                 print("\n" + "="*50)
                 print("🤖 AGENT INTERACTION LOG")
                 print("="*50)
-                for msg in result.messages:
+                for i, msg in enumerate(result.messages):
                     source = getattr(msg, 'source', 'Unknown')
                     content = getattr(msg, 'content', '')
-                    # Try to get models usage if available (for cost tracking)
-                    models_usage = getattr(msg, 'models_usage', None)
-                    
-                    print(f"\n[{source}]")
-                    print("-" * 20)
+                    # Truncate long messages
+                    if len(content) > 300:
+                        content = content[:300] + "... [truncated]"
+
+                    print(f"\n[{i+1}. {source}]")
                     print(f"{content}")
-                    if models_usage:
-                        print(f"[Usage: {models_usage}]")
                 print("="*50 + "\n")
 
-                print(f"Agent finished. Result messages: {len(result.messages)}")
-                
+                print(f"✅ Agent finished. Total messages: {len(result.messages)}")
+
                 # CHECK FOR CHANGES
                 import subprocess
                 diff_check = subprocess.run(["git", "diff"], capture_output=True, text=True).stdout
-                
+
                 if not diff_check.strip():
-                    print("⚠️ No changes detected. Prompting agent to apply fix...")
-                    retry_msg = TextMessage(content="I don't see any changes in the file system. You MUST use 'edit_file' or 'write_file' to apply your fix to the actual files. Please apply the fix now.", source="user")
-                    result = await self.app.main_team.run(task=retry_msg)
-                    print(f"Retry finished. Result messages: {len(result.messages)}")
-                
-                # Show last message if available
-                if result.messages:
-                    last_msg = result.messages[-1]
-                    content = getattr(last_msg, 'content', 'No content')
-                    print(f"Final response: {str(content)[:200]}...")
+                    print("⚠️ No changes detected. Skipping retry to save time.")
+                else:
+                    print(f"✅ Patch generated ({len(diff_check)} characters)")
+
+            except asyncio.TimeoutError:
+                print("⏱️ TIMEOUT: Task exceeded 10 minutes. Moving to next task.")
             except Exception as e:
-                print(f"Error during agent execution: {e}")
+                print(f"❌ Error during agent execution: {e}")
+                import traceback
+                traceback.print_exc()
 
             print("Task execution finished.")
             
