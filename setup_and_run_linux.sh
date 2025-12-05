@@ -14,8 +14,10 @@ echo -e "${CYAN}=============================================${NC}"
 # 1. Build and Install Agent
 echo -e "${GREEN}[1/5] Building and Installing Agent...${NC}"
 
-# Clean previous builds
+# Clean previous builds and memory
 rm -rf build dist *.egg-info
+rm -rf .daveagent/memory  # Clean corrupted memory
+
 
 # Install build tool if missing
 if ! python3 -m pip show build &> /dev/null; then
