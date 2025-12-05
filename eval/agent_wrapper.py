@@ -46,6 +46,24 @@ class SWESolver:
             try:
                 # Capture result
                 result = await self.app.main_team.run(task=task)
+                
+                # PRINT INTERACTION HISTORY
+                print("\n" + "="*50)
+                print("🤖 AGENT INTERACTION LOG")
+                print("="*50)
+                for msg in result.messages:
+                    source = getattr(msg, 'source', 'Unknown')
+                    content = getattr(msg, 'content', '')
+                    # Try to get models usage if available (for cost tracking)
+                    models_usage = getattr(msg, 'models_usage', None)
+                    
+                    print(f"\n[{source}]")
+                    print("-" * 20)
+                    print(f"{content}")
+                    if models_usage:
+                        print(f"[Usage: {models_usage}]")
+                print("="*50 + "\n")
+
                 print(f"Agent finished. Result messages: {len(result.messages)}")
                 
                 # CHECK FOR CHANGES

@@ -42,6 +42,10 @@ async def query_conversation_memory(
     try:
         results = await _memory_manager.query_conversations(query)
 
+        # Handle MemoryQueryResult if returned instead of list
+        if hasattr(results, 'results'):
+            results = results.results
+
         if not results:
             return f"No relevant conversations found for: {query}"
 
@@ -88,6 +92,10 @@ async def query_codebase_memory(
     try:
         results = await _memory_manager.query_codebase(query)
 
+        # Handle MemoryQueryResult if returned instead of list
+        if hasattr(results, 'results'):
+            results = results.results
+
         if not results:
             return f"No relevant code found for: {query}"
 
@@ -133,6 +141,10 @@ async def query_decision_memory(
     try:
         results = await _memory_manager.query_decisions(query)
 
+        # Handle MemoryQueryResult if returned instead of list
+        if hasattr(results, 'results'):
+            results = results.results
+
         if not results:
             return f"No relevant decisions found for: {query}"
 
@@ -174,6 +186,10 @@ async def query_preferences_memory(
 
     try:
         results = await _memory_manager.query_preferences(query)
+
+        # Handle MemoryQueryResult if returned instead of list
+        if hasattr(results, 'results'):
+            results = results.results
 
         if not results:
             return f"No relevant preferences found for: {query}"
@@ -217,6 +233,10 @@ async def query_user_memory(
 
     try:
         results = await _memory_manager.query_user_info(query)
+
+        # Handle MemoryQueryResult if returned instead of list
+        if hasattr(results, 'results'):
+            results = results.results
 
         if not results:
             return f"No relevant user information found for: {query}"
