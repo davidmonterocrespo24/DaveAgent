@@ -51,8 +51,8 @@ def get_diff(work_dir):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=1, help="Number of tasks to run")
-    parser.add_argument("--output", default="predictions.jsonl", help="Output file")
-    parser.add_argument("--repo_dir_base", default="repos", help="Where to clone repos")
+    parser.add_argument("--output", default="eval/predictions.jsonl", help="Output file")
+    parser.add_argument("--repo_dir_base", default="eval/repos", help="Where to clone repos")
     parser.add_argument("--instance_id", help="Run a specific instance ID")
     args = parser.parse_args()
 
