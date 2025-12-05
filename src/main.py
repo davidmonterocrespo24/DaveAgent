@@ -372,6 +372,14 @@ class DaveAgentCLI:
         # historial interno en las colecciones de ChromaDB
         self.logger.debug("🧹 Reinicializando MemoryManager completo...")
         old_memory = self.memory_manager
+        
+        # Cerrar el anterior (async) ANTES de crear el nuevo para liberar locks
+        if old_memory:
+            try:
+                await old_memory.close()
+                self.logger.debug("✅ MemoryManager anterior cerrado")
+            except Exception as e:
+                self.logger.warning(f"⚠️  Error cerrando MemoryManager anterior: {e}")
 
         # Crear NUEVO MemoryManager con colecciones completamente limpias
         self.memory_manager = MemoryManager(
@@ -379,12 +387,12 @@ class DaveAgentCLI:
             score_threshold=0.3
         )
 
-        # Cerrar el anterior (async)
-        try:
-            await old_memory.close()
-            self.logger.debug("✅ MemoryManager anterior cerrado")
-        except Exception as e:
-            self.logger.warning(f"⚠️  Error cerrando MemoryManager anterior: {e}")
+        # Cerrar el anterior (async) - YA CERRADO ARRIBA
+        # try:
+        #     await old_memory.close()
+        #     self.logger.debug("✅ MemoryManager anterior cerrado")
+        # except Exception as e:
+        #     self.logger.warning(f"⚠️  Error cerrando MemoryManager anterior: {e}")
 
         # PASO 3: Reinicializar agentes con herramientas RAG (sin parámetro memory)
         # Los agentes usarán herramientas RAG en lugar del parámetro memory
