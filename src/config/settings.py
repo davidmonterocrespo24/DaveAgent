@@ -103,13 +103,13 @@ class DaveAgentSettings:
 
                 try:
                     print()
-                    print("⚠️  No se encontró una API key configurada.")
+                    print("[WARNING] No se encontro una API key configurada.")
                     print()
-                    response = input("¿Quieres configurar DaveAgent ahora? (S/n): ").strip().lower()
+                    response = input("Quieres configurar DaveAgent ahora? (S/n): ").strip().lower()
 
                     if response == 'n' or response == 'no':
                         return False, (
-                            "❌ API key no configurada.\n\n"
+                            "[ERROR] API key no configurada.\n\n"
                             "Opciones para configurarla:\n"
                             "  1. Variable de entorno: export DAVEAGENT_API_KEY='tu-api-key'\n"
                             "  2. Archivo .daveagent/.env: DAVEAGENT_API_KEY=tu-api-key\n"
@@ -131,26 +131,26 @@ class DaveAgentSettings:
                     return self.validate(interactive=False)
 
                 except KeyboardInterrupt:
-                    print("\n\n❌ Configuración cancelada por el usuario.")
-                    return False, "Configuración cancelada"
+                    print("\n\n[ERROR] Configuracion cancelada por el usuario.")
+                    return False, "Configuracion cancelada"
                 except Exception as e:
-                    print(f"\n❌ Error durante la configuración: {e}")
+                    print(f"\n[ERROR] Error durante la configuracion: {e}")
                     return False, f"Error en configuración: {e}"
             else:
                 return False, (
-                    "❌ API key no configurada.\n\n"
+                    "[ERROR] API key no configurada.\n\n"
                     "Opciones para configurarla:\n"
                     "  1. Variable de entorno: export DAVEAGENT_API_KEY='tu-api-key'\n"
                     "  2. Archivo .daveagent/.env: DAVEAGENT_API_KEY=tu-api-key\n"
                     "  3. Argumento CLI: daveagent --api-key 'tu-api-key'\n\n"
-                    "Obtén tu API key en: https://platform.deepseek.com/api_keys"
+                    "Obten tu API key en: https://platform.deepseek.com/api_keys"
                 )
 
         if not self.base_url:
-            return False, "❌ Base URL no configurada"
+            return False, "[ERROR] Base URL no configurada"
 
         if not self.model:
-            return False, "❌ Modelo no configurado"
+            return False, "[ERROR] Modelo no configurado"
 
         return True, None
 

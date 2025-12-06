@@ -5,7 +5,9 @@ import os
 from pathlib import Path
 import difflib
 
-WORKSPACE = Path(os.getcwd()).resolve()
+def get_workspace():
+    """Get current workspace dynamically - respects os.chdir() for evaluations"""
+    return Path(os.getcwd()).resolve()
 
 
 async def read_file(target_file: str, should_read_entire_file: bool = True,
@@ -24,7 +26,8 @@ async def read_file(target_file: str, should_read_entire_file: bool = True,
         File contents with line range information, or error message if file not found
     """
     try:
-        target_file = WORKSPACE / target_file if not Path(target_file).is_absolute() else Path(target_file)
+        workspace = get_workspace()
+        target_file = workspace / target_file if not Path(target_file).is_absolute() else Path(target_file)
 
         with open(target_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
@@ -60,7 +63,8 @@ async def read_file(target_file: str, should_read_entire_file: bool = True,
 async def write_file(target_file: str, file_content: str) -> str:
     """Escribe contenido en un archivo"""
     try:
-        target = WORKSPACE / target_file if not Path(target_file).is_absolute() else Path(target_file)
+        workspace = get_workspace()
+        target = workspace / target_file if not Path(target_file).is_absolute() else Path(target_file)
         target.parent.mkdir(parents=True, exist_ok=True)
         with open(target, 'w', encoding='utf-8') as f:
             f.write(file_content)
@@ -72,7 +76,8 @@ async def write_file(target_file: str, file_content: str) -> str:
 async def list_dir(target_dir: str = ".") -> str:
     """Lista archivos en un directorio"""
     try:
-        target = WORKSPACE / target_dir if not Path(target_dir).is_absolute() else Path(target_dir)
+        workspace = get_workspace()
+        target = workspace / target_dir if not Path(target_dir).is_absolute() else Path(target_dir)
         result = f"Directory listing for {target}:\n"
         for item in sorted(target.iterdir()):
             if item.is_dir():

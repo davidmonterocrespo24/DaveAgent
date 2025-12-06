@@ -35,7 +35,8 @@ class DaveAgentCLI:
         api_key: str = None,
         base_url: str = None,
         model: str = None,
-        ssl_verify: bool = None
+        ssl_verify: bool = None,
+        headless: bool = False
     ):
         """
         Inicializa todos los componentes del agente
@@ -46,6 +47,7 @@ class DaveAgentCLI:
             base_url: URL base de la API
             model: Nombre del modelo a usar
             ssl_verify: Si verificar certificados SSL (por defecto True)
+            headless: Modo sin CLI interactivo (para evaluaciones/tests)
         """
         # Configurar logging (ahora en .daveagent/logs/)
         log_level = logging.DEBUG if debug else logging.INFO
@@ -104,8 +106,12 @@ class DaveAgentCLI:
                 enable_thinking=None  # Auto-detect based on model name
             )
 
-            print(DEEPSEEK_REASONER_INFO)
-            self.logger.info(f"🧠 DeepSeek Reasoner habilitado para {self.settings.model}")
+            # Print info safely (avoid encoding errors in Windows)
+            try:
+                print(DEEPSEEK_REASONER_INFO)
+            except UnicodeEncodeError:
+                print("[DeepSeek Reasoner Info - encoding issue]")
+            self.logger.info(f"DeepSeek Reasoner habilitado para {self.settings.model}")
         else:
             # Usar cliente estándar para otros modelos
             base_model_client = OpenAIChatCompletionClient(
@@ -249,8 +255,26 @@ class DaveAgentCLI:
         self._initialize_agents_for_mode()
 
         # Componentes del sistema
-        self.cli = CLIInterface()
-        self.history_viewer = HistoryViewer(console=self.cli.console)
+        if headless:
+            # Modo headless: sin CLI interactivo (para evaluaciones)
+            self.cli = type('DummyCLI', (), {
+                'print_success': lambda *args, **kwargs: None,
+                'print_error': lambda *args, **kwargs: None,
+                'print_info': lambda *args, **kwargs: None,
+                'print_thinking': lambda *args, **kwargs: None,
+                'print_agent_message': lambda *args, **kwargs: None,
+                'start_thinking': lambda *args, **kwargs: None,
+                'stop_thinking': lambda *args, **kwargs: None,
+                'mentioned_files': [],
+                'get_mentioned_files_content': lambda: "",
+                'print_mentioned_files': lambda: None,
+                'console': None
+            })()
+            self.history_viewer = None
+        else:
+            # Modo interactivo normal
+            self.cli = CLIInterface()
+            self.history_viewer = HistoryViewer(console=self.cli.console)
 
         self.running = True
 
@@ -336,6 +360,10 @@ class DaveAgentCLI:
 
         termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(10)
 
+        self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
+        self.logger.debug(f"[SELECTOR] Participants: Planner, CodeSearcher, Coder")
+        self.logger.debug(f"[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(10)")
+
         self.main_team = SelectorGroupChat(
             participants=[
                 self.planning_agent,
@@ -347,7 +375,7 @@ class DaveAgentCLI:
             allow_repeated_speaker=True  # Permite que el mismo agente hable varias veces
         )
 
-        self.logger.debug(f"✅ Router team creado con {len(self.main_team._participants)} agentes")
+        self.logger.debug(f"[SELECTOR] Router team created with {len(self.main_team._participants)} agents")
 
 
     async def _update_agent_tools_for_mode(self):
