@@ -90,8 +90,7 @@ DaveAgent/
 │           └── search_tools.py
 │               ├── grep_search()
 │               ├── codebase_search()
-│               ├── run_terminal_cmd()
-│               └── diff_history()
+│               ├── run_terminal_cmd()│               
 │
 ├── main_new.py                   # 🚀 Punto de entrada con nueva estructura
 ├── main.py                       # (Versión anterior)

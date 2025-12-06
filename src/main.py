@@ -196,7 +196,7 @@ class DaveAgentCLI:
             web_search, web_search_news,
             # Analysis
             analyze_python_file, find_function_definition, list_all_functions,
-            codebase_search, grep_search, run_terminal_cmd, diff_history,
+            codebase_search, grep_search, run_terminal_cmd,
             # Validation
             validate_python_syntax, validate_javascript_syntax,
             validate_typescript_syntax, validate_json_file,
@@ -223,7 +223,7 @@ class DaveAgentCLI:
                 wiki_search, wiki_summary, wiki_content, wiki_page_info, wiki_random, wiki_set_language,
                 web_search, web_search_news,
                 analyze_python_file, find_function_definition, list_all_functions,
-                codebase_search, grep_search, diff_history,
+                codebase_search, grep_search,
                 validate_python_syntax, validate_javascript_syntax, validate_typescript_syntax,
                 validate_json_file, validate_generic_file,
                 # Memory query tools (read-only, available in both modes)

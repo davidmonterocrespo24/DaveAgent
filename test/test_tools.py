@@ -5,7 +5,7 @@ import asyncio
 from tools import (
     read_file, write_file, list_dir, run_terminal_cmd,
     edit_file, file_search, grep_search, codebase_search,
-    delete_file, diff_history
+    delete_file
 )
 
 
@@ -72,12 +72,6 @@ async def test_all_tools():
     print(f"  Result: APPROVAL REQUIRED" if "APPROVAL REQUIRED" in result or "ACTION REQUIRED" in result else "  Result: ERROR")
     print()
 
-    # Test 10: diff_history
-    print("[TEST 10] diff_history")
-    result = await diff_history(max_commits=5)
-    lines = result.split('\n')[:8]
-    print(f"  Result (first 8 lines):\n    " + "\n    ".join(lines))
-    print()
 
     # Test 11: delete_file
     print("[TEST 11] delete_file")

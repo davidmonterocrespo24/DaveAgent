@@ -249,7 +249,19 @@ async def edit_file(target_file: str, instructions: str, code_edit: str) -> str:
             tofile=f"{target_file} (modified)",
             lineterm=''
         )
-        diff_text = ''.join(diff)
+        diff_list = list(diff)
+        diff_text = ''.join(diff_list)
+
+        # --- SANITY CHECK: PREVENT FILE DEMOLITION ---
+        # Count lines starting with '-' (deleted) and '+' (added), ignoring headers (---/+++)
+        # We use a heuristic: excessive deletion with minimal addition is suspicious.
+        deleted_lines_count = sum(1 for line in diff_list if line.startswith('-') and not line.startswith('---'))
+        added_lines_count = sum(1 for line in diff_list if line.startswith('+') and not line.startswith('+++'))
+
+        # Thresholds: >400 deleted AND <20 added (Net loss of >380 lines in a big chunk)
+        if deleted_lines_count > 400 and added_lines_count < 20:
+             return f"Error: Your edit would delete {deleted_lines_count} lines but only add {added_lines_count}. This looks like accidental file demolition (deleting code without replacement). Please use SURGICAL EDITS to change ONLY the necessary lines. Do not verify/rewrite the whole file content."
+        # ---------------------------------------------
 
         # Write the new content
         with open(target_file, 'w', encoding='utf-8') as f:

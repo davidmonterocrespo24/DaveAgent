@@ -329,30 +329,4 @@ async def run_terminal_cmd(
         return f"Error executing command: {str(e)}"
 
 
-async def diff_history(explanation: str = "") -> str:
-    """Muestra el historial de diff de git (últimos 10 commits)"""
-    try:
-        max_commits = 10
-        cmd = ["git", "log", f"-{max_commits}", "--oneline"]
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, cwd=WORKSPACE)
-
-        if result.returncode != 0:
-            if "not a git repository" in result.stderr.lower():
-                return "Error: This directory is not a git repository"
-            return f"Git error: {result.stderr}"
-
-        if not result.stdout:
-            return f"No git history found"
-
-        output = f"Git history (last {max_commits} commits):\n"
-        output += result.stdout
-
-        return output
-
-    except FileNotFoundError:
-        return "Error: git is not installed"
-    except subprocess.TimeoutExpired:
-        return "Error: git command timed out"
-    except Exception as e:
-        return f"Error getting diff history: {str(e)}"

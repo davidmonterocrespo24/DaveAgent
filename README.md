@@ -268,7 +268,6 @@ Ver [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md) para documentación completa 
 - `codebase_search` - Buscar en código
 - `grep_search` - Búsqueda con grep
 - `run_terminal_cmd` - Ejecutar comandos
-- `diff_history` - Ver diferencias
 
 ## 📖 Ejemplos
 
