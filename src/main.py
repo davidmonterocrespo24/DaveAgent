@@ -65,12 +65,12 @@ class DaveAgentCLI:
 
         self.settings = get_settings(api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify)
 
-        # Validar configuración
-        is_valid, error_msg = self.settings.validate()
+        # Validar configuración (sin interactividad en modo headless)
+        is_valid, error_msg = self.settings.validate(interactive=not headless)
         if not is_valid:
-            self.logger.error(f"❌ Configuración inválida: {error_msg}")
+            self.logger.error(f"[ERROR] Configuracion invalida: {error_msg}")
             print(error_msg)
-            raise ValueError("Configuración inválida")
+            raise ValueError("Configuracion invalida")
 
         self.logger.info(f"✓ Configuración cargada: {self.settings}")
 
@@ -358,7 +358,7 @@ class DaveAgentCLI:
         # - Elimina problema de "multiple system messages"
         # =====================================================================
 
-        termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(10)
+        termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(50)
 
         self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
         self.logger.debug(f"[SELECTOR] Participants: Planner, CodeSearcher, Coder")

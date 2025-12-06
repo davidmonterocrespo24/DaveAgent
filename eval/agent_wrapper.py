@@ -23,6 +23,10 @@ class SWESolver:
         # Ensure we are in agent mode
         self.app.current_mode = "agente"
 
+        # INCREASE tool iteration limit for complex debugging tasks
+        # Default is 5, but SWE-bench tasks may need more exploration
+        self.app.coder_agent._max_tool_call_depth = 25
+
     async def solve(self, problem_statement, repo_path):
         current_dir = os.getcwd()
         try:
@@ -47,6 +51,10 @@ class SWESolver:
             print("[DEBUG] Updating agent tools for mode...")
             await self.app._update_agent_tools_for_mode()
             print("[DEBUG] Agent tools updated")
+
+            # INCREASE tool iteration limit AFTER recreating agents
+            self.app.coder_agent._max_tool_call_depth = 25
+            print(f"[DEBUG] Set coder max_tool_call_depth to 25")
 
             # SKIP INDEXING - Too slow and not necessary for evaluation
             print("[EVAL] Skipping repository indexing for faster evaluation...")
@@ -73,7 +81,7 @@ CRITICAL INSTRUCTIONS:
 PROBLEM TO SOLVE:
 {problem_statement}
 
-START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix it, then say TASK_COMPLETED."""
+START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix it, etc etc."""
 
             print(f"Solving problem: {problem_statement[:100]}...")
             print("\n" + "="*50)

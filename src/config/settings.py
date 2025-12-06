@@ -9,8 +9,11 @@ from dotenv import load_dotenv
 
 # Cargar variables de entorno desde .daveagent/.env si existe
 # Prioridad: .daveagent/.env > .env (para compatibilidad)
-daveagent_env = Path.cwd() / '.daveagent' / '.env'
-legacy_env = Path.cwd() / '.env'
+# Buscar desde la raiz del proyecto (donde esta src/), no desde cwd
+# Esto asegura que funcione incluso cuando se ejecuta desde subdirectorios (ej. eval/)
+project_root = Path(__file__).resolve().parent.parent.parent
+daveagent_env = project_root / '.daveagent' / '.env'
+legacy_env = project_root / '.env'
 
 if daveagent_env.exists():
     load_dotenv(daveagent_env)
