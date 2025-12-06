@@ -56,11 +56,13 @@ if ! command -v docker &> /dev/null; then
 fi
 
 echo "Running SWE-bench evaluation..."
+# Reduced workers from 4 to 1 to avoid WSL vsock errors
+# WSL has issues with multiple simultaneous Docker connections
 python3 -m swebench.harness.run_evaluation \
     --dataset_name princeton-nlp/SWE-bench_Verified \
     --predictions_path eval/predictions.jsonl \
     --run_id evaluacion_prueba_v1 \
-    --max_workers 4
+    --max_workers 1
 
 echo -e "${GREEN}=============================================${NC}"
 echo -e "${GREEN}      Evaluation Process Completed           ${NC}"
