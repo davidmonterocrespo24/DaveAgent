@@ -12,30 +12,19 @@ echo -e "${CYAN}      Agent Setup & SWE-bench Eval           ${NC}"
 echo -e "${CYAN}=============================================${NC}"
 
 # 1. Build and Install Agent
-echo -e "${GREEN}[1/5] Building and Installing Agent...${NC}"
+echo -e "${GREEN}[1/5] Installing Agent in Editable Mode...${NC}"
+
+# Uninstall previous version
+echo "Removing previous installation..."
+python3 -m pip uninstall -y daveagent 2>/dev/null || echo "No previous installation"
 
 # Clean previous builds and memory
-rm -rf build dist *.egg-info
+rm -rf build dist *.egg-info src/*.egg-info
 rm -rf .daveagent/memory  # Clean corrupted memory
 
-
-# Install build tool if missing
-if ! python3 -m pip show build &> /dev/null; then
-    echo "Installing build..."
-    python3 -m pip install build
-fi
-
-# Build
-python3 -m build
-
-# Install
-WHEEL_FILE=$(ls -t dist/*.whl | head -n 1)
-if [ -z "$WHEEL_FILE" ]; then
-    echo -e "${RED}Error: Build failed, no wheel file found.${NC}"
-    exit 1
-fi
-echo "Installing $WHEEL_FILE..."
-python3 -m pip install "$WHEEL_FILE" --force-reinstall
+# Install in editable mode (uses source code directly, not a copy)
+echo "Installing in editable mode..."
+python3 -m pip install -e .
 
 # 2. Install Dependencies
 echo -e "${GREEN}[2/5] Installing Dependencies...${NC}"
