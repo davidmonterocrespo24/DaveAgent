@@ -105,7 +105,7 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
 
                 result = await asyncio.wait_for(
                     self.app.main_team.run(task=task),
-                    timeout=600.0
+                    timeout=1600.0
                 )
 
                 print("[DEBUG] main_team.run() completed")
@@ -142,7 +142,7 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
                     print(f"[SUCCESS] Patch generated ({len(diff_check)} characters)")
 
             except asyncio.TimeoutError:
-                print("[TIMEOUT] Task exceeded 10 minutes. Moving to next task.")
+                print("[TIMEOUT] Task exceeded 20 minutes. Moving to next task.")
             except Exception as e:
                 print(f"[ERROR] Error during agent execution: {e}")
                 import traceback
