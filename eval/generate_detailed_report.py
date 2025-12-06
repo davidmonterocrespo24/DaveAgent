@@ -99,7 +99,7 @@ def generate_html_report(predictions, eval_report, output_path):
     tasks_with_patches = sum(1 for p in predictions if p.get('model_patch', '').strip())
 
     # Categorizar resultados
-    resolved = eval_report.get('resolved', []) if isinstance(eval_report, dict) else []
+    resolved = eval_report.get('resolved_ids', eval_report.get('resolved', [])) if isinstance(eval_report, dict) else []
     resolved_ids = set(resolved) if isinstance(resolved, list) else set()
 
     categorized = defaultdict(list)
@@ -444,7 +444,7 @@ def generate_markdown_report(predictions, eval_report, output_path):
     total_tasks = len(predictions)
     tasks_with_patches = sum(1 for p in predictions if p.get('model_patch', '').strip())
 
-    resolved = eval_report.get('resolved', []) if isinstance(eval_report, dict) else []
+    resolved = eval_report.get('resolved_ids', eval_report.get('resolved', [])) if isinstance(eval_report, dict) else []
     resolved_ids = set(resolved) if isinstance(resolved, list) else set()
 
     md = f"""# 📊 Reporte Detallado de Evaluación SWE-bench
