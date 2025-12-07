@@ -13,262 +13,165 @@ import concurrent.futures as cf
 import re
 from pathlib import Path
 from typing import List, Optional, Sequence
+import shutil
+from src.tools.filesystem.common import get_workspace
+
 WORKSPACE = Path(os.getcwd()).resolve()
 
-# --------------------------------------------------------------------------- #
-# Configuración interna
-# --------------------------------------------------------------------------- #
-DEFAULT_EXTS: Sequence[str] = (
-    ".py",
-    ".js",
-    ".ts",
-    ".java",
-    ".cpp",
-    ".c",
-    ".h",
-)  # extensiones a inspeccionar
-MAX_RESULTS: int = 50  # tope de paths devueltos
-CASE_SENSITIVE: bool = False  # búsqueda case-insensitive
-
-
-# --------------------------------------------------------------------------- #
-# Implementación auxiliar
-# --------------------------------------------------------------------------- #
-
-# Directorios que deben excluirse de todas las búsquedas
+# --- Configuración de Exclusiones (Fallback) ---
+# Se usa solo si git grep no está disponible
 EXCLUDED_DIRS = {
-    'node_modules',
-    '__pycache__',
-    '.git',
-    '.venv',
-    'venv',
-    'env',
-    '.pytest_cache',
-    '.mypy_cache',
-    '.tox',
-    'dist',
-    'build',
-    '.egg-info',
-    'site-packages',
-    '.next',
-    '.nuxt',
-    'coverage',
-    '.coverage',
-    '.idea',
-    '.vscode',
+    'node_modules', '__pycache__', '.git', '.venv', 'venv', 'env', 
+    '.pytest_cache', '.mypy_cache', '.tox', 'dist', 'build', 
+    'site-packages', '.next', '.nuxt', 'coverage', '.idea', '.vscode'
 }
 
-def _should_exclude_path(path: Path) -> bool:
-    """Verifica si un path debe ser excluido de la búsqueda"""
-    # Verificar si algún directorio excluido está en el path
-    for part in path.parts:
-        if part in EXCLUDED_DIRS:
-            return True
-    return False
+EXCLUDED_EXTS = {
+    '.pyc', '.pyo', '.pyd', '.so', '.dll', '.exe', '.bin', '.obj', '.o',
+    '.min.js', '.min.css', '.map', '.lock', '.log', '.sqlite', '.db',
+    '.jpg', '.jpeg', '.png', '.gif', '.ico', '.pdf', '.woff', '.ttf'
+}
 
-def _iter_code_files(roots: Sequence[Path], exts: Sequence[str]) -> list[Path]:
-    """Recorre recursivamente los directorios dados devolviendo paths con extensiones deseadas."""
-    paths: list[Path] = []
-    for root in roots:
-        for p in root.rglob("*"):
-            if p.is_file() and p.suffix.lower() in exts and not _should_exclude_path(p):
-                paths.append(p)
-    return paths
+# --- Helper Functions ---
 
+def _is_git_repo(path: Path) -> bool:
+    return (path / ".git").exists()
 
-def _file_contains(pattern: re.Pattern[str], path: Path) -> Optional[Path]:
-    """Devuelve el propio path si contiene la coincidencia; None en caso contrario/exception."""
+def _run_git_grep(query: str, path: Path, include: Optional[str] = None, case_sensitive: bool = False) -> str | None:
+    """Ejecuta 'git grep' optimizado."""
+    if not shutil.which("git"):
+        return None
+        
+    cmd = ["git", "grep", "-n", "-I"] # -n: line numbers, -I: ignore binary
+    
+    if not case_sensitive:
+        cmd.append("-i")
+        
+    # Extended regex para mayor compatibilidad
+    cmd.append("-E") 
+    
+    # Construir comando
+    # Nota: git grep maneja includes al final con --
+    cmd.append(query)
+    
+    if include:
+        cmd.append("--")
+        cmd.append(include)
+        
     try:
-        with path.open(encoding="utf-8", errors="ignore") as f:
-            if any(pattern.search(line) for line in f):
-                return path
+        # Ejecutar en el directorio objetivo
+        result = subprocess.run(
+            cmd, 
+            cwd=str(path),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace'
+        )
+        
+        if result.returncode == 0:
+            return result.stdout
+        elif result.returncode == 1:
+            return "" # No matches found
+        else:
+            return None # Error en ejecución (ej. bad regex)
+            
     except Exception:
-        pass
-    return None
+        return None
 
+def _python_grep_fallback(query: str, root_path: Path, include_pattern: str | None, case_sensitive: bool) -> str:
+    """Implementación pura en Python (lenta pero segura)."""
+    results = []
+    flags = 0 if case_sensitive else re.IGNORECASE
+    
+    try:
+        pattern = re.compile(query, flags)
+    except re.error as e:
+        return f"Error: Invalid regex pattern: {e}"
 
-# --------------------------------------------------------------------------- #
+    # Recolectar archivos
+    # Si hay include_pattern, usamos glob con ese patrón, si no rglob('*')
+    search_pattern = include_pattern if include_pattern else "**/*"
+    
+    # Manejo básico de glob relativo si el include no tiene **
+    if include_pattern and not include_pattern.startswith("**"):
+         # Si el usuario pide "*.py", queremos buscar recursivamente "**/*.py"
+         # Esto es una heurística común para UX de grep
+         pass 
 
+    try:
+        # Usamos rglob para iterar eficientemente
+        # Nota: Path.rglob no acepta patterns complejos como exclude, hay que filtrar manual
+        files_iter = root_path.rglob(search_pattern) if include_pattern else root_path.rglob("*")
+        
+        for file_path in files_iter:
+            if not file_path.is_file():
+                continue
+                
+            # Filtros de exclusión
+            if any(part in EXCLUDED_DIRS for part in file_path.parts):
+                continue
+            if file_path.suffix.lower() in EXCLUDED_EXTS:
+                continue
+                
+            try:
+                # Lectura línea a línea para no cargar archivos grandes en memoria
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    for i, line in enumerate(f, 1):
+                        if pattern.search(line):
+                            # Formato compatible con git grep: file:line:content
+                            # Truncamos líneas muy largas para no saturar contexto
+                            clean_line = line.strip()[:300] 
+                            rel_path = file_path.relative_to(root_path)
+                            results.append(f"{rel_path}:{i}:{clean_line}")
+                            
+                            if len(results) >= 1000: # Safety break
+                                results.append("... (too many matches, truncated)")
+                                return "\n".join(results)
+                                
+            except Exception:
+                continue
+                
+    except Exception as e:
+        return f"Error in python grep: {e}"
+
+    return "\n".join(results)
+
+# --- Main Tool ---
 
 async def grep_search(
     query: str,
-    case_sensitive: bool = True,
+    case_sensitive: bool = False,
     include_pattern: Optional[str] = None,
-    exclude_pattern: Optional[str] = None,
+    exclude_pattern: Optional[str] = None, # Deprecated in favor of gitignore but kept for compat
     explanation: Optional[str] = None
 ) -> str:
     """
-    Search for a regex pattern in files using inclusion and exclusion filters.
-
-    Parameters:
-        query (str): The regex pattern to search for
-        case_sensitive (bool): Whether the search should be case-sensitive
-        include_pattern (str): Glob pattern for files to include (e.g., '*.py')
-        exclude_pattern (str): Glob pattern for files to exclude
-        explanation (str): One-sentence explanation of the search purpose
-
-    Returns:
-        list: List of dictionaries with search results including file path, line number, and matches
+    Search for a regex pattern in files.
     """
-    results = []
+    workspace = get_workspace()
+    
+    # 1. Intentar Git Grep (Estrategia Rápida)
+    # Solo si estamos en un repo git y no hay patrones de exclusión complejos 
+    # (git grep usa .gitignore, que suele ser lo que queremos)
+    if _is_git_repo(workspace) and not exclude_pattern:
+        git_output = _run_git_grep(query, workspace, include_pattern, case_sensitive)
+        if git_output is not None:
+            if not git_output.strip():
+                return f"No matches found for '{query}'"
+            
+            # Limitar salida si es muy larga
+            lines = git_output.splitlines()
+            if len(lines) > 500:
+                return "\n".join(lines[:500]) + f"\n... ({len(lines)-500} more matches truncated)"
+            return git_output
 
-    # Extensiones que siempre deben excluirse
-    EXCLUDED_EXTENSIONS = [
-        '.pyc',
-        '.pyo',
-        '.pyd',
-        '.so',
-        '.dll',
-        '.dylib',
-        '.exe',
-        '.bin',
-        '.obj',
-        '.o',
-        '.a',
-        '.lib',
-        '.min.js',
-        '.min.css',
-        '.map',
-        '.lock',
-        '.log',
-        '.sqlite',
-        '.db',
-        '.jpg',
-        '.jpeg',
-        '.png',
-        '.gif',
-        '.ico',
-        '.svg',
-        '.woff',
-        '.woff2',
-        '.ttf',
-        '.eot',
-    ]
-
-    # Configurar flags para regex
-    flags = 0 if case_sensitive else re.IGNORECASE
-
-    try:
-        # Compilar el patrón regex
-        pattern = re.compile(query, flags)
-    except re.error as e:
-        return [{"error": f"Patrón regex inválido: {e}"}]
-
-    # Función auxiliar para verificar si un path debe excluirse
-    def should_exclude(file_path: str) -> bool:
-        """Verifica si un archivo debe ser excluido de la búsqueda"""
-        path_parts = Path(file_path).parts
-
-        # Verificar si algún directorio excluido está en el path
-        for excluded_dir in EXCLUDED_DIRS:
-            if excluded_dir in path_parts:
-                return True
-
-        # Verificar extensión
-        file_ext = Path(file_path).suffix.lower()
-        if file_ext in EXCLUDED_EXTENSIONS:
-            return True
-
-        # Aplicar patrón de exclusión personalizado si existe
-        if exclude_pattern and fnmatch.fnmatch(file_path, exclude_pattern):
-            return True
-
-        return False
-
-    # Obtener lista de archivos a procesar
-    files_to_search = []
-
-    if include_pattern:
-        # Usar el patrón de inclusión
-        files_to_search = glob.glob(include_pattern, recursive=True)
-    else:
-        # Buscar todos los archivos en el directorio actual
-        files_to_search = glob.glob("**/*", recursive=True)
-
-    # Filtrar solo archivos (no directorios) y aplicar exclusiones
-    files_to_search = [
-        f for f in files_to_search
-        if os.path.isfile(f) and not should_exclude(f)
-    ]
-
-    # Buscar en cada archivo
-    for file_path in files_to_search:
-        try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as file:
-                for line_num, line in enumerate(file, 1):
-                    matches = pattern.finditer(line)
-                    for match in matches:
-                        results.append(
-                            {
-                                "file": file_path,
-                                "line_number": line_num,
-                                "line_content": line.rstrip("\n"),
-                                "match": match.group(),
-                                "start_pos": match.start(),
-                                "end_pos": match.end(),
-                            }
-                        )
-        except (IOError, UnicodeDecodeError) as e:
-            results.append({"file": file_path, "error": f"Error al leer archivo: {e}"})
-    # convert results to a string
-    results = ""
-    for result in results:
-        results += str(result) + "\n"
-
-    return results
+    # 2. Fallback a Python (Estrategia Lenta pero Universal)
+    # Se usa si falla git grep, si no es repo git, o si hay excludes manuales
+    return _python_grep_fallback(query, workspace, include_pattern, case_sensitive)
 
 
-async def codebase_search(
-    query: str,
-    target_directories: Optional[List[str]] = None,
-    explanation: str = "",
-) -> str:
-    """
-    Find snippets of code from the codebase most relevant to the search query.
-    This is a semantic search tool, so the query should ask for something semantically
-    matching what is needed.
 
-    Parameters
-    ----------
-    query : str
-        Search query (should be reused verbatim from user's prompt).
-    target_directories : list[str] | None
-        Optional list of directories to constrain the search to.
-    explanation : str
-        One-sentence explanation of why this invocation is being made.
-
-    Returns
-    -------
-    str
-        Human-readable summary of matching files (limited to MAX_RESULTS).
-    """
-    # Preparar raíces de búsqueda
-    roots = [Path(d).expanduser().resolve() for d in (target_directories or ["."])]
-
-    # Compilar patrón (regExp) a partir de la query literal
-    flags = 0 if CASE_SENSITIVE else re.IGNORECASE
-    pattern = re.compile(re.escape(query), flags)
-
-    # 1. Recolectar paths candidatos
-    all_files = _iter_code_files(roots, tuple(e.lower() for e in DEFAULT_EXTS))
-
-    # 2. Buscar en paralelo
-    matches: list[str] = []
-    with cf.ThreadPoolExecutor() as pool:
-        for path in pool.map(lambda p: _file_contains(pattern, p), all_files):
-            if path:
-                matches.append(str(path))
-                if len(matches) >= MAX_RESULTS:
-                    break
-
-    # 3. Formatear salida
-    header = (
-        f"Search completed for query: '{query}'. "
-        f"{explanation or 'Semantic code search triggered.'}\n"
-        f"Results: {len(matches)} file(s) matched.\n"
-    )
-    body = "\n".join(matches)
-    return header + (body or "No relevant files found.")
 
 
 async def run_terminal_cmd(
