@@ -1,6 +1,7 @@
 import difflib
 from src.tools.filesystem.common import get_workspace
 from src.utils.llm_edit_fixer import _llm_fix_edit
+from src.utils.linter import lint_code_check
 
 
 """
@@ -199,12 +200,10 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
         if new_content == current_content:
              return "Error: The 'new_string' is identical to the found 'old_string'. No changes applied."
 
-        # 2. Python Syntax Check
-        if target.suffix == ".py":
-            try:
-                ast.parse(new_content)
-            except SyntaxError as e:
-                return f"Error: Your edit caused a SyntaxError. Edit rejected.\nLine {e.lineno}: {e.msg}"
+        # 2. Syntax Check (Modular Linter)
+        lint_error = lint_code_check(target, new_content)
+        if lint_error:
+            return f"Error: Your edit caused a syntax error. Edit rejected.\n{lint_error}"
 
         # Save
         final_content = _restore_line_endings(new_content, original_line_ending)
