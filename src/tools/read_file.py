@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from src.tools.filesystem.common import get_workspace
+from src.tools.common import get_workspace
 from src.utils.file_utils import process_single_file_content
 
 async def read_file(target_file: str, should_read_entire_file: bool = True,

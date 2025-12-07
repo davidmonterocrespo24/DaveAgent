@@ -1,5 +1,5 @@
 from pathlib import Path
-from src.tools.filesystem.common import get_workspace
+from src.tools.common import get_workspace
 
 async def list_dir(target_dir: str = ".") -> str:
     """Lista archivos en un directorio"""

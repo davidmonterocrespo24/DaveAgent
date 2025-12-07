@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 from typing import List, Optional, Sequence
 import shutil
-from src.tools.filesystem.common import get_workspace
+from src.tools.common import get_workspace
 
 WORKSPACE = Path(os.getcwd()).resolve()
 
