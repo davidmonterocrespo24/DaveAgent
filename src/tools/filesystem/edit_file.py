@@ -1,6 +1,7 @@
 import difflib
 from src.tools.filesystem.common import get_workspace
 from src.utils.llm_edit_fixer import _llm_fix_edit
+from src.utils.llm_edit_fixer import _llm_fix_edit
 
 
 """
@@ -116,8 +117,22 @@ def _calculate_regex_replacement(current_content: str, old_string: str, new_stri
 
 async def edit_file(target_file: str, old_string: str, new_string: str, instructions: str = "") -> str:
     """
-    Edit Tool: Replaces text in a file using strict matching, then flexible matching, then regex.
-    If all fail, it attempts to self-correct using an LLM (if configured).
+    Replaces a specific string in a file with a new string using smart matching strategies.
+
+    This tool attempts to locate and replace text using the following strategies in order:
+    1. Exact Match: strict literal string replacement.
+    2. Flexible Match: ignores whitespace differences (indentation/newlines).
+    3. Token-based Fuzzy Match: uses regex to match tokens regardless of formatting.
+    4. LLM Auto-Correction: if enabled, asks an LLM to fix the search string based on the error.
+
+    Args:
+        target_file: Path to the file to be edited.
+        old_string: The exact string to be replaced.
+        new_string: The new string to replace the old string with.
+        instructions: Optional description of the change (used for LLM auto-correction context).
+
+    Returns:
+        Success message with strategy used, or error message if replacement failed.
     """
     try:
         workspace = Path(os.getcwd()).resolve()
@@ -163,7 +178,7 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
             error_msg = "Could not find the 'old_string' using exact, flexible, or regex matching."
             
             # Intentar arreglar con LLM
-            correction = _llm_fix_edit(instructions, norm_old, norm_new, error_msg, current_content)
+            correction = await _llm_fix_edit(instructions, norm_old, norm_new, error_msg, current_content)
             
             if correction:
                 fixed_old, fixed_new = correction
