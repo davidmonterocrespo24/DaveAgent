@@ -180,7 +180,7 @@ class DaveAgentCLI:
         from src.tools import (
             # Filesystem
             read_file, write_file, list_dir, edit_file,
-            delete_file, file_search, reapply,
+            delete_file, file_search, glob_search,
             # Git
             git_status, git_add, git_commit, git_push, git_pull,
             git_log, git_branch, git_diff,
@@ -189,18 +189,14 @@ class DaveAgentCLI:
             format_json, json_get_value, json_set_value, json_to_text,
             # CSV
             read_csv, write_csv, csv_info, filter_csv,
-            merge_csv, csv_to_json, sort_csv,
+            merge_csv_files, csv_to_json, sort_csv,
             # Web
             wiki_search, wiki_summary, wiki_content,
             wiki_page_info, wiki_random, wiki_set_language,
-            web_search, web_search_news,
+            web_search,
             # Analysis
             analyze_python_file, find_function_definition, list_all_functions,
-            codebase_search, grep_search, run_terminal_cmd,
-            # Validation
-            validate_python_syntax, validate_javascript_syntax,
-            validate_typescript_syntax, validate_json_file,
-            validate_file_after_edit, validate_generic_file,
+            grep_search, run_terminal_cmd,
             # Memory (RAG)
             query_conversation_memory, query_codebase_memory,
             query_decision_memory, query_preferences_memory,
@@ -216,16 +212,14 @@ class DaveAgentCLI:
         self.all_tools = {
             # Herramientas de SOLO LECTURA (disponibles en ambos modos)
             "read_only": [
-                read_file, list_dir, file_search,
+                read_file, list_dir, file_search, glob_search,
                 git_status, git_log, git_branch, git_diff,
                 read_json, validate_json, json_get_value, json_to_text,
                 read_csv, csv_info, filter_csv,
                 wiki_search, wiki_summary, wiki_content, wiki_page_info, wiki_random, wiki_set_language,
-                web_search, web_search_news,
+                web_search,
                 analyze_python_file, find_function_definition, list_all_functions,
-                codebase_search, grep_search,
-                validate_python_syntax, validate_javascript_syntax, validate_typescript_syntax,
-                validate_json_file, validate_generic_file,
+                grep_search,
                 # Memory query tools (read-only, available in both modes)
                 query_conversation_memory, query_codebase_memory,
                 query_decision_memory, query_preferences_memory,
@@ -233,17 +227,17 @@ class DaveAgentCLI:
             ],
             # Herramientas de MODIFICACIÓN (solo en modo agente)
             "modification": [
-                write_file, edit_file, delete_file, reapply,
+                write_file, edit_file, delete_file,
                 git_add, git_commit, git_push, git_pull,
                 write_json, merge_json_files, format_json, json_set_value,
-                write_csv, merge_csv, csv_to_json, sort_csv,
-                run_terminal_cmd, validate_file_after_edit,
+                write_csv, merge_csv_files, csv_to_json, sort_csv,
+                run_terminal_cmd,
                 # Memory save tools (modification mode only)
                 save_user_info, save_decision, save_preference
             ],
             # Herramientas específicas para CodeSearcher (siempre disponibles)
             "search": [
-                codebase_search, grep_search, file_search,
+                grep_search, file_search, glob_search,
                 read_file, list_dir,
                 analyze_python_file, find_function_definition, list_all_functions,
                 # Memory query tools for CodeSearcher
