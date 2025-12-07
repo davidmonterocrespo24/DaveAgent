@@ -89,7 +89,8 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
                 api_key=settings.api_key,
                 model_capabilities=settings.get_model_capabilities(),
                 http_client=http_client,
-                enable_thinking=None
+                enable_thinking=None,
+                response_format={"type": "json_object"}
             )
         else:
             client = OpenAIChatCompletionClient(
@@ -97,7 +98,8 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
                 base_url=settings.base_url,
                 api_key=settings.api_key,
                 model_capabilities=settings.get_model_capabilities(),
-                http_client=http_client
+                http_client=http_client,
+                response_format={"type": "json_object"}
             )
 
         messages = [
@@ -107,12 +109,6 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
 
         result = await client.create(messages)
         response_content = result.content
-
-        # Clean up markdown code blocks if present
-        if "```json" in response_content:
-            response_content = response_content.split("```json")[1].split("```")[0].strip()
-        elif "```" in response_content:
-            response_content = response_content.split("```")[1].split("```")[0].strip()
 
         data = json.loads(response_content)
         
