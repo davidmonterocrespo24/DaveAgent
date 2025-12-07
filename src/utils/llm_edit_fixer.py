@@ -109,7 +109,9 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
 
         result = await client.create(messages)
         response_content = result.content
-
+        if response_content.strip().startswith("```"):
+            response_content = response_content.split("```json")[-1].split("```")[0].strip()
+                
         data = json.loads(response_content)
         
         if data.get("noChangesRequired", False):
