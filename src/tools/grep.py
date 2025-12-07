@@ -1,22 +1,13 @@
 """
-Herramientas de búsqueda y análisis de código
+Herramienta de búsqueda GREP (Git Grep + Python Fallback)
 """
-
 import os
 import re
 import subprocess
-from pathlib import Path
-import glob
-import fnmatch
-from typing import List, Optional
-import concurrent.futures as cf
-import re
-from pathlib import Path
-from typing import List, Optional, Sequence
 import shutil
+from pathlib import Path
+from typing import Optional
 from src.tools.common import get_workspace
-
-WORKSPACE = Path(os.getcwd()).resolve()
 
 # --- Configuración de Exclusiones (Fallback) ---
 # Se usa solo si git grep no está disponible
@@ -31,8 +22,6 @@ EXCLUDED_EXTS = {
     '.min.js', '.min.css', '.map', '.lock', '.log', '.sqlite', '.db',
     '.jpg', '.jpeg', '.png', '.gif', '.ico', '.pdf', '.woff', '.ttf'
 }
-
-# --- Helper Functions ---
 
 def _is_git_repo(path: Path) -> bool:
     return (path / ".git").exists()
@@ -137,8 +126,6 @@ def _python_grep_fallback(query: str, root_path: Path, include_pattern: str | No
 
     return "\n".join(results)
 
-# --- Main Tool ---
-
 async def grep_search(
     query: str,
     case_sensitive: bool = False,
@@ -169,67 +156,3 @@ async def grep_search(
     # 2. Fallback a Python (Estrategia Lenta pero Universal)
     # Se usa si falla git grep, si no es repo git, o si hay excludes manuales
     return _python_grep_fallback(query, workspace, include_pattern, case_sensitive)
-
-
-
-
-
-async def run_terminal_cmd(
-    command: str,
-    is_background: bool = False,
-    require_user_approval: bool = False,
-    explanation: str = ""
-) -> str:
-    """Ejecuta un comando de terminal"""
-    dangerous_keywords = [
-        "rm",
-        "del",
-        "format",
-        "shutdown",
-        "reboot",
-        "kill",
-        "pip install",
-        "npm install",
-        "apt-get",
-        "yum",
-        "curl",
-        "wget",
-    ]
-
-    is_dangerous = any(keyword in command.lower() for keyword in dangerous_keywords)
-
-    if require_user_approval or is_dangerous:
-        approval_msg = f"""
-            ==================================================================
-            COMMAND APPROVAL REQUIRED
-            ==================================================================
-            Command: {command[:50]}
-            WARNING: This command requires user approval before execution
-            ==================================================================
-            ACTION REQUIRED: Ask the user if they want to execute this command.
-            """
-        return approval_msg
-
-    try:
-        result = subprocess.run(
-            command, shell=True, capture_output=True, text=True, timeout=60, cwd=WORKSPACE
-        )
-
-        output = f"Command: {command}\n"
-        output += f"Exit code: {result.returncode}\n\n"
-
-        if result.stdout:
-            output += f"STDOUT:\n{result.stdout}\n"
-
-        if result.stderr:
-            output += f"STDERR:\n{result.stderr}\n"
-
-        return output
-
-    except subprocess.TimeoutExpired:
-        return f"Error: Command timed out after 60 seconds"
-    except Exception as e:
-        return f"Error executing command: {str(e)}"
-
-
-
