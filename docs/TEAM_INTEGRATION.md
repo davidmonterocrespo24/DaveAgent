@@ -109,7 +109,7 @@ Luego delega cada tarea al Coder para ejecución
 - "agrega esta función", "ejecuta", "pequeño cambio"
 - "git status", "escribe"
 
-**Herramientas disponibles**: Todas (42 herramientas)
+**Herramientas disponibles**: Todas (45+ herramientas)
 
 **Ejemplo de uso**:
 ```

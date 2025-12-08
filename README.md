@@ -13,7 +13,7 @@ DaveAgent is an intelligent AI-powered coding assistant that works in your curre
 - 🧠 **Vector Memory with ChromaDB**: Remembers conversations, code, and decisions between sessions
 - 🔍 **CodeSearcher**: Specialized agent for searching and analyzing code
 - 📎 **File Mentions with @**: Mention specific files with `@` to give them maximum priority in context
-- 🔧 **42 Integrated Tools**: Filesystem, Git, JSON, CSV, Wikipedia, and more
+- 🔧 **45+ Integrated Tools**: Filesystem, Git, JSON, CSV, Web, Memory (RAG), and more
 - 🤖 **Intelligent Agents**: Automatic selection of the appropriate agent
 - 📊 **Complete Logging**: Detailed logging system for debugging
 - 🎨 **Rich Interface**: CLI with colors and formatting using Rich
@@ -216,58 +216,69 @@ See [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md) for complete documentation an
 
 ## 🛠️ Available Tools
 
-### Filesystem (6 tools)
-- `read_file` - Read files
-- `write_file` - Write files
-- `edit_file` - Edit files
-- `list_dir` - List directories
-- `delete_file` - Delete files
-- `file_search` - Search files
+### Filesystem (7 tools)
+- `read_file` - Read files with line range support
+- `write_file` - Write/create files
+- `edit_file` - Edit files with search & replace
+- `list_dir` - List directory contents
+- `delete_file` - Delete files safely
+- `file_search` - Search for files by name
+- `glob_search` - Search files using glob patterns
 
 ### Git (8 tools)
 - `git_status` - Repository status
-- `git_add` - Add files
+- `git_add` - Stage files
 - `git_commit` - Create commits
-- `git_push` - Push changes
-- `git_pull` - Pull changes
-- `git_log` - View history
+- `git_push` - Push changes to remote
+- `git_pull` - Pull changes from remote
+- `git_log` - View commit history
 - `git_branch` - Manage branches
 - `git_diff` - View differences
 
 ### JSON (8 tools)
-- `read_json` - Read JSON
-- `write_json` - Write JSON
-- `merge_json_files` - Combine JSONs
-- `validate_json` - Validate JSON
-- `format_json` - Format JSON
-- `json_get_value` - Get value
-- `json_set_value` - Set value
-- `json_to_text` - Convert to text
+- `read_json` - Read and parse JSON
+- `write_json` - Write JSON files
+- `merge_json_files` - Combine multiple JSONs
+- `validate_json` - Validate JSON syntax
+- `format_json` - Format/prettify JSON
+- `json_get_value` - Extract values by path
+- `json_set_value` - Set values by path
+- `json_to_text` - Convert to readable text
 
 ### CSV (7 tools)
-- `read_csv` - Read CSV
-- `write_csv` - Write CSV
-- `csv_info` - CSV information
-- `filter_csv` - Filter data
-- `merge_csv` - Combine CSVs
-- `csv_to_json` - Convert to JSON
-- `sort_csv` - Sort data
+- `read_csv` - Read CSV files
+- `write_csv` - Write CSV files
+- `csv_info` - Get CSV information/statistics
+- `filter_csv` - Filter rows by conditions
+- `merge_csv_files` - Combine multiple CSVs
+- `csv_to_json` - Convert CSV to JSON
+- `sort_csv` - Sort rows by column
 
-### Web (6 tools)
-- `wiki_search` - Search Wikipedia
-- `wiki_summary` - Article summary
-- `wiki_content` - Full content
-- `wiki_page_info` - Page information
-- `wiki_random` - Random article
-- `wiki_set_language` - Change language
+### Web (7 tools)
+- `wiki_search` - Search Wikipedia articles
+- `wiki_summary` - Get article summary
+- `wiki_content` - Get full article content
+- `wiki_page_info` - Get page metadata
+- `wiki_random` - Get random article
+- `wiki_set_language` - Change Wikipedia language
+- `web_search` - General web search
 
-### Analysis (7 tools)
-- `analyze_python_file` - Analyze Python code
-- `find_function_definition` - Find definitions
-- `list_all_functions` - List functions
-- `codebase_search` - Search in code
-- `grep_search` - Search with grep
-- `run_terminal_cmd` - Execute commands
+### Analysis (5 tools)
+- `analyze_python_file` - Analyze Python code structure
+- `find_function_definition` - Find function/class definitions
+- `list_all_functions` - List all functions in file
+- `grep_search` - Search text with patterns
+- `run_terminal_cmd` - Execute shell commands
+
+### Memory (RAG) (8 tools)
+- `query_conversation_memory` - Search conversation history
+- `query_codebase_memory` - Search indexed code
+- `query_decision_memory` - Search architectural decisions
+- `query_preferences_memory` - Search user preferences
+- `query_user_memory` - Search user information
+- `save_user_info` - Store user information
+- `save_decision` - Record architectural decision
+- `save_preference` - Save user preference
 
 ## 📖 Examples
 
@@ -353,12 +364,12 @@ DaveAgent/
 │   ├── config/          # Configuration and prompts
 │   ├── interfaces/      # CLI interface
 │   ├── managers/        # Conversation management
-│   ├── tools/           # 42 tools
+│   ├── tools/           # 45+ tools
 │   │   ├── filesystem/
 │   │   ├── git/
 │   │   ├── data/       # JSON, CSV
-│   │   ├── web/        # Wikipedia
-│   │   └── analysis/
+│   │   ├── web/        # Wikipedia, web search
+│   │   └── analysis/   # Code analysis, grep, terminal
 │   ├── utils/          # Utilities (logger)
 │   └── cli.py          # CLI entry point
 ├── docs/               # Documentation
