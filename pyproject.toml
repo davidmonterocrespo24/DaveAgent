@@ -44,10 +44,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/daveagent"
+Homepage = "https://github.com/davidmonterocrespo24/DaveAgent"
 Documentation = "https://daveagent.readthedocs.io"
-Repository = "https://github.com/yourusername/daveagent"
-"Bug Tracker" = "https://github.com/yourusername/daveagent/issues"
+Repository = "https://github.com/davidmonterocrespo24/DaveAgent"
+"Bug Tracker" = "https://github.com/davidmonterocrespo24/DaveAgent/issues"
 
 [project.scripts]
 daveagent = "src.cli:main"

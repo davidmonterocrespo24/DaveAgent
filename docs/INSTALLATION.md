@@ -307,7 +307,7 @@ Si quieres contribuir al proyecto:
 
 ```bash
 # 1. Clona el repositorio
-git clone https://github.com/yourusername/daveagent.git
+git clone https://github.com/davidmonterocrespo24/DaveAgent.git
 cd daveagent
 
 # 2. Instala en modo desarrollo con dependencias de desarrollo
@@ -357,4 +357,4 @@ Ahora tienes DaveAgent instalado como un paquete de Python y puedes usarlo desde
 daveagent
 ```
 
-¿Tienes preguntas? Consulta la [documentación completa](https://daveagent.readthedocs.io) o abre un [issue en GitHub](https://github.com/yourusername/daveagent/issues).
+¿Tienes preguntas? Consulta la [documentación completa](https://daveagent.readthedocs.io) o abre un [issue en GitHub](https://github.com/davidmonterocrespo24/DaveAgent/issues).
