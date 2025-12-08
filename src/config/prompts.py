@@ -1,5 +1,5 @@
 """
-Centralized System Prompts for CodeAgent
+Centralized System Prompts for DaveAgent
 All agent prompts and descriptions in English
 """
 

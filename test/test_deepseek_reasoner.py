@@ -27,7 +27,7 @@ env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(env_path)
 
 # Configuracion de DeepSeek-Reasoner
-DEEPSEEK_API_KEY = os.getenv('CODEAGENT_API_KEY')
+DEEPSEEK_API_KEY = os.getenv('DAVEAGENT_API_KEY') or os.getenv('CODEAGENT_API_KEY')  # Compatibility
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 DEEPSEEK_MODEL = "deepseek-reasoner"
 
@@ -197,7 +197,7 @@ async def main():
     """Menu principal - selecciona que tests ejecutar"""
 
     if not DEEPSEEK_API_KEY:
-        print("\nERROR: No se encontro CODEAGENT_API_KEY en el archivo .env")
+        print("\nERROR: No se encontro DAVEAGENT_API_KEY en el archivo .env")
         print("Configura tu API key de DeepSeek en el archivo .env\n")
         return
 

@@ -237,5 +237,5 @@ R: Sí! Es un dict serializable. Puedes guardarlo en JSON, SQLite, MongoDB, etc.
 
 **Última actualización:** 2025-11-05  
 **Versión:** 1.0  
-**Autor:** CodeAgent Team
+**Autor:** DaveAgent Team
 

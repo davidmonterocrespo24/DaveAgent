@@ -107,7 +107,7 @@ async def demo_async_usage():
 def main():
     """Ejecuta todos los demos"""
     print("\n" + "="*60)
-    print("         DEMO DEL VIBE SPINNER - CodeAgent")
+    print("         DEMO DEL VIBE SPINNER - DaveAgent")
     print("="*60 + "\n")
 
     # Demo 1: Básico

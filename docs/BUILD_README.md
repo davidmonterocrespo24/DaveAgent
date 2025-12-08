@@ -106,7 +106,7 @@ Paso 6: Verificando la instalación...
 Después de ejecutar el script, tendrás:
 
 ```
-CodeAgent/
+DaveAgent/
 ├── build/                          # Archivos temporales de compilación
 ├── dist/                           # Paquetes compilados
 │   ├── daveagent_cli-1.10.tar.gz          # Source distribution

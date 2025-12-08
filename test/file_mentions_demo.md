@@ -16,7 +16,7 @@
      tests/test_main.py
    ```
 3. You select `main.py` with Enter
-4. CodeAgent shows:
+4. DaveAgent shows:
    ```
    ✓ Selected: main.py
 
@@ -38,7 +38,7 @@
 2. You select `v1/auth.py`
 3. Second `@` triggers selector for "v2/auth.py"
 4. You select `v2/auth.py`
-5. CodeAgent shows:
+5. DaveAgent shows:
    ```
    📎 Mentioned Files:
      • v1/auth.py
@@ -71,7 +71,7 @@
 
 **What happens:**
 1. Select both files through the selector
-2. CodeAgent receives full context of both files
+2. DaveAgent receives full context of both files
 3. Agent understands the current structure
 4. Agent proposes refactoring with changes to both files
 5. Implements the changes if you approve
@@ -226,7 +226,7 @@ explain this file
 
 ## Try It Yourself!
 
-1. Start CodeAgent: `python -m src.cli`
+1. Start DaveAgent: `python -m src.cli` or `daveagent`
 2. Type: `@`
 3. Navigate and select any file
 4. Type your request

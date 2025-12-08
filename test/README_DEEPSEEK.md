@@ -47,7 +47,8 @@ Ver [test_deepseek_capabilities.py](test_deepseek_capabilities.py) para pruebas 
 Agrega tu API key al archivo `.env` en la raíz del proyecto:
 
 ```env
-CODEAGENT_API_KEY=sk-tu-api-key-aqui
+DAVEAGENT_API_KEY=sk-tu-api-key-aqui
+CODEAGENT_API_KEY=sk-tu-api-key-aqui  # Compatibility
 ```
 
 ## Tests Disponibles
@@ -284,6 +285,8 @@ La documentación oficial puede estar desactualizada. **SIEMPRE verifica con tes
 
 ```bash
 # Verifica que .env tenga:
+DAVEAGENT_API_KEY=sk-...
+# o para compatibilidad:
 CODEAGENT_API_KEY=sk-...
 ```
 
@@ -335,4 +338,4 @@ Esto te mostrará qué funciona realmente en tu configuración.
 
 ## Licencia
 
-Este código de ejemplo es parte del proyecto CodeAgent y se distribuye bajo la misma licencia del proyecto principal.
+Este código de ejemplo es parte del proyecto DaveAgent y se distribuye bajo la misma licencia del proyecto principal.

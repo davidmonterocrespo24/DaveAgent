@@ -23,7 +23,7 @@ import random
 import time
 
 class CLIInterface:
-    """Rich and interactive CLI interface for the code agent"""
+    """Rich and interactive CLI interface for DaveAgent"""
 
     def __init__(self):
         self.console = Console()

@@ -16,7 +16,7 @@ echo ========================================================================
 echo Instalacion completada
 echo ========================================================================
 echo.
-echo Ahora puedes publicar CodeAgent usando:
+echo Ahora puedes publicar DaveAgent usando:
 echo   python publish.py test    - Para publicar en TestPyPI (pruebas)
 echo   python publish.py prod    - Para publicar en PyPI (produccion)
 echo.

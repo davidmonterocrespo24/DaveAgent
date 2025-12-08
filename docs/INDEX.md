@@ -68,7 +68,7 @@ python test/run_all_state_tests.py
 ## 📂 Estructura de Archivos
 
 ```
-CodeAgent/
+DaveAgent/
 ├── docs/
 │   ├── AUTOGEN_STATE_STRUCTURE.md      # ⭐ Estructura del estado
 │   ├── MIGRATION_TO_AUTOGEN_STATE.md   # Guía de migración

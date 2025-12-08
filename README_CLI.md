@@ -151,7 +151,7 @@ DaveAgent/
 ├── task_planner.py              # Task planning
 ├── task_executor.py             # Task execution
 ├── cli_interface.py             # CLI interface
-├── coder.py                     # Original code agent
+├── coder.py                     # Original DaveAgent coder
 ├── tools.py                     # Agent tools
 ├── prompt.py                    # System prompts
 ├── requirements.txt             # Dependencies

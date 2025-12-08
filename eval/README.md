@@ -1,6 +1,6 @@
-# SWE-bench Evaluation for CodeAgent
+# SWE-bench Evaluation for DaveAgent
 
-This directory contains scripts to evaluate the CodeAgent against the [SWE-bench Verified](https://www.swebench.com/) dataset.
+This directory contains scripts to evaluate DaveAgent against the [SWE-bench Verified](https://www.swebench.com/) dataset.
 
 ## Setup
 
