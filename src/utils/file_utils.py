@@ -2,10 +2,10 @@
 File utilities for reading and processing files.
 Migrated from TypeScript implementation.
 """
-import os
-import mimetypes
 import base64
 import logging
+import mimetypes
+import os
 from pathlib import Path
 from typing import Union, Optional, Tuple, Dict, Any, List
 

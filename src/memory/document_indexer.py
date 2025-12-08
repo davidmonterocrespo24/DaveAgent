@@ -1,13 +1,12 @@
 """
 Document Indexer - Index codebase files into memory
 """
-import re
 import asyncio
+import logging
+import re
+from autogen_core.memory import Memory, MemoryContent, MemoryMimeType
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-import logging
-
-from autogen_core.memory import Memory, MemoryContent, MemoryMimeType
 
 
 class DocumentIndexer:

@@ -2,6 +2,7 @@
 Test para terminal tool
 """
 import asyncio
+
 from terminal import run_terminal_cmd
 
 

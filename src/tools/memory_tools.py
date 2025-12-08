@@ -5,8 +5,8 @@ These tools allow agents to query different memory stores without using
 the AutoGen memory parameter (which causes issues with DeepSeek and other
 LLMs that don't support multiple system messages).
 """
-from typing import Annotated
 from autogen_core.tools import FunctionTool
+from typing import Annotated
 
 # Global memory manager instance (set by main.py)
 _memory_manager = None

@@ -2,13 +2,13 @@
 Web Search Tool - Real-time web search using DuckDuckGo
 """
 import logging
-from typing import Dict, List
 import random
-import time
 import requests
-from urllib.parse import quote_plus
+import time
 from bs4 import BeautifulSoup
+from typing import Dict, List
 from typing import List, Dict
+from urllib.parse import quote_plus
 
 
 async def web_search(search_term: str, explanation: str = "", max_results: int = 5) -> str:

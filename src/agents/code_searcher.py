@@ -2,11 +2,12 @@
 Code Searcher Agent - Agent specialized in code search and analysis
 This agent searches and collects relevant information about code before making modifications
 """
-from typing import Dict, List, Optional, Any, AsyncGenerator
 import re
 from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_core.memory import Memory
+from autogen_ext.models.openai import OpenAIChatCompletionClient
+from typing import Dict, List, Optional, Any, AsyncGenerator
+
 from src.config import CODE_SEARCHER_DESCRIPTION, CODE_SEARCHER_SYSTEM_MESSAGE
 
 

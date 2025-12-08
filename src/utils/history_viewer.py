@@ -4,14 +4,14 @@ History Viewer - Rich visualization of conversation history
 Displays session history in a formatted and user-friendly way
 using Rich for tables, panels, and syntax highlighting.
 """
-from typing import List, Dict, Any, Optional
+from datetime import datetime
+from rich import box
 from rich.console import Console
-from rich.table import Table
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.syntax import Syntax
-from rich.markdown import Markdown
-from rich import box
-from datetime import datetime
+from rich.table import Table
+from typing import List, Dict, Any, Optional
 
 
 class HistoryViewer:

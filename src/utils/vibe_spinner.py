@@ -2,10 +2,10 @@
 Vibe Spinner - Animated spinner with rotating vibe messages
 Shows creative messages while the agent is thinking/working
 """
+import random
+import sys
 import threading
 import time
-import sys
-import random
 from typing import Optional, List
 
 

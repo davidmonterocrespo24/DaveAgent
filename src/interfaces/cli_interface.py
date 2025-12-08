@@ -2,25 +2,26 @@
 Interactive CLI interface in the style of Claude Code
 """
 import asyncio
-from typing import Optional, List
-from rich.console import Console
-from rich.panel import Panel
-from rich.markdown import Markdown
-from rich.live import Live
-from rich.spinner import Spinner
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Table
-from rich.layout import Layout
-from rich.text import Text
-from prompt_toolkit import PromptSession
-from prompt_toolkit.history import FileHistory
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from datetime import datetime
-import sys
-from pathlib import Path
-from src.utils import FileIndexer, select_file_interactive, VibeSpinner
 import random
+import sys
 import time
+from datetime import datetime
+from pathlib import Path
+from prompt_toolkit import PromptSession
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.history import FileHistory
+from rich.console import Console
+from rich.layout import Layout
+from rich.live import Live
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.spinner import Spinner
+from rich.table import Table
+from rich.text import Text
+from typing import Optional, List
+
+from src.utils import FileIndexer, select_file_interactive, VibeSpinner
 
 
 class CLIInterface:

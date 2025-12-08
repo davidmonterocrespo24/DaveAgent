@@ -15,10 +15,10 @@ This provides complete system traceability independent of Langfuse.
 """
 import json
 import logging
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any, List, Optional
 import traceback
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, List, Optional
 
 
 class JSONLogger:

@@ -3,9 +3,9 @@ DaveAgent Configuration - API keys and URLs management
 Environment variables are loaded from .daveagent/.env
 """
 import os
+from dotenv import load_dotenv
 from pathlib import Path
 from typing import Optional
-from dotenv import load_dotenv
 
 # Load environment variables from .daveagent/.env if it exists
 # Priority: .daveagent/.env > .env (for compatibility)

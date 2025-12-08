@@ -2,8 +2,8 @@
 CSV File Tools - AutoGen Format
 """
 import logging
-from typing import List, Dict, Any
 from importlib import util
+from typing import List, Dict, Any
 
 
 def _check_pandas():

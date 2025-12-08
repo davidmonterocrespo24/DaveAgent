@@ -1,9 +1,9 @@
-import os
 import ast
 import json
+import os
+import shutil
 import subprocess
 import tempfile
-import shutil
 from pathlib import Path
 
 # Try to import optional libraries, if they fail, we simply won't lint those types

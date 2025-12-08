@@ -5,11 +5,12 @@ NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 import asyncio
 import logging
 from autogen_agentchat.agents import AssistantAgent
+from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 # Imports added for the new flow
 from autogen_agentchat.teams import SelectorGroupChat
-from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
+from src.agents import CodeSearcher
 # Import from new structure
 from src.config import (
     CODER_AGENT_DESCRIPTION,
@@ -17,13 +18,12 @@ from src.config import (
     PLANNING_AGENT_DESCRIPTION,
     PLANNING_AGENT_SYSTEM_MESSAGE
 )
-from src.agents import CodeSearcher
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
-from src.managers import StateManager
 from src.interfaces import CLIInterface
-from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
+from src.managers import StateManager
 from src.memory import MemoryManager, DocumentIndexer
 from src.observability import init_langfuse_tracing, is_langfuse_enabled
+from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
 
 
 class DaveAgentCLI:

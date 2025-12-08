@@ -1,9 +1,10 @@
 """
 Tool for executing terminal commands safely
 """
-import subprocess
 import os
+import subprocess
 from pathlib import Path
+
 from src.tools.common import get_workspace
 
 

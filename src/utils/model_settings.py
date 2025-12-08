@@ -1,8 +1,8 @@
 """
 Model Settings - Model and provider configuration
 """
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
+from typing import Optional, Dict, Any
 
 
 @dataclass

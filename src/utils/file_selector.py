@@ -1,9 +1,10 @@
 """
 Interactive File Selector - Clean file selection with scrollbar
 """
-import sys
 import os
+import sys
 from typing import List, Optional
+
 from .file_indexer import FileIndexer
 
 # Try to import readchar for better cross-platform support

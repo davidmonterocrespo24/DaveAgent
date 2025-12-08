@@ -19,8 +19,7 @@ We intercept the OpenAI client BEFORE AutoGen processes messages,
 inject reasoning_content from a cache, and extract it from responses.
 """
 import logging
-from typing import Any, Dict, Sequence, Mapping, Literal, AsyncGenerator
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_core import CancellationToken
 from autogen_core.models import (
     LLMMessage,
     CreateResult,
@@ -30,8 +29,9 @@ from autogen_core.models import (
     FunctionExecutionResultMessage
 )
 from autogen_core.tools import Tool, ToolSchema
-from autogen_core import CancellationToken
+from autogen_ext.models.openai import OpenAIChatCompletionClient
 from pydantic import BaseModel
+from typing import Any, Dict, Sequence, Mapping, Literal, AsyncGenerator
 
 
 class DeepSeekReasoningClient(OpenAIChatCompletionClient):

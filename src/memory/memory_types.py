@@ -1,8 +1,8 @@
 """
 Specialized memory types for different use cases
 """
-from typing import List, Optional, Dict, Any
 from autogen_core.memory import Memory, MemoryContent
+from typing import List, Optional, Dict, Any
 
 
 class ConversationMemory:

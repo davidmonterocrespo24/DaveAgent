@@ -10,7 +10,6 @@ This wrapper is placed around the real model_client and captures:
 Records everything in the JSONLogger for complete traceability.
 """
 import logging
-from typing import Any, Dict, List, Optional, Sequence, Union
 from autogen_core.models import ChatCompletionClient, RequestUsage
 from autogen_core.models import (
     LLMMessage,
@@ -21,6 +20,7 @@ from autogen_core.models import (
     FunctionExecutionResultMessage
 )
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 
 class LoggingModelClientWrapper:
