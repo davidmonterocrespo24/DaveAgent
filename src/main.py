@@ -1,16 +1,16 @@
 """
-Archivo principal - Interfaz CLI completa del agente de código
-NUEVA ESTRUCTURA REORGANIZADA (CORREGIDA CON LOGGING)
+Main file - Complete CLI interface for the code agent
+NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 """
 import asyncio
 import logging
 from autogen_agentchat.agents import AssistantAgent
-# Importaciones añadidas para el nuevo flujo
+# Imports added for the new flow
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-# Importar desde nueva estructura
+# Import from new structure
 from src.config import (
     CODER_AGENT_DESCRIPTION,
     COMPLEXITY_DETECTOR_PROMPT,
@@ -27,7 +27,7 @@ from src.observability import init_langfuse_tracing, is_langfuse_enabled
 
 
 class DaveAgentCLI:
-    """Aplicación CLI principal del agente de código"""
+    """Main CLI application for the code agent"""
 
     def __init__(
         self,
@@ -39,62 +39,62 @@ class DaveAgentCLI:
         headless: bool = False
     ):
         """
-        Inicializa todos los componentes del agente
+        Initialize all agent components
 
         Args:
-            debug: Modo debug activado
-            api_key: API key para el modelo LLM
-            base_url: URL base de la API
-            model: Nombre del modelo a usar
-            ssl_verify: Si verificar certificados SSL (por defecto True)
-            headless: Modo sin CLI interactivo (para evaluaciones/tests)
+            debug: Debug mode enabled
+            api_key: API key for the LLM model
+            base_url: Base URL of the API
+            model: Name of the model to use
+            ssl_verify: Whether to verify SSL certificates (default True)
+            headless: Headless mode without interactive CLI (for evaluations/tests)
         """
-        # Configurar logging (ahora en .daveagent/logs/)
+        # Configure logging (now in .daveagent/logs/)
         log_level = logging.DEBUG if debug else logging.INFO
         self.logger = get_logger(log_file=None, level=log_level)  # Use default path
 
-        # Configurar conversation tracker (logs to .daveagent/conversations.json)
+        # Configure conversation tracker (logs to .daveagent/conversations.json)
         self.conversation_tracker = get_conversation_tracker()
 
-        # Sistema de modos: "agente" (con herramientas) o "chat" (sin herramientas de modificación)
-        self.current_mode = "agente"  # Modo por defecto
+        # Mode system: "agente" (with tools) or "chat" (without modification tools)
+        self.current_mode = "agente"  # Default mode
 
 
-        # Cargar configuración (API key, URL, modelo)
+        # Load configuration (API key, URL, model)
         from src.config import get_settings
 
         self.settings = get_settings(api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify)
 
-        # Validar configuración (sin interactividad en modo headless)
+        # Validate configuration (without interactivity in headless mode)
         is_valid, error_msg = self.settings.validate(interactive=not headless)
         if not is_valid:
-            self.logger.error(f"[ERROR] Configuracion invalida: {error_msg}")
+            self.logger.error(f"[ERROR] Invalid configuration: {error_msg}")
             print(error_msg)
-            raise ValueError("Configuracion invalida")
+            raise ValueError("Invalid configuration")
 
-        self.logger.info(f"✓ Configuración cargada: {self.settings}")
+        self.logger.info(f"✓ Configuration loaded: {self.settings}")
 
         # DEEPSEEK REASONER SUPPORT
-        # Usar DeepSeekReasoningClient para modelos con thinking mode
+        # Use DeepSeekReasoningClient for models with thinking mode
         from src.utils.deepseek_fix import should_use_reasoning_client, DEEPSEEK_REASONER_INFO
 
-        # Crear cliente del modelo
-        self.logger.debug(f"Configurando cliente del modelo: {self.settings.model}")
+        # Create model client
+        self.logger.debug(f"Configuring model client: {self.settings.model}")
         self.logger.debug(f"SSL verify: {self.settings.ssl_verify}")
 
-        # Crear cliente HTTP personalizado con configuración SSL
+        # Create custom HTTP client with SSL configuration
         import httpx
         http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
 
-        # Sistema de logging JSON completo (SIEMPRE activo, independiente de Langfuse)
-        # IMPORTANTE: Inicializar JSONLogger ANTES de crear el model_client wrapper
+        # Complete JSON logging system (ALWAYS active, independent of Langfuse)
+        # IMPORTANT: Initialize JSONLogger BEFORE creating the model_client wrapper
         from src.utils.json_logger import JSONLogger
         self.json_logger = JSONLogger()
-        self.logger.info("✅ JSONLogger inicializado - capturando todas las interacciones")
+        self.logger.info("✅ JSONLogger initialized - capturing all interactions")
 
-        # Crear cliente del modelo base (con soporte para DeepSeek Reasoner)
+        # Create base model client (with DeepSeek Reasoner support)
         if should_use_reasoning_client(self.settings):
-            # Usar DeepSeekReasoningClient para preservar reasoning_content
+            # Use DeepSeekReasoningClient to preserve reasoning_content
             from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
 
             base_model_client = DeepSeekReasoningClient(
@@ -111,9 +111,9 @@ class DaveAgentCLI:
                 print(DEEPSEEK_REASONER_INFO)
             except UnicodeEncodeError:
                 print("[DeepSeek Reasoner Info - encoding issue]")
-            self.logger.info(f"DeepSeek Reasoner habilitado para {self.settings.model}")
+            self.logger.info(f"DeepSeek Reasoner enabled for {self.settings.model}")
         else:
-            # Usar cliente estándar para otros modelos
+            # Use standard client for other models
             base_model_client = OpenAIChatCompletionClient(
                 model=self.settings.model,
                 base_url=self.settings.base_url,
@@ -121,22 +121,22 @@ class DaveAgentCLI:
                 model_capabilities=self.settings.get_model_capabilities(),
                 http_client=http_client
             )
-            self.logger.info(f"🤖 Cliente estándar para {self.settings.model}")
+            self.logger.info(f"🤖 Standard client for {self.settings.model}")
 
-        # Envolver el model_client con LoggingModelClientWrapper para capturar llamadas LLM
+        # Wrap the model_client with LoggingModelClientWrapper to capture LLM calls
         self.model_client = LoggingModelClientWrapper(
             wrapped_client=base_model_client,
             json_logger=self.json_logger,
-            agent_name="SystemRouter"  # Se actualizará por agente
+            agent_name="SystemRouter"  # Will be updated per agent
         )
-        self.logger.info("✅ Model client wrapped con logging interceptor")
+        self.logger.info("✅ Model client wrapped with logging interceptor")
 
-        # ROUTER CLIENT: Crear cliente separado SIN thinking para el SelectorGroupChat
-        # El router no soporta extra_body parameters como {"thinking": ...}
+        # ROUTER CLIENT: Create separate client WITHOUT thinking for SelectorGroupChat
+        # The router does not support extra_body parameters like {"thinking": ...}
         if self.settings.model == "deepseek-reasoner":
-            # Para deepseek-reasoner, usar deepseek-chat en el router
+            # For deepseek-reasoner, use deepseek-chat in the router
             router_model = "deepseek-chat"
-            self.logger.info(f"🔀 Router usará {router_model} (sin thinking mode)")
+            self.logger.info(f"🔀 Router will use {router_model} (without thinking mode)")
         else:
             router_model = self.settings.model
 
@@ -147,36 +147,36 @@ class DaveAgentCLI:
             model_capabilities=self.settings.get_model_capabilities(),
             http_client=http_client
         )
-        self.logger.info(f"✅ Router client creado con modelo: {router_model}")
+        self.logger.info(f"✅ Router client created with model: {router_model}")
 
-        # Sistema de memoria con ChromaDB (inicializar ANTES de crear agentes)
+        # Memory system with ChromaDB (initialize BEFORE creating agents)
         self.memory_manager = MemoryManager(
-            k=5,  # Top 5 resultados más relevantes
-            score_threshold=0.3  # Umbral de similitud
+            k=5,  # Top 5 most relevant results
+            score_threshold=0.3  # Similarity threshold
         )
 
-        # Sistema de gestión de estado (AutoGen save_state/load_state)
+        # State management system (AutoGen save_state/load_state)
         self.state_manager = StateManager(
             auto_save_enabled=True,
-            auto_save_interval=300  # Auto-save cada 5 minutos
+            auto_save_interval=300  # Auto-save every 5 minutes
         )
 
-        # Sistema de observabilidad con Langfuse (método simple con OpenLit)
+        # Observability system with Langfuse (simple method with OpenLit)
         self.langfuse_enabled = False
         try:
-            # Inicializar Langfuse con OpenLit (tracking automático de AutoGen)
+            # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
             self.langfuse_enabled = init_langfuse_tracing(enabled=True, debug=debug)
 
             if self.langfuse_enabled:
-                self.logger.info("✅ Langfuse + OpenLit habilitado - tracking automático activo")
-                self.logger.info("   Todas las operaciones de AutoGen serán trackeadas automáticamente")
+                self.logger.info("✅ Langfuse + OpenLit enabled - automatic tracking active")
+                self.logger.info("   All AutoGen operations will be tracked automatically")
             else:
-                self.logger.info("ℹ️ Langfuse no disponible - continuando sin tracking")
+                self.logger.info("ℹ️ Langfuse not available - continuing without tracking")
         except Exception as e:
-            self.logger.warning(f"⚠️ Error inicializando Langfuse: {e}")
+            self.logger.warning(f"⚠️ Error initializing Langfuse: {e}")
             self.langfuse_enabled = False
 
-        # Importar todas las herramientas desde la nueva estructura
+        # Import all tools from the new structure
         from src.tools import (
             # Filesystem
             read_file, write_file, list_dir, edit_file,
@@ -208,9 +208,9 @@ class DaveAgentCLI:
         # Configure memory manager for memory tools
         set_memory_manager(self.memory_manager)
 
-        # Almacenar todas las herramientas para poder filtrarlas según el modo
+        # Store all tools to filter them according to mode
         self.all_tools = {
-            # Herramientas de SOLO LECTURA (disponibles en ambos modos)
+            # READ-ONLY tools (available in both modes)
             "read_only": [
                 read_file, list_dir, file_search, glob_search,
                 git_status, git_log, git_branch, git_diff,
@@ -225,7 +225,7 @@ class DaveAgentCLI:
                 query_decision_memory, query_preferences_memory,
                 query_user_memory
             ],
-            # Herramientas de MODIFICACIÓN (solo en modo agente)
+            # MODIFICATION tools (only in agent mode)
             "modification": [
                 write_file, edit_file, delete_file,
                 git_add, git_commit, git_push, git_pull,
@@ -235,7 +235,7 @@ class DaveAgentCLI:
                 # Memory save tools (modification mode only)
                 save_user_info, save_decision, save_preference
             ],
-            # Herramientas específicas para CodeSearcher (siempre disponibles)
+            # Specific tools for CodeSearcher (always available)
             "search": [
                 grep_search, file_search, glob_search,
                 read_file, list_dir,
@@ -245,12 +245,12 @@ class DaveAgentCLI:
             ]
         }
 
-        # Inicializar agentes según el modo actual
+        # Initialize agents according to current mode
         self._initialize_agents_for_mode()
 
-        # Componentes del sistema
+        # System components
         if headless:
-            # Modo headless: sin CLI interactivo (para evaluaciones)
+            # Headless mode: without interactive CLI (for evaluations)
             self.cli = type('DummyCLI', (), {
                 'print_success': lambda *args, **kwargs: None,
                 'print_error': lambda *args, **kwargs: None,
@@ -266,7 +266,7 @@ class DaveAgentCLI:
             })()
             self.history_viewer = None
         else:
-            # Modo interactivo normal
+            # Normal interactive mode
             self.cli = CLIInterface()
             self.history_viewer = HistoryViewer(console=self.cli.console)
 
@@ -274,38 +274,38 @@ class DaveAgentCLI:
 
     def _initialize_agents_for_mode(self):
         """
-        Inicializa todos los agentes del sistema según el modo actual
+        Initialize all system agents according to current mode
 
-        Modo AGENTE: Coder con todas las herramientas + AGENT_SYSTEM_PROMPT
-        Modo CHAT: Coder con solo lectura + CHAT_SYSTEM_PROMPT (más conversacional)
+        AGENT mode: Coder with all tools + AGENT_SYSTEM_PROMPT
+        CHAT mode: Coder with read-only + CHAT_SYSTEM_PROMPT (more conversational)
 
-        NOTA: Los agentes NO usan el parámetro 'memory' de AutoGen para evitar
-        errores de "multiple system messages" en modelos como DeepSeek.
-        En su lugar, usan herramientas RAG (query_*_memory, save_*).
+        NOTE: Agents DO NOT use the parameter 'memory' de AutoGen para evitar
+        errors with "multiple system messages" in models like DeepSeek.
+        Instead, they use RAG tools (query_*_memory, save_*).
         """
         if self.current_mode == "agente":
-            # Modo AGENTE: todas las herramientas + prompt técnico
+            # AGENT mode: all tools + technical prompt
             coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
             system_prompt = AGENT_SYSTEM_PROMPT
-            self.logger.info("🔧 Inicializando en modo AGENTE (todas las herramientas)")
+            self.logger.info("🔧 Initializing in AGENT mode (all tools)")
         else:
-            # Modo CHAT: solo lectura + prompt conversacional
+            # CHAT mode: read-only + conversational prompt
             coder_tools = self.all_tools["read_only"]
             system_prompt = CHAT_SYSTEM_PROMPT
-            self.logger.info("💬 Inicializando en modo CHAT (solo lectura)")
+            self.logger.info("💬 Initializing in CHAT mode (read-only)")
 
         # =====================================================================
-        # IMPORTANTE: NO usar parámetro 'memory' - CAUSA ERROR CON DEEPSEEK
+        # IMPORTANT: DO NOT use parameter 'memory' - CAUSES ERROR WITH DEEPSEEK
         # =====================================================================
-        # DeepSeek y otros LLMs no soportan múltiples system messages.
-        # El parámetro 'memory' en AutoGen inyecta system messages adicionales.
+        # DeepSeek and other LLMs do not support multiple system messages.
+        # The parameter 'memory' in AutoGen injects additional system messages.
         #
-        # SOLUCIÓN: Usar herramientas RAG en su lugar (query_*_memory, save_*)
-        # Las herramientas RAG están disponibles en coder_tools y no causan
-        # conflictos con system messages.
+        # SOLUTION: Use RAG tools instead (query_*_memory, save_*)
+        # RAG tools are available in coder_tools and do not cause
+        # conflicts with system messages.
         # =====================================================================
 
-        # Crear wrappers separados para cada agente (para logging con nombres correctos)
+        # Create separate wrappers for each agent (for logging with correct names)
         coder_client = LoggingModelClientWrapper(
             wrapped_client=self.model_client._wrapped,
             json_logger=self.json_logger,
@@ -324,51 +324,51 @@ class DaveAgentCLI:
             agent_name="Planner"
         )
 
-        # Crear agente de código con herramientas RAG (sin memory parameter)
+        # Create code agent with RAG tools (without memory parameter)
         self.coder_agent = AssistantAgent(
             name="Coder",
             description=CODER_AGENT_DESCRIPTION,
             system_message=system_prompt,
             model_client=coder_client,
-            tools=coder_tools,  # Incluye herramientas RAG de memoria
+            tools=coder_tools,  # Includes memory RAG tools
             max_tool_iterations=5,
             reflect_on_tool_use=False
             # NO memory parameter - uses RAG tools instead
         )
 
-        # Crear CodeSearcher con herramientas de búsqueda (sin memory parameter)
+        # Create CodeSearcher with search tools (without memory parameter)
         self.code_searcher = CodeSearcher(
             searcher_client,
-            self.all_tools["search"]  # Incluye query_codebase_memory, query_conversation_memory
+            self.all_tools["search"]  # Includes query_codebase_memory, query_conversation_memory
             # NO memory parameter - uses RAG tools instead
         )
 
-        # PlanningAgent (sin herramientas, sin memory)
+        # PlanningAgent (without tools, without memory)
         self.planning_agent = AssistantAgent(
             name="Planner",
             description=PLANNING_AGENT_DESCRIPTION,
             system_message=PLANNING_AGENT_SYSTEM_MESSAGE,
             model_client=planner_client,
-            tools=[]  # Planner no tiene herramientas, solo planifica
+            tools=[]  # Planner has no tools, only plans
             # NO memory parameter
         )
 
-        # SummaryAgent ELIMINADO - Causaba conflictos y no era necesario
-        # Los agentes Coder y Planner pueden generar sus propios resúmenes
+        # SummaryAgent REMOVED - Caused conflicts and was not necessary
+        # Coder and Planner agents can generate their own summaries
 
         # =====================================================================
-        # ROUTER TEAM: SelectorGroupChat único que enruta automáticamente
+        # ROUTER TEAM: Single SelectorGroupChat that routes automatically
         # =====================================================================
-        # Este team decide automáticamente qué agente usar según el contexto:
-        # - Planner: Para tareas complejas multi-paso
-        # - CodeSearcher: Para búsqueda y análisis de código
-        # - Coder: Para modificaciones directas de código
+        # This team automatically decides which agent to use according to context:
+        # - Planner: For complex multi-step tasks
+        # - CodeSearcher: For code search and analysis
+        # - Coder: For direct code modifications
         #
-        # Ventajas:
-        # - No necesita detección manual de complejidad
-        # - Un solo team que persiste (no se recrea en cada request)
-        # - El LLM router decide inteligentemente
-        # - Elimina problema de "multiple system messages"
+        # Advantages:
+        # - Does not need manual complexity detection
+        # - Single team that persists (not recreated on each request)
+        # - The LLM router decides intelligently
+        # - Eliminates "multiple system messages" problem
         # =====================================================================
 
         termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(50)
@@ -385,7 +385,7 @@ class DaveAgentCLI:
             ],
             model_client=self.router_client,
             termination_condition=termination_condition,
-            allow_repeated_speaker=True  # Permite que el mismo agente hable varias veces
+            allow_repeated_speaker=True  # Allows the same agent to speak multiple times
         )
 
         self.logger.debug(f"[SELECTOR] Router team created with {len(self.main_team._participants)} agents")
@@ -393,57 +393,57 @@ class DaveAgentCLI:
 
     async def _update_agent_tools_for_mode(self):
         """
-        Reinicializa completamente el sistema de agentes según el modo actual
+        Completely reinitialize the agent system according to current mode
 
-        Esto crea nuevas instancias de todos los agentes con la configuración
-        correcta para el modo (herramientas + system prompt).
+        This creates new instances of all agents with the correct
+        configuration for the mode (tools + system prompt).
 
-        IMPORTANTE: También limpia el historial de conversación y RECREÀ el MemoryManager
-        para evitar conflictos con múltiples system messages en modelos como DeepSeek.
+        IMPORTANT: Also cleans conversation history and RECREATES the MemoryManager
+        to avoid conflicts with multiple system messages in models like DeepSeek.
         """
-        self.logger.info(f"🔄 Reinicializando sistema completo para modo: {self.current_mode.upper()}")
+        self.logger.info(f"🔄 Reinitializing complete system for mode: {self.current_mode.upper()}")
 
-        # PASO 1: Limpiar la sesión actual del StateManager
+        # STEP 1: Clean current StateManager session
         if self.state_manager.session_id:
-            self.logger.debug("🧹 Limpiando sesión del StateManager...")
+            self.logger.debug("🧹 Cleaning StateManager session...")
             self.state_manager.clear_current_session()
 
-        # PASO 2: RECREAR el MemoryManager completamente para obtener memorias limpias
-        # Esto es CRÍTICO porque incluso sin conversation_memory, AutoGen mantiene
-        # historial interno en las colecciones de ChromaDB
-        self.logger.debug("🧹 Reinicializando MemoryManager completo...")
+        # STEP 2: RECREATE MemoryManager completely to get clean memories
+        # This is CRITICAL because even without conversation_memory, AutoGen maintains
+        # internal history in ChromaDB collections
+        self.logger.debug("🧹 Reinitializing complete MemoryManager...")
         old_memory = self.memory_manager
-        
-        # Cerrar el anterior (async) ANTES de crear el nuevo para liberar locks
+
+        # Close the previous one (async) BEFORE creating new one to release locks
         if old_memory:
             try:
                 await old_memory.close()
-                self.logger.debug("✅ MemoryManager anterior cerrado")
+                self.logger.debug("✅ Previous MemoryManager closed")
             except Exception as e:
-                self.logger.warning(f"⚠️  Error cerrando MemoryManager anterior: {e}")
+                self.logger.warning(f"⚠️  Error closing previous MemoryManager: {e}")
 
-        # Crear NUEVO MemoryManager con colecciones completamente limpias
+        # Create NEW MemoryManager with completely clean collections
         self.memory_manager = MemoryManager(
             k=5,
             score_threshold=0.3
         )
 
-        # Cerrar el anterior (async) - YA CERRADO ARRIBA
+        # Close the previous one (async) - ALREADY CLOSED ABOVE
         # try:
         #     await old_memory.close()
-        #     self.logger.debug("✅ MemoryManager anterior cerrado")
+        #     self.logger.debug("✅ Previous MemoryManager closed")
         # except Exception as e:
-        #     self.logger.warning(f"⚠️  Error cerrando MemoryManager anterior: {e}")
+        #     self.logger.warning(f"⚠️  Error closing previous MemoryManager: {e}")
 
-        # PASO 3: Reinicializar agentes con herramientas RAG (sin parámetro memory)
-        # Los agentes usarán herramientas RAG en lugar del parámetro memory
-        self.logger.debug("🔧 Creando nuevos agentes...")
+        # STEP 3: Reinitialize agents with RAG tools (without memory parameter)
+        # Agents will use RAG tools instead of memory parameter
+        self.logger.debug("🔧 Creating new agents...")
         self._initialize_agents_for_mode()
 
-        self.logger.info(f"✅ Sistema completamente reinicializado en modo: {self.current_mode.upper()}")
+        self.logger.info(f"✅ System completely reinitialized in mode: {self.current_mode.upper()}")
 
     async def handle_command(self, command: str) -> bool:
-        """Maneja comandos especiales del usuario"""
+        """Handles special user commands"""
         parts = command.split(maxsplit=1)
         cmd = parts[0].lower()
 
