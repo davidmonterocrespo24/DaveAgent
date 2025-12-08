@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "daveagent-cli"
-version = "1.010"
+version = "1.0.0"
 description = "AI-powered coding assistant with intelligent agent orchestration"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "DaveAgent Team", email = "contact@daveagent.ai"}
+    {name = "DaveAgent Team", email = "davidmonterocrespo24@gmail.com"}
 ]
 keywords = ["ai", "agent", "coding", "assistant", "llm", "autogen"]
 classifiers = [
