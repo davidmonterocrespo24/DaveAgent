@@ -74,8 +74,8 @@ daveagent
 
 ```bash
 # 1. Clone or download the project
-git clone https://github.com/DaveAgent-AI/daveagent.git
-cd daveagent
+git clone https://github.com/davidmonterocrespo24/DaveAgent.git
+cd DaveAgent
 
 # 2. Install in development mode
 pip install -e .
@@ -496,7 +496,7 @@ chmod +x setup_and_run_linux.sh
 See [CAMBIOS_REALIZADOS.md](CAMBIOS_REALIZADOS.md) for resolved issues.
 
 If you encounter an issue:
-1. Check [existing issues](https://github.com/yourusername/daveagent/issues)
+1. Check [existing issues](https://github.com/davidmonterocrespo24/DaveAgent/issues)
 2. Create a new issue with details
 
 ## 📝 License
@@ -509,11 +509,23 @@ This project is under the MIT License. See [LICENSE](LICENSE) for more details.
 - [Rich](https://rich.readthedocs.io/) - Terminal formatting
 - [Prompt Toolkit](https://python-prompt-toolkit.readthedocs.io/) - Interactive CLI
 
-## 📞 Contact
+## 📞 Contact & Community
 
-- Website: https://github.com/yourusername/daveagent
-- Issues: https://github.com/yourusername/daveagent/issues
-- Email: contact@daveagent.ai
+- **Discord Community**: [Join our Discord server](https://discord.gg/2dRTd4Cv) - Get help, report bugs, suggest improvements, and collaborate with other users
+- **GitHub**: https://github.com/davidmonterocrespo24/DaveAgent
+- **Issues**: https://github.com/davidmonterocrespo24/DaveAgent/issues
+- **Email**: contact@daveagent.ai
+
+### Join Our Discord Community
+
+We encourage you to join our Discord server to:
+- 💬 **Get Help**: Ask questions and get support from the community
+- 🐛 **Report Bugs**: Help us improve by reporting issues you encounter
+- 💡 **Suggest Features**: Share your ideas for new features and improvements
+- 🤝 **Collaborate**: Connect with other users and contributors
+- 📢 **Stay Updated**: Get the latest news and updates about DaveAgent
+
+**[Click here to join: https://discord.gg/2dRTd4Cv](https://discord.gg/2dRTd4Cv)**
 
 ---
 

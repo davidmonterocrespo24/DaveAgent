@@ -76,5 +76,5 @@ El proyecto usa [Semantic Versioning](https://semver.org/):
 
 ---
 
-[1.0.0]: https://github.com/yourusername/daveagent/releases/tag/v1.0.0
-[Unreleased]: https://github.com/yourusername/daveagent/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.0
+[Unreleased]: https://github.com/davidmonterocrespo24/DaveAgent/compare/v1.0.0...HEAD
