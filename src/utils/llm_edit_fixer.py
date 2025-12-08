@@ -60,14 +60,16 @@ Based on the error and the file content, provide a corrected `search` string tha
 Return valid JSON.
 """
 
+
 # --- Implementation ---
 
-async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, error_msg: str, file_content: str) -> tuple[str, str] | None:
+async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, error_msg: str, file_content: str) -> tuple[
+                                                                                                                      str, str] | None:
     """
     Attempts to correct old_string and new_string using an LLM when search fails.
     Replicating the logic of Google's FixLLMEditWithInstruction.
     """
-    
+
     user_prompt = EDIT_USER_PROMPT_TEMPLATE.format(
         instruction=instruction,
         old_string=old_string,
@@ -77,13 +79,13 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
     )
 
     settings = get_settings()
-    
+
     # Create http client
     http_client = httpx.AsyncClient(verify=settings.ssl_verify)
-    
+
     try:
         if should_use_reasoning_client(settings):
-             client = DeepSeekReasoningClient(
+            client = DeepSeekReasoningClient(
                 model=settings.model,
                 base_url=settings.base_url,
                 api_key=settings.api_key,
@@ -111,20 +113,20 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
         response_content = result.content
         if response_content.strip().startswith("```"):
             response_content = response_content.split("```json")[-1].split("```")[0].strip()
-                
+
         data = json.loads(response_content)
-        
+
         if data.get("noChangesRequired", False):
             # El LLM dice que ya está hecho. 
             # Podríamos lanzar una excepción específica o retornar los valores originales 
             # para que el validador de "no changes" lo capture arriba.
-            return old_string, old_string # Esto disparará 'new == old' error
+            return old_string, old_string  # Esto disparará 'new == old' error
 
         corrected_search = data.get("search", old_string)
         corrected_replace = data.get("replace", new_string)
-        
+
         return corrected_search, corrected_replace
-        
+
     except Exception as e:
         print(f"Error en _llm_fix_edit: {e}")
         return None

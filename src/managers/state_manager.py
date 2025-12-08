@@ -26,10 +26,10 @@ class StateManager:
     """
 
     def __init__(
-        self,
-        state_dir: Optional[Path] = None,
-        auto_save_enabled: bool = True,
-        auto_save_interval: int = 300,  # 5 minutos
+            self,
+            state_dir: Optional[Path] = None,
+            auto_save_enabled: bool = True,
+            auto_save_interval: int = 300,  # 5 minutos
     ):
         """
         Initialize State Manager
@@ -68,11 +68,11 @@ class StateManager:
     # =========================================================================
 
     def start_session(
-        self, 
-        session_id: Optional[str] = None,
-        title: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        description: Optional[str] = None
+            self,
+            session_id: Optional[str] = None,
+            title: Optional[str] = None,
+            tags: Optional[List[str]] = None,
+            description: Optional[str] = None
     ) -> str:
         """
         Start a new session or resume existing one
@@ -91,7 +91,7 @@ class StateManager:
             session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         self.session_id = session_id
-        
+
         # Store session metadata
         self.session_metadata = {
             "title": title or "Untitled Session",
@@ -100,7 +100,7 @@ class StateManager:
             "created_at": datetime.now().isoformat(),
             "last_interaction": datetime.now().isoformat()
         }
-        
+
         self.logger.info(f"📝 Session started: {session_id} - {title or 'Untitled'}")
 
         # Start auto-save if enabled
@@ -130,7 +130,7 @@ class StateManager:
 
                 # Extract session metadata
                 metadata = data.get("session_metadata", {})
-                
+
                 # Count total messages in all agents
                 total_messages = 0
                 agent_states = data.get("agent_states", {})
@@ -167,10 +167,10 @@ class StateManager:
     # =========================================================================
 
     async def save_agent_state(
-        self,
-        agent_name: str,
-        agent: Any,
-        metadata: Optional[Dict] = None
+            self,
+            agent_name: str,
+            agent: Any,
+            metadata: Optional[Dict] = None
     ) -> None:
         """
         Save state of a single agent
@@ -198,9 +198,9 @@ class StateManager:
             raise
 
     async def load_agent_state(
-        self,
-        agent_name: str,
-        agent: Any
+            self,
+            agent_name: str,
+            agent: Any
     ) -> bool:
         """
         Load state into an agent
@@ -235,10 +235,10 @@ class StateManager:
     # =========================================================================
 
     async def save_team_state(
-        self,
-        team_name: str,
-        team: Any,
-        metadata: Optional[Dict] = None
+            self,
+            team_name: str,
+            team: Any,
+            metadata: Optional[Dict] = None
     ) -> None:
         """
         Save state of a team (includes all agents in the team)
@@ -266,9 +266,9 @@ class StateManager:
             raise
 
     async def load_team_state(
-        self,
-        team_name: str,
-        team: Any
+            self,
+            team_name: str,
+            team: Any
     ) -> bool:
         """
         Load state into a team
@@ -303,9 +303,9 @@ class StateManager:
     # =========================================================================
 
     async def save_to_disk(
-        self,
-        session_id: Optional[str] = None,
-        include_metadata: bool = True
+            self,
+            session_id: Optional[str] = None,
+            include_metadata: bool = True
     ) -> Path:
         """
         Save all cached states to disk
@@ -324,7 +324,7 @@ class StateManager:
             # Update last interaction time
             if self.session_metadata:
                 self.session_metadata["last_interaction"] = datetime.now().isoformat()
-            
+
             # Prepare data
             data = {
                 "session_id": session_id,
@@ -354,8 +354,8 @@ class StateManager:
             raise
 
     async def load_from_disk(
-        self,
-        session_id: Optional[str] = None
+            self,
+            session_id: Optional[str] = None
     ) -> bool:
         """
         Load states from disk
@@ -533,19 +533,19 @@ class StateManager:
                 state_path = self.get_session_path(session_id)
                 if not state_path.exists():
                     return []
-                
+
                 with open(state_path, "r") as f:
                     data = json.load(f)
                 agent_states = data.get("agent_states", {})
 
             # Extract all messages from all agents
             all_messages = []
-            
+
             for agent_name, agent_data in agent_states.items():
                 state = agent_data.get("state", {})
                 llm_context = state.get("llm_context", {})
                 messages = llm_context.get("messages", [])
-                
+
                 for msg in messages:
                     all_messages.append({
                         "agent": agent_name,
@@ -574,15 +574,15 @@ class StateManager:
         try:
             if session_id is None or session_id == self.session_id:
                 return self.session_metadata.copy()
-            
+
             # Load from disk
             state_path = self.get_session_path(session_id)
             if not state_path.exists():
                 return {}
-            
+
             with open(state_path, "r") as f:
                 data = json.load(f)
-            
+
             return data.get("session_metadata", {})
 
         except Exception as e:

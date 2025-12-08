@@ -16,10 +16,10 @@ class CodeSearcher:
     """
 
     def __init__(
-        self,
-        model_client: OpenAIChatCompletionClient,
-        tools: List,
-        memory: Optional[List[Memory]] = None
+            self,
+            model_client: OpenAIChatCompletionClient,
+            tools: List,
+            memory: Optional[List[Memory]] = None
     ):
         """
         Initializes the CodeSearcher agent

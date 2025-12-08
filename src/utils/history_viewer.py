@@ -100,11 +100,11 @@ class HistoryViewer:
 
         if metadata.get("description"):
             info_table.add_row("Description", metadata.get("description"))
-        
+
         if metadata.get("tags"):
             tags_str = ", ".join(metadata.get("tags"))
             info_table.add_row("Tags", tags_str)
-        
+
         created_at = metadata.get("created_at", "")
         if created_at:
             try:
@@ -130,16 +130,16 @@ class HistoryViewer:
             border_style="cyan",
             box=box.ROUNDED
         )
-        
+
         self.console.print("\n")
         self.console.print(panel)
         self.console.print("\n")
 
     def display_conversation_history(
-        self, 
-        messages: List[Dict[str, Any]],
-        max_messages: Optional[int] = None,
-        show_thoughts: bool = False
+            self,
+            messages: List[Dict[str, Any]],
+            max_messages: Optional[int] = None,
+            show_thoughts: bool = False
     ):
         """
         Display conversation history with formatted messages
@@ -200,7 +200,7 @@ class HistoryViewer:
 
         # Check if content is code
         content_str = str(content)
-        
+
         # Try to detect code blocks
         if "```" in content_str:
             # Render as markdown
@@ -239,11 +239,11 @@ class HistoryViewer:
             self.console.print("")
 
     def display_session_summary(
-        self,
-        session_id: str,
-        metadata: Dict[str, Any],
-        total_messages: int,
-        agents_used: List[str]
+            self,
+            session_id: str,
+            metadata: Dict[str, Any],
+            total_messages: int,
+            agents_used: List[str]
     ):
         """
         Display comprehensive session summary
@@ -270,7 +270,7 @@ class HistoryViewer:
         if agents_used:
             agents_str = ", ".join(agents_used)
             summary_parts.append(f"  • Agents: {agents_str}")
-        
+
         if metadata.get("tags"):
             tags_str = ", ".join(metadata.get("tags"))
             summary_parts.append(f"\n[bold magenta]🏷️  Tags:[/bold magenta] {tags_str}")
@@ -326,10 +326,10 @@ class HistoryViewer:
         self.console.print(f"[dim]ID: {session_id}[/dim]\n")
 
     def display_session_loaded(
-        self,
-        session_id: str,
-        total_messages: int,
-        agents_restored: int
+            self,
+            session_id: str,
+            total_messages: int,
+            agents_restored: int
     ):
         """
         Display success message after loading session

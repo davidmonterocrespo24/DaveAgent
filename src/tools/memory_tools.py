@@ -8,7 +8,6 @@ LLMs that don't support multiple system messages).
 from typing import Annotated
 from autogen_core.tools import FunctionTool
 
-
 # Global memory manager instance (set by main.py)
 _memory_manager = None
 
@@ -20,7 +19,7 @@ def set_memory_manager(manager):
 
 
 async def query_conversation_memory(
-    query: Annotated[str, "The search query to find relevant past conversations"]
+        query: Annotated[str, "The search query to find relevant past conversations"]
 ) -> str:
     """
     Query conversation memory to find relevant past conversations.
@@ -70,7 +69,7 @@ async def query_conversation_memory(
 
 
 async def query_codebase_memory(
-    query: Annotated[str, "The search query to find relevant code"]
+        query: Annotated[str, "The search query to find relevant code"]
 ) -> str:
     """
     Query codebase memory to find relevant indexed code.
@@ -119,7 +118,7 @@ async def query_codebase_memory(
 
 
 async def query_decision_memory(
-    query: Annotated[str, "The search query to find relevant architectural decisions"]
+        query: Annotated[str, "The search query to find relevant architectural decisions"]
 ) -> str:
     """
     Query decision memory to find relevant architectural decisions and patterns.
@@ -165,7 +164,7 @@ async def query_decision_memory(
 
 
 async def query_preferences_memory(
-    query: Annotated[str, "The search query to find relevant user preferences"]
+        query: Annotated[str, "The search query to find relevant user preferences"]
 ) -> str:
     """
     Query user preferences memory to find relevant preferences and coding styles.
@@ -212,7 +211,7 @@ async def query_preferences_memory(
 
 
 async def query_user_memory(
-    query: Annotated[str, "The search query to find relevant user information"]
+        query: Annotated[str, "The search query to find relevant user information"]
 ) -> str:
     """
     Query user memory to find relevant information about the user.
@@ -258,8 +257,8 @@ async def query_user_memory(
 
 
 async def save_user_info(
-    info: Annotated[str, "User information to save (name, role, preferences, expertise, etc.)"],
-    category: Annotated[str, "Category of information (personal, expertise, project, goal, etc.)"] = "general"
+        info: Annotated[str, "User information to save (name, role, preferences, expertise, etc.)"],
+        category: Annotated[str, "Category of information (personal, expertise, project, goal, etc.)"] = "general"
 ) -> str:
     """
     Save important information about the user to memory.
@@ -293,8 +292,8 @@ async def save_user_info(
 
 
 async def save_decision(
-    decision: Annotated[str, "The architectural decision or pattern to save"],
-    context: Annotated[str, "Context and reasoning for this decision"]
+        decision: Annotated[str, "The architectural decision or pattern to save"],
+        context: Annotated[str, "Context and reasoning for this decision"]
 ) -> str:
     """
     Save an important architectural decision or pattern to memory.
@@ -327,8 +326,8 @@ async def save_decision(
 
 
 async def save_preference(
-    preference: Annotated[str, "The user preference to save"],
-    category: Annotated[str, "Category (code_style, framework, tool, workflow, etc.)"] = "general"
+        preference: Annotated[str, "The user preference to save"],
+        category: Annotated[str, "Category (code_style, framework, tool, workflow, etc.)"] = "general"
 ) -> str:
     """
     Save a user preference or coding style to memory.

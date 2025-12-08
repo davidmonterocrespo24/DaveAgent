@@ -22,6 +22,7 @@ from src.utils import FileIndexer, select_file_interactive, VibeSpinner
 import random
 import time
 
+
 class CLIInterface:
     """Rich and interactive CLI interface for DaveAgent"""
 
@@ -39,7 +40,7 @@ class CLIInterface:
 
     def print_banner(self):
         """Shows the welcome banner with a 'particles' animation"""
-        
+
         banner_lines = """
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
@@ -61,13 +62,13 @@ class CLIInterface:
 ║                    Version 1.2.1                            ║
 ╚══════════════════════════════════════════════════════════════╝
         """.strip('\n').split('\n')
-        
+
         height = len(banner_lines)
         width = max(len(line) for line in banner_lines)
-        
+
         # Characters to use as "particles"
-        particles = ['.', ':', '*', '°', '·', ' '] 
-        
+        particles = ['.', ':', '*', '°', '·', ' ']
+
         # 1. Create initial state (particle field)
         # Use a list of character lists so we can mutate it
         current_state = []
@@ -78,7 +79,7 @@ class CLIInterface:
                 if c < len(banner_lines[r]) and banner_lines[r][c] != ' ':
                     row.append(random.choice(particles))
                 else:
-                    row.append(' ') # Keep empty spaces
+                    row.append(' ')  # Keep empty spaces
             current_state.append(row)
 
         # 2. Get all coordinates (row, col) of the real characters
@@ -88,40 +89,38 @@ class CLIInterface:
                 # We only want to "resolve" characters that are not spaces
                 if c < len(banner_lines[r]) and banner_lines[r][c] != ' ':
                     coords.append((r, c))
-        
+
         # 3. Shuffle coordinates for random assembly effect
         random.shuffle(coords)
-        
+
         # 4. Set up animation with Rich Live
         # Define how many characters to reveal per frame (lower = slower)
-        reveal_per_frame = max(1, len(coords) // 20) # Aim for ~20 frames
-        
+        reveal_per_frame = max(1, len(coords) // 20)  # Aim for ~20 frames
+
         with Live(console=self.console, refresh_per_second=15, transient=True) as live:
             # Show initial particle field for a moment
             text = Text('\n'.join(''.join(row) for row in current_state), style="bold cyan")
             live.update(text)
-            time.sleep(0.3) # Initial pause
+            time.sleep(0.3)  # Initial pause
 
             # 5. Start revealing characters in batches
             for i in range(0, len(coords), reveal_per_frame):
-                batch = coords[i : i + reveal_per_frame]
-                
+                batch = coords[i: i + reveal_per_frame]
+
                 for r, c in batch:
                     # Replace particle with correct character
                     current_state[r][c] = banner_lines[r][c]
-                
+
                 # Update Live with new state
                 text = Text('\n'.join(''.join(row) for row in current_state), style="bold cyan")
                 live.update(text)
-                time.sleep(0.02) # Small pause between frames
+                time.sleep(0.02)  # Small pause between frames
 
         # 6. Print final banner permanently
         # (Live with transient=True disappears, so we print it again)
         final_text = Text('\n'.join(banner_lines), style="bold cyan")
         self.console.print(final_text)
         self.console.print()
-
-    
 
     def _initialize_file_indexer(self):
         """Initialize file indexer lazily"""
@@ -239,7 +238,9 @@ class CLIInterface:
         result = ''.join(parts)
 
         # If result is just file mentions with no actual query, ask user to continue
-        if result.strip() and all(part.strip().startswith('`') and part.strip().endswith('`') or part.strip() == '' for part in result.split()):
+        if result.strip() and all(
+                part.strip().startswith('`') and part.strip().endswith('`') or part.strip() == '' for part in
+                result.split()):
             self.console.print("\n[cyan]💬 Now type your request (you can use @ for more files):[/cyan]")
             # Get additional input from user
             loop = asyncio.get_event_loop()
@@ -380,13 +381,12 @@ class CLIInterface:
         ))
 
     def print_warning(self, warning: str):
-        """Shows a warning message""" 
+        """Shows a warning message"""
         self.console.print(Panel(
             warning,
             title="[bold yellow]Warning[/bold yellow]",
             border_style="yellow"
         ))
-
 
     def print_info(self, info: str, title: str = "Information"):
         """Shows an informative message"""
@@ -396,11 +396,9 @@ class CLIInterface:
             border_style="cyan"
         ))
 
-
     def print_success(self, message: str):
         """Shows a success message"""
         self.console.print(f"[bold green]✓ {message}[/bold green]")
-
 
     def print_diff(self, diff_text: str):
         """
@@ -438,7 +436,6 @@ class CLIInterface:
         md = Markdown(summary)
         self.console.print(md)
         self.console.print("─" * 60, style="dim cyan")
-
 
     def create_progress_table(self, tasks: List[dict]) -> Table:
         """Creates a table with task progress"""
@@ -675,11 +672,11 @@ Simply write what you need the agent to do. The agent will:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     file_content = f.read()
 
-                content_parts.append(f"\n{'='*60}")
+                content_parts.append(f"\n{'=' * 60}")
                 content_parts.append(f"FILE: {file_path}")
-                content_parts.append(f"{'='*60}\n")
+                content_parts.append(f"{'=' * 60}\n")
                 content_parts.append(file_content)
-                content_parts.append(f"\n{'='*60}\n")
+                content_parts.append(f"\n{'=' * 60}\n")
 
             except Exception as e:
                 content_parts.append(f"\n⚠️ Error reading {file_path}: {e}\n")

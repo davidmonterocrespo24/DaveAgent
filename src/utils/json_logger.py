@@ -190,12 +190,12 @@ class JSONLogger:
         self.logger.error(f"📝 Logged error: {error}")
 
     def log_llm_call(
-        self,
-        agent_name: str,
-        messages: List[Dict[str, Any]],
-        response: Optional[str] = None,
-        model: Optional[str] = None,
-        tokens_used: Optional[Dict[str, int]] = None
+            self,
+            agent_name: str,
+            messages: List[Dict[str, Any]],
+            response: Optional[str] = None,
+            model: Optional[str] = None,
+            tokens_used: Optional[Dict[str, int]] = None
     ):
         """
         Log complete LLM call (input and output)

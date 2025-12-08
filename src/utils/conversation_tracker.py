@@ -43,13 +43,13 @@ class ConversationTracker:
             json.dump(conversations, f, indent=2, ensure_ascii=False)
 
     def log_interaction(
-        self,
-        user_request: str,
-        agent_response: str,
-        model: str,
-        provider: str,
-        agent_name: str = "DaveAgent",
-        metadata: Optional[Dict[str, Any]] = None
+            self,
+            user_request: str,
+            agent_response: str,
+            model: str,
+            provider: str,
+            agent_name: str = "DaveAgent",
+            metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         """
         Log an LLM interaction

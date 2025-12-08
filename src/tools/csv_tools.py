@@ -15,10 +15,10 @@ def _check_pandas():
 
 
 async def read_csv(
-    filepath: str,
-    delimiter: str = ',',
-    encoding: str = 'utf-8',
-    max_rows: int = None
+        filepath: str,
+        delimiter: str = ',',
+        encoding: str = 'utf-8',
+        max_rows: int = None
 ) -> str:
     """
     Reads a CSV file and returns its contents.
@@ -60,11 +60,11 @@ async def read_csv(
 
 
 async def write_csv(
-    filepath: str,
-    data: str,
-    delimiter: str = ',',
-    mode: str = 'w',
-    encoding: str = 'utf-8'
+        filepath: str,
+        data: str,
+        delimiter: str = ',',
+        mode: str = 'w',
+        encoding: str = 'utf-8'
 ) -> str:
     """
     Writes data to a CSV file.
@@ -142,11 +142,11 @@ async def csv_info(filepath: str, delimiter: str = ',', encoding: str = 'utf-8')
 
 
 async def filter_csv(
-    filepath: str,
-    column: str,
-    value: str,
-    output_file: str = None,
-    delimiter: str = ','
+        filepath: str,
+        column: str,
+        value: str,
+        output_file: str = None,
+        delimiter: str = ','
 ) -> str:
     """
     Filters a CSV by a column value.
@@ -190,11 +190,11 @@ async def filter_csv(
 
 
 async def merge_csv_files(
-    file1: str,
-    file2: str,
-    output_file: str,
-    on_column: str = None,
-    how: str = 'inner'
+        file1: str,
+        file2: str,
+        output_file: str,
+        on_column: str = None,
+        how: str = 'inner'
 ) -> str:
     """
     Merges two CSV files.
@@ -240,9 +240,9 @@ async def merge_csv_files(
 
 
 async def csv_to_json(
-    csv_file: str,
-    json_file: str,
-    orient: str = 'records'
+        csv_file: str,
+        json_file: str,
+        orient: str = 'records'
 ) -> str:
     """
     Converts a CSV file to JSON.
@@ -270,10 +270,10 @@ async def csv_to_json(
 
 
 async def sort_csv(
-    filepath: str,
-    column: str,
-    output_file: str = None,
-    ascending: bool = True
+        filepath: str,
+        column: str,
+        output_file: str = None,
+        ascending: bool = True
 ) -> str:
     """
     Sorts a CSV file by a column.

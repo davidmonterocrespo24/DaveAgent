@@ -19,6 +19,13 @@ build/
 *.egg-info/
 __pycache__/
 
+# Testing and coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+
 # IDEs
 .vscode/
 .idea/

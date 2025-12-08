@@ -30,13 +30,13 @@ class DaveAgentCLI:
     """Main CLI application for the code agent"""
 
     def __init__(
-        self,
-        debug: bool = False,
-        api_key: str = None,
-        base_url: str = None,
-        model: str = None,
-        ssl_verify: bool = None,
-        headless: bool = False
+            self,
+            debug: bool = False,
+            api_key: str = None,
+            base_url: str = None,
+            model: str = None,
+            ssl_verify: bool = None,
+            headless: bool = False
     ):
         """
         Initialize all agent components
@@ -58,7 +58,6 @@ class DaveAgentCLI:
 
         # Mode system: "agente" (with tools) or "chat" (without modification tools)
         self.current_mode = "agente"  # Default mode
-
 
         # Load configuration (API key, URL, model)
         from src.config import get_settings
@@ -389,7 +388,6 @@ class DaveAgentCLI:
         )
 
         self.logger.debug(f"[SELECTOR] Router team created with {len(self.main_team._participants)} agents")
-
 
     async def _update_agent_tools_for_mode(self):
         """
@@ -767,7 +765,8 @@ class DaveAgentCLI:
 
             if len(parts) < 2:
                 self.cli.print_error("Usage: /new-session <title> [--tags tag1,tag2] [--desc description]")
-                self.cli.print_info("Example: /new-session \"Web Project\" --tags python,web --desc \"API Development\"")
+                self.cli.print_info(
+                    "Example: /new-session \"Web Project\" --tags python,web --desc \"API Development\"")
                 return
 
             # Join and parse
@@ -778,11 +777,11 @@ class DaveAgentCLI:
             if not args:
                 self.cli.print_error("You must provide a title for the session")
                 return
-            
+
             title = args[0]
             tags = []
             description = ""
-            
+
             # Parse optional flags
             i = 1
             while i < len(args):
@@ -845,7 +844,7 @@ class DaveAgentCLI:
                 # Limit length of each message
                 content_preview = content[:200] if len(content) > 200 else content
                 conversation_summary += f"{role}: {content_preview}\n"
-            
+
             # Create prompt to generate title
             title_prompt = f"""Based on the following conversation, generate a short, descriptive title (maximum 50 characters).
 The title should capture the main topic or task being discussed.
@@ -1136,7 +1135,7 @@ TITLE:"""
             # Parse options
             show_all = "--all" in parts
             show_thoughts = "--thoughts" in parts
-            
+
             # Check if session_id provided
             session_id = None
             for part in parts[1:]:
@@ -1322,7 +1321,8 @@ TITLE:"""
                                 for execution_result in content:
                                     if hasattr(execution_result, 'name'):
                                         tool_name = execution_result.name
-                                        result_preview = str(execution_result.content)[:100] if hasattr(execution_result, 'content') else "OK"
+                                        result_preview = str(execution_result.content)[:100] if hasattr(
+                                            execution_result, 'content') else "OK"
                                         self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
                                         self.logger.debug(f"✅ Tool result: {tool_name}")
                             agent_messages_shown.add(message_key)
@@ -1479,8 +1479,11 @@ TITLE:"""
                                         # Check if this is an edit_file result with diff
                                         if tool_name == "edit_file" and "DIFF (Changes Applied)" in result_content:
                                             # Extract and display the diff
-                                            diff_start = result_content.find("═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):")
-                                            diff_end = result_content.find("\n═══════════════════════════════════════════════════════════════", diff_start + 100)
+                                            diff_start = result_content.find(
+                                                "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):")
+                                            diff_end = result_content.find(
+                                                "\n═══════════════════════════════════════════════════════════════",
+                                                diff_start + 100)
 
                                             if diff_start != -1 and diff_end != -1:
                                                 diff_text = result_content[diff_start:diff_end + 64]
@@ -1651,7 +1654,8 @@ TITLE:"""
                                     if hasattr(tool_call, 'name'):
                                         tool_name = tool_call.name
                                         tool_args = tool_call.arguments if hasattr(tool_call, 'arguments') else {}
-                                        self.cli.print_info(f"🔧 Calling tool: {tool_name} with parameters {tool_args}",  agent_name)
+                                        self.cli.print_info(f"🔧 Calling tool: {tool_name} with parameters {tool_args}",
+                                                            agent_name)
                                         self.logger.debug(f"🔧 Tool call: {tool_name}({tool_args})")
                                         # JSON Logger: Capture tool call
                                         self.json_logger.log_tool_call(
@@ -1681,13 +1685,17 @@ TITLE:"""
                                 for execution_result in content:
                                     if hasattr(execution_result, 'name'):
                                         tool_name = execution_result.name
-                                        result_content = str(execution_result.content) if hasattr(execution_result, 'content') else "OK"
+                                        result_content = str(execution_result.content) if hasattr(execution_result,
+                                                                                                  'content') else "OK"
 
                                         # Check if this is an edit_file result with diff
                                         if tool_name == "edit_file" and "DIFF (Changes Applied)" in result_content:
                                             # Extract and display the diff
-                                            diff_start = result_content.find("═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):")
-                                            diff_end = result_content.find("\n═══════════════════════════════════════════════════════════════", diff_start + 100)
+                                            diff_start = result_content.find(
+                                                "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):")
+                                            diff_end = result_content.find(
+                                                "\n═══════════════════════════════════════════════════════════════",
+                                                diff_start + 100)
 
                                             if diff_start != -1 and diff_end != -1:
                                                 diff_text = result_content[diff_start:diff_end + 64]
@@ -1695,19 +1703,22 @@ TITLE:"""
                                                 info_end = result_content.find("\n\n", 0, diff_start)
                                                 if info_end != -1:
                                                     file_info = result_content[:info_end]
-                                                    self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {file_info}")
+                                                    self.cli.print_thinking(
+                                                        f"✅ {agent_name} > {tool_name}: {file_info}")
                                                 # Display diff with colors
                                                 self.cli.print_diff(diff_text)
                                                 self.logger.debug(f"✅ Tool result: {tool_name} -> DIFF displayed")
                                             else:
                                                 # Fallback to showing preview
                                                 result_preview = result_content[:100]
-                                                self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
+                                                self.cli.print_thinking(
+                                                    f"✅ {agent_name} > {tool_name}: {result_preview}...")
                                                 self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
                                         else:
                                             # Regular tool result
                                             result_preview = result_content[:100]
-                                            self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
+                                            self.cli.print_thinking(
+                                                f"✅ {agent_name} > {tool_name}: {result_preview}...")
                                             self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
 
                                         # JSON Logger: Capture tool result
@@ -1802,11 +1813,11 @@ TITLE:"""
     # =========================================================================
 
     def _log_interaction_to_json(
-        self,
-        user_input: str,
-        agent_responses: list,
-        agents_used: list,
-        tools_called: list
+            self,
+            user_input: str,
+            agent_responses: list,
+            agents_used: list,
+            tools_called: list
     ):
         """
         Log the interaction with the LLM to JSON file and vector memory
@@ -2046,11 +2057,11 @@ TITLE:"""
 
 
 async def main(
-    debug: bool = False,
-    api_key: str = None,
-    base_url: str = None,
-    model: str = None,
-    ssl_verify: bool = None
+        debug: bool = False,
+        api_key: str = None,
+        base_url: str = None,
+        model: str = None,
+        ssl_verify: bool = None
 ):
     """
     Main entry point

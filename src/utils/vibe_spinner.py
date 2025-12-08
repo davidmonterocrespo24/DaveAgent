@@ -113,13 +113,13 @@ class VibeSpinner:
     }
 
     def __init__(
-        self,
-        messages: Optional[List[str]] = None,
-        spinner_style: str = "dots",
-        color: str = "cyan",
-        language: str = "es",
-        update_interval: float = 0.1,
-        message_interval: float = 2.0
+            self,
+            messages: Optional[List[str]] = None,
+            spinner_style: str = "dots",
+            color: str = "cyan",
+            language: str = "es",
+            update_interval: float = 0.1,
+            message_interval: float = 2.0
     ):
         """
         Initialize the vibe spinner
@@ -179,8 +179,8 @@ class VibeSpinner:
             current_time = time.time()
             if current_time - self._last_message_change >= self.message_interval:
                 self._current_message_index = (
-                    self._current_message_index + 1
-                ) % len(self.messages)
+                                                      self._current_message_index + 1
+                                              ) % len(self.messages)
                 self._last_message_change = current_time
 
             # Sleep
@@ -251,10 +251,10 @@ class VibeSpinner:
 
 # Convenience function
 def show_vibe_spinner(
-    message: Optional[str] = None,
-    style: str = "dots",
-    color: str = "cyan",
-    language: str = "es"
+        message: Optional[str] = None,
+        style: str = "dots",
+        color: str = "cyan",
+        language: str = "es"
 ) -> VibeSpinner:
     """
     Create and start a vibe spinner

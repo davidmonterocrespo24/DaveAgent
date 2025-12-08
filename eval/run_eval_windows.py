@@ -22,25 +22,25 @@ except ImportError as e:
 
     # Call main with arguments directly
     print(f"🚀 Running SWE-bench evaluation...")
-    
+
     # Defaults
     dataset_name = "princeton-nlp/SWE-bench_Verified"
     predictions_path = "predictions.jsonl"
     run_id = "evaluacion_prueba_v1"
-    
+
     # Simple arg parsing for flexibility (optional override)
     for i, arg in enumerate(sys.argv):
-        if arg == "--dataset_name" and i+1 < len(sys.argv):
-            dataset_name = sys.argv[i+1]
-        elif arg == "--predictions_path" and i+1 < len(sys.argv):
-            predictions_path = sys.argv[i+1]
-        elif arg == "--run_id" and i+1 < len(sys.argv):
-            run_id = sys.argv[i+1]
+        if arg == "--dataset_name" and i + 1 < len(sys.argv):
+            dataset_name = sys.argv[i + 1]
+        elif arg == "--predictions_path" and i + 1 < len(sys.argv):
+            predictions_path = sys.argv[i + 1]
+        elif arg == "--run_id" and i + 1 < len(sys.argv):
+            run_id = sys.argv[i + 1]
 
     run_evaluation(
         dataset_name=dataset_name,
         predictions_path=predictions_path,
         run_id=run_id,
         max_workers=4,
-        split='test' # explicit split usually needed
+        split='test'  # explicit split usually needed
     )

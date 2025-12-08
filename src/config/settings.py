@@ -30,11 +30,11 @@ class DaveAgentSettings:
     DEFAULT_SSL_VERIFY = True
 
     def __init__(
-        self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        model: Optional[str] = None,
-        ssl_verify: Optional[bool] = None
+            self,
+            api_key: Optional[str] = None,
+            base_url: Optional[str] = None,
+            model: Optional[str] = None,
+            ssl_verify: Optional[bool] = None
     ):
         """
         Initializes the configuration with priority:
@@ -50,29 +50,29 @@ class DaveAgentSettings:
         """
         # API Key (required)
         self.api_key = (
-            api_key
-            or os.getenv("DAVEAGENT_API_KEY")
-            or os.getenv("CODEAGENT_API_KEY")  # Compatibility
-            or os.getenv("OPENAI_API_KEY")  # Compatibility
-            or os.getenv("DEEPSEEK_API_KEY")  # Compatibility
+                api_key
+                or os.getenv("DAVEAGENT_API_KEY")
+                or os.getenv("CODEAGENT_API_KEY")  # Compatibility
+                or os.getenv("OPENAI_API_KEY")  # Compatibility
+                or os.getenv("DEEPSEEK_API_KEY")  # Compatibility
         )
 
         # Base URL (optional, with default value)
         self.base_url = (
-            base_url
-            or os.getenv("DAVEAGENT_BASE_URL")
-            or os.getenv("CODEAGENT_BASE_URL")  # Compatibility
-            or os.getenv("OPENAI_BASE_URL")  # Compatibility
-            or self.DEFAULT_BASE_URL
+                base_url
+                or os.getenv("DAVEAGENT_BASE_URL")
+                or os.getenv("CODEAGENT_BASE_URL")  # Compatibility
+                or os.getenv("OPENAI_BASE_URL")  # Compatibility
+                or self.DEFAULT_BASE_URL
         )
 
         # Model (optional, with default value)
         self.model = (
-            model
-            or os.getenv("DAVEAGENT_MODEL")
-            or os.getenv("CODEAGENT_MODEL")  # Compatibility
-            or os.getenv("OPENAI_MODEL")  # Compatibility
-            or self.DEFAULT_MODEL
+                model
+                or os.getenv("DAVEAGENT_MODEL")
+                or os.getenv("CODEAGENT_MODEL")  # Compatibility
+                or os.getenv("OPENAI_MODEL")  # Compatibility
+                or self.DEFAULT_MODEL
         )
 
         # SSL Verify (optional, with default value)
@@ -81,8 +81,8 @@ class DaveAgentSettings:
         else:
             # Read from environment variable (can be "true", "false", "1", "0")
             env_ssl = (
-                os.getenv("DAVEAGENT_SSL_VERIFY") 
-                or os.getenv("SSL_VERIFY")
+                    os.getenv("DAVEAGENT_SSL_VERIFY")
+                    or os.getenv("SSL_VERIFY")
             )
             if env_ssl:
                 self.ssl_verify = env_ssl.lower() in ("true", "1", "yes", "on")
@@ -204,10 +204,10 @@ class DaveAgentSettings:
 
 
 def get_settings(
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    model: Optional[str] = None,
-    ssl_verify: Optional[bool] = None
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None,
+        ssl_verify: Optional[bool] = None
 ) -> DaveAgentSettings:
     """
     Factory function to get configuration

@@ -47,9 +47,9 @@ class LoggingModelClientWrapper:
         self.logger.info(f"🔧 LoggingModelClientWrapper initialized for agent: {agent_name}")
 
     async def create(
-        self,
-        messages: Sequence[LLMMessage],
-        **kwargs
+            self,
+            messages: Sequence[LLMMessage],
+            **kwargs
     ) -> CreateResult:
         """
         Intercepts the create() method and records input/output
@@ -100,8 +100,10 @@ class LoggingModelClientWrapper:
             if hasattr(result, 'usage') and result.usage:
                 tokens_used = {
                     "prompt_tokens": result.usage.prompt_tokens if hasattr(result.usage, 'prompt_tokens') else 0,
-                    "completion_tokens": result.usage.completion_tokens if hasattr(result.usage, 'completion_tokens') else 0,
-                    "total_tokens": (result.usage.prompt_tokens + result.usage.completion_tokens) if hasattr(result.usage, 'prompt_tokens') else 0
+                    "completion_tokens": result.usage.completion_tokens if hasattr(result.usage,
+                                                                                   'completion_tokens') else 0,
+                    "total_tokens": (result.usage.prompt_tokens + result.usage.completion_tokens) if hasattr(
+                        result.usage, 'prompt_tokens') else 0
                 }
 
             # Record in JSONLogger
@@ -128,7 +130,8 @@ class LoggingModelClientWrapper:
                 # Add to events manually (more direct than using log_llm_call)
                 self._json_logger.events.append(llm_call_data)
 
-                self.logger.info(f"✅ LLM call logged: {self._agent_name}, {duration:.2f}s, tokens={tokens_used.get('total_tokens', 0) if tokens_used else 0}")
+                self.logger.info(
+                    f"✅ LLM call logged: {self._agent_name}, {duration:.2f}s, tokens={tokens_used.get('total_tokens', 0) if tokens_used else 0}")
 
             return result
 
@@ -194,7 +197,8 @@ class LoggingModelClientWrapper:
             # Log if we find reasoning_content
             if isinstance(msg, AssistantMessage) and hasattr(msg, 'reasoning_content'):
                 if msg.reasoning_content:
-                    self.logger.info(f"💭 Preserving reasoning_content in assistant message: {len(msg.reasoning_content)} chars")
+                    self.logger.info(
+                        f"💭 Preserving reasoning_content in assistant message: {len(msg.reasoning_content)} chars")
 
         return processed
 

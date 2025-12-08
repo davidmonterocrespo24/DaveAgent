@@ -26,11 +26,11 @@ class MemoryManager:
     """
 
     def __init__(
-        self,
-        persistence_path: Optional[str] = None,
-        embedding_model: str = "all-MiniLM-L6-v2",
-        k: int = 5,
-        score_threshold: float = 0.3,
+            self,
+            persistence_path: Optional[str] = None,
+            embedding_model: str = "all-MiniLM-L6-v2",
+            k: int = 5,
+            score_threshold: float = 0.3,
     ):
         """
         Initialize the memory manager
@@ -96,10 +96,10 @@ class MemoryManager:
         return self._conversation_memory
 
     async def add_conversation(
-        self,
-        user_input: str,
-        agent_response: str,
-        metadata: Optional[Dict[str, Any]] = None
+            self,
+            user_input: str,
+            agent_response: str,
+            metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Add a conversation exchange to memory
@@ -156,10 +156,10 @@ class MemoryManager:
         return self._codebase_memory
 
     async def add_code_chunk(
-        self,
-        code: str,
-        file_path: str,
-        metadata: Optional[Dict[str, Any]] = None
+            self,
+            code: str,
+            file_path: str,
+            metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Add a code chunk to memory
@@ -213,10 +213,10 @@ class MemoryManager:
         return self._decision_memory
 
     async def add_decision(
-        self,
-        decision: str,
-        context: str,
-        metadata: Optional[Dict[str, Any]] = None
+            self,
+            decision: str,
+            context: str,
+            metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Add an architectural decision to memory
@@ -271,10 +271,10 @@ class MemoryManager:
         return self._preferences_memory
 
     async def add_preference(
-        self,
-        preference: str,
-        category: str = "general",
-        metadata: Optional[Dict[str, Any]] = None
+            self,
+            preference: str,
+            category: str = "general",
+            metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Add a user preference to memory
@@ -327,10 +327,10 @@ class MemoryManager:
         return self._user_memory
 
     async def add_user_info(
-        self,
-        info: str,
-        category: str = "general",
-        metadata: Optional[Dict[str, Any]] = None
+            self,
+            info: str,
+            category: str = "general",
+            metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Add user information to memory

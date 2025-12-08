@@ -9,6 +9,7 @@ from .file_indexer import FileIndexer
 # Try to import readchar for better cross-platform support
 try:
     import readchar
+
     HAS_READCHAR = True
 except ImportError:
     HAS_READCHAR = False
@@ -114,13 +115,13 @@ class FileSelector:
 
         # Header
         lines.append("\033[1m\033[96m📁 File Selector\033[0m \033[2m(↑↓ navigate | Enter select | Esc cancel)\033[0m")
-        lines.append(f"\033[2mSearch:\033[0m @{query}\033[K") # Clear to end of line
+        lines.append(f"\033[2mSearch:\033[0m @{query}\033[K")  # Clear to end of line
         lines.append("\033[2m" + "─" * 70 + "\033[0m")
 
         if not files:
             lines.append("\033[93m⚠ No files found\033[0m\033[K")
             for _ in range(self.max_display_items - 1):
-                lines.append("\033[K") # Empty line with clear
+                lines.append("\033[K")  # Empty line with clear
         else:
             # Calculate visible range
             total_files = len(files)
@@ -136,11 +137,11 @@ class FileSelector:
                     # Calculate if scrollbar should show indicator here
                     scrollbar_height = self.max_display_items
                     indicator_pos = int((self.selected_index / max(total_files - 1, 1)) * (scrollbar_height - 1))
-                    
+
                     if i == indicator_pos:
                         scrollbar = "\033[96m█\033[0m"  # Indicator
                     else:
-                        scrollbar = "\033[2m│\033[0m"   # Bar
+                        scrollbar = "\033[2m│\033[0m"  # Bar
                 else:
                     scrollbar = " "
 
@@ -148,15 +149,15 @@ class FileSelector:
                 if file_idx < total_files:
                     file_path = files[file_idx]
                     is_selected = (file_idx == self.selected_index)
-                    
+
                     if is_selected:
                         # Highlighted selection
                         line = f"{scrollbar} \033[1m\033[92m▶ {file_path}\033[0m"
                     else:
                         # Normal file
                         line = f"{scrollbar}   \033[2m{file_path}\033[0m"
-                    
-                    lines.append(line + "\033[K") # Clear rest of line
+
+                    lines.append(line + "\033[K")  # Clear rest of line
                 else:
                     # Empty line
                     lines.append(scrollbar + "\033[K")
@@ -173,16 +174,17 @@ class FileSelector:
 
         # Clear any remaining lines from previous render if new render is shorter
         # (Though in this fixed height implementation, it shouldn't vary much)
-        lines.append("\033[J") 
+        lines.append("\033[J")
 
         # Write all lines at once to reduce flickering
         output = '\n'.join(lines)
-        sys.stdout.write(output) # No extra newline at end to avoid scrolling issues
+        sys.stdout.write(output)  # No extra newline at end to avoid scrolling issues
         sys.stdout.flush()
 
         # Track lines for clearing (number of \n in output + 1 for the last line)
         # We count the actual lines we printed
-        self.lines_drawn = len(lines) - 1 # -1 because the last \033[J is not a new line visually but part of the last line logic
+        self.lines_drawn = len(
+            lines) - 1  # -1 because the last \033[J is not a new line visually but part of the last line logic
         # Actually, let's be precise: we printed len(lines) lines separated by \n.
         # So the cursor is now at the end of the last line.
         # If we want to move back up to the start, we need to move up len(lines) - 1 times?

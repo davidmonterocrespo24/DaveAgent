@@ -10,8 +10,8 @@ from typing import Optional
 
 
 def init_langfuse_tracing(
-    enabled: bool = True,
-    debug: bool = False
+        enabled: bool = True,
+        debug: bool = False
 ) -> bool:
     """
     Initialize Langfuse tracing using OpenLit (official method)
@@ -80,7 +80,7 @@ def init_langfuse_tracing(
 
         # Silenciar todos los loggers relacionados con telemetría
         for logger_name in ["openlit", "opentelemetry", "opentelemetry.sdk",
-                           "opentelemetry.exporter", "opentelemetry.metrics"]:
+                            "opentelemetry.exporter", "opentelemetry.metrics"]:
             logging.getLogger(logger_name).setLevel(logging.CRITICAL)
             logging.getLogger(logger_name).propagate = False
 

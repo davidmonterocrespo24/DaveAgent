@@ -56,10 +56,10 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
     """
 
     def __init__(
-        self,
-        *args,
-        enable_thinking: bool = None,
-        **kwargs
+            self,
+            *args,
+            enable_thinking: bool = None,
+            **kwargs
     ):
         """
         Args:
@@ -90,14 +90,14 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             self.logger.info(f"🤖 DeepSeek client initialized without thinking mode: {model}")
 
     async def create(
-        self,
-        messages: Sequence[LLMMessage],
-        *,
-        tools: Sequence[Tool | ToolSchema] = [],
-        tool_choice: Tool | Literal["auto", "required", "none"] = "auto",
-        json_output: bool | type[BaseModel] | None = None,
-        extra_create_args: Mapping[str, Any] = {},
-        cancellation_token: CancellationToken | None = None
+            self,
+            messages: Sequence[LLMMessage],
+            *,
+            tools: Sequence[Tool | ToolSchema] = [],
+            tool_choice: Tool | Literal["auto", "required", "none"] = "auto",
+            json_output: bool | type[BaseModel] | None = None,
+            extra_create_args: Mapping[str, Any] = {},
+            cancellation_token: CancellationToken | None = None
     ) -> CreateResult:
         """
         Override create() to handle reasoning_content.
@@ -165,16 +165,16 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             raise
 
     async def create_stream(
-        self,
-        messages: Sequence[LLMMessage],
-        *,
-        tools: Sequence[Tool | ToolSchema] = [],
-        tool_choice: Tool | Literal["auto", "required", "none"] = "auto",
-        json_output: bool | type[BaseModel] | None = None,
-        extra_create_args: Mapping[str, Any] = {},
-        cancellation_token: CancellationToken | None = None,
-        max_consecutive_empty_chunk_tolerance: int = 0,
-        include_usage: bool | None = None
+            self,
+            messages: Sequence[LLMMessage],
+            *,
+            tools: Sequence[Tool | ToolSchema] = [],
+            tool_choice: Tool | Literal["auto", "required", "none"] = "auto",
+            json_output: bool | type[BaseModel] | None = None,
+            extra_create_args: Mapping[str, Any] = {},
+            cancellation_token: CancellationToken | None = None,
+            max_consecutive_empty_chunk_tolerance: int = 0,
+            include_usage: bool | None = None
     ) -> AsyncGenerator[str | CreateResult, None]:
         """
         Override create_stream() to handle reasoning_content in streaming.
@@ -192,14 +192,14 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
         # Call base stream
         async for chunk in super().create_stream(
-            messages=messages,
-            tools=tools,
-            tool_choice=tool_choice,
-            json_output=json_output,
-            extra_create_args=modified_extra_args,
-            cancellation_token=cancellation_token,
-            max_consecutive_empty_chunk_tolerance=max_consecutive_empty_chunk_tolerance,
-            include_usage=include_usage
+                messages=messages,
+                tools=tools,
+                tool_choice=tool_choice,
+                json_output=json_output,
+                extra_create_args=modified_extra_args,
+                cancellation_token=cancellation_token,
+                max_consecutive_empty_chunk_tolerance=max_consecutive_empty_chunk_tolerance,
+                include_usage=include_usage
         ):
             # Last chunk is a CreateResult with reasoning_content
             if isinstance(chunk, CreateResult):

@@ -28,11 +28,11 @@ async def read_json(filepath: str, encoding: str = 'utf-8') -> Union[Dict[str, A
 
 
 async def write_json(
-    filepath: str,
-    data: Union[Dict[str, Any], List[Any]],
-    encoding: str = 'utf-8',
-    indent: int = 2,
-    ensure_ascii: bool = False
+        filepath: str,
+        data: Union[Dict[str, Any], List[Any]],
+        encoding: str = 'utf-8',
+        indent: int = 2,
+        ensure_ascii: bool = False
 ) -> str:
     """
     Writes data to a JSON file.
@@ -63,10 +63,10 @@ async def write_json(
 
 
 async def merge_json_files(
-    file1: str,
-    file2: str,
-    output_file: str,
-    overwrite_duplicates: bool = True
+        file1: str,
+        file2: str,
+        output_file: str,
+        overwrite_duplicates: bool = True
 ) -> str:
     """
     Merges two JSON files.

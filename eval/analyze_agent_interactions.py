@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from collections import Counter, defaultdict
 
+
 def find_json_logs(base_dir):
     """Busca todos los archivos JSON de logging del agente"""
     json_files = []
@@ -27,6 +28,7 @@ def find_json_logs(base_dir):
             json_files.extend(log_dir.glob('*.json'))
 
     return json_files
+
 
 def analyze_log_file(log_path):
     """Analiza un archivo de log JSON del agente"""
@@ -122,6 +124,7 @@ def analyze_log_file(log_path):
     analysis['files_edited'] = list(analysis['files_edited'])
 
     return analysis
+
 
 def generate_interaction_report(analyses, output_path):
     """Genera un reporte HTML de las interacciones del agente"""
@@ -305,7 +308,7 @@ def generate_interaction_report(analyses, output_path):
             <div class="summary-label">Errores Encontrados</div>
         </div>
         <div class="summary-card">
-            <div class="summary-number">{total_messages/total_tasks if total_tasks > 0 else 0:.1f}</div>
+            <div class="summary-number">{total_messages / total_tasks if total_tasks > 0 else 0:.1f}</div>
             <div class="summary-label">Mensajes Promedio/Tarea</div>
         </div>
     </div>
@@ -425,11 +428,12 @@ def generate_interaction_report(analyses, output_path):
 
     print(f"✓ Reporte de interacciones generado: {output_path}")
 
+
 def main():
     """Función principal"""
-    print("="*70)
+    print("=" * 70)
     print("  Analizador de Interacciones del Agente")
-    print("="*70)
+    print("=" * 70)
     print()
 
     base_dir = Path(__file__).parent.parent
@@ -467,11 +471,12 @@ def main():
     generate_interaction_report(analyses, output_path)
 
     print()
-    print("="*70)
+    print("=" * 70)
     print("✅ Análisis completado!")
-    print("="*70)
+    print("=" * 70)
     print(f"\n📄 Reporte: {output_path}")
     print()
+
 
 if __name__ == '__main__':
     main()

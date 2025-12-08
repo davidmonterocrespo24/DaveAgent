@@ -2,6 +2,7 @@ from pathlib import Path
 from src.tools.common import get_workspace
 from src.utils.linter import lint_code_check
 
+
 async def write_file(target_file: str, file_content: str) -> str:
     """Writes content to a file"""
     try:
@@ -20,7 +21,7 @@ async def write_file(target_file: str, file_content: str) -> str:
                     old_content = f.read()
                 old_lines = len(old_content.splitlines())
                 new_lines = len(file_content.splitlines())
-                
+
                 # Rule: If overwriting a large file (>200 lines) with a small one (<50 lines)
                 if old_lines > 200 and new_lines < 50:
                     return f"Error: You are trying to overwrite a large file ({old_lines} lines) with very little content ({new_lines} lines). This looks like accidental data loss. If you meant to edit the file, use 'edit_file' instead. If you actually want to replace the file, delete it first using 'delete_file' and then write it."

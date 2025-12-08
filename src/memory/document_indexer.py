@@ -19,10 +19,10 @@ class DocumentIndexer:
     """
 
     def __init__(
-        self,
-        memory: Memory,
-        chunk_size: int = 1500,
-        ignore_patterns: Optional[List[str]] = None
+            self,
+            memory: Memory,
+            chunk_size: int = 1500,
+            ignore_patterns: Optional[List[str]] = None
     ):
         """
         Initialize the document indexer
@@ -270,7 +270,7 @@ class DocumentIndexer:
                             flat_metadata[key] = ", ".join(str(v) for v in value)
                         else:
                             flat_metadata[key] = value
-                    
+
                     chunk_metadata.update(flat_metadata)
 
                 await self.memory.add(
@@ -289,10 +289,10 @@ class DocumentIndexer:
             return 0
 
     async def index_directory(
-        self,
-        directory: Path,
-        recursive: bool = True,
-        max_files: Optional[int] = None
+            self,
+            directory: Path,
+            recursive: bool = True,
+            max_files: Optional[int] = None
     ) -> Dict[str, int]:
         """
         Index all supported files in a directory
@@ -323,8 +323,8 @@ class DocumentIndexer:
             files_to_index = [
                 f for f in files
                 if f.is_file()
-                and self._is_supported_file(f)
-                and not self._should_ignore(f)
+                   and self._is_supported_file(f)
+                   and not self._should_ignore(f)
             ]
 
             # Limit number of files if specified
@@ -359,9 +359,9 @@ class DocumentIndexer:
         return stats
 
     async def index_project(
-        self,
-        project_dir: Optional[Path] = None,
-        max_files: Optional[int] = None
+            self,
+            project_dir: Optional[Path] = None,
+            max_files: Optional[int] = None
     ) -> Dict[str, int]:
         """
         Index the entire project directory

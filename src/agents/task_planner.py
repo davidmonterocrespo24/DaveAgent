@@ -129,11 +129,11 @@ Create a detailed execution plan to achieve this goal."""
             raise Exception(f"Error creating plan: {e}")
 
     async def update_plan(
-        self,
-        task_result: str,
-        task_id: int,
-        success: bool,
-        error_message: Optional[str] = None
+            self,
+            task_result: str,
+            task_id: int,
+            success: bool,
+            error_message: Optional[str] = None
     ) -> PlanUpdate:
         """
         Updates the plan based on a task's result
@@ -270,11 +270,11 @@ If changes are needed, specify which tasks to modify, add, or remove."""
         return None
 
     def update_task_status(
-        self,
-        task_id: int,
-        status: Literal["pending", "in_progress", "completed", "failed", "blocked"],
-        result: Optional[str] = None,
-        error: Optional[str] = None
+            self,
+            task_id: int,
+            status: Literal["pending", "in_progress", "completed", "failed", "blocked"],
+            result: Optional[str] = None,
+            error: Optional[str] = None
     ):
         """Updates the status of a task"""
         if not self.current_plan:

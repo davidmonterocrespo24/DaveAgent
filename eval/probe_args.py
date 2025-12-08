@@ -8,6 +8,7 @@ if sys.platform == 'win32':
 try:
     from swebench.harness.run_evaluation import main
     import inspect
+
     print(f"Signature: {inspect.signature(main)}")
     print(f"Docstring: {main.__doc__}")
 except Exception as e:

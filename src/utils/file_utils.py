@@ -27,11 +27,13 @@ BINARY_EXTENSIONS = {
     '.pyc', '.pyo', '.pyd', '.class', '.jar', '.war', '.ear'
 }
 
+
 class ToolErrorType:
     FILE_NOT_FOUND = "FILE_NOT_FOUND"
     TARGET_IS_DIRECTORY = "TARGET_IS_DIRECTORY"
     FILE_TOO_LARGE = "FILE_TOO_LARGE"
     READ_CONTENT_FAILURE = "READ_CONTENT_FAILURE"
+
 
 def detect_bom(buf: bytes) -> Optional[Tuple[str, int]]:
     """
@@ -45,12 +47,12 @@ def detect_bom(buf: bytes) -> Optional[Tuple[str, int]]:
         # UTF-32 BE: 00 00 FE FF
         if buf[:4] == b'\x00\x00\xfe\xff':
             return ('utf-32-be', 4)
-            
+
     if len(buf) >= 3:
         # UTF-8: EF BB BF
         if buf[:3] == b'\xef\xbb\xbf':
-            return ('utf-8-sig', 3) # Python handles BOM with utf-8-sig
-            
+            return ('utf-8-sig', 3)  # Python handles BOM with utf-8-sig
+
     if len(buf) >= 2:
         # UTF-16 LE: FF FE
         if buf[:2] == b'\xff\xfe':
@@ -58,8 +60,9 @@ def detect_bom(buf: bytes) -> Optional[Tuple[str, int]]:
         # UTF-16 BE: FE FF
         if buf[:2] == b'\xfe\xff':
             return ('utf-16-be', 2)
-            
+
     return None
+
 
 async def read_file_with_encoding(file_path: str) -> str:
     """
@@ -69,12 +72,12 @@ async def read_file_with_encoding(file_path: str) -> str:
     try:
         with open(file_path, 'rb') as f:
             full = f.read()
-            
+
         if not full:
             return ''
-            
+
         bom_info = detect_bom(full)
-        
+
         if bom_info:
             encoding, _ = bom_info
             # Python's decode handles BOM stripping for utf-8-sig and utf-16
@@ -84,7 +87,7 @@ async def read_file_with_encoding(file_path: str) -> str:
             except UnicodeDecodeError:
                 # Fallback if specific BOM decoding fails
                 pass
-        
+
         # Try UTF-8 first
         try:
             return full.decode('utf-8')
@@ -92,14 +95,16 @@ async def read_file_with_encoding(file_path: str) -> str:
             # Fallback to latin-1 or similar if utf-8 fails? 
             # Or try to detect? For now, let's stick to utf-8 errors or try latin-1 as last resort
             return full.decode('latin-1')
-            
+
     except Exception as e:
         raise IOError(f"Failed to read file {file_path}: {str(e)}")
+
 
 def get_specific_mime_type(file_path: str) -> Optional[str]:
     """Looks up the specific MIME type for a file path."""
     mime_type, _ = mimetypes.guess_type(file_path)
     return mime_type
+
 
 def is_within_root(path_to_check: str, root_directory: str) -> bool:
     """Checks if a path is within a given root directory."""
@@ -109,6 +114,7 @@ def is_within_root(path_to_check: str, root_directory: str) -> bool:
         return os.path.commonpath([abs_root, abs_check]) == abs_root
     except ValueError:
         return False
+
 
 async def is_binary_file(file_path: str) -> bool:
     """
@@ -122,7 +128,7 @@ async def is_binary_file(file_path: str) -> bool:
         sample_size = min(4096, os.path.getsize(file_path))
         with open(file_path, 'rb') as f:
             buf = f.read(sample_size)
-            
+
         if not buf:
             return False
 
@@ -137,12 +143,13 @@ async def is_binary_file(file_path: str) -> bool:
                 return True
             if byte < 9 or (13 < byte < 32):
                 non_printable_count += 1
-                
+
         return (non_printable_count / len(buf)) > 0.3
-        
+
     except Exception as e:
         logger.warning(f"Failed to check if file is binary: {file_path} - {str(e)}")
         return False
+
 
 async def detect_file_type(file_path: str) -> str:
     """
@@ -150,13 +157,13 @@ async def detect_file_type(file_path: str) -> str:
     Returns: 'text', 'image', 'pdf', 'audio', 'video', 'binary', 'svg'
     """
     ext = os.path.splitext(file_path)[1].lower()
-    
+
     if ext in ['.ts', '.mts', '.cts', '.tsx']:
         return 'text'
-        
+
     if ext == '.svg':
         return 'svg'
-        
+
     mime_type = get_specific_mime_type(file_path)
     if mime_type:
         if mime_type.startswith('image/'):
@@ -167,20 +174,21 @@ async def detect_file_type(file_path: str) -> str:
             return 'video'
         if mime_type == 'application/pdf':
             return 'pdf'
-            
+
     if ext in BINARY_EXTENSIONS:
         return 'binary'
-        
+
     if await is_binary_file(file_path):
         return 'binary'
-        
+
     return 'text'
 
+
 async def process_single_file_content(
-    file_path: str,
-    root_directory: str,
-    offset: int = 0,
-    limit: Optional[int] = None
+        file_path: str,
+        root_directory: str,
+        offset: int = 0,
+        limit: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Reads and processes a single file, handling text, images, and PDFs.
@@ -193,7 +201,7 @@ async def process_single_file_content(
                 "error": f"File not found: {file_path}",
                 "errorType": ToolErrorType.FILE_NOT_FOUND
             }
-            
+
         if os.path.isdir(file_path):
             return {
                 "llmContent": "Could not read file because the provided path is a directory, not a file.",
@@ -219,9 +227,9 @@ async def process_single_file_content(
                 "llmContent": f"Cannot display content of binary file: {relative_path}",
                 "returnDisplay": f"Skipped binary file: {relative_path}"
             }
-            
+
         elif file_type == 'svg':
-            if os.path.getsize(file_path) > 1 * 1024 * 1024: # 1MB
+            if os.path.getsize(file_path) > 1 * 1024 * 1024:  # 1MB
                 return {
                     "llmContent": f"Cannot display content of SVG file larger than 1MB: {relative_path}",
                     "returnDisplay": f"Skipped large SVG file (>1MB): {relative_path}"
@@ -231,19 +239,19 @@ async def process_single_file_content(
                 "llmContent": content,
                 "returnDisplay": f"Read SVG as text: {relative_path}"
             }
-            
+
         elif file_type == 'text':
             content = await read_file_with_encoding(file_path)
             lines = content.splitlines()
             original_line_count = len(lines)
-            
+
             start_line = offset
             effective_limit = limit if limit is not None else DEFAULT_MAX_LINES_TEXT_FILE
             end_line = min(start_line + effective_limit, original_line_count)
             actual_start_line = min(start_line, original_line_count)
-            
+
             selected_lines = lines[actual_start_line:end_line]
-            
+
             lines_truncated_in_length = False
             formatted_lines = []
             for line in selected_lines:
@@ -252,11 +260,11 @@ async def process_single_file_content(
                     formatted_lines.append(line[:MAX_LINE_LENGTH_TEXT_FILE] + "... [truncated]")
                 else:
                     formatted_lines.append(line)
-                    
+
             content_range_truncated = start_line > 0 or end_line < original_line_count
             is_truncated = content_range_truncated or lines_truncated_in_length
             llm_content = '\n'.join(formatted_lines)
-            
+
             return_display = ""
             if content_range_truncated:
                 return_display = f"Read lines {actual_start_line + 1}-{end_line} of {original_line_count} from {relative_path}"
@@ -264,7 +272,7 @@ async def process_single_file_content(
                     return_display += " (some lines were shortened)"
             elif lines_truncated_in_length:
                 return_display = f"Read all {original_line_count} lines from {relative_path} (some lines were shortened)"
-                
+
             return {
                 "llmContent": llm_content,
                 "returnDisplay": return_display,
@@ -272,13 +280,13 @@ async def process_single_file_content(
                 "originalLineCount": original_line_count,
                 "linesShown": [actual_start_line + 1, end_line]
             }
-            
+
         elif file_type in ['image', 'pdf', 'audio', 'video']:
             with open(file_path, 'rb') as f:
                 content_buffer = f.read()
             base64_data = base64.b64encode(content_buffer).decode('utf-8')
             mime_type = get_specific_mime_type(file_path) or 'application/octet-stream'
-            
+
             return {
                 "llmContent": {
                     "inlineData": {
@@ -288,7 +296,7 @@ async def process_single_file_content(
                 },
                 "returnDisplay": f"Read {file_type} file: {relative_path}"
             }
-            
+
         else:
             return {
                 "llmContent": f"Unhandled file type: {file_type}",
@@ -305,6 +313,7 @@ async def process_single_file_content(
             "error": f"Error reading file {file_path}: {error_message}",
             "errorType": ToolErrorType.READ_CONTENT_FAILURE
         }
+
 
 async def file_exists(file_path: str) -> bool:
     return os.path.exists(file_path)
