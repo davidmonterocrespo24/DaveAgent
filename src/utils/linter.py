@@ -62,7 +62,8 @@ def _lint_javascript(content: str) -> str | None:
             # Clean output to remove temp file path and make it readable
             error_msg = result.stderr.replace(tmp_path, "file.js").strip()
             # Take only first lines of error to avoid overwhelming the agent
-            return f"JavaScript SyntaxError:\n{'\n'.join(error_msg.splitlines()[:5])}"
+            error_lines = '\n'.join(error_msg.splitlines()[:5])
+            return f"JavaScript SyntaxError:\n{error_lines}"
             
         return None
 
