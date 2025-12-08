@@ -1,125 +1,125 @@
-# 🐛 Solución de Problemas - CodeAgent
+# 🐛 Troubleshooting - CodeAgent
 
-Esta guía te ayudará a resolver problemas comunes al usar CodeAgent.
+This guide will help you resolve common issues when using CodeAgent.
 
-## 📋 Índice
+## 📋 Index
 
-- [Problemas de Instalación](#-problemas-de-instalación)
-- [Problemas de Configuración](#-problemas-de-configuración)
-- [Problemas de Conexión](#-problemas-de-conexión)
-- [Problemas de Herramientas](#-problemas-de-herramientas)
-- [Problemas de Memoria](#-problemas-de-memoria)
-- [Problemas de Rendimiento](#-problemas-de-rendimiento)
-- [Logs y Debugging](#-logs-y-debugging)
+- [Installation Problems](#-installation-problems)
+- [Configuration Problems](#-configuration-problems)
+- [Connection Problems](#-connection-problems)
+- [Tool Problems](#-tool-problems)
+- [Memory Problems](#-memory-problems)
+- [Performance Problems](#-performance-problems)
+- [Logs and Debugging](#-logs-and-debugging)
 
 ---
 
-## 🔧 Problemas de Instalación
+## 🔧 Installation Problems
 
 ### "Command 'daveagent' not found"
 
-**Problema**: El comando `daveagent` no se encuentra después de la instalación.
+**Problem**: The `daveagent` command is not found after installation.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Reinstalar
+# Solution 1: Reinstall
 cd DaveAgent
 pip install -e .
 
-# Solución 2: Verificar instalación
+# Solution 2: Verify installation
 pip show daveagent-cli
 
-# Solución 3: Usar módulo directamente
+# Solution 3: Use module directly
 python -m src.cli
 
-# Solución 4: Agregar pip al PATH
+# Solution 4: Add pip to PATH
 export PATH="$HOME/.local/bin:$PATH"  # Linux/macOS
-# O agregar a .bashrc / .zshrc
+# Or add to .bashrc / .zshrc
 ```
 
-**Windows específico**:
+**Windows specific**:
 ```powershell
-# Verificar PATH de Scripts
+# Check Scripts PATH
 python -m site --user-site
-# Agregar ...\Python\Scripts al PATH del sistema
+# Add ...\Python\Scripts to system PATH
 ```
 
 ### "ModuleNotFoundError: No module named 'autogen'"
 
-**Problema**: Falta AutoGen o dependencias.
+**Problem**: AutoGen or dependencies are missing.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Instalar dependencias
+# Solution 1: Install dependencies
 pip install -r requirements.txt
 
-# Solución 2: Instalar AutoGen manualmente
+# Solution 2: Install AutoGen manually
 pip install 'autogen-agentchat>=0.4.0' 'autogen-ext[openai]>=0.4.0'
 
-# Solución 3: Verificar versión de Python
-python --version  # Debe ser 3.10+
+# Solution 3: Verify Python version
+python --version  # Must be 3.10+
 
-# Solución 4: Reinstalar en entorno virtual limpio
+# Solution 4: Reinstall in clean virtual environment
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate  # Windows
 pip install -e .
 ```
 
-### "Permission denied" en Linux/macOS
+### "Permission denied" on Linux/macOS
 
-**Problema**: No tienes permisos para instalar globalmente.
+**Problem**: You don't have permissions to install globally.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Instalar solo para usuario
+# Solution 1: Install for user only
 pip install --user -e .
 
-# Solución 2: Usar entorno virtual (recomendado)
+# Solution 2: Use virtual environment (recommended)
 python -m venv venv
 source venv/bin/activate
 pip install -e .
 
-# Solución 3: Usar sudo (no recomendado)
+# Solution 3: Use sudo (not recommended)
 sudo pip install -e .
 ```
 
 ---
 
-## ⚙️ Problemas de Configuración
+## ⚙️ Configuration Problems
 
 ### "API key not found"
 
-**Problema**: No se encuentra la API key.
+**Problem**: API key not found.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Crear archivo .env
+# Solution 1: Create .env file
 cd DaveAgent
 touch .env
 echo "DAVEAGENT_API_KEY=your-key-here" >> .env
 
-# Solución 2: Variable de entorno de sistema
+# Solution 2: System environment variable
 export DAVEAGENT_API_KEY=your-key  # Linux/macOS
 set DAVEAGENT_API_KEY=your-key     # Windows CMD
 $env:DAVEAGENT_API_KEY="your-key"  # Windows PowerShell
 
-# Solución 3: Editar main.py directamente
-# Edita src/main.py y agrega el API key
+# Solution 3: Edit main.py directly
+# Edit src/main.py and add the API key
 ```
 
 ### "Invalid model name"
 
-**Problema**: El modelo especificado no existe o no está disponible.
+**Problem**: The specified model doesn't exist or isn't available.
 
-**Soluciones**:
+**Solutions**:
 
 ```env
-# Verificar modelos disponibles según proveedor
+# Check available models by provider
 
 # DeepSeek
 DAVEAGENT_MODEL=deepseek-chat
@@ -136,197 +136,197 @@ DAVEAGENT_MODEL=mixtral-8x7b-32768
 
 ---
 
-## 🌐 Problemas de Conexión
+## 🌐 Connection Problems
 
 ### "SSL Certificate Error"
 
-**Problema**: Errores de certificado SSL en redes corporativas.
+**Problem**: SSL certificate errors in corporate networks.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Deshabilitar verificación SSL (desarrollo)
+# Solution 1: Disable SSL verification (development)
 daveagent --no-ssl-verify
 
-# Solución 2: Variable de entorno
+# Solution 2: Environment variable
 export DAVEAGENT_SSL_VERIFY=false
 
-# Solución 3: Usar certificado corporativo
+#Solution 3: Use corporate certificate
 export REQUESTS_CA_BUNDLE=/path/to/company-ca.crt
 
-# Solución 4: Configurar en .env
+# Solution 4: Configure in .env
 echo "DAVEAGENT_SSL_VERIFY=false" >> .env
 ```
 
-**Advertencia**: Solo deshabilita SSL en ambientes de desarrollo/confianza.
+**Warning**: Only disable SSL in development/trusted environments.
 
-### "Connection Refused" o "Timeout"
+### "Connection Refused" or "Timeout"
 
-**Problema**: No se puede conectar al API endpoint.
+**Problem**: Cannot connect to API endpoint.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Verificar conectividad
+# Verify connectivity
 curl -I https://api.deepseek.com/v1
 ping api.openai.com
 
-# Verificar configuración de proxy
+# Check proxy configuration
 echo $HTTP_PROXY
 echo $HTTPS_PROXY
 
-# Configurar proxy si es necesario
+# Configure proxy if necessary
 export HTTP_PROXY=http://proxy.company.com:8080
 export HTTPS_PROXY=https://proxy.company.com:8080
 
-# Verificar firewall
-# Asegúrate de que el puerto 443 esté abierto
+# Check firewall
+# Ensure port 443 is open
 ```
 
 ### "Rate Limit Exceeded"
 
-**Problema**: Has excedido el límite de rate del API.
+**Problem**: You've exceeded the API rate limit.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Esperar antes de reintentar
-# La mayoría de APIs tienen límites por minuto
+# Solution 1: Wait before retrying
+# Most APIs have per-minute limits
 
-# Solución 2: Usar modelo con límite más alto
-# Cambiar a plan pago o tier superior
+# Solution 2: Use model with higher limit
+# Switch to paid plan or higher tier
 
-# Solución 3: Implementar retry con backoff
-# Editar src/main.py para agregar retry logic
+# Solution 3: Implement retry with backoff
+# Edit src/main.py to add retry logic
 ```
 
 ---
 
-## 🛠️ Problemas de Herramientas
+## 🛠️ Tool Problems
 
 ### "Tool execution failed"
 
-**Problema**: Una herramienta falló al ejecutarse.
+**Problem**: A tool failed to execute.
 
-**Diagnóstico**:
+**Diagnosis**:
 
 ```bash
-# Activar modo debug
+# Enable debug mode
 daveagent --debug
 
-# Revisar logs
+# Check logs
 tail -f logs/daveagent_*.log
 
-# Verificar permisos de archivos
-ls -la archivo-problema.py
+# Verify file permissions
+ls -la problem-file.py
 ```
 
-**Soluciones comunes**:
+**Common solutions**:
 
 ```bash
-# Para herramientas de archivo
-chmod +r archivo.py  # Dar permisos de lectura
-chmod +w archivo.py  # Dar permisos de escritura
+# For file tools
+chmod +r file.py  # Give read permissions
+chmod +w file.py  # Give write permissions
 
-# Para herramientas Git
+# For Git tools
 git config --global user.name "Your Name"
 git config --global user.email "you@example.com"
 
-# Para herramientas CSV/JSON
-# Verificar encoding del archivo
-file -I datos.csv
+# For CSV/JSON tools
+# Check file encoding
+file -I data.csv
 ```
 
-### "edit_file no encuentra la cadena"
+### "edit_file cannot find the string"
 
-**Problema**: `edit_file` no puede encontrar el texto a reemplazar.
+**Problem**: `edit_file` cannot find the text to replace.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# El problema suele ser whitespace o diferencias exactas
+# The issue is usually whitespace or exact differences
 
-# Solución 1: Leer el archivo primero
+# Solution 1: Read the file first
 You: read auth.py lines 40-50
-# Luego copiar el texto EXACTO que se muestra
+# Then copy the EXACT text shown
 
-# Solución 2: Usar @mention para dar contexto
+# Solution 2: Use @mention for context
 You: @auth.py change line 45 from X to Y
 
-# Solución 3: Ser más específico
+# Solution 3: Be more specific
 You: in auth.py, find the login function and add error handling
-# En lugar abuela: edit line 45
+# Instead of: edit line 45
 ```
 
 ### "Git command failed"
 
-**Problema**: Comandos Git fallan.
+**Problem**: Git commands fail.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Verificar que estás en un repositorio Git
+# Verify you're in a Git repository
 git status
 
-# Inicializar repo si es necesario
+# Initialize repo if necessary
 git init
 
-# Configurar usuario Git
+# Configure Git user
 git config user.name "Your Name"
 git config user.email "you@example.com"
 
-# Verificar remote
+# Check remote
 git remote -v
 
-# Si no hay remote, agregarlo
+# If no remote, add it
 git remote add origin https://github.com/user/repo.git
 ```
 
 ---
 
-## 🧠 Problemas de Memoria
+## 🧠 Memory Problems
 
 ### "ChromaDB connection failed"
 
-**Problema**: No se puede conectar a ChromaDB.
+**Problem**: Cannot connect to ChromaDB.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Eliminar y recrear base de datos
+# Solution 1: Delete and recreate database
 rm -rf .daveagent/memory/
 daveagent
-You: /index  # Reindexar
+You: /index  # Reindex
 
-# Solución 2: Verificar permisos
+# Solution 2: Verify permissions
 chmod -R 755 .daveagent/
 
-# Solución 3: Reinstalar ChromaDB
+# Solution 3: Reinstall ChromaDB
 pip install --upgrade chromadb
 ```
 
-### "/index falla o se congela"
+### "/index fails or freezes"
 
-**Problema**: La indexación tarda mucho o falla.
+**Problem**: Indexing takes too long or fails.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Indexar directorios específicos
-# En lugar de /index, indexa solo lo necesario
+# Solution 1: Index specific directories
+# Instead of /index, index only what's needed
 You: index only the src/ directory
 
-# Solución 2: Excluir archivos grandes
-# Agregar a .gitignore:
+# Solution 2: Exclude large files
+# Add to .gitignore:
 *.log
 *.db
 node_modules/
 __pycache__/
 
-# Solución 3: Aumentar timeout (en main.py)
-# Editar configuración de ChromaDB
+# Solution 3: Increase timeout (in main.py)
+# Edit ChromaDB configuration
 
-# Solución 4: Limpiar y reindexar
+# Solution 4: Clean and reindex
 rm -rf .daveagent/memory/
 daveagent --debug
 You: /index
@@ -334,93 +334,93 @@ You: /index
 
 ### "Memory query returns no results"
 
-**Problema**: Las búsquedas en memoria no devuelven resultados.
+**Problem**: Memory searches return no results.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Verificar que el proyecto esté indexado
+# Solution 1: Verify project is indexed
 You: /memory
-# Debe mostrar collections con datos
+# Should show collections with data
 
-# Solución 2: Reindexar
+# Solution 2: Reindex
 You: /index
 
-# Solución 3: Usar consultas más amplias
-# En lugar de: "exact function name"
-# Usar: "function that handles authentication"
+# Solution 3: Use broader queries
+# Instead of: "exact function name"
+# Use: "function that handles authentication"
 
-# Solución 4: Revisar logs para errores de embeddings
+# Solution 4: Check logs for embedding errors
 daveagent --debug
-# Buscar errores de "embedding"
+# Search for "embedding" errors
 ```
 
 ---
 
-## ⚡ Problemas de Rendimiento
+## ⚡ Performance Problems
 
-### "CodeAgent es muy lento"
+### "CodeAgent is very slow"
 
-**Problema**: Respuestas tardan mucho.
+**Problem**: Responses take too long.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Usar modelo más rápido
+# Solution 1: Use faster model
 DAVEAGENT_MODEL=gpt-3.5-turbo
-# O: deepseek-coder
+# Or: deepseek-coder
 
-# Solución 2: Reducir contexto
+# Solution 2: Reduce context
 DAVEAGENT_MAX_TOKENS=4000
 DAVEAGENT_SUMMARY_THRESHOLD=3000
 
-# Solución 3: Limpiar historial frecuentemente
+# Solution 3: Clear history frequently
 You: /clear
 
-# Solución 4: Deshabilitar memoria si no la usas
-# Comentar memory tools en main.py
+# Solution 4: Disable memory if not using it
+# Comment out memory tools in main.py
 ```
 
-### "Usa demasiados tokens"
+### "Uses too many tokens"
 
-**Problema**: Consumo excesivo de tokens.
+**Problem**: Excessive token consumption.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Comprimir historial más frecuentemente
-DAVEAGENT_SUMMARY_THRESHOLD=4000  # Reducir de 6000
+# Solution 1: Compress history more frequently
+DAVEAGENT_SUMMARY_THRESHOLD=4000  # Reduce from 6000
 
-# Solución 2: Limpiar historial manualmente
+# Solution 2: Clear history manually
 You: /clear
 
-# Solución 3: Ser más específico en peticiones
-# Mal: "do something with this project"
-# Bien: "add error handling to login function in auth.py"
+# Solution 3: Be more specific in requests
+# Bad: "do something with this project"
+# Good: "add error handling to login function in auth.py"
 
-# Solución 4: Usar file mentions
+# Solution 4: Use file mentions
 You: @auth.py fix the bug
-# En lugar de dejar que el agente busque
+# Instead of letting the agent search
 ```
 
 ### "Out of Memory"
 
-**Problema**: Python se queda sin memoria.
+**Problem**: Python runs out of memory.
 
-**Soluciones**:
+**Solutions**:
 
 ```bash
-# Solución 1: Cerrar y reiniciar CodeAgent
-# Ctrl+C, luego daveagent
+# Solution 1: Close and restart CodeAgent
+# Ctrl+C, then daveagent
 
-# Solución 2: Limpiar memoria ChromaDB
+# Solution 2: Clean ChromaDB memory
 rm -rf .daveagent/memory/chroma.sqlite3
 
-# Solución 3: Aumentar memoria de Python (en main.py)
-# Solo para proyectos muy grandes
+# Solution 3: Increase Python memory (in main.py)
+# Only for very large projects
 
-# Solución 4: Excluir archivos grandes de indexación
-# Usar .gitignore para excluir:
+# Solution 4: Exclude large files from indexing
+# Use .gitignore to exclude:
 *.db
 *.sqlite
 large_data/
@@ -428,128 +428,128 @@ large_data/
 
 ---
 
-## 📊 Logs y Debugging
+## 📊 Logs and Debugging
 
-### Activar Modo Debug
+### Enable Debug Mode
 
 ```bash
-# Método 1: Argumento de CLI
+# Method 1: CLI argument
 daveagent --debug
 
-# Método 2: Variable de entorno
+# Method 2: Environment variable
 export DAVEAGENT_DEBUG=true
 daveagent
 
-# Método 3: En .env
+# Method 3: In .env
 DAVEAGENT_DEBUG=true
 DAVEAGENT_LOG_LEVEL=DEBUG
 ```
 
-### Ubicación de Logs
+### Log Location
 
 ```bash
-# Por defecto en directory logs/
+# Default in  logs/ directory
 ls -la logs/
 
-# Ver log más reciente
+# View most recent log
 tail -f logs/daveagent_$(date +%Y%m%d)*.log
 
-# Buscar errores
+# Search errors
 grep -i "error" logs/*
 
-# Buscar warnings
+# Search warnings
 grep -i "warning" logs/*
 ```
 
-### Ver Log Específico
+### View Specific Log
 
 ```bash
-# Dentro de CodeAgent
+# Inside CodeAgent
 You: /logs
 
-# Resultado:
+# Result:
 📄 Log file: logs/daveagent_20240315_143022.log
 
-# Luego ver con:
+# Then view with:
 tail -f logs/daveagent_20240315_143022.log
 ```
 
-### Información de Debug Útil
+### Useful Debug Information
 
-Cuando reportes un problema, incluye:
+When reporting a problem, include:
 
 ```bash
-# 1. Versión de CodeAgent
+# 1. CodeAgent version
 daveagent --version
 
-# 2. Versión de Python
+# 2. Python version
 python --version
 
-# 3. Sistema operativo
+# 3. Operating system
 uname -a  # Linux/macOS
 systeminfo  # Windows
 
-# 4. Dependencias instaladas
+# 4. Installed dependencies
 pip list | grep -E "autogen|rich|prompt"
 
-# 5. Últimas líneas del log
+# 5. Last log lines
 tail -n 50 logs/daveagent_*.log
 
-# 6. Variables de entorno (sin API keys)
+# 6. Environment variables (without API keys)
 env | grep DAVEAGENT
 ```
 
 ---
 
-## 🆘 Obtener Ayuda
+## 🆘 Getting Help
 
-### Recursos de Soporte
+### Support Resources
 
-1. **Discord** (Recomendado para respuestas rápidas)
-   - [Únete al servidor](https://discord.gg/2dRTd4Cv)
-   - Canal #support para ayuda
-   - Canal #bugs para reportar bugs
+1. **Discord** (Recommended for quick responses)
+   - [Join the server](https://discord.gg/2dRTd4Cv)
+   - #support channel for help
+   - #bugs channel for bug reports
 
 2. **GitHub Issues**
-   - [Crear issue](https://github.com/davidmonterocrespo24/DaveAgent/issues)
-   - Buscar issues similares primero
-   - Usar template de bug report
+   - [Create issue](https://github.com/davidmonterocrespo24/DaveAgent/issues)
+   - Search similar issues first
+   - Use bug report template
 
 3. **Email**
    - contact@daveagent.ai
-   - Incluir logs y detalles
+   - Include logs and details
 
-### Template para Reportar Bugs
+### Bug Report Template
 
-Al reportar un problema, incluye:
+When reporting a problem, include:
 
 ```markdown
-**Problema**:
-[Descripción breve del problema]
+**Problem**:
+[Brief problem description]
 
-**Pasos para Reproducir**:
-1. Ejecutar comando X
-2. Hacer Y
-3. Ver error Z
+**Steps to Reproduce**:
+1. Run command X
+2. Do Y
+3. See error Z
 
-**Comportamiento Esperado**:
-[Qué debería pasar]
+**Expected Behavior**:
+[What should happen]
 
-**Comportamiento Actual**:
-[Qué pasa realmente]
+**Actual Behavior**:
+[What actually happens]
 
-**Entorno**:
+**Environment**:
 - OS: [Windows 11 / Ubuntu 22.04 / macOS 14]
 - Python: [3.10.5]
 - CodeAgent: [1.1.0]
-- Modelo: [gpt-4]
+- Model: [gpt-4]
 
 **Logs**:
 ```
-[Pegar últimas 20-30 líneas del log]
+[Paste last 20-30 lines of log]
 ```
 
-**Configuración .env (sin API keys)**:
+**Configuration .env (without API keys)**:
 ```
 DAVEAGENT_MODEL=gpt-4
 DAVEAGENT_SSL_VERIFY=false
@@ -559,28 +559,28 @@ DAVEAGENT_SSL_VERIFY=false
 
 ---
 
-## ✅ Checklist de Troubleshooting
+## ✅ Troubleshooting Checklist
 
-Antes de reportar un bug, verifica:
+Before reporting a bug, verify:
 
-- [ ] CodeAgent está actualizado (`git pull`, `pip install -e .`)
-- [ ] Python es 3.10+ (`python --version`)
-- [ ] Dependencias instaladas (`pip install -r requirements.txt`)
-- [ ] API key configurada (`cat .env`)
-- [ ] Logs revisados (`tail logs/*.log`)
-- [ ] Modo debug activado (`daveagent --debug`)
-- [ ] Problema reproducible
-- [ ] Búsqueda en issues existentes
-
----
-
-## 📚 Ver También
-
-- **[Configuration](Configuration)** - Opciones de configuración
-- **[Installation](Installation)** - Guía de instalación
-- **[Development](Development)** - Contribuir al proyecto
-- **[GitHub Issues](https://github.com/davidmonterocrespo24/DaveAgent/issues)** - Problemas conocidos
+- [ ] CodeAgent is updated (`git pull`, `pip install -e .`)
+- [ ] Python is 3.10+ (`python --version`)
+- [ ] Dependencies installed (`pip install -r requirements.txt`)
+- [ ] API key configured (`cat .env`)
+- [ ] Logs reviewed (`tail logs/*.log`)
+- [ ] Debug mode enabled (`daveagent --debug`)
+- [ ] Problem is reproducible
+- [ ] Searched existing issues
 
 ---
 
-[← Volver al Home](Home) | [Configuración →](Configuration)
+## 📚 See Also
+
+- **[Configuration](Configuration)** - Configuration options
+- **[Installation](Installation)** - Installation guide
+- **[Development](Development)** - Contribute to the project
+- **[GitHub Issues](https://github.com/davidmonterocrespo24/DaveAgent/issues)** - Known issues
+
+---
+
+[← Back to Home](Home) | [Configuration →](Configuration)

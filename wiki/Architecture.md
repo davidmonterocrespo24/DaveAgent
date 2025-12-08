@@ -1,14 +1,14 @@
-# 🏗️ Arquitectura de CodeAgent
+# 🏗️ CodeAgent Architecture
 
-Esta página describe la arquitectura técnica de CodeAgent, sus componentes principales y cómo interactúan entre sí.
+This page describes the technical architecture of CodeAgent, its main components, and how they interact with each other.
 
-## 📊 Visión General
+## 📊 Overview
 
-CodeAgent sigue una arquitectura modular basada en agentes especializados, donde cada componente tiene responsabilidades claramente definidas.
+CodeAgent follows a modular architecture based on specialized agents, where each component has clearly defined responsibilities.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Usuario (CLI)                         │
+│                    User (CLI)                            │
 └────────────────────┬────────────────────────────────────┘
                      │
 ┌────────────────────▼────────────────────────────────────┐
@@ -18,9 +18,9 @@ CodeAgent sigue una arquitectura modular basada en agentes especializados, donde
                      │
 ┌────────────────────▼────────────────────────────────────┐
 │           Conversation Manager                           │
-│  - Gestión de historial                                 │
-│  - Compresión automática                                │
-│  - Estimación de tokens                                 │
+│  - History management                                   │
+│  - Automatic compression                                │
+│  - Token estimation                                     │
 └────────────────────┬────────────────────────────────────┘
                      │
        ┌─────────────┴──────────────┐
@@ -33,7 +33,7 @@ CodeAgent sigue una arquitectura modular basada en agentes especializados, donde
        │
 ┌──────▼────────────────────────────────────────────────┐
 │            Agent Router                                │
-│  Determina: SIMPLE vs COMPLEX workflow                │
+│  Determines: SIMPLE vs COMPLEX workflow                │
 └──────┬────────────────────────────────────────────────┘
        │
        ├─── SIMPLE ───┐
@@ -73,326 +73,319 @@ CodeAgent sigue una arquitectura modular basada en agentes especializados, donde
 
 ---
 
-## 📁 Estructura del Proyecto
+## 📁 Project Structure
 
 ```
 CodeAgent/
-├── src/                          # Código fuente principal
+├── src/                          # Main source code
 │   ├── __init__.py
 │   │
-│   ├── agents/                   # 🤖 Agentes del sistema
+│   ├── agents/                   # 🤖 System agents
 │   │   ├── __init__.py
-│   │   ├── task_planner.py       # Planificador de tareas
-│   │   ├── task_executor.py      # Ejecutor de tareas
-│   │   └── code_searcher.py      # Búsqueda de código
+│   │   ├── task_planner.py       # Task planner
+│   │   ├── task_executor.py      # Task executor
+│   │   └── code_searcher.py      # Code searcher
 │   │
-│   ├── managers/                 # 📊 Gestores del sistema
+│   ├── managers/                 # 📊 System managers
 │   │   ├── __init__.py
-│   │   └── conversation_manager.py  # Gestión de conversación
+│   │   └── conversation_manager.py  # Conversation management
 │   │
-│   ├── interfaces/               # 🖥️ Interfaces de usuario
+│   ├── interfaces/               # 🖥️ User interfaces
 │   │   ├── __init__.py
-│   │   └── cli_interface.py      # Interfaz CLI con Rich
+│   │   └── cli_interface.py      # CLI interface with Rich
 │   │
-│   ├── config/                   # ⚙️ Configuración
+│   ├── config/                   # ⚙️ Configuration
 │   │   ├── __init__.py
-│   │   └── prompts.py            # Prompts del sistema
+│   │   └── prompts.py            # System prompts
 │   │
-│   ├── memory/                   # 🧠 Sistema de memoria
+│   ├── memory/                   # 🧠 Memory system
 │   │   ├── __init__.py
-│   │   ├── memory_manager.py     # Gestor de memoria RAG
-│   │   ├── chroma_manager.py     # Interfaz ChromaDB
-│   │   └── embeddings.py         # Generación de embeddings
+│   │   ├── memory_manager.py     # RAG memory manager
+│   │   ├── chroma_manager.py     # ChromaDB interface
+│   │   └── embeddings.py         # Embedding generation
 │   │
-│   ├── observability/            # 📈 Observabilidad
+│   ├── observability/            # 📈 Observability
 │   │   ├── __init__.py
-│   │   └── langfuse_tracer.py    # Trazado Langfuse
+│   │   └── langfuse_tracer.py    # Langfuse tracing
 │   │
-│   ├── utils/                    # 🔧 Utilidades
+│   ├── utils/                    # 🔧 Utilities
 │   │   ├── __init__.py
-│   │   ├── logger.py             # Sistema de logging
-│   │   ├── file_utils.py         # Utilidades de archivos
-│   │   └── token_counter.py      # Conteo de tokens
+│   │   ├── logger.py             # Logging system
+│   │   ├── file_utils.py         # File utilities
+│   │   └── token_counter.py      # Token counting
 │   │
-│   ├── tools/                    # 🛠️ Herramientas (45+)
-│   │   ├── __init__.py           # Exporta todas las herramientas
-│   │   │
-│   │   ├── filesystem/           # 📁 Operaciones de archivos (7)
-│   │   │   ├── __init__.py
-│   │   │   └── file_operations.py
-│   │   │
-│   │   ├── git/                  # 🔀 Operaciones Git (8)
-│   │   │   ├── __init__.py
-│   │   │   └── git_operations.py
-│   │   │
-│   │   ├── data/                 # 📊 Datos (15)
-│   │   │   ├── __init__.py
-│   │   │   ├── json_tools.py     # JSON (8 herramientas)
-│   │   │   └── csv_tools.py      # CSV (7 herramientas)
-│   │   │
-│   │   ├── web/                  # 🌐 Web (7)
-│   │   │   ├── __init__.py
-│   │   │   └── wikipedia_tools.py
-│   │   │
-│   │   └── analysis/             # 🔍 Análisis (5)
-│   │       ├── __init__.py
-│   │       ├── code_analyzer.py  # Análisis Python
-│   │       └── search_tools.py   # Búsqueda y grep
+│   ├── tools/                    # 🛠️ Tools (45+)
+│   │   ├── __init__.py           # Exports all tools
+│   │   ├── read_file.py          # File reading
+│   │   ├── write_file.py         # File writing
+│   │   ├── edit_file.py          # File editing
+│   │   ├── delete_file.py        # File deletion
+│   │   ├── directory_ops.py      # Directory operations
+│   │   ├── search_file.py        # File search
+│   │   ├── glob.py               # Glob pattern search
+│   │   ├── git_operations.py     # Git operations (8 tools)
+│   │   ├── json_tools.py         # JSON tools (8)
+│   │   ├── csv_tools.py          # CSV tools (7)
+│   │   ├── wikipedia_tools.py    # Wikipedia tools
+│   │   ├── web_search.py         # Web search
+│   │   ├── code_analyzer.py      # Python code analysis
+│   │   ├── grep.py               # Text pattern search
+│   │   ├── terminal.py           # Command execution
+│   │   ├── memory_tools.py       # RAG memory tools (8)
+│   │   └── common.py             # Common utilities
 │   │
-│   ├── cli.py                    # Punto de entrada CLI
-│   └── main.py                   # Aplicación principal
+│   ├── cli.py                    # CLI entry point
+│   └── main.py                   # Main application
 │
-├── eval/                         # 🧪 Evaluación SWE-bench
-│   ├── agent_wrapper.py          # Wrapper del agente
-│   ├── run_inference.py          # Ejecución de inferencia
-│   └── README.md                 # Documentación de evaluación
+├── eval/                         # 🧪 SWE-bench evaluation
+│   ├── agent_wrapper.py          # Agent wrapper
+│   ├── run_inference.py          # Inference execution
+│   └── README.md                 # Evaluation documentation
 │
-├── docs/                         # 📖 Documentación
-│   ├── STRUCTURE.md              # Estructura del proyecto
-│   ├── MEMORY_SYSTEM.md          # Sistema de memoria
-│   ├── CODESEARCHER_GUIDE.md     # Guía de CodeSearcher
-│   └── ...                       # Otros documentos
+├── docs/                         # 📖 Documentation
+│   ├── STRUCTURE.md              # Project structure
+│   ├── MEMORY_SYSTEM.md          # Memory system
+│   ├── CODESEARCHER_GUIDE.md     # CodeSearcher guide
+│   └── ...                       # Other documents
 │
 ├── test/                         # ✅ Tests
 │   ├── test_tools.py
 │   ├── test_agents.py
 │   └── ...
 │
-├── .daveagent/                   # Configuración local
-│   ├── .env                      # Variables de entorno
-│   └── memory/                   # Base de datos ChromaDB
+├── .daveagent/                   # Local configuration
+│   ├── .env                      # Environment variables
+│   └── memory/                   # ChromaDB database
 │
-├── logs/                         # 📄 Logs de ejecución
+├── logs/                         # 📄 Execution logs
 │
-├── requirements.txt              # Dependencias
-├── pyproject.toml                # Configuración del proyecto
-├── setup.py                      # Script de instalación
-└── README.md                     # Documentación principal
+├── requirements.txt              # Dependencies
+├── pyproject.toml                # Project configuration
+├── setup.py                      # Installation script
+└── README.md                     # Main documentation
 ```
 
----
-
-## 🧩 Componentes Principales
+---## 🧩 Main Components
 
 ### 1. **CLI Interface** (`src/interfaces/cli_interface.py`)
 
-**Responsabilidades**:
-- Interfaz de usuario interactiva usando `prompt-toolkit`
-- Formateo rico con `rich` (colores, tablas, paneles)
-- Autocompletado de comandos y archivos
-- Manejo de comandos especiales (`/help`, `/search`, etc.)
+**Responsibilities**:
+- Interactive user interface using `prompt-toolkit`
+- Rich formatting with `rich` (colors, tables, panels)
+- Command and file autocompletion
+- Special command handling (`/help`, `/search`, etc.)
 
-**Tecnologías**:
-- `prompt-toolkit`: Autocompletado y navegación
-- `rich`: Formateo de salida y colores
+**Technologies**:
+- `prompt-toolkit`: Autocompletion and navigation
+- `rich`: Output formatting and colors
 
 ### 2. **Conversation Manager** (`src/managers/conversation_manager.py`)
 
-**Responsabilidades**:
-- Gestión del historial de conversación
-- Estimación de uso de tokens
-- Compresión automática cuando el historial crece
-- Mantiene contexto relevante para los agentes
+**Responsibilities**:
+- Conversation history management
+- Token usage estimation
+- Automatic compression when history grows
+- Maintains relevant context for agents
 
-**Características**:
+**Features**:
 ```python
-- max_tokens: 8000 (límite máximo)
-- summary_threshold: 6000 (umbral para comprimir)
-- Algoritmo: Mantiene últimos 3 mensajes + resumen
+- max_tokens: 8000 (maximum limit)
+- summary_threshold: 6000 (compression threshold)
+- Algorithm: Keeps last 3 messages + summary
 ```
 
 ### 3. **Complexity Detector**
 
-**Responsabilidades**:
-- Analiza la solicitud del usuario
-- Determina si requiere flujo SIMPLE o COMPLEX
-- Usa LLM para clasificación inteligente
+**Responsibilities**:
+- Analyzes user request
+- Determines if it requires SIMPLE or COMPLEX workflow
+- Uses LLM for intelligent classification
 
-**Criterios**:
+**Criteria**:
 ```python
 SIMPLE:
-  - 1-5 archivos
-  - Modificaciones directas
-  - Búsquedas de código
-  - Operaciones Git
+  - 1-5 files
+  - Direct modifications
+  - Code searches
+  - Git operations
 
 COMPLEX:
-  - 6+ archivos
-  - Sistemas completos
-  - Requiere pl anificación
-  - Arquitectura multi-componente
+  - 6+ files
+  - Complete systems
+  - Requires planning
+  - Multi-component architecture
 ```
 
-### 4. **Agentes Especializados** (`src/agents/`)
+### 4. **Specialized Agents** (`src/agents/`)
 
-#### A) **PlanningAgent** (Solo para COMPLEX)
-- Crea planes de ejecución estructurados
-- Rastrea progreso de tareas
-- Re-planifica dinámicamente si es necesario
-- NO tiene herramientas, solo planifica
+#### A) **PlanningAgent** (COMPLEX only)
+- Creates structured execution plans
+- Tracks task progress
+- Re-plans dynamically if necessary
+- NO tools, only plans
 
-#### B) **CodeSearcher** (Ambos workflows)
-- Búsqueda y análisis de código
-- NO modifica código
-- Usa: `grep_search`, `read_file`, `analyze_python_file`
-- Proporciona ubicaciones y referencias
+#### B) **CodeSearcher** (Both workflows)
+- Code search and analysis
+- Does NOT modify code
+- Uses: `grep_search`, `read_file`, `analyze_python_file`
+- Provides locations and references
 
-#### C) **Coder** (Ambos workflows)
-- Ejecuta modificaciones de código
-- Tiene acceso a TODAS las 45+ herramientas
-- Crea, edita y elimina archivos
-- Ejecuta comandos Git
+#### C) **Coder** (Both workflows)
+- Executes code modifications
+- Has access to ALL 45+ tools
+- Creates, edits, and deletes files
+- Executes Git commands
 
-#### D) **SummaryAgent** (Ambos workflows)
-- Crea resúmenes finales
-- Lista archivos creados/modificados
-- Identifica próximos pasos
-- Marca tarea como completada
+#### D) **SummaryAgent** (Both workflows)
+- Creates final summaries
+- Lists created/modified files
+- Identifies next steps
+- Marks task as completed
 
-###  5. **Sistema de Memoria** (`src/memory/`)
+### 5. **Memory System** (`src/memory/`)
 
-**Arquitectura**:
+**Architecture**:
 ```
 Memory Manager
     │
-    ├── ChromaDB (Base de datos vectorial)
-    │   ├── conversations (historial)
-    │   ├── codebase (código indexado)
-    │   ├── decisions (decisiones arquitéctonicas)
-    │   ├── preferences (preferencias del usuario)
-    │   └── user_info (información del usuario)
+    ├── ChromaDB (Vector database)
+    │   ├── conversations (history)
+    │   ├── codebase (indexed code)
+    │   ├── decisions (architectural decisions)
+    │   ├── preferences (user preferences)
+    │   └── user_info (user information)
     │
     └── Embeddings (BGE M3-Embedding)
-        - Generación de vectores
-        - Búsqueda semántica
+        - Vector generation
+        - Semantic search
 ```
 
-**Herramientas de Memoria** (8):
-- `query_conversation_memory`: Buscar conversaciones pasadas
-- `query_codebase_memory`: Buscar en código indexado
-- `query_decision_memory`: Recordar decisiones
-- `query_preferences_memory`: Preferencias del usuario
-- `query_user_memory`: Información del usuario
-- `save_user_info`: Guardar info del usuario
-- `save_decision`: Registrar decisión
-- `save_preference`: Guardar preferencia
+**Memory Tools** (8):
+- `query_conversation_memory`: Search past conversations
+- `query_codebase_memory`: Search indexed code
+- `query_decision_memory`: Recall decisions
+- `query_preferences_memory`: User preferences
+- `query_user_memory`: User information
+- `save_user_info`: Save user info
+- `save_decision`: Record decision
+- `save_preference`: Save preference
 
-### 6. **Sistema de Herramientas** (`src/tools/`)
+### 6. **Tool System** (`src/tools/`)
 
-**Organización por Categoría**:
+**Organization by Category**:
 
-| Categoría | Cantidad | Ubicación | Descripción |
-|-----------|----------|-----------|-------------|
-| **Filesystem** | 7 | `tools/filesystem/` | Operaciones de archivos |
-| **Git** | 8 | `tools/git/` | Control de versiones |
-| **JSON** | 8 | `tools/data/json_tools.py` | Procesamiento JSON |
-| **CSV** | 7 | `tools/data/csv_tools.py` | Análisis CSV |
-| **Web** | 7 | `tools/web/` | Wikipedia, búsqueda web |
-| **Analysis** | 5 | `tools/analysis/` | Análisis de código |
-| **Memory** | 8 | Integradas en Memory Manager | RAG y persistencia |
+| Category | Quantity | Location | Description |
+|----------|----------|----------|-------------|
+| **Filesystem** | 7 | `tools/read_file.py`, `write_file.py`, `edit_file.py`, `delete_file.py`, `directory_ops.py`, `search_file.py`, `glob.py` | File operations |
+| **Git** | 8 | `tools/git_operations.py` | Version control |
+| **JSON** | 8 | `tools/json_tools.py` | JSON processing |
+| **CSV** | 7 | `tools/csv_tools.py` | CSV analysis |
+| **Web** | 7 | `tools/wikipedia_tools.py`, `web_search.py` | Wikipedia, web search |
+| **Analysis** | 5 | `tools/code_analyzer.py`, `grep.py`, `terminal.py` | Code analysis |
+| **Memory** | 8 | `tools/memory_tools.py` | RAG and persistence |
 
-### 7. **Observabilidad** (`src/observability/`)
+### 7. **Observability** (`src/observability/`)
 
 **Langfuse Integration**:
-- Trazado de llamadas LLM
-- Métricas de rendimiento
-- Análisis de costos
-- Debugging de agentes
+- LLM call tracing
+- Performance metrics
+- Cost analysis
+- Agent debugging
 
 ---
 
-## 🔄 Flujos de Trabajo
+## 🔄 Workflows
 
-### Flujo SIMPLE (Tareas Directas)
+### SIMPLE Workflow (Direct Tasks)
 
 ```
-Usuario → CLI Interface → Conversation Manager
+User → CLI Interface → Conversation Manager
     ↓
 Complexity Detector (→ SIMPLE)
     ↓
-Selector: CodeSearcher o Coder
+Selector: CodeSearcher or Coder
     ↓
-┌─ CodeSearcher (si necesita búsqueda)
-│   └─ Análisis y referencias
-└─ Coder (ejecución directa)
-    └─ Herramientas (read_file, write_file, git, etc.)
+┌─ CodeSearcher (if search needed)
+│   └─ Analysis and references
+└─ Coder (direct execution)
+    └─ Tools (read_file, write_file, git, etc.)
     ↓
 Summary Agent
-    └─ Resumen final
+    └─ Final summary
 ```
 
-**Ejemplo**:
+**Example**:
 ```
-Usuario: "Fix the bug in auth.py line 45"
-  → Coder lee auth.py
-  → Coder aplica edit_file
-  → Summary muestra cambios
+User: "Fix the bug in auth.py line 45"
+  → Coder reads auth.py
+  → Coder applies edit_file
+  → Summary shows changes
 ```
 
-### Flujo COMPLEX (Proyectos Multi-paso)
+### COMPLEX Workflow (Multi-step Projects)
 
 ```
-Usuario → CLI Interface → Conversation Manager
+User → CLI Interface → Conversation Manager
     ↓
 Complexity Detector (→ COMPLEX)
     ↓
 Planning Agent
     ↓
-Crea Plan:
-  1. [ ] Buscar estructura existente
-  2. [ ] Crear modelos
-  3. [ ] Implementar endpoints
-  4. [ ] Agregar tests
+Creates Plan:
+  1. [ ] Search existing structure
+  2. [ ] Create models
+  3. [ ] Implement endpoints
+  4. [ ] Add tests
     ↓
 SelectorGroupChat
-    ├─ Tarea 1 → CodeSearcher (busca estructura)
-    │           └─ Planning Agent actualiza plan
-    ├─ Tarea 2 → Coder (crea modelos)
-    │           └─ Planning Agent actualiza plan
-    ├─ Tarea 3 → Coder (implementa endpoints)
-    │           └─ Planning Agent actualiza plan
-    └─ Tarea 4 → Coder (agrega tests)
+    ├─ Task 1 → CodeSearcher (searches structure)
+    │           └─ Planning Agent updates plan
+    ├─ Task 2 → Coder (creates models)
+    │           └─ Planning Agent updates plan
+    ├─ Task 3 → Coder (implements endpoints)
+    │           └─ Planning Agent updates plan
+    └─ Task 4 → Coder (adds tests)
                 └─ Planning Agent → DELEGATE_TO_SUMMARY
     ↓
 Summary Agent
-    └─ Resumen completo de todo el proyecto
+    └─ Complete project summary
 ```
 
-**Ejemplo**:
+**Example**:
 ```
-Usuario: "Create a REST API with FastAPI for user management"
-  → Planning Agent: Crea plan de 6 pasos
-  → Paso 1: CodeSearcher revisa proyecto
-  → Paso 2: Coder crea models/user.py
-  → Paso 3: Coder crea routes/users.py
-  → Paso 4: Coder crea schemas/user.py
-  → Paso 5: Coder agrega tests
-  → Paso 6: Coder actualiza main.py
-  → Summary: Lista todos los archivos creados
+User: "Create a REST API with FastAPI for user management"
+  → Planning Agent: Creates 6-step plan
+  → Step 1: CodeSearcher reviews project
+  → Step 2: Coder creates models/user.py
+  → Step 3: Coder creates routes/users.py
+  → Step 4: Coder creates schemas/user.py
+  → Step 5: Coder adds tests
+  → Step 6: Coder updates main.py
+  → Summary: Lists all created files
 ```
 
 ---
 
-## 🧠 Sistema de Prompts
+## 🧠 Prompt System
 
-Todos los prompts están centralizados en `src/config/prompts.py`:
+All prompts are centralized in `src/config/prompts.py`:
 
-| Prompt | Agente | Propósito |
-|--------|--------|-----------|
-| `AGENT_SYSTEM_PROMPT` | Coder | Instrucciones para modificación de código |
-| `CODE_SEARCHER_SYSTEM_MESSAGE` | CodeSearcher | Solo búsqueda y análisis |
-| `PLANNING_AGENT_SYSTEM_MESSAGE` | Planning | Creación y gestión de planes |
-| `SUMMARY_AGENT_SYSTEM_MESSAGE` | Summary | Resúmenes finales |
-| `COMPLEXITY_DETECTOR_PROMPT` | Classifier | Detección SIMPLE vs COMPLEX |
+| Prompt | Agent | Purpose |
+|--------|-------|---------|
+| `AGENT_SYSTEM_PROMPT` | Coder | Code modification instructions |
+| `CODE_SEARCHER_SYSTEM_MESSAGE` | CodeSearcher | Search and analysis only |
+| `PLANNING_AGENT_SYSTEM_MESSAGE` | Planning | Plan creation and management |
+| `SUMMARY_AGENT_SYSTEM_MESSAGE` | Summary | Final summaries |
+| `COMPLEXITY_DETECTOR_PROMPT` | Classifier | SIMPLE vs COMPLEX detection |
 
 ---
 
-## 📊 Gestión de Estado
+## 📊 State Management
 
-### Historial de Conversación
+### Conversation History
 
 ```python
-mensaje = {
+message = {
     "role": "user" | "assistant" | "system",
     "content": "...",
     "timestamp": datetime,
@@ -404,59 +397,59 @@ mensaje = {
 }
 ```
 
-### Compresión Automática
+### Automatic Compression
 
-Cuando `len(messages) * avg_tokens > summary_threshold`:
-1. Crea prompt de resumen
-2. Summarizer Agent genera resumen conciso
-3. Mantiene últimos 3 mensajes + resumen
-4. Reduce significativamente el uso de tokens
-
----
-
-## 🔌 Integración con AutoGen 0.4
-
-CodeAgent utiliza AutoGen 0.4 con las siguientes características:
-
-- **AssistantAgent**: Agentes con herramientas
-- **SelectorGroupChat**: Orquestación de múltiples agentes
-- **FunctionSchema**: Definición de herramientas
-- **OpenAIChatCompletionClient**: Cliente LLM compatible
+When `len(messages) * avg_tokens > summary_threshold`:
+1. Creates summary prompt
+2. Summarizer Agent generates concise summary
+3. Keeps last 3 messages + summary
+4. Significantly reduces token usage
 
 ---
 
-## 🎯 Principios de Diseño
+## 🔌 AutoGen 0.4 Integration
 
-1. **Modularidad**: Cada componente tiene una responsabilidad única
-2. **Escalabilidad**: Fácil agregar nuevas herramientas y agentes
-3. **Simplicidad**: Flujo SIMPLE para tareas cotidianas
-4. **Planificación**: Flujo COMPLEX para proyectos grandes
-5. **Memoria Persistente**: ChromaDB para contexto entre sesiones
-6. **Observabilidad**: Langfuse para trazado y métricas
+CodeAgent uses AutoGen 0.4 with the following features:
 
----
-
-## 📚 Tecnologías Utilizadas
-
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| **AutoGen** | >=0.4.0 | Framework de agentes |
-| **ChromaDB** | >=0.4.0 | Base de datos vectorial |
-| **Rich** | >=13.0.0 | Formateo de terminal |
-| **Prompt Toolkit** | >=3.0.0 | CLI interactiva |
-| **Pandas** | >=2.0.0 | Procesamiento de datos |
-| **Langfuse** | >=2.0.0 | Observabilidad |
-| **Python** | >=3.10 | Lenguaje base |
+- **AssistantAgent**: Agents with tools
+- **SelectorGroupChat**: Multiple agent orchestration
+- **FunctionSchema**: Tool definition
+- **OpenAIChatCompletionClient**: Compatible LLM client
 
 ---
 
-## 🔍 Ver También
+## 🎯 Design Principles
 
-- **[Herramientas y Características](Tools-and-Features)** - Catálogo completo de herramientas
-- **[Sistema de Memoria](Memory-System)** - Detalles del sistema RAG
-- **[Desarrollo](Development)** - Cómo contribuir al proyecto
-- **[Evaluación SWE-bench](SWE-Bench-Evaluation)** - Benchmarking del agente
+1. **Modularity**: Each component has a single responsibility
+2. **Scalability**: Easy to add new tools and agents
+3. **Simplicity**: SIMPLE workflow for everyday tasks
+4. **Planning**: COMPLEX workflow for large projects
+5. **Persistent Memory**: ChromaDB for cross-session context
+6. **Observability**: Langfuse for tracing and metrics
 
 ---
 
-[← Volver al Home](Home) | [Herramientas →](Tools-and-Features)
+## 📚 Technologies Used
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **AutoGen** | >=0.4.0 | Agent framework |
+| **ChromaDB** | >=0.4.0 | Vector database |
+| **Rich** | >=13.0.0 | Terminal formatting |
+| **Prompt Toolkit** | >=3.0.0 | Interactive CLI |
+| **Pandas** | >=2.0.0 | Data processing |
+| **Langfuse** | >=2.0.0 | Observability |
+| **Python** | >=3.10 | Base language |
+
+---
+
+## 🔍 See Also
+
+- **[Tools and Features](Tools-and-Features)** - Complete tool catalog
+- **[Memory System](Memory-System)** - RAG system details
+- **[Development](Development)** - How to contribute
+- **[SWE-bench Evaluation](SWE-Bench-Evaluation)** - Agent benchmarking
+
+---
+
+[← Back to Home](Home) | [Tools →](Tools-and-Features)
