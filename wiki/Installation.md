@@ -1,148 +1,148 @@
-# 📦 Instalación de CodeAgent
+# 📦 CodeAgent Installation
 
-Esta guía te llevará a través del proceso completo de instalación de CodeAgent en tu sistema.
+This guide will take you through the complete installation process of CodeAgent on your system.
 
-## 📋 Requisitos Previos
+## 📋 Prerequisites
 
-### Requisitos del Sistema
+### System Requirements
 
-- **Python**: 3.10 o superior
-- **pip**: Gestor de paquetes de Python
-- **Git**: Para clonar el repositorio (opcional si descargas el ZIP)
-- **Sistema Operativo**: Windows, Linux, macOS
+- **Python**: 3.10 or higher
+- **pip**: Python package manager
+- **Git**: To clone the repository (optional if you download ZIP)
+- **Operating System**: Windows, Linux, macOS
 
-### Verificar Python
+### Verify Python
 
 ```bash
 python --version
-# Debe mostrar: Python 3.10.x o superior
+# Should show: Python 3.10.x or higher
 
 pip --version
-# Debe mostrar la versión de pip
+# Should show pip version
 ```
 
-Si no tienes Python 3.10+, descárgalo desde [python.org](https://www.python.org/downloads/)
+If you don't have Python 3.10+, download it from [python.org](https://www.python.org/downloads/)
 
 ---
 
-## 🚀 Método 1: Instalación desde Código Fuente (Recomendado)
+## 🚀 Method 1: Installation from Source Code (Recommended)
 
-### Paso 1: Clonar el Repositorio
+### Step 1: Clone the Repository
 
 ```bash
-# Opción A: Clonar con HTTPS
+# Option A: Clone with HTTPS
 git clone https://github.com/davidmonterocrespo24/DaveAgent.git
 cd DaveAgent
 
-# Opción B: Clonar con SSH
+# Option B: Clone with SSH
 git clone git@github.com:davidmonterocrespo24/DaveAgent.git
 cd DaveAgent
 
-# Opción C: Descargar ZIP
-# Descargar desde GitHub y extraer, luego:
+# Option C: Download ZIP
+# Download from GitHub and extract, then:
 cd DaveAgent
 ```
 
-### Paso 2: Instalar en Modo Desarrollo
+### Step 2: Install in Development Mode
 
 ```bash
-# Instalar el paquete en modo editable
+# Install package in editable mode
 pip install -e .
 
-# Esto instala:
-# - CodeAgent y todas sus dependencias
-# - El comando global 'daveagent'
-# - Permite editar el código sin reinstalar
+# This installs:
+# - CodeAgent and all its dependencies
+# - The 'daveagent' global command
+# - Allows editing code without reinstalling
 ```
 
-### Paso 3: Verificar la Instalación
+### Step 3: Verify Installation
 
 ```bash
-# Verificar que el comando esté disponible
+# Verify command is available
 daveagent --version
 
-# Debería mostrar algo como:
+# Should show something like:
 # DaveAgent version 1.1.0
 ```
 
-### Paso 4: ¡Listo para Usar!
+### Step 4: Ready to Use!
 
 ```bash
-# Navega a cualquier directorio
+# Navigate to any directory
 cd ~/my-project
 
-# Inicia CodeAgent
+# Start CodeAgent
 daveagent
 ```
 
 ---
 
-## 📦 Método 2: Instalación desde PyPI (Próximamente)
+## 📦 Method 2: Installation from PyPI (Coming Soon)
 
-**Nota**: Esta opción estará disponible cuando se publique en PyPI.
+**Note**: This option will be available when published on PyPI.
 
 ```bash
-# Instalación simple (disponible próximamente)
+# Simple installation (coming soon)
 pip install daveagent-ai
 
-# Usar desde cualquier directorio
+# Use from any directory
 daveagent
 ```
 
 ---
 
-## 🔧 Instalación de Dependencias Opcionales
+## 🔧 Installing Optional Dependencies
 
-### Dependencias de Desarrollo
+### Development Dependencies
 
-Si planeas contribuir al proyecto o desarrollar características:
+If you plan to contribute to the project or develop features:
 
 ```bash
-# Instalar con dependencias de desarrollo
+# Install with development dependencies
 pip install -e ".[dev]"
 
-# Esto instala herramientas adicionales:
+# This installs additional tools:
 # - pytest (testing)
-# - black (formateo de código)
+# - black (code formatting)
 # - flake8 (linting)
 # - mypy (type checking)
 ```
 
-### Dependencias Completas
+### Complete Dependencies
 
 ```bash
-# Ver todas las dependencias instaladas
+# View all installed dependencies
 pip list | grep -E "autogen|rich|prompt|pandas"
 
-# Dependencias principales:
-# - autogen-agentchat>=0.4.0     - Framework de agentes
-# - autogen-ext[openai]>=0.4.0   - Extensiones de modelo
-# - prompt-toolkit>=3.0.0         - Interfaz CLI
-# - rich>=13.0.0                  - Formateo y colores
-# - pandas>=2.0.0                 - Procesamiento de datos
-# - wikipedia>=1.4.0              - Herramientas web
-# - python-dotenv>=1.0.0          - Variables de entorno
-# - chromadb>=0.4.0               - Base de datos vectorial
+# Main dependencies:
+# - autogen-agentchat>=0.4.0     - Agent framework
+# - autogen-ext[openai]>=0.4.0   - Model extensions
+# - prompt-toolkit>=3.0.0         - CLI interface
+# - rich>=13.0.0                  - Formatting and colors
+# - pandas>=2.0.0                 - Data processing
+# - wikipedia>=1.4.0              - Web tools
+# - python-dotenv>=1.0.0          - Environment variables
+# - chromadb>=0.4.0               - Vector database
 ```
 
 ---
 
-## ⚙️ Configuración Post-Instalación
+## ⚙️ Post-Installation Configuration
 
-### 1. Configurar API Key
+### 1. Configure API Key
 
-CodeAgent usa DeepSeek por defecto, pero puedes usar cualquier proveedor compatible con OpenAI.
+CodeAgent uses DeepSeek by default, but you can use any OpenAI-compatible provider.
 
-#### Método A: Variables de Entorno
+#### Method A: Environment Variables
 
-Crea un archivo `.env` en el directorio de trabajo:
+Create a `.env` file in the working directory:
 
 ```bash
-# En el directorio raíz de CodeAgent
+# In CodeAgent root directory
 touch .env
 ```
 
-Edita `.env` y agrega:
+Edit `.env` and add:
 
 ```env
 # API Configuration
@@ -150,24 +150,24 @@ DAVEAGENT_API_KEY=your-api-key-here
 DAVEAGENT_MODEL=deepseek-chat
 DAVEAGENT_BASE_URL=https://api.deepseek.com/v1
 
-# O para OpenAI:
+# Or for OpenAI:
 # DAVEAGENT_API_KEY=sk-...
 # DAVEAGENT_MODEL=gpt-4
 # DAVEAGENT_BASE_URL=https://api.openai.com/v1
 
-# SSL Configuration (opcional)
+# SSL Configuration (optional)
 DAVEAGENT_SSL_VERIFY=true
 ```
 
-#### Método B: Editar main.py Directamente
+#### Method B: Edit main.py Directly
 
-Edita `src/main.py`:
+Edit `src/main.py`:
 
 ```python
 self.model_client = OpenAIChatCompletionClient(
-    model="tu-modelo",           # Cambiar aquí
-    base_url="tu-base-url",      # Cambiar aquí
-    api_key="tu-api-key",        # Cambiar aquí
+    model="your-model",           # Change here
+    base_url="your-base-url",      # Change here
+    api_key="your-api-key",        # Change here
     model_capabilities={
         "vision": True,
         "function_calling": True,
@@ -176,47 +176,47 @@ self.model_client = OpenAIChatCompletionClient(
 )
 ```
 
-### 2. Configuración SSL (Redes Corporativas)
+### 2. SSL Configuration (Corporate Networks)
 
-Si experimentas errores de certificado SSL:
+If you experience SSL certificate errors:
 
 ```bash
-# Opción 1: Variable de entorno en .env
+# Option 1: Environment variable in .env
 DAVEAGENT_SSL_VERIFY=false
 
-# Opción 2: Argumento de línea de comandos
+# Option 2: Command line argument
 daveagent --no-ssl-verify
 
-# Opción 3: Variable de sistema
+# Option 3: System variable
 export DAVEAGENT_SSL_VERIFY=false  # Linux/macOS
 set DAVEAGENT_SSL_VERIFY=false     # Windows CMD
 $env:DAVEAGENT_SSL_VERIFY="false"  # Windows PowerShell
 ```
 
-### 3. Configurar Directorio de Trabajo
+### 3. Configure Working Directory
 
-Por defecto, CodeAgent opera en el directorio actual:
+By default, CodeAgent operates in the current directory:
 
 ```bash
-# Navegar al proyecto
-cd ~/mi-proyecto
+# Navigate to project
+cd ~/my-project
 
-# Iniciar CodeAgent (trabajará en ~/mi-proyecto)
+# Start CodeAgent (will work in ~/my-project)
 daveagent
 ```
 
 ---
 
-## 🐧 Instalación Específica para Linux
+## 🐧 Linux-Specific Installation
 
 ### Ubuntu/Debian
 
 ```bash
-# Instalar Python 3.10+ si no está disponible
+# Install Python 3.10+ if not available
 sudo apt update
 sudo apt install python3.10 python3.10-venv python3-pip git
 
-# Clonar e instalar
+# Clone and install
 git clone https://github.com/davidmonterocrespo24/DaveAgent.git
 cd DaveAgent
 pip install -e .
@@ -225,86 +225,86 @@ pip install -e .
 ### Fedora/RHEL
 
 ```bash
-# Instalar dependencias
+# Install dependencies
 sudo dnf install python3.10 python3-pip git
 
-# Clonar e instalar
+# Clone and install
 git clone https://github.com/davidmonterocrespo24/DaveAgent.git
 cd DaveAgent
 pip install -e .
 ```
 
-### Script de Instalación Automatizada
+### Automated Installation Script
 
-Para Linux con evaluación SWE-bench:
+For Linux with SWE-bench evaluation:
 
 ```bash
-# Otorgar permisos de ejecución
+# Grant execution permissions
 chmod +x setup_and_run_linux.sh
 
-# Ejecutar script (compila, instala y ejecuta evaluación)
+# Run script (compiles, installs, and runs evaluation)
 ./setup_and_run_linux.sh
 ```
 
 ---
 
-## 🪟 Instalación Específica para Windows
+## 🪟 Windows-Specific Installation
 
 ### Windows 10/11
 
 ```powershell
-# Verificar Python (debe ser 3.10+)
+# Verify Python (must be 3.10+)
 python --version
 
-# Clonar repositorio
+# Clone repository
 git clone https://github.com/davidmonterocrespo24/DaveAgent.git
 cd DaveAgent
 
-# Instalar
+# Install
 pip install -e .
 
-# Verificar
+# Verify
 daveagent --version
 ```
 
-### Script de Compilación e Instalación
+### Build and Install Script
 
 ```bash
-# Usar script de Windows
+# Use Windows script
 .\build_and_install.bat
 ```
 
-**Nota para Windows**: Si encuentras problemas con permisos, ejecuta PowerShell como Administrador.
+**Note for Windows**: If you encounter permission issues, run PowerShell as Administrator.
 
 ---
 
-## 🍎 Instalación Específica para macOS
+## 🍎 macOS-Specific Installation
 
 ```bash
-# Instalar Homebrew (si no está instalado)
+# Install Homebrew (if not installed)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# Instalar Python 3.10+
+# Install Python 3.10+
 brew install python@3.10
 
-# Clonar e instalar
+# Clone and install
 git clone https://github.com/davidmonterocrespo24/DaveAgent.git
 cd DaveAgent
 pip3 install -e .
 
-# Verificar
+# Verify
 daveagent --version
 ```
 
 ---
 
-## 🐳 Instalación con Docker (Próximamente)
+## 🐳 Docker Installation (Coming Soon)
 
 ```bash
-# Construir imagen Docker
+# Build Docker image
 docker build -t codeagent .
 
-# Ejecutar contenedor
+# Run container
 docker run -it --rm \
   -v $(pwd):/workspace \
   -e DAVEAGENT_API_KEY=your-key \
@@ -313,21 +313,21 @@ docker run -it --rm \
 
 ---
 
-## 🔍 Verificación de la Instalación
+## 🔍 Installation Verification
 
-### Prueba Básica
+### Basic Test
 
 ```bash
-# Iniciar CodeAgent
+# Start CodeAgent
 daveagent
 
-# Dentro de CodeAgent, prueba:
+# Inside CodeAgent, test:
 You: /help
 
-# Debería mostrar la ayuda de comandos
+# Should show command help
 ```
 
-### Prueba de Herramientas
+### Tool Test
 
 ```bash
 You: read the README.md file
@@ -335,128 +335,128 @@ You: /search main function
 You: git status
 ```
 
-### Prueba de Memoria
+### Memory Test
 
 ```bash
 You: /index
-# Debería indexar el proyecto
+# Should index the project
 
 You: /memory
-# Debería mostrar estadísticas de memoria
+# Should show memory statistics
 ```
 
 ---
 
-## 🐛 Solución de Problemas de Instalación
+## 🐛 Installation Troubleshooting
 
-### Problema: "Command 'daveagent' not found"
+### Problem: "Command 'daveagent' not found"
 
-**Solución**:
+**Solution**:
 ```bash
-# Verificar que pip instaló en el PATH correcto
+# Verify pip installed in correct PATH
 pip show daveagent-cli
 
-# O usar el módulo directamente
+# Or use module directly
 python -m src.cli
 ```
 
-### Problema: "ModuleNotFoundError: No module named 'autogen'"
+### Problem: "ModuleNotFoundError: No module named 'autogen'"
 
-**Solución**:
+**Solution**:
 ```bash
-# Reinstalar dependencias
+# Reinstall dependencies
 pip install -r requirements.txt
 
-# O instalar manualmente
+# Or install manually
 pip install 'autogen-agentchat>=0.4.0' 'autogen-ext[openai]>=0.4.0'
 ```
 
-### Problema: Errores de SSL en Redes Corporativas
+### Problem: SSL Errors in Corporate Networks
 
-**Solución**:
+**Solution**:
 ```bash
-# Deshabilitar verificación SSL
+# Disable SSL verification
 daveagent --no-ssl-verify
 
-# O configurar certificados corporativos
+# Or configure corporate certificates
 export REQUESTS_CA_BUNDLE=/path/to/your/ca-bundle.crt
 ```
 
-### Problema: "Permission denied" en Linux/macOS
+### Problem: "Permission denied" on Linux/macOS
 
-**Solución**:
+**Solution**:
 ```bash
-# Instalar solo para el usuario actual
+# Install for current user only
 pip install --user -e .
 
-# O usar un entorno virtual
+# Or use virtual environment
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
-# O venv\Scripts\activate  # Windows
+# Or venv\Scripts\activate  # Windows
 pip install -e .
 ```
 
 ---
 
-## 🔄 Actualización de CodeAgent
+## 🔄 Updating CodeAgent
 
-### Actualizar desde Git
+### Update from Git
 
 ```bash
-# Navegar al directorio de CodeAgent
+# Navigate to CodeAgent directory
 cd DaveAgent
 
-# Obtener últimos cambios
+# Get latest changes
 git pull origin main
 
-# Reinstalar (si hay cambios en dependencias)
+# Reinstall (if there are dependency changes)
 pip install -e .
 ```
 
-### Actualizar Dependencias
+### Update Dependencies
 
 ```bash
-# Actualizar todas las dependencias
+# Update all dependencies
 pip install --upgrade -r requirements.txt
 
-# O actualizar solo AutoGen
+# Or update only AutoGen
 pip install --upgrade 'autogen-agentchat>=0.4.0' 'autogen-ext[openai]>=0.4.0'
 ```
 
 ---
 
-## 🗑️ Desinstalación
+## 🗑️ Uninstallation
 
 ```bash
-# Desinstalar el paquete
+# Uninstall package
 pip uninstall daveagent-cli
 
-# Eliminar directorio (si se clonó desde Git)
+# Remove directory (if cloned from Git)
 rm -rf DaveAgent
 
-# Limpiar archivos de configuración (opcional)
+# Clean configuration files (optional)
 rm -rf ~/.daveagent
 ```
 
 ---
 
-## ✅ Siguientes Pasos
+## ✅ Next Steps
 
-Una vez instalado correctamente:
+Once installed correctly:
 
-1. **[Inicio Rápido](Quick-Start)** - Aprende los comandos básicos en 5 minutos
-2. **[Guía de Uso](Usage-Guide)** - Flujos de trabajo y casos de uso
-3. **[Configuración](Configuration)** - Personaliza CodeAgent a tus necesidades
-4. **[Herramientas](Tools-and-Features)** - Explora las 45+ herramientas disponibles
+1. **[Quick Start](Quick-Start)** - Learn basic commands in 5 minutes
+2. **[Usage Guide](Usage-Guide)** - Workflows and use cases
+3. **[Configuration](Configuration)** - Customize CodeAgent to your needs
+4. **[Tools](Tools-and-Features)** - Explore the 45+ available tools
 
 ---
 
-## 📞 ¿Necesitas Ayuda?
+## 📞 Need Help?
 
-- **Discord**: [Únete a nuestro servidor](https://discord.gg/2dRTd4Cv)
+- **Discord**: [Join our server](https://discord.gg/2dRTd4Cv)
 - **Issues**: [GitHub Issues](https://github.com/davidmonterocrespo24/DaveAgent/issues)
 - **Email**: contact@daveagent.ai
 
 ---
 
-[← Volver al Home](Home) | [Configuración →](Configuration)
+[← Back to Home](Home) | [Configuration →](Configuration)
