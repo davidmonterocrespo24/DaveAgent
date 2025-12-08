@@ -4,501 +4,501 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![AutoGen](https://img.shields.io/badge/powered%20by-AutoGen%200.4-orange.svg)](https://microsoft.github.io/autogen/)
 
-DaveAgent es un asistente de codificación inteligente con IA que trabaja en tu directorio actual. Utiliza AutoGen 0.4 para orquestar agentes especializados que te ayudan con tareas de desarrollo.
+DaveAgent is an intelligent AI-powered coding assistant that works in your current directory. It uses AutoGen 0.4 to orchestrate specialized agents that help you with development tasks.
 
-## ✨ Características
+## ✨ Features
 
-- 🚀 **Comando CLI Global**: Usa `daveagent` desde cualquier directorio
-- 📂 **Trabajo Contextual**: Opera en tu directorio actual automáticamente
-- 🧠 **Memoria Vectorial con ChromaDB**: Recuerda conversaciones, código y decisiones entre sesiones
-- 🔍 **CodeSearcher**: Agente especializado para buscar y analizar código
-- 📎 **File Mentions con @**: Menciona archivos específicos con `@` para darles prioridad máxima en el contexto
-- 🔧 **42 Herramientas Integradas**: Filesystem, Git, JSON, CSV, Wikipedia, y más
-- 🤖 **Agentes Inteligentes**: Selección automática del agente apropiado
-- 📊 **Logging Completo**: Sistema de logs detallado para debugging
-- 🎨 **Interfaz Rica**: CLI con colores y formato usando Rich
-- ⚡ **Visualización en Tiempo Real**: Ve los pensamientos y acciones del agente mientras trabaja
+- 🚀 **Global CLI Command**: Use `daveagent` from any directory
+- 📂 **Contextual Work**: Operates in your current directory automatically
+- 🧠 **Vector Memory with ChromaDB**: Remembers conversations, code, and decisions between sessions
+- 🔍 **CodeSearcher**: Specialized agent for searching and analyzing code
+- 📎 **File Mentions with @**: Mention specific files with `@` to give them maximum priority in context
+- 🔧 **42 Integrated Tools**: Filesystem, Git, JSON, CSV, Wikipedia, and more
+- 🤖 **Intelligent Agents**: Automatic selection of the appropriate agent
+- 📊 **Complete Logging**: Detailed logging system for debugging
+- 🎨 **Rich Interface**: CLI with colors and formatting using Rich
+- ⚡ **Real-time Visualization**: See the agent's thoughts and actions while it works
 
-## 🎯 Casos de Uso
+## 🎯 Use Cases
 
-### Desarrollo de Software
+### Software Development
 ```bash
-cd mi-proyecto
+cd my-project
 daveagent
 
-# Buscar código antes de modificar
-Tu: /search sistema de autenticación actual
+# Search code before modifying
+You: /search current authentication system
 
-# Mencionar archivos específicos con @
-Tu: @main.py fix the authentication bug in this file
-Tu: @config.py @.env update the API configuration
+# Mention specific files with @
+You: @main.py fix the authentication bug in this file
+You: @config.py @.env update the API configuration
 
-# Modificar con contexto
-Tu: crear un módulo de autenticación con JWT
-Tu: refactorizar el código en services/ para usar async/await
-Tu: buscar todos los TODOs en el proyecto
+# Modify with context
+You: create an authentication module with JWT
+You: refactor the code in services/ to use async/await
+You: find all TODOs in the project
 ```
 
-### Análisis de Datos
+### Data Analysis
 ```bash
-cd datos-proyecto
+cd data-project
 daveagent
 
-Tu: leer el archivo ventas.csv y mostrar un resumen
-Tu: combinar todos los CSV en la carpeta data/ en uno solo
-Tu: convertir el JSON de configuración a CSV
+You: read the sales.csv file and show a summary
+You: combine all CSVs in the data/ folder into one
+You: convert the configuration JSON to CSV
 ```
 
-### Operaciones Git
+### Git Operations
 ```bash
-cd mi-repo
+cd my-repo
 daveagent
 
-Tu: hacer commit de los cambios con un mensaje descriptivo
-Tu: mostrar el diff de los últimos 3 commits
-Tu: crear una rama feature/nueva-funcionalidad
+You: commit the changes with a descriptive message
+You: show the diff of the last 3 commits
+You: create a branch feature/new-functionality
 ```
 
-## 📦 Instalación
+## 📦 Installation
 
-### Instalación desde PyPI (Próximamente)
+### Installation from PyPI (Coming Soon)
 
-**Cuando esté publicado en PyPI**:
+**When published on PyPI**:
 
 ```bash
 pip install daveagent-ai
 daveagent
 ```
 
-### Instalación desde Código Fuente
+### Installation from Source Code
 
 ```bash
-# 1. Clona o descarga el proyecto
+# 1. Clone or download the project
 git clone https://github.com/DaveAgent-AI/daveagent.git
 cd daveagent
 
-# 2. Instala en modo desarrollo
+# 2. Install in development mode
 pip install -e .
 
-# 3. ¡Usa desde cualquier directorio!
+# 3. Use from any directory!
 daveagent
 ```
 
-### Requisitos
+### Requirements
 
-- Python 3.10 o superior
-- pip (gestor de paquetes de Python)
+- Python 3.10 or higher
+- pip (Python package manager)
 
-### Dependencias Principales
+### Main Dependencies
 
-- `autogen-agentchat>=0.4.0` - Framework de agentes
-- `autogen-ext[openai]>=0.4.0` - Extensiones de modelos
-- `prompt-toolkit>=3.0.0` - Interfaz de línea de comandos
-- `rich>=13.0.0` - Formato y colores
-- `pandas>=2.0.0` - Procesamiento de datos
+- `autogen-agentchat>=0.4.0` - Agent framework
+- `autogen-ext[openai]>=0.4.0` - Model extensions
+- `prompt-toolkit>=3.0.0` - Command-line interface
+- `rich>=13.0.0` - Formatting and colors
+- `pandas>=2.0.0` - Data processing
 
-Ver [INSTALACION.md](INSTALACION.md) para instrucciones detalladas.
+See [INSTALACION.md](INSTALACION.md) for detailed instructions.
 
-## 🚀 Uso
+## 🚀 Usage
 
-### Comando Básico
+### Basic Command
 
 ```bash
-# Desde cualquier directorio
-cd tu-proyecto
+# From any directory
+cd your-project
 daveagent
 ```
 
-### Opciones
+### Options
 
 ```bash
-# Modo debug (logs detallados)
+# Debug mode (detailed logs)
 daveagent --debug
 
-# Ver versión
+# View version
 daveagent --version
 
-# Ver ayuda
+# View help
 daveagent --help
 ```
 
-### Comandos Internos
+### Internal Commands
 
-Dentro de DaveAgent, puedes usar estos comandos:
+Within DaveAgent, you can use these commands:
 
-| Comando | Descripción |
+| Command | Description |
 |---------|-------------|
-| `/help` | Muestra ayuda de comandos |
-| `/search <consulta>` | 🔍 Busca y analiza código |
-| `/index` | 🧠 Indexa el proyecto en memoria vectorial |
-| `/memory` | 📊 Muestra estadísticas de memoria |
-| `@<archivo>` | 📎 Menciona archivo específico con prioridad alta |
-| `/debug` | Activa/desactiva modo debug |
-| `/logs` | Muestra ubicación de logs |
-| `/stats` | Muestra estadísticas |
-| `/clear` | Limpia el historial |
-| `/new` | Nueva conversación |
-| `/exit` | Salir de DaveAgent |
+| `/help` | Show command help |
+| `/search <query>` | 🔍 Search and analyze code |
+| `/index` | 🧠 Index project in vector memory |
+| `/memory` | 📊 Show memory statistics |
+| `@<file>` | 📎 Mention specific file with high priority |
+| `/debug` | Enable/disable debug mode |
+| `/logs` | Show logs location |
+| `/stats` | Show statistics |
+| `/clear` | Clear history |
+| `/new` | New conversation |
+| `/exit` | Exit DaveAgent |
 
-#### 🔍 Comando /search
+#### 🔍 /search Command
 
-El comando `/search` invoca al agente **CodeSearcher** para buscar y analizar código:
-
-```bash
-Tu: /search función de autenticación
-Tu: /search dónde se usa la clase TaskPlanner
-Tu: /search cómo funciona el sistema de logging
-```
-
-**CodeSearcher te proporciona:**
-- 📍 Archivos relevantes con ubicaciones exactas
-- 🔧 Funciones encontradas con código completo
-- 📦 Variables y constantes importantes
-- 🔗 Dependencias entre componentes
-- 💡 Recomendaciones de qué modificar
-
-Ver [docs/CODESEARCHER_GUIDE.md](docs/CODESEARCHER_GUIDE.md) para más detalles.
-
-#### 📎 File Mentions con @
-
-Menciona archivos específicos en tu consulta usando `@`:
+The `/search` command invokes the **CodeSearcher** agent to search and analyze code:
 
 ```bash
-Tu: @main.py explain how this file works
-Tu: @config.py @.env update the database connection settings
-Tu: @src/agents/code_searcher.py add docstrings to all methods
+You: /search authentication function
+You: /search where is the TaskPlanner class used
+You: /search how does the logging system work
 ```
 
-**Características:**
-- ✅ Selector interactivo con navegación por teclado (↑↓)
-- ✅ Búsqueda y filtrado en tiempo real
-- ✅ Los archivos mencionados tienen **prioridad máxima** en el contexto
-- ✅ Soporta múltiples archivos en una sola consulta
-- ✅ Excluye automáticamente archivos ocultos y binarios
+**CodeSearcher provides you with:**
+- 📍 Relevant files with exact locations
+- 🔧 Functions found with complete code
+- 📦 Important variables and constants
+- 🔗 Dependencies between components
+- 💡 Recommendations on what to modify
 
-Ver [docs/FILE_MENTIONS.md](docs/FILE_MENTIONS.md) y [examples/file_mentions_demo.md](examples/file_mentions_demo.md) para ejemplos detallados.
+See [docs/CODESEARCHER_GUIDE.md](docs/CODESEARCHER_GUIDE.md) for more details.
 
-#### 🧠 Sistema de Memoria Vectorial
+#### 📎 File Mentions with @
 
-DaveAgent utiliza **ChromaDB** para mantener memoria persistente entre sesiones:
+Mention specific files in your query using `@`:
 
 ```bash
-# Indexar tu proyecto una vez
-Tu: /index
-📚 Indexando proyecto en memoria vectorial...
-✅ Indexación completada!
-  • Archivos indexados: 45
-  • Chunks creados: 234
-
-# Ver estadísticas de memoria
-Tu: /memory
-🧠 Estadísticas de Memoria Vectorial
-
-📚 Sistema de memoria activo con 4 colecciones:
-  • Conversations: Historial de conversaciones
-  • Codebase: Código fuente indexado
-  • Decisions: Decisiones arquitectónicas
-  • Preferences: Preferencias del usuario
+You: @main.py explain how this file works
+You: @config.py @.env update the database connection settings
+You: @src/agents/code_searcher.py add docstrings to all methods
 ```
 
-**Beneficios de la Memoria:**
-- 💬 **Conversaciones**: Recuerda interacciones previas y mantiene contexto
-- 📝 **Código Base**: Búsquedas semánticas en tu código sin grep
-- 🎯 **Decisiones**: Mantiene consistencia en decisiones arquitectónicas
-- ⚙️ **Preferencias**: Aprende tu estilo de código preferido
+**Features:**
+- ✅ Interactive selector with keyboard navigation (↑↓)
+- ✅ Real-time search and filtering
+- ✅ Mentioned files have **maximum priority** in context
+- ✅ Supports multiple files in a single query
+- ✅ Automatically excludes hidden and binary files
 
-**Los agentes usan memoria automáticamente:**
-- **CodeSearcher**: Consulta código indexado para búsquedas más rápidas
-- **Coder**: Recuerda soluciones previas y preferencias de estilo
-- **PlanningAgent**: Mantiene consistencia con decisiones pasadas
+See [docs/FILE_MENTIONS.md](docs/FILE_MENTIONS.md) and [examples/file_mentions_demo.md](examples/file_mentions_demo.md) for detailed examples.
 
-Ver [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md) para documentación completa y [examples/memory_usage_example.py](examples/memory_usage_example.py) para ejemplos de uso.
+#### 🧠 Vector Memory System
 
-## 🛠️ Herramientas Disponibles
+DaveAgent uses **ChromaDB** to maintain persistent memory between sessions:
+
+```bash
+# Index your project once
+You: /index
+📚 Indexing project in vector memory...
+✅ Indexing completed!
+  • Indexed files: 45
+  • Chunks created: 234
+
+# View memory statistics
+You: /memory
+🧠 Vector Memory Statistics
+
+📚 Active memory system with 4 collections:
+  • Conversations: Conversation history
+  • Codebase: Indexed source code
+  • Decisions: Architectural decisions
+  • Preferences: User preferences
+```
+
+**Memory Benefits:**
+- 💬 **Conversations**: Remembers previous interactions and maintains context
+- 📝 **Code Base**: Semantic searches in your code without grep
+- 🎯 **Decisions**: Maintains consistency in architectural decisions
+- ⚙️ **Preferences**: Learns your preferred coding style
+
+**Agents use memory automatically:**
+- **CodeSearcher**: Queries indexed code for faster searches
+- **Coder**: Remembers previous solutions and style preferences
+- **PlanningAgent**: Maintains consistency with past decisions
+
+See [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md) for complete documentation and [examples/memory_usage_example.py](examples/memory_usage_example.py) for usage examples.
+
+## 🛠️ Available Tools
 
 ### Filesystem (6 tools)
-- `read_file` - Leer archivos
-- `write_file` - Escribir archivos
-- `edit_file` - Editar archivos
-- `list_dir` - Listar directorios
-- `delete_file` - Eliminar archivos
-- `file_search` - Buscar archivos
+- `read_file` - Read files
+- `write_file` - Write files
+- `edit_file` - Edit files
+- `list_dir` - List directories
+- `delete_file` - Delete files
+- `file_search` - Search files
 
 ### Git (8 tools)
-- `git_status` - Estado del repositorio
-- `git_add` - Añadir archivos
-- `git_commit` - Crear commits
-- `git_push` - Subir cambios
-- `git_pull` - Bajar cambios
-- `git_log` - Ver historial
-- `git_branch` - Gestionar ramas
-- `git_diff` - Ver diferencias
+- `git_status` - Repository status
+- `git_add` - Add files
+- `git_commit` - Create commits
+- `git_push` - Push changes
+- `git_pull` - Pull changes
+- `git_log` - View history
+- `git_branch` - Manage branches
+- `git_diff` - View differences
 
 ### JSON (8 tools)
-- `read_json` - Leer JSON
-- `write_json` - Escribir JSON
-- `merge_json_files` - Combinar JSONs
-- `validate_json` - Validar JSON
-- `format_json` - Formatear JSON
-- `json_get_value` - Obtener valor
-- `json_set_value` - Establecer valor
-- `json_to_text` - Convertir a texto
+- `read_json` - Read JSON
+- `write_json` - Write JSON
+- `merge_json_files` - Combine JSONs
+- `validate_json` - Validate JSON
+- `format_json` - Format JSON
+- `json_get_value` - Get value
+- `json_set_value` - Set value
+- `json_to_text` - Convert to text
 
 ### CSV (7 tools)
-- `read_csv` - Leer CSV
-- `write_csv` - Escribir CSV
-- `csv_info` - Información del CSV
-- `filter_csv` - Filtrar datos
-- `merge_csv` - Combinar CSVs
-- `csv_to_json` - Convertir a JSON
-- `sort_csv` - Ordenar datos
+- `read_csv` - Read CSV
+- `write_csv` - Write CSV
+- `csv_info` - CSV information
+- `filter_csv` - Filter data
+- `merge_csv` - Combine CSVs
+- `csv_to_json` - Convert to JSON
+- `sort_csv` - Sort data
 
 ### Web (6 tools)
-- `wiki_search` - Buscar en Wikipedia
-- `wiki_summary` - Resumen de artículo
-- `wiki_content` - Contenido completo
-- `wiki_page_info` - Información de página
-- `wiki_random` - Artículo aleatorio
-- `wiki_set_language` - Cambiar idioma
+- `wiki_search` - Search Wikipedia
+- `wiki_summary` - Article summary
+- `wiki_content` - Full content
+- `wiki_page_info` - Page information
+- `wiki_random` - Random article
+- `wiki_set_language` - Change language
 
 ### Analysis (7 tools)
-- `analyze_python_file` - Analizar código Python
-- `find_function_definition` - Buscar definiciones
-- `list_all_functions` - Listar funciones
-- `codebase_search` - Buscar en código
-- `grep_search` - Búsqueda con grep
-- `run_terminal_cmd` - Ejecutar comandos
+- `analyze_python_file` - Analyze Python code
+- `find_function_definition` - Find definitions
+- `list_all_functions` - List functions
+- `codebase_search` - Search in code
+- `grep_search` - Search with grep
+- `run_terminal_cmd` - Execute commands
 
-## 📖 Ejemplos
+## 📖 Examples
 
-### Ejemplo 1: Usar CodeSearcher antes de modificar
+### Example 1: Use CodeSearcher before modifying
 
 ```bash
-cd mi-proyecto
+cd my-project
 daveagent
 
-# Primero, buscar contexto
-Tu: /search sistema de utilidades existente
+# First, search for context
+You: /search existing utilities system
 
-# El agente muestra funciones, archivos y estructura actual
-# Ahora modificar con contexto
+# The agent shows functions, files and current structure
+# Now modify with context
 
-Tu: crear un módulo utils.py con funciones para:
-    - validar email
-    - formatear fechas
-    - calcular hash MD5
+You: create a utils.py module with functions for:
+    - validate email
+    - format dates
+    - calculate MD5 hash
 ```
 
-DaveAgent primero analiza el código existente y luego crea el archivo `mi-proyecto/utils.py` con las funciones solicitadas, evitando duplicados y manteniendo consistencia.
+DaveAgent first analyzes the existing code and then creates the `my-project/utils.py` file with the requested functions, avoiding duplicates and maintaining consistency.
 
-### Ejemplo 2: Analizar un Proyecto
+### Example 2: Analyze a Project
 
 ```bash
-cd proyecto-existente
+cd existing-project
 daveagent
 
-Tu: analiza la estructura del proyecto y dame un resumen
-Tu: cuántas funciones hay en total?
-Tu: encuentra todos los archivos que usan la librería requests
+You: analyze the project structure and give me a summary
+You: how many functions are there in total?
+You: find all files that use the requests library
 ```
 
-### Ejemplo 3: Operaciones con Datos
+### Example 3: Data Operations
 
 ```bash
-cd datos
+cd data
 daveagent
 
-Tu: lee el archivo ventas.csv y muestra las 10 ventas más altas
-Tu: crea un nuevo CSV con solo las ventas de 2024
-Tu: convierte el archivo config.json a CSV
+You: read the sales.csv file and show the top 10 sales
+You: create a new CSV with only 2024 sales
+You: convert the config.json file to CSV
 ```
 
-## 🐛 Debugging y Logs
+## 🐛 Debugging and Logs
 
-### Ver Logs
+### View Logs
 
 ```bash
-# Iniciar con logs detallados
+# Start with detailed logs
 daveagent --debug
 
-# Dentro de DaveAgent
-Tu: /logs
-📄 Archivo de logs: logs/daveagent_20250131_154022.log
+# Within DaveAgent
+You: /logs
+📄 Log file: logs/daveagent_20250131_154022.log
 ```
 
-### Ubicación de Logs
+### Log Location
 
-Los logs se guardan en:
+Logs are saved in:
 ```
 logs/
 └── daveagent_YYYYMMDD_HHMMSS.log
 ```
 
-Cada archivo contiene logs detallados con formato:
+Each file contains detailed logs with format:
 ```
-2025-01-31 15:40:22 | DaveAgent | INFO | process_user_request:257 | 📝 Nueva solicitud...
+2025-01-31 15:40:22 | DaveAgent | INFO | process_user_request:257 | 📝 New request...
 ```
 
-Ver [LOGGING_GUIDE.md](LOGGING_GUIDE.md) para más detalles.
+See [LOGGING_GUIDE.md](LOGGING_GUIDE.md) for more details.
 
-## 🏗️ Arquitectura
+## 🏗️ Architecture
 
 ```
 DaveAgent/
 ├── src/
-│   ├── agents/          # Agentes especializados
-│   │   ├── task_planner.py      # Planificación de tareas
-│   │   ├── task_executor.py     # Ejecución de tareas
-│   │   └── code_searcher.py     # 🔍 Búsqueda de código
-│   ├── config/          # Configuración y prompts
+│   ├── agents/          # Specialized agents
+│   │   ├── task_planner.py      # Task planning
+│   │   ├── task_executor.py     # Task execution
+│   │   └── code_searcher.py     # 🔍 Code search
+│   ├── config/          # Configuration and prompts
 │   ├── interfaces/      # CLI interface
-│   ├── managers/        # Gestión de conversación
-│   ├── tools/           # 42 herramientas
+│   ├── managers/        # Conversation management
+│   ├── tools/           # 42 tools
 │   │   ├── filesystem/
 │   │   ├── git/
 │   │   ├── data/       # JSON, CSV
 │   │   ├── web/        # Wikipedia
 │   │   └── analysis/
-│   ├── utils/          # Utilidades (logger)
-│   └── cli.py          # Punto de entrada CLI
-├── docs/               # Documentación
-│   └── CODESEARCHER_GUIDE.md  # Guía de CodeSearcher
-└── main.py             # Aplicación principal
+│   ├── utils/          # Utilities (logger)
+│   └── cli.py          # CLI entry point
+├── docs/               # Documentation
+│   └── CODESEARCHER_GUIDE.md  # CodeSearcher Guide
+└── main.py             # Main application
 ```
 
-## 🔧 Configuración
+## 🔧 Configuration
 
 ### API Key
 
-DaveAgent usa DeepSeek por defecto. Para cambiar el modelo:
+DaveAgent uses DeepSeek by default. To change the model:
 
-1. Edita `main.py`:
+1. Edit `main.py`:
 ```python
 self.model_client = OpenAIChatCompletionClient(
-    model="gpt-4",  # Cambia aquí
-    api_key="tu-api-key",
+    model="gpt-4",  # Change here
+    api_key="your-api-key",
     # ...
 )
 ```
 
-2. O usa variables de entorno en `.daveagent/.env`:
+2. Or use environment variables in `.daveagent/.env`:
 ```bash
-DAVEAGENT_API_KEY=tu-api-key
+DAVEAGENT_API_KEY=your-api-key
 DAVEAGENT_MODEL=gpt-4
 DAVEAGENT_BASE_URL=https://api.openai.com/v1
 ```
 
-### Problemas de SSL (Redes Corporativas)
+### SSL Issues (Corporate Networks)
 
-Si experimentas errores de certificado SSL:
+If you experience SSL certificate errors:
 
-1. **Método 1:** Variable de entorno en `.daveagent/.env`:
+1. **Method 1:** Environment variable in `.daveagent/.env`:
 ```bash
 DAVEAGENT_SSL_VERIFY=false
 ```
 
-2. **Método 2:** Argumento de línea de comandos:
+2. **Method 2:** Command line argument:
 ```bash
 daveagent --no-ssl-verify
-# o
+# or
 daveagent --ssl-verify=false
 ```
 
-3. **Método 3:** Variable de entorno del sistema:
+3. **Method 3:** System environment variable:
 ```bash
 export DAVEAGENT_SSL_VERIFY=false  # Linux/macOS
 set DAVEAGENT_SSL_VERIFY=false     # Windows
 ```
 
-## 🤝 Contribuir
+## 🤝 Contributing
 
-¡Las contribuciones son bienvenidas! Para contribuir:
+Contributions are welcome! To contribute:
 
-1. Fork el repositorio
-2. Crea una rama: `git checkout -b feature/nueva-funcionalidad`
-3. Commit tus cambios: `git commit -m 'Agrega nueva funcionalidad'`
-4. Push a la rama: `git push origin feature/nueva-funcionalidad`
-5. Abre un Pull Request
+1. Fork the repository
+2. Create a branch: `git checkout -b feature/new-functionality`
+3. Commit your changes: `git commit -m 'Add new functionality'`
+4. Push to the branch: `git push origin feature/new-functionality`
+5. Open a Pull Request
 
-### Desarrollo
+### Development
 
 ```bash
-# Instalar con dependencias de desarrollo
+# Install with development dependencies
 pip install -e ".[dev]"
 
-# Ejecutar tests
+# Run tests
 pytest
 
-# Formatear código
+# Format code
 black src/
 
-# Verificar tipos
+# Check types
 mypy src/
 ```
 
-## 📚 Documentación
+## 📚 Documentation
 
-### Guías de Usuario
-- [Guía de Instalación](INSTALACION.md) - Instalación detallada
-- [Guía de CodeSearcher](docs/CODESEARCHER_GUIDE.md) - 🔍 Búsqueda y análisis de código
-- [Guía de File Mentions](docs/FILE_MENTIONS.md) - 📎 Mencionar archivos con @
-- [Demo de File Mentions](examples/file_mentions_demo.md) - Ejemplos interactivos
-- [Guía de Logging](LOGGING_GUIDE.md) - Sistema de logs
-- [Visualización en Tiempo Real](VISUALIZACION_TIEMPO_REAL.md) - Ver pensamientos del agente
-- [Cambios Realizados](CAMBIOS_REALIZADOS.md) - Historial de cambios
-- [Mejoras Implementadas](MEJORAS_IMPLEMENTACION.md) - Análisis técnico
+### User Guides
+- [Installation Guide](INSTALACION.md) - Detailed installation
+- [CodeSearcher Guide](docs/CODESEARCHER_GUIDE.md) - 🔍 Code search and analysis
+- [File Mentions Guide](docs/FILE_MENTIONS.md) - 📎 Mention files with @
+- [File Mentions Demo](examples/file_mentions_demo.md) - Interactive examples
+- [Logging Guide](LOGGING_GUIDE.md) - Logging system
+- [Real-time Visualization](VISUALIZACION_TIEMPO_REAL.md) - See agent thoughts
+- [Changes Made](CAMBIOS_REALIZADOS.md) - Change history
+- [Implemented Improvements](MEJORAS_IMPLEMENTACION.md) - Technical analysis
 
-### Para Desarrolladores
-- [Publicar en PyPI](PUBLICAR_PYPI.md) - Guía completa para publicar en PyPI
-- [Inicio Rápido PyPI](INICIO_RAPIDO_PYPI.md) - Publicar en 10 minutos
-- [Integración de Agentes](docs/TEAM_INTEGRATION.md) - Arquitectura del equipo de agentes
+### For Developers
+- [Publish to PyPI](PUBLICAR_PYPI.md) - Complete guide to publish to PyPI
+- [PyPI Quick Start](INICIO_RAPIDO_PYPI.md) - Publish in 10 minutes
+- [Agent Integration](docs/TEAM_INTEGRATION.md) - Agent team architecture
 
 
-## 🧪 Evaluación con SWE-bench (Linux)
+## 🧪 Evaluation with SWE-bench (Linux)
 
-Para evaluar el rendimiento del agente usando el estándar **SWE-bench Verified**, hemos incluido un script automatizado que funciona en entornos Linux (o WSL2).
+To evaluate the agent's performance using the **SWE-bench Verified** standard, we have included an automated script that works in Linux environments (or WSL2).
 
-### Requisitos Previos
-- Entorno Linux o WSL2
-- Docker instalado y corriendo (necesario para el harness de evaluación)
+### Prerequisites
+- Linux or WSL2 environment
+- Docker installed and running (required for evaluation harness)
 - Python 3.10+
 
-### Ejecución
+### Execution
 
-El script `setup_and_run_linux.sh` automatiza todo el proceso:
-1. Compila e instala el agente
-2. Ejecuta inferencia sobre 10 tareas de prueba
-3. Corre la evaluación oficial usando Docker
+The `setup_and_run_linux.sh` script automates the entire process:
+1. Compiles and installs the agent
+2. Runs inference on 10 test tasks
+3. Runs the official evaluation using Docker
 
 ```bash
-# 1. Dar permisos de ejecución
+# 1. Grant execution permissions
 chmod +x setup_and_run_linux.sh
 
-# 2. Ejecutar el script
+# 2. Run the script
 ./setup_and_run_linux.sh
 ```
 
-**Nota:** La evaluación completa puede tomar tiempo dependiendo de la velocidad de tu conexión y CPU.
+**Note:** The complete evaluation may take time depending on your connection speed and CPU.
 
-## 🐛 Problemas Conocidos
+## 🐛 Known Issues
 
-Ver [CAMBIOS_REALIZADOS.md](CAMBIOS_REALIZADOS.md) para problemas resueltos.
+See [CAMBIOS_REALIZADOS.md](CAMBIOS_REALIZADOS.md) for resolved issues.
 
-Si encuentras un problema:
-1. Revisa los [issues existentes](https://github.com/yourusername/daveagent/issues)
-2. Crea un nuevo issue con detalles
+If you encounter an issue:
+1. Check [existing issues](https://github.com/yourusername/daveagent/issues)
+2. Create a new issue with details
 
-## 📝 Licencia
+## 📝 License
 
-Este proyecto está bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más detalles.
+This project is under the MIT License. See [LICENSE](LICENSE) for more details.
 
-## 🙏 Agradecimientos
+## 🙏 Acknowledgments
 
-- [AutoGen](https://microsoft.github.io/autogen/) - Framework de agentes
-- [Rich](https://rich.readthedocs.io/) - Formato de terminal
-- [Prompt Toolkit](https://python-prompt-toolkit.readthedocs.io/) - CLI interactiva
+- [AutoGen](https://microsoft.github.io/autogen/) - Agent framework
+- [Rich](https://rich.readthedocs.io/) - Terminal formatting
+- [Prompt Toolkit](https://python-prompt-toolkit.readthedocs.io/) - Interactive CLI
 
-## 📞 Contacto
+## 📞 Contact
 
 - Website: https://github.com/yourusername/daveagent
 - Issues: https://github.com/yourusername/daveagent/issues
@@ -506,4 +506,4 @@ Este proyecto está bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más detal
 
 ---
 
-Hecho con ❤️ usando [AutoGen 0.4](https://microsoft.github.io/autogen/)
+Made with ❤️ using [AutoGen 0.4](https://microsoft.github.io/autogen/)

@@ -1,174 +1,174 @@
-# DaveAgent CLI - Interfaz Interactiva
+# DaveAgent CLI - Interactive Interface
 
-Agente inteligente de desarrollo con planificación dinámica de tareas y gestión automática de historial de conversaciones.
+Intelligent development agent with dynamic task planning and automatic conversation history management.
 
-## Características
+## Features
 
-✨ **Planificación Inteligente**: Crea automáticamente un plan de ejecución con tareas específicas
-🔄 **Re-planificación Dinámica**: Adapta el plan si encuentra errores o nueva información
-💾 **Gestión de Historial**: Compresión automática cuando el historial crece
-🎨 **Interfaz Rica**: CLI interactiva con colores y formato enriquecido
-🛠️ **Herramientas Integradas**: Lectura/escritura de archivos, búsqueda, ejecución de comandos
+✨ **Intelligent Planning**: Automatically creates an execution plan with specific tasks
+🔄 **Dynamic Re-planning**: Adapts the plan if errors or new information are found
+💾 **History Management**: Automatic compression when history grows
+🎨 **Rich Interface**: Interactive CLI with colors and enriched formatting
+🛠️ **Integrated Tools**: File reading/writing, search, command execution
 
-## Instalación
+## Installation
 
 ```bash
-# Instalar dependencias
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-## Uso
+## Usage
 
-### Iniciar el agente
+### Start the agent
 
 ```bash
 python main.py
 ```
 
-### Comandos disponibles
+### Available commands
 
-- `/help` - Muestra la ayuda
-- `/new` - Inicia una nueva conversación sin historial (limpia todo el contexto)
-- `/clear` - Limpia el historial de conversación
-- `/plan` - Muestra el plan de ejecución actual
-- `/stats` - Muestra estadísticas de la sesión
-- `/save <archivo>` - Guarda el historial en un archivo
-- `/load <archivo>` - Carga un historial desde un archivo
-- `/exit` o `/quit` - Salir del agente
+- `/help` - Show help
+- `/new` - Start a new conversation without history (clears all context)
+- `/clear` - Clear conversation history
+- `/plan` - Show current execution plan
+- `/stats` - Show session statistics
+- `/save <file>` - Save history to a file
+- `/load <file>` - Load history from a file
+- `/exit` or `/quit` - Exit the agent
 
-### Ejemplos de uso
+### Usage examples
 
-**Ejemplo 1: Crear una API**
+**Example 1: Create an API**
 ```
-Tu: Crea una API REST con FastAPI que tenga endpoints para gestionar usuarios (CRUD completo)
-```
-
-El agente:
-1. Creará un plan con tareas como:
-   - Verificar si existe FastAPI en el proyecto
-   - Crear estructura de directorios
-   - Crear modelos de datos
-   - Implementar endpoints CRUD
-   - Crear archivo main.py
-   - Agregar documentación
-
-2. Te mostrará el plan y pedirá confirmación
-
-3. Ejecutará cada tarea secuencialmente
-
-4. Si encuentra errores, re-planificará automáticamente
-
-
-**Ejemplo 2: Refactorizar código**
-```
-Tu: Encuentra todos los archivos Python que usan callbacks y refactorízalos para usar async/await
+You: Create a REST API with FastAPI that has endpoints to manage users (full CRUD)
 ```
 
-**Ejemplo 3: Corrección de bugs**
+The agent will:
+1. Create a plan with tasks such as:
+   - Check if FastAPI exists in the project
+   - Create directory structure
+   - Create data models
+   - Implement CRUD endpoints
+   - Create main.py file
+   - Add documentation
+
+2. Show you the plan and ask for confirmation
+
+3. Execute each task sequentially
+
+4. If it encounters errors, it will automatically re-plan
+
+
+**Example 2: Refactor code**
 ```
-Tu: Busca y corrige todos los errores de tipo en el proyecto
+You: Find all Python files that use callbacks and refactor them to use async/await
 ```
 
-### Ejemplo 4: Iniciar nueva conversación
-
+**Example 3: Bug fixing**
 ```
-Tu: /new
-
-[El agente limpia todo el historial y el plan actual]
-[Puedes comenzar con una tarea completamente nueva sin contexto previo]
-
-Tu: Ahora ayúdame a crear un sistema de autenticación con JWT
+You: Find and fix all type errors in the project
 ```
 
-El comando `/new` es útil cuando:
+### Example 4: Start new conversation
 
-- Quieres cambiar completamente de tarea
-- El historial se ha vuelto muy largo y prefieres empezar de cero
-- Necesitas que el agente "olvide" el contexto anterior
-- Quieres asegurarte de que no hay interferencia de tareas previas
+```
+You: /new
 
-## Arquitectura
+[The agent clears all history and current plan]
+[You can start with a completely new task without previous context]
 
-### Componentes Principales
+You: Now help me create an authentication system with JWT
+```
+
+The `/new` command is useful when:
+
+- You want to completely change tasks
+- The history has become very long and you prefer to start from scratch
+- You need the agent to "forget" the previous context
+- You want to make sure there's no interference from previous tasks
+
+## Architecture
+
+### Main Components
 
 #### 1. ConversationManager (`conversation_manager.py`)
-Gestiona el historial de conversaciones con compresión automática:
-- Estima tokens usados
-- Crea resúmenes cuando el historial crece
-- Mantiene contexto relevante para el agente
+Manages conversation history with automatic compression:
+- Estimates tokens used
+- Creates summaries when history grows
+- Maintains relevant context for the agent
 
 #### 2. TaskPlanner (`task_planner.py`)
-Sistema de planificación con dos agentes especializados:
-- **Planner Agent**: Crea planes de ejecución estructurados
-- **PlanUpdater Agent**: Adapta planes basándose en resultados
-- Gestiona dependencias entre tareas
-- Actualiza estados (pending, in_progress, completed, failed, blocked)
+Planning system with two specialized agents:
+- **Planner Agent**: Creates structured execution plans
+- **PlanUpdater Agent**: Adapts plans based on results
+- Manages dependencies between tasks
+- Updates states (pending, in_progress, completed, failed, blocked)
 
 #### 3. TaskExecutor (`task_executor.py`)
-Ejecutor con re-planificación dinámica:
-- Ejecuta tareas del plan secuencialmente
-- Detecta cuando necesita re-planificar
-- Comprime historial automáticamente
-- Maneja errores y reintentos
+Executor with dynamic re-planning:
+- Executes plan tasks sequentially
+- Detects when it needs to re-plan
+- Compresses history automatically
+- Handles errors and retries
 
 #### 4. CLIInterface (`cli_interface.py`)
-Interfaz CLI rica e interactiva:
-- Usa `rich` para formato enriquecido
-- Usa `prompt-toolkit` para autocompletado
-- Muestra progreso en tiempo real
-- Formatos visuales para planes y resultados
+Rich and interactive CLI interface:
+- Uses `rich` for enriched formatting
+- Uses `prompt-toolkit` for autocompletion
+- Shows real-time progress
+- Visual formats for plans and results
 
-### Flujo de Trabajo
+### Workflow
 
 ```
-Usuario ingresa solicitud
+User enters request
          ↓
-ConversationManager guarda en historial
+ConversationManager saves to history
          ↓
-TaskPlanner crea plan de ejecución
+TaskPlanner creates execution plan
          ↓
-CLI muestra plan y pide confirmación
+CLI shows plan and asks for confirmation
          ↓
-TaskExecutor ejecuta tareas
+TaskExecutor executes tasks
          ↓
-Por cada tarea:
-    ├─ Ejecuta usando CoderAgent
-    ├─ Analiza resultado
-    ├─ ¿Necesita re-planificar? → TaskPlanner actualiza plan
-    └─ Continúa con siguiente tarea
+For each task:
+    ├─ Executes using CoderAgent
+    ├─ Analyzes result
+    ├─ Needs re-planning? → TaskPlanner updates plan
+    └─ Continues with next task
          ↓
-¿Historial muy grande? → ConversationManager comprime
+History too large? → ConversationManager compresses
          ↓
-Plan completado → Muestra resumen
+Plan completed → Shows summary
 ```
 
-## Estructura de Archivos
+## File Structure
 
 ```
 DaveAgent/
-├── main.py                      # Punto de entrada principal
-├── conversation_manager.py       # Gestión de historial
-├── task_planner.py              # Planificación de tareas
-├── task_executor.py             # Ejecución de tareas
-├── cli_interface.py             # Interfaz CLI
-├── coder.py                     # Agente de código original
-├── tools.py                     # Herramientas del agente
-├── prompt.py                    # Prompts del sistema
-├── requirements.txt             # Dependencias
-└── README_CLI.md               # Esta documentación
+├── main.py                      # Main entry point
+├── conversation_manager.py       # History management
+├── task_planner.py              # Task planning
+├── task_executor.py             # Task execution
+├── cli_interface.py             # CLI interface
+├── coder.py                     # Original code agent
+├── tools.py                     # Agent tools
+├── prompt.py                    # System prompts
+├── requirements.txt             # Dependencies
+└── README_CLI.md               # This documentation
 ```
 
-## Configuración
+## Configuration
 
-### Cambiar el modelo
+### Change the model
 
-Edita `main.py`:
+Edit `main.py`:
 
 ```python
 self.model_client = OpenAIChatCompletionClient(
-    model="tu-modelo",           # Cambiar aquí
-    base_url="tu-base-url",      # Cambiar aquí
-    api_key="tu-api-key",        # Cambiar aquí
+    model="your-model",           # Change here
+    base_url="your-base-url",      # Change here
+    api_key="your-api-key",        # Change here
     model_capabilities={
         "vision": True,
         "function_calling": True,
@@ -177,68 +177,68 @@ self.model_client = OpenAIChatCompletionClient(
 )
 ```
 
-### Ajustar límites de historial
+### Adjust history limits
 
-Edita `main.py`:
+Edit `main.py`:
 
 ```python
 self.conversation_manager = ConversationManager(
-    max_tokens=8000,              # Límite máximo
-    summary_threshold=6000        # Umbral para comprimir
+    max_tokens=8000,              # Maximum limit
+    summary_threshold=6000        # Threshold to compress
 )
 ```
 
-## Características Avanzadas
+## Advanced Features
 
-### Planificación con Dependencias
+### Planning with Dependencies
 
-El sistema maneja automáticamente dependencias entre tareas:
+The system automatically handles dependencies between tasks:
 
 ```python
 Task(
     id=2,
-    title="Crear modelos",
-    dependencies=[1]  # Depende de tarea 1
+    title="Create models",
+    dependencies=[1]  # Depends on task 1
 )
 ```
 
-### Re-planificación Inteligente
+### Intelligent Re-planning
 
-El sistema detecta automáticamente cuándo re-planificar basándose en:
-- Errores en la ejecución
-- Resultados inesperados
-- Palabras clave en los resultados ("error", "falta", "necesario", etc.)
+The system automatically detects when to re-plan based on:
+- Execution errors
+- Unexpected results
+- Keywords in results ("error", "missing", "necessary", etc.)
 
-### Compresión de Historial
+### History Compression
 
-Cuando el historial excede el umbral:
-1. Crea un prompt de resumen
-2. Usa un agente Summarizer para generar resumen conciso
-3. Mantiene solo los últimos 3 mensajes + resumen
-4. Reduce uso de tokens significativamente
+When history exceeds the threshold:
+1. Creates a summary prompt
+2. Uses a Summarizer agent to generate concise summary
+3. Keeps only the last 3 messages + summary
+4. Significantly reduces token usage
 
-## Solución de Problemas
+## Troubleshooting
 
-### Error: "No se pudo generar el plan"
-- Verifica que el modelo soporte JSON estructurado
-- Revisa la API key y conectividad
+### Error: "Could not generate plan"
+- Verify that the model supports structured JSON
+- Check API key and connectivity
 
-### Error: "Límite de iteraciones alcanzado"
-- El plan tiene dependencias circulares
-- Aumenta `max_iterations` en `task_executor.py`
+### Error: "Iteration limit reached"
+- The plan has circular dependencies
+- Increase `max_iterations` in `task_executor.py`
 
-### El agente no responde
-- Verifica que todas las dependencias estén instaladas
-- Revisa los logs de error en la consola
+### The agent does not respond
+- Verify that all dependencies are installed
+- Check error logs in the console
 
-## Contribuir
+## Contributing
 
-Para agregar nuevas herramientas al agente:
+To add new tools to the agent:
 
-1. Crea la función en `tools.py`
-2. Agrégala a `coder_tools` en `main.py`
-3. El agente la detectará automáticamente
+1. Create the function in `tools.py`
+2. Add it to `coder_tools` in `main.py`
+3. The agent will detect it automatically
 
-## Licencia
+## License
 
-Este proyecto es de código abierto.
+This project is open source.
