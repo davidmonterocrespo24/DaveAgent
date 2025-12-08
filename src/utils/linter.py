@@ -6,7 +6,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
-# Intentamos importar librerías opcionales, si fallan, simplemente no lintaremos esos tipos
+# Try to import optional libraries, if they fail, we simply won't lint those types
 try:
     import yaml
     HAS_YAML = True
@@ -29,7 +29,7 @@ def _lint_json(content: str) -> str | None:
 
 def _lint_yaml(content: str) -> str | None:
     if not HAS_YAML:
-        return None # No podemos validar si falta la librería
+        return None # Can't validate if library is missing
     try:
         yaml.safe_load(content)
         return None
@@ -38,43 +38,43 @@ def _lint_yaml(content: str) -> str | None:
 
 def _lint_javascript(content: str) -> str | None:
     """
-    Valida JS/TS usando 'node --check'.
-    Requiere que Node.js esté instalado en el sistema.
+    Validates JS/TS using 'node --check'.
+    Requires Node.js to be installed on the system.
     """
     if not shutil.which("node"):
-        return None # Node no instalado, omitimos validación silenciosamente
+        return None # Node not installed, skip validation silently
 
-    # Node requiere un archivo físico para --check (a veces stdin falla dependiendo de la versión)
+    # Node requires a physical file for --check (stdin sometimes fails depending on version)
     try:
         with tempfile.NamedTemporaryFile(suffix=".js", delete=False, mode='w', encoding='utf-8') as tmp:
             tmp.write(content)
             tmp_path = tmp.name
 
-        # Ejecutamos node --check
+        # Execute node --check
         result = subprocess.run(
             ["node", "--check", tmp_path],
             capture_output=True,
             text=True,
-            timeout=5 # Timeout de seguridad
+            timeout=5 # Safety timeout
         )
         
         if result.returncode != 0:
-            # Limpiamos la salida para quitar la ruta del archivo temporal y que sea legible
+            # Clean output to remove temp file path and make it readable
             error_msg = result.stderr.replace(tmp_path, "file.js").strip()
-            # Tomamos solo las primeras líneas del error para no saturar al agente
+            # Take only first lines of error to avoid overwhelming the agent
             return f"JavaScript SyntaxError:\n{'\n'.join(error_msg.splitlines()[:5])}"
             
         return None
 
     except Exception:
-        return None # Si falla el subproceso, asumimos válido para no bloquear
+        return None # If subprocess fails, assume valid to not block
     finally:
-        # Limpieza del archivo temporal
+        # Cleanup temporary file
         if 'tmp_path' in locals() and os.path.exists(tmp_path):
             os.remove(tmp_path)
 
 def _lint_bash(content: str) -> str | None:
-    """Valida scripts de shell usando 'bash -n'"""
+    """Validates shell scripts using 'bash -n'"""
     if not shutil.which("bash"):
         return None
 
@@ -104,13 +104,13 @@ def _lint_bash(content: str) -> str | None:
 
 def lint_code_check(file_path: str | Path, content: str) -> str | None:
     """
-    Función genérica de linting. 
-    Retorna un string con el error si la validación falla, o None si pasa.
+    Generic linting function. 
+    Returns a string with the error if validation fails, or None if it passes.
     """
     path_obj = Path(file_path)
     ext = path_obj.suffix.lower()
 
-    # Mapeo de extensiones a validadores
+    # Map extensions to validators
     if ext == '.py':
         return _lint_python(content)
     
@@ -121,7 +121,7 @@ def lint_code_check(file_path: str | Path, content: str) -> str | None:
         return _lint_yaml(content)
     
     elif ext in ['.js', '.mjs', '.cjs', '.ts', '.tsx']:
-        # Nota: node --check funciona decentemente para TS básico también
+        # Note: node --check works decently for basic TS too
         return _lint_javascript(content)
     
     elif ext in ['.sh', '.bash']:

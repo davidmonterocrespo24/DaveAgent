@@ -1,17 +1,17 @@
 """
-JSON Logger - Sistema completo de logging para capturar todas las interacciones
+JSON Logger - Complete logging system to capture all interactions
 
-Registra en JSON:
-- Entrada del usuario
-- Mensajes entre agentes
-- Llamadas a herramientas (con argumentos)
-- Resultados de herramientas
-- Respuestas del LLM
-- Decisiones del router
-- Eventos de pensamiento (ThoughtEvent)
-- Errores y excepciones
+Records in JSON:
+- User input
+- Messages between agents
+- Tool calls (with arguments)
+- Tool results
+- LLM responses
+- Router decisions
+- Thought events (ThoughtEvent)
+- Errors and exceptions
 
-Esto proporciona trazabilidad completa del sistema independientemente de Langfuse.
+This provides complete system traceability independent of Langfuse.
 """
 import json
 import logging

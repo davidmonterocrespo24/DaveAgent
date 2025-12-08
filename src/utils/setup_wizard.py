@@ -6,32 +6,32 @@ from typing import Optional
 
 
 def print_welcome_banner():
-    """Muestra banner de bienvenida para primera vez"""
+    """Shows welcome banner for first time"""
     print("\n" + "=" * 70)
-    print("  🎉 Bienvenido a DaveAgent - Configuración Inicial")
+    print("  🎉 Welcome to DaveAgent - Initial Setup")
     print("=" * 70)
     print()
 
 
 def get_api_key_interactive() -> str:
     """
-    Solicita la API key de forma interactiva
+    Requests the API key interactively
 
     Returns:
-        API key ingresada por el usuario
+        API key entered by the user
     """
-    print("📝 Configuración de API Key")
+    print("📝 API Key Configuration")
     print("-" * 70)
     print()
-    print("DaveAgent necesita una API key para funcionar.")
+    print("DaveAgent needs an API key to work.")
     print()
-    print("Opciones recomendadas:")
-    print("  1. DeepSeek (Gratis) - https://platform.deepseek.com/api_keys")
-    print("  2. OpenAI (GPT-4)    - https://platform.openai.com/api-keys")
+    print("Recommended options:")
+    print("  1. DeepSeek (Free) - https://platform.deepseek.com/api_keys")
+    print("  2. OpenAI (GPT-4)  - https://platform.openai.com/api-keys")
     print()
-    print("Si no tienes una API key, puedes:")
-    print("  • Presiona Ctrl+C para cancelar")
-    print("  • Ve a DeepSeek para crear una cuenta gratis")
+    print("If you don't have an API key, you can:")
+    print("  • Press Ctrl+C to cancel")
+    print("  • Go to DeepSeek to create a free account")
     print()
 
     while True:
@@ -60,15 +60,15 @@ def get_api_key_interactive() -> str:
 
 def get_provider_choice() -> tuple[Optional[str], Optional[str], Optional[str]]:
     """
-    Pregunta qué proveedor quiere usar con menú mejorado
+    Asks which provider to use with improved menu
 
     Returns:
-        Tupla (provider_name, base_url, model_name) o (None, None, None) para defaults
+        Tuple (provider_name, base_url, model_name) or (None, None, None) for defaults
     """
     from src.utils.model_settings import interactive_model_selection
 
     print()
-    use_defaults = input("¿Quieres usar la configuración por defecto (DeepSeek)? (s/N): ").strip().lower()
+    use_defaults = input("Do you want to use the default configuration (DeepSeek)? (y/N): ").strip().lower()
 
     if use_defaults == 's' or use_defaults == 'si':
         return None, None, None
@@ -85,29 +85,29 @@ def get_provider_choice() -> tuple[Optional[str], Optional[str], Optional[str]]:
 
 def ask_save_to_env(api_key: str, base_url: Optional[str] = None, model: Optional[str] = None) -> bool:
     """
-    Pregunta si quiere guardar la configuración en .env
+    Asks if they want to save the configuration to .env
 
     Args:
-        api_key: API key a guardar
-        base_url: URL base (opcional)
-        model: Modelo (opcional)
+        api_key: API key to save
+        base_url: Base URL (optional)
+        model: Model (optional)
 
     Returns:
-        True si se guardó correctamente, False si no
+        True if saved correctly, False if not
     """
     print()
-    print("💾 Guardar Configuración")
+    print("💾 Save Configuration")
     print("-" * 70)
     print()
-    print("¿Quieres guardar esta configuración en un archivo .env?")
+    print("Do you want to save this configuration to an .env file?")
     print()
-    print("Ventajas:")
-    print("  ✓ No tendrás que configurar cada vez que uses DaveAgent")
-    print("  ✓ La configuración se aplica automáticamente a este directorio")
-    print("  ✓ Es seguro (el archivo .daveagent/.env no se sube a Git)")
+    print("Advantages:")
+    print("  ✓ You won't have to configure every time you use DaveAgent")
+    print("  ✓ Configuration applies automatically to this directory")
+    print("  ✓ It's safe (.daveagent/.env file is not uploaded to Git)")
     print()
 
-    save = input("¿Guardar en .daveagent/.env? (S/n): ").strip().lower()
+    save = input("Save to .daveagent/.env? (Y/n): ").strip().lower()
 
     if save == 'n' or save == 'no':
         print()
@@ -167,10 +167,10 @@ def ask_save_to_env(api_key: str, base_url: Optional[str] = None, model: Optiona
 
 def run_interactive_setup() -> tuple[str, Optional[str], Optional[str]]:
     """
-    Ejecuta el asistente de configuración completo
+    Runs the complete configuration wizard
 
     Returns:
-        Tupla (api_key, base_url, model)
+        Tuple (api_key, base_url, model)
     """
     print_welcome_banner()
 
@@ -188,19 +188,19 @@ def run_interactive_setup() -> tuple[str, Optional[str], Optional[str]]:
 
 def should_run_setup(api_key: Optional[str]) -> bool:
     """
-    Determina si se debe ejecutar el setup interactivo
+    Determines if interactive setup should run
 
     Args:
-        api_key: API key actual (puede ser None)
+        api_key: Current API key (can be None)
 
     Returns:
-        True si se debe ejecutar el setup
+        True if setup should run
     """
-    # Si ya tiene API key, no necesita setup
+    # If already has API key, doesn't need setup
     if api_key:
         return False
 
-    # Verificar si existe .env en el directorio .daveagent
+    # Check if .env exists in .daveagent directory
     env_path = Path.cwd() / '.daveagent' / '.env'
     if env_path.exists():
         # Hay .env pero no tiene DAVEAGENT_API_KEY

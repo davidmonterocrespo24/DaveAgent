@@ -1,7 +1,7 @@
 """
-Sistema de logging para DaveAgent
-Proporciona logging detallado con niveles y colores
-Logs se guardan en .daveagent/logs/
+Logging system for DaveAgent
+Provides detailed logging with levels and colors
+Logs are saved in .daveagent/logs/
 """
 import logging
 import sys
@@ -13,20 +13,20 @@ from typing import Optional
 
 
 class DaveAgentLogger:
-    """Logger personalizado para DaveAgent con soporte de colores y archivos"""
+    """Custom logger for DaveAgent with color and file support"""
 
     def __init__(self, name: str = "DaveAgent", log_file: Optional[str] = None, level: int = logging.DEBUG):
         """
-        Inicializa el logger
+        Initialize the logger
 
         Args:
-            name: Nombre del logger
-            log_file: Ruta al archivo de log (opcional, por defecto .daveagent/logs/)
-            level: Nivel de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+            name: Logger name
+            log_file: Path to log file (optional, defaults to .daveagent/logs/)
+            level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
-        self.logger.handlers.clear()  # Limpiar handlers existentes
+        self.logger.handlers.clear()  # Clear existing handlers
 
         self.console = Console(stderr=True)
 
@@ -137,14 +137,14 @@ _global_logger: Optional[DaveAgentLogger] = None
 
 def get_logger(log_file: Optional[str] = None, level: int = logging.DEBUG) -> DaveAgentLogger:
     """
-    Obtiene la instancia global del logger
+    Gets the global logger instance
 
     Args:
-        log_file: Ruta al archivo de log (solo se usa en la primera llamada)
-        level: Nivel de logging
+        log_file: Path to log file (only used on first call)
+        level: Logging level
 
     Returns:
-        DaveAgentLogger: Instancia del logger
+        DaveAgentLogger: Logger instance
     """
     global _global_logger
 
@@ -160,10 +160,10 @@ def get_logger(log_file: Optional[str] = None, level: int = logging.DEBUG) -> Da
 
 def set_log_level(level: int):
     """
-    Cambia el nivel de logging
+    Changes the logging level
 
     Args:
-        level: Nuevo nivel (logging.DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        level: New level (logging.DEBUG, INFO, WARNING, ERROR, CRITICAL)
     """
     logger = get_logger()
     logger.logger.setLevel(level)

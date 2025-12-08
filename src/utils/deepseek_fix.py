@@ -1,73 +1,73 @@
 """
-Configuración para usar DeepSeek Reasoner (R1) con thinking mode
+Configuration for using DeepSeek Reasoner (R1) with thinking mode
 
-SOLUCIÓN IMPLEMENTADA:
-Usar DeepSeekReasoningClient que wrappea OpenAIChatCompletionClient
-para manejar correctamente el campo reasoning_content requerido por DeepSeek R1.
+IMPLEMENTED SOLUTION:
+Use DeepSeekReasoningClient which wraps OpenAIChatCompletionClient
+to properly handle the reasoning_content field required by DeepSeek R1.
 
-El cliente:
-1. Habilita thinking mode automáticamente para deepseek-reasoner
-2. Inyecta extra_body={"thinking": {"type": "enabled"}} cuando es necesario
-3. Cachea reasoning_content para preservarlo en tool calls
+The client:
+1. Enables thinking mode automatically for deepseek-reasoner
+2. Injects extra_body={"thinking": {"type": "enabled"}} when necessary
+3. Caches reasoning_content to preserve it in tool calls
 
-Basado en:
+Based on:
 - https://api-docs.deepseek.com/guides/thinking_mode
 - https://docs.ag2.ai/docs/api/autogen_ext.models.openai
 """
 
 def should_use_reasoning_client(settings):
     """
-    Determina si debemos usar DeepSeekReasoningClient para este modelo.
+    Determines if we should use DeepSeekReasoningClient for this model.
 
     Args:
-        settings: Objeto de configuración con model attribute
+        settings: Configuration object with model attribute
 
     Returns:
-        bool: True si debemos usar el cliente de razonamiento
+        bool: True if we should use the reasoning client
     """
-    # Usar reasoning client para deepseek-reasoner o deepseek-chat
+    # Use reasoning client for deepseek-reasoner or deepseek-chat
     return settings.model in ("deepseek-reasoner", "deepseek-chat", "deepseek-r1")
 
 
 def get_thinking_mode_enabled(model: str) -> bool:
     """
-    Determina si thinking mode debe estar habilitado para este modelo.
+    Determines if thinking mode should be enabled for this model.
 
     Args:
-        model: Nombre del modelo
+        model: Model name
 
     Returns:
-        bool: True si thinking mode debe estar habilitado
+        bool: True if thinking mode should be enabled
     """
-    # Habilitar automáticamente para deepseek-reasoner y deepseek-r1
+    # Enable automatically for deepseek-reasoner and deepseek-r1
     return model in ("deepseek-reasoner", "deepseek-r1")
 
 
-# Documentación para el usuario
+# User documentation
 DEEPSEEK_REASONER_INFO = """
 ═══════════════════════════════════════════════════════════════
 🧠 DEEPSEEK REASONER (R1) - THINKING MODE ENABLED
 
-Este cliente usa DeepSeek R1 con modo de razonamiento extendido.
+This client uses DeepSeek R1 with extended reasoning mode.
 
-CARACTERÍSTICAS:
-✅ Modo de razonamiento (thinking mode) habilitado
-✅ Soporte completo para tool calls
-✅ Preservación automática de reasoning_content
-✅ Compatible con todas las funciones de AutoGen
+FEATURES:
+✅ Reasoning mode (thinking mode) enabled
+✅ Full support for tool calls
+✅ Automatic preservation of reasoning_content
+✅ Compatible with all AutoGen functions
 
-MODELOS SOPORTADOS:
-- deepseek-reasoner (R1) - Recomendado
+SUPPORTED MODELS:
+- deepseek-reasoner (R1) - Recommended
 - deepseek-chat + thinking mode
 - deepseek-r1
 
-FUNCIONAMIENTO:
-El modelo genera un "reasoning_content" con su proceso de
-razonamiento antes de dar la respuesta final. Este razonamiento
-mejora la calidad de las respuestas, especialmente en tareas
-complejas y con múltiples tool calls.
+HOW IT WORKS:
+The model generates a "reasoning_content" with its reasoning
+process before giving the final answer. This reasoning
+improves response quality, especially for complex tasks
+and multiple tool calls.
 
-REFERENCIA:
+REFERENCE:
 https://api-docs.deepseek.com/guides/thinking_mode
 ═══════════════════════════════════════════════════════════════
 """

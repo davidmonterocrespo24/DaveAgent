@@ -64,8 +64,8 @@ Return valid JSON.
 
 async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, error_msg: str, file_content: str) -> tuple[str, str] | None:
     """
-    Intenta corregir old_string y new_string usando un LLM cuando la búsqueda falla.
-    Replicando la lógica de FixLLMEditWithInstruction de Google.
+    Attempts to correct old_string and new_string using an LLM when search fails.
+    Replicating the logic of Google's FixLLMEditWithInstruction.
     """
     
     user_prompt = EDIT_USER_PROMPT_TEMPLATE.format(
