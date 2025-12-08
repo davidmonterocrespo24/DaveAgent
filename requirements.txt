@@ -1,31 +1,19 @@
-# AutoGen AgentChat Framework (ÚLTIMAS VERSIONES)
-# Instalación completa con ag2 y autogen más recientes
 autogen-agentchat==0.7.5
 autogen-core==0.7.5
 autogen-ext==0.7.5
-
-# Interfaz CLI rica
 rich>=13.0.0
 prompt-toolkit>=3.0.0
-
-# Modelos y utilidades
 pydantic>=2.0.0
 httpcore
 httpx>=0.24.0
-
-# Additional dependencies for file operations
 beautifulsoup4
 requests
-
-# Tools dependencies
 wikipedia>=1.4.0
 pandas>=2.0.0
 black>=23.0.0
 autopep8>=2.0.0
 pylint>=3.0.0
 jsonschema>=4.0.0
-
-# Memory system with ChromaDB
 chromadb>=0.4.22
 sentence-transformers>=2.2.2
 aiofiles>=23.0.0
