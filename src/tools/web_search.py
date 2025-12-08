@@ -7,7 +7,6 @@ import requests
 import time
 from bs4 import BeautifulSoup
 from typing import Dict, List
-from typing import List, Dict
 from urllib.parse import quote_plus
 
 
