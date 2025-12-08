@@ -1,22 +1,22 @@
-# 📚 CodeAgent Wiki - GitHub Upload Guide
+#  CodeAgent Wiki - GitHub Upload Guide
 
 This folder contains all wiki documentation for the CodeAgent project.
 
-## 📁 Wiki Files
+##  Wiki Files
 
 | File | Description | Status |
 |------|-------------|--------|
-| `Home.md` | Main wiki page with index and features | ✅ Complete |
-| `Installation.md` | Complete installation guide for all systems | ✅ Complete |
-| `Quick-Start.md` | 5-minute tutorial to start using CodeAgent | ✅ Complete |
-| `Architecture.md` | Technical architecture and system components | ✅ Complete |
-| `Tools-and-Features.md` | Complete catalog of 50 tools with examples | ✅ Complete |
-| `Configuration.md` | Configuration options and customization | ✅ Complete |
-| `Troubleshooting.md` | Common problems and debugging | ✅ Complete |
+| `Home.md` | Main wiki page with index and features |  Complete |
+| `Installation.md` | Complete installation guide for all systems |  Complete |
+| `Quick-Start.md` | 5-minute tutorial to start using CodeAgent |  Complete |
+| `Architecture.md` | Technical architecture and system components |  Complete |
+| `Tools-and-Features.md` | Complete catalog of 50 tools with examples |  Complete |
+| `Configuration.md` | Configuration options and customization |  Complete |
+| `Troubleshooting.md` | Common problems and debugging |  Complete |
 
 ---
 
-## 🚀 How to Upload to GitHub Wiki
+##  How to Upload to GitHub Wiki
 
 ### Option 1: GitHub Web Interface (Recommended)
 
@@ -88,7 +88,7 @@ gh auth login
 
 ---
 
-## 📝 Recommended Upload Order
+##  Recommended Upload Order
 
 For better user experience, upload pages in this order:
 
@@ -102,7 +102,7 @@ For better user experience, upload pages in this order:
 
 ---
 
-## 🔗 Verify Links
+##  Verify Links
 
 After uploading, verify that links work:
 
@@ -117,7 +117,7 @@ After uploading, verify that links work:
 
 ---
 
-## ✏️ Edit Existing Pages
+##  Edit Existing Pages
 
 To update a page:
 
@@ -138,7 +138,7 @@ git push
 
 ---
 
-## 🎨 Customization
+##  Customization
 
 ### Sidebar (Optional)
 
@@ -148,7 +148,7 @@ You can create a custom sidebar:
 2. Add content:
 
 ```markdown
-### 📚 Navigation
+###  Navigation
 
 **Home**
 - [Home](Home)
@@ -172,27 +172,27 @@ Create `_Footer` page:
 
 ```markdown
 ---
-📞 [Discord](https://discord.gg/2dRTd4Cv) | 🐛 [Issues](https://github.com/davidmonterocrespo24/DaveAgent/issues) | ⭐ [GitHub](https://github.com/davidmonterocrespo24/DaveAgent)
+ [Discord](https://discord.gg/2dRTd4Cv) |  [Issues](https://github.com/davidmonterocrespo24/DaveAgent/issues) |  [GitHub](https://github.com/davidmonterocrespo24/DaveAgent)
 ```
 
 ---
 
-## 📊 Documentation Statistics
+##  Documentation Statistics
 
 - **Total pages**: 7
 - **Total words**: ~15,000
 - **Sections covered**:
-  - ✅ Installation and configuration
-  - ✅ Usage guides and tutorials
-  - ✅ Complete technical reference
-  - ✅ Architecture and design
-  - ✅ 50 documented tools
-  - ✅ Problem solving
-  - ✅ Code examples
+  -  Installation and configuration
+  -  Usage guides and tutorials
+  -  Complete technical reference
+  -  Architecture and design
+  -  50 documented tools
+  -  Problem solving
+  -  Code examples
 
 ---
 
-## 🔄 Maintenance
+##  Maintenance
 
 ### Update Documentation
 
@@ -207,7 +207,7 @@ When adding new features:
 In the main README, add:
 
 ```markdown
-## 📖 Documentation
+##  Documentation
 
 Complete documentation is in our [Wiki](https://github.com/davidmonterocrespo24/DaveAgent/wiki).
 
@@ -220,7 +220,7 @@ Complete documentation is in our [Wiki](https://github.com/davidmonterocrespo24/
 
 ---
 
-## ✅ Upload Checklist
+##  Upload Checklist
 
 - [ ] Repository has Wiki enabled
 - [ ] Home page created and functional
@@ -233,7 +233,7 @@ Complete documentation is in our [Wiki](https://github.com/davidmonterocrespo24/
 
 ---
 
-## 📞 Support
+##  Support
 
 If you have problems uploading the wiki:
 
@@ -242,7 +242,7 @@ If you have problems uploading the wiki:
 
 ---
 
-## 🎉 Ready!
+##  Ready!
 
 Once the wiki is uploaded, users can access complete documentation at:
 

@@ -1,8 +1,8 @@
-# 🐛 Troubleshooting - CodeAgent
+#  Troubleshooting - CodeAgent
 
 This guide will help you resolve common issues when using CodeAgent.
 
-## 📋 Index
+##  Index
 
 - [Installation Problems](#-installation-problems)
 - [Configuration Problems](#-configuration-problems)
@@ -14,7 +14,7 @@ This guide will help you resolve common issues when using CodeAgent.
 
 ---
 
-## 🔧 Installation Problems
+##  Installation Problems
 
 ### "Command 'daveagent' not found"
 
@@ -89,7 +89,7 @@ sudo pip install -e .
 
 ---
 
-## ⚙️ Configuration Problems
+##  Configuration Problems
 
 ### "API key not found"
 
@@ -136,7 +136,7 @@ DAVEAGENT_MODEL=mixtral-8x7b-32768
 
 ---
 
-## 🌐 Connection Problems
+##  Connection Problems
 
 ### "SSL Certificate Error"
 
@@ -202,7 +202,7 @@ export HTTPS_PROXY=https://proxy.company.com:8080
 
 ---
 
-## 🛠️ Tool Problems
+##  Tool Problems
 
 ### "Tool execution failed"
 
@@ -284,7 +284,7 @@ git remote add origin https://github.com/user/repo.git
 
 ---
 
-## 🧠 Memory Problems
+##  Memory Problems
 
 ### "ChromaDB connection failed"
 
@@ -357,7 +357,7 @@ daveagent --debug
 
 ---
 
-## ⚡ Performance Problems
+##  Performance Problems
 
 ### "CodeAgent is very slow"
 
@@ -428,7 +428,7 @@ large_data/
 
 ---
 
-## 📊 Logs and Debugging
+##  Logs and Debugging
 
 ### Enable Debug Mode
 
@@ -468,7 +468,7 @@ grep -i "warning" logs/*
 You: /logs
 
 # Result:
-📄 Log file: logs/daveagent_20240315_143022.log
+ Log file: logs/daveagent_20240315_143022.log
 
 # Then view with:
 tail -f logs/daveagent_20240315_143022.log
@@ -501,7 +501,7 @@ env | grep DAVEAGENT
 
 ---
 
-## 🆘 Getting Help
+##  Getting Help
 
 ### Support Resources
 
@@ -559,7 +559,7 @@ DAVEAGENT_SSL_VERIFY=false
 
 ---
 
-## ✅ Troubleshooting Checklist
+##  Troubleshooting Checklist
 
 Before reporting a bug, verify:
 
@@ -574,7 +574,7 @@ Before reporting a bug, verify:
 
 ---
 
-## 📚 See Also
+##  See Also
 
 - **[Configuration](Configuration)** - Configuration options
 - **[Installation](Installation)** - Installation guide

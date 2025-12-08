@@ -1,8 +1,8 @@
-# 📦 CodeAgent Installation
+#  CodeAgent Installation
 
 This guide will take you through the complete installation process of CodeAgent on your system.
 
-## 📋 Prerequisites
+##  Prerequisites
 
 ### System Requirements
 
@@ -25,7 +25,7 @@ If you don't have Python 3.10+, download it from [python.org](https://www.python
 
 ---
 
-## 🚀 Method 1: Installation from Source Code (Recommended)
+##  Method 1: Installation from Source Code (Recommended)
 
 ### Step 1: Clone the Repository
 
@@ -77,7 +77,7 @@ daveagent
 
 ---
 
-## 📦 Method 2: Installation from PyPI (Coming Soon)
+##  Method 2: Installation from PyPI (Coming Soon)
 
 **Note**: This option will be available when published on PyPI.
 
@@ -91,7 +91,7 @@ daveagent
 
 ---
 
-## 🔧 Installing Optional Dependencies
+##  Installing Optional Dependencies
 
 ### Development Dependencies
 
@@ -127,7 +127,7 @@ pip list | grep -E "autogen|rich|prompt|pandas"
 
 ---
 
-## ⚙️ Post-Installation Configuration
+##  Post-Installation Configuration
 
 ### 1. Configure API Key
 
@@ -207,7 +207,7 @@ daveagent
 
 ---
 
-## 🐧 Linux-Specific Installation
+##  Linux-Specific Installation
 
 ### Ubuntu/Debian
 
@@ -248,7 +248,7 @@ chmod +x setup_and_run_linux.sh
 
 ---
 
-## 🪟 Windows-Specific Installation
+##  Windows-Specific Installation
 
 ### Windows 10/11
 
@@ -278,7 +278,7 @@ daveagent --version
 
 ---
 
-## 🍎 macOS-Specific Installation
+##  macOS-Specific Installation
 
 ```bash
 # Install Homebrew (if not installed)
@@ -298,7 +298,7 @@ daveagent --version
 
 ---
 
-## 🐳 Docker Installation (Coming Soon)
+##  Docker Installation (Coming Soon)
 
 ```bash
 # Build Docker image
@@ -313,7 +313,7 @@ docker run -it --rm \
 
 ---
 
-## 🔍 Installation Verification
+##  Installation Verification
 
 ### Basic Test
 
@@ -347,7 +347,7 @@ You: /memory
 
 ---
 
-## 🐛 Installation Troubleshooting
+##  Installation Troubleshooting
 
 ### Problem: "Command 'daveagent' not found"
 
@@ -398,7 +398,7 @@ pip install -e .
 
 ---
 
-## 🔄 Updating CodeAgent
+##  Updating CodeAgent
 
 ### Update from Git
 
@@ -425,7 +425,7 @@ pip install --upgrade 'autogen-agentchat>=0.4.0' 'autogen-ext[openai]>=0.4.0'
 
 ---
 
-## 🗑️ Uninstallation
+##  Uninstallation
 
 ```bash
 # Uninstall package
@@ -440,7 +440,7 @@ rm -rf ~/.daveagent
 
 ---
 
-## ✅ Next Steps
+##  Next Steps
 
 Once installed correctly:
 
@@ -451,7 +451,7 @@ Once installed correctly:
 
 ---
 
-## 📞 Need Help?
+##  Need Help?
 
 - **Discord**: [Join our server](https://discord.gg/2dRTd4Cv)
 - **Issues**: [GitHub Issues](https://github.com/davidmonterocrespo24/DaveAgent/issues)
