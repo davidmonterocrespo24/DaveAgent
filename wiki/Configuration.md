@@ -1,8 +1,8 @@
-# ⚙️ Configuration - CodeAgent
+#  Configuration - CodeAgent
 
 This guide documents all available configuration options to customize CodeAgent.
 
-## 📁 Configuration Files
+##  Configuration Files
 
 ### 1. `.env` - Environment Variables
 
@@ -33,7 +33,7 @@ DAVEAGENT_TEMPERATURE=0.7
 
 ---
 
-## 🔑 API Configuration
+##  API Configuration
 
 ### Supported Providers
 
@@ -81,7 +81,7 @@ DAVEAGENT_BASE_URL=https://api.groq.com/openai/v1
 
 ---
 
-## 🛡️ SSL Configuration
+##  SSL Configuration
 
 ### Disable SSL Verification
 
@@ -112,7 +112,7 @@ os.environ['REQUESTS_CA_BUNDLE'] = '/path/to/ca-bundle.crt'
 
 ---
 
-## 🧠 Memory Configuration
+##  Memory Configuration
 
 ### Memory Directory
 
@@ -144,7 +144,7 @@ ChromaDB creates these collections automatically:
 
 ---
 
-## 📊 History Configuration
+##  History Configuration
 
 ### Token Limits
 
@@ -175,7 +175,7 @@ Automatic compression:
 
 ---
 
-## 🎨 CLI Configuration
+##  CLI Configuration
 
 ### Logging Level
 
@@ -207,7 +207,7 @@ DAVEAGENT_DEBUG=true
 
 ---
 
-## 🤖 Agent Configuration
+##  Agent Configuration
 
 ### Model Temperature
 
@@ -239,7 +239,7 @@ DAVEAGENT_TOP_P=0.9
 
 ---
 
-## 🔧 Advanced Configuration
+##  Advanced Configuration
 
 ### Edit `main.py` Directly
 
@@ -275,7 +275,7 @@ class DaveAgent:
 
 ---
 
-## 📝 Prompts Configuration
+##  Prompts Configuration
 
 System prompts are centralized in `src/config/prompts.py`.
 
@@ -319,7 +319,7 @@ CUSTOM INSTRUCTIONS:
 
 ---
 
-## 🌐 Network Configuration
+##  Network Configuration
 
 ### HTTP/HTTPS Proxy
 
@@ -344,25 +344,25 @@ self.http_client = httpx.Client(
 
 ---
 
-## 📍 Per-Project Configuration
+##  Per-Project Configuration
 
 You can have different configurations per project by creating `.env` in each directory:
 
 ```
 ~/project1/
-  ├── .env  # Configuration for project1
-  └── ...
+   .env  # Configuration for project1
+   ...
 
 ~/project2/
-  ├── .env  # Configuration for project2
-  └── ...
+   .env  # Configuration for project2
+   ...
 ```
 
 CodeAgent automatically uses the `.env` from the current directory.
 
 ---
 
-## 🎯 Recommended Configuration
+##  Recommended Configuration
 
 ### For Development
 
@@ -394,17 +394,17 @@ DAVEAGENT_LOG_LEVEL=ERROR
 
 ---
 
-## 🔐 Security
+##  Security
 
 ### Protect API Keys
 
 **NEVER** include API keys in source code. Use environment variables:
 
 ```bash
-# Bad ❌
+# Bad 
 api_key = "sk-1234567890"
 
-# Good ✅
+# Good 
 api_key = os.getenv("DAVEAGENT_API_KEY")
 ```
 
@@ -422,7 +422,7 @@ logs/
 
 ---
 
-## 🔄 Complete Environment Variables
+##  Complete Environment Variables
 
 ```env
 # ==================== API ====================
@@ -464,7 +464,7 @@ LANGFUSE_HOST=https://cloud.langfuse.com
 
 ---
 
-## 📚 See Also
+##  See Also
 
 - **[Installation](Installation)** - Initial installation
 - **[Usage Guide](Usage-Guide)** - How to use CodeAgent

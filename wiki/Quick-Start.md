@@ -1,8 +1,8 @@
-# 🚀 Quick Start - CodeAgent
+#  Quick Start - CodeAgent
 
 Learn to use CodeAgent in 5 minutes with this quick guide.
 
-## ⚡ Express Installation
+##  Express Installation
 
 ```bash
 # Clone and install
@@ -18,7 +18,7 @@ daveagent --version
 
 ---
 
-## 🎯 First Use
+##  First Use
 
 ### 1. Start CodeAgent
 
@@ -33,10 +33,10 @@ daveagent
 You'll see a banner like this:
 
 ```
-╔══════════════════════════════════════════════════════╗
-║            🤖 D A V E A G E N T  v1.1.0             ║
-║         AI-Powered Coding Assistant                  ║
-╚══════════════════════════════════════════════════════╝
+
+             D A V E A G E N T  v1.1.0             
+         AI-Powered Coding Assistant                  
+
 
 Working in: /home/user/my-project
 Type '/help' for commands, '/exit' to quit
@@ -69,7 +69,7 @@ You: /exit
 
 ---
 
-## 📝 Essential Commands
+##  Essential Commands
 
 | Command | Description | Example |
 |---------|-------------|---------|
@@ -83,7 +83,7 @@ You: /exit
 
 ---
 
-## 🎓 5-Minute Tutorial
+##  5-Minute Tutorial
 
 ### Example 1: Read and Explain Code
 
@@ -100,7 +100,7 @@ You: /search authentication logic
 
 # CodeSearcher will search and show where authentication is
 # Result:
-# 📍 Files Found:
+#  Files Found:
 # - auth.py:45-67 - Login function with JWT
 # - middleware.py:23-34 - Auth middleware
 ```
@@ -145,7 +145,7 @@ You: commit the changes with message "Added email validation"
 
 ---
 
-## 💡 Common Use Cases
+##  Common Use Cases
 
 ### Web Development
 
@@ -215,7 +215,7 @@ You: @app.py there's a TypeError on line 45, fix it
 
 ---
 
-## 🔍 Advanced Features (First Steps)
+##  Advanced Features (First Steps)
 
 ### 1. File Mentions with @
 
@@ -241,8 +241,8 @@ You: @auth.py @middleware.py update the authentication system to use JWT
 ```bash
 # Index your project (do once)
 You: /index
-📚 Indexing project in vector memory...
-✅ Indexing completed! 
+ Indexing project in vector memory...
+ Indexing completed! 
   • Indexed files: 45
   • Chunks created: 234
 
@@ -271,7 +271,7 @@ You: refactor this function
 
 ---
 
-## ⚙️ Quick Configuration
+##  Quick Configuration
 
 ### Change AI Model
 
@@ -296,7 +296,7 @@ daveagent
 
 ---
 
-## 🐛 Common Problems
+##  Common Problems
 
 ### "Command not found: daveagent"
 
@@ -325,7 +325,7 @@ curl https://api.deepseek.com/v1
 
 ---
 
-## ✅ Startup Checklist
+##  Startup Checklist
 
 - [ ] CodeAgent installed (`daveagent --version` works)
 - [ ] API key configured (`.env` file)
@@ -336,7 +336,7 @@ curl https://api.deepseek.com/v1
 
 ---
 
-## 🎓 Next Steps
+##  Next Steps
 
 Now that you know the basics:
 
@@ -348,7 +348,7 @@ Now that you know the basics:
 
 ---
 
-## 📞 Need Help?
+##  Need Help?
 
 - **Discord**: [Join our server](https://discord.gg/2dRTd4Cv) - Fastest way to get help
 - **GitHub Issues**: [Report problems](https://github.com/davidmonterocrespo24/DaveAgent/issues)
@@ -356,7 +356,7 @@ Now that you know the basics:
 
 ---
 
-## 💡 Final Tips
+##  Final Tips
 
 1. **Use `/search` before modifying** - Understand code first
 2. **Mention files with @** - Maximum priority for context
@@ -366,6 +366,6 @@ Now that you know the basics:
 
 ---
 
-Congratulations! 🎉 You now know how to use CodeAgent. Start coding with AI!
+Congratulations!  You now know how to use CodeAgent. Start coding with AI!
 
 [← Back to Home](Home) | [Complete Guide →](Usage-Guide)

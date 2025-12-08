@@ -9,18 +9,18 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding='utf-8') if (this_directory / "README.md").exists() else ""
 
 setup(
-    name="daveagent-ai",  # Nombre único en PyPI
-    version="1.1.0",
-    author="DaveAgent Contributors",
-    author_email="",  # Dejar vacío si no tienes email público
+    name="daveagent-cli",
+    version="1.0.0",
+    author="DaveAgent Team",
+    author_email="davidmonterocrespo24@gmail.com",
     description="AI-powered coding assistant with intelligent agent orchestration - search, plan, and code with AI",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/DaveAgent-AI/daveagent",  # Actualizar cuando tengas repo
+    url="https://github.com/davidmonterocrespo24/DaveAgent",
     project_urls={
-        "Bug Tracker": "https://github.com/DaveAgent-AI/daveagent/issues",
-        "Documentation": "https://github.com/DaveAgent-AI/daveagent#readme",
-        "Source Code": "https://github.com/DaveAgent-AI/daveagent",
+        "Bug Tracker": "https://github.com/davidmonterocrespo24/DaveAgent/issues",
+        "Documentation": "https://github.com/davidmonterocrespo24/DaveAgent/wiki",
+        "Source Code": "https://github.com/davidmonterocrespo24/DaveAgent",
     },
     packages=find_packages(include=['src', 'src.*']),
     include_package_data=True,

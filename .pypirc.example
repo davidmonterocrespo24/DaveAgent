@@ -1,7 +1,3 @@
-# Archivo de configuración para PyPI
-# Copiar este archivo como ~/.pypirc (en tu home directory)
-# y completar con tus credenciales
-
 [distutils]
 index-servers =
     pypi
@@ -9,9 +5,9 @@ index-servers =
 
 [pypi]
 username = __token__
-password = pypi-
+password = # Inserta tu token de PyPI aquí (empieza con pypi-)
 
 [testpypi]
 repository = https://test.pypi.org/legacy/
 username = __token__
-password = pypi-
+password = # Inserta tu token de TestPyPI aquí

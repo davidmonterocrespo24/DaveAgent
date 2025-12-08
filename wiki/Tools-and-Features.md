@@ -1,24 +1,24 @@
-# 🛠️ Tools and Features - CodeAgent
+#  Tools and Features - CodeAgent
 
 CodeAgent includes **45+ integrated tools**, organized in 6 main categories. This page documents each tool with usage examples.
 
-## 📊 Tools Summary
+##  Tools Summary
 
 | Category | Quantity | Description |
 |----------|----------|-------------|
-| [📁 Filesystem](#-filesystem-7-tools) | 7 | File and directory operations |
-| [🔀 Git](#-git-8-tools) | 8 | Complete version control |
-| [📊 JSON](#-json-8-tools) | 8 | JSON processing and validation |
-| [📈 CSV](#-csv-7-tools) | 7 | CSV analysis and manipulation |
-| [🌐 Web](#-web-7-tools) | 7 | Wikipedia and web search |
-| [🔍 Analysis](#-analysis-5-tools) | 5 | Python code analysis and search |
-| [🧠 Memory](#-memory-8-tools) | 8 | RAG vector memory system |
+| [ Filesystem](#-filesystem-7-tools) | 7 | File and directory operations |
+| [ Git](#-git-8-tools) | 8 | Complete version control |
+| [ JSON](#-json-8-tools) | 8 | JSON processing and validation |
+| [ CSV](#-csv-7-tools) | 7 | CSV analysis and manipulation |
+| [ Web](#-web-7-tools) | 7 | Wikipedia and web search |
+| [ Analysis](#-analysis-5-tools) | 5 | Python code analysis and search |
+| [ Memory](#-memory-8-tools) | 8 | RAG vector memory system |
 
 **Total**: **50 tools**
 
 ---
 
-## 📁 Filesystem (7 tools)
+##  Filesystem (7 tools)
 
 ### `read_file`
 Reads file content with support for line ranges.
@@ -89,7 +89,7 @@ You: list all test files (**/*test*.py)
 
 ---
 
-## 🔀 Git (8 tools)
+##  Git (8 tools)
 
 ### `git_status`
 Gets Git repository status.
@@ -169,7 +169,7 @@ You: diff of working tree
 
 ---
 
-## 📊 JSON (8 tools)
+##  JSON (8 tools)
 
 ### `read_json`
 Reads and parses a JSON file.
@@ -245,7 +245,7 @@ You: show data.json in text format
 
 ---
 
-## 📈 CSV (7 tools)
+##  CSV (7 tools)
 
 ### `read_csv`
 Reads a CSV file and shows its content.
@@ -316,7 +316,7 @@ You: order customers.csv by name alphabetically
 
 ---
 
-## 🌐 Web (7 tools)
+##  Web (7 tools)
 
 ### `wiki_search`
 Searches for Wikipedia articles related to a query.
@@ -383,7 +383,7 @@ You: find information about "Docker deployment"
 
 ---
 
-## 🔍 Analysis (5 tools)
+##  Analysis (5 tools)
 
 ### `analyze_python_file`
 Analyzes a Python file to extract its structure.
@@ -449,7 +449,7 @@ You: run the Flask development server
 
 ---
 
-## 🧠 Memory (8 tools)
+##  Memory (8 tools)
 
 RAG (Retrieval-Augmented Generation) system with ChromaDB for persistent memory.
 
@@ -531,7 +531,7 @@ You: save that I like using FastAPI over Flask
 
 ---
 
-## 📎 Special Features
+##  Special Features
 
 ### File Mentions with @
 
@@ -568,11 +568,11 @@ You: /search how does logging work
 ```
 
 **CodeSearcher provides**:
-- 📍 Relevant files with exact locations
-- 🔧 Found functions with complete code
-- 📦 Important variables and constants
-- 🔗 Dependencies between components
-- 💡 Recommendations on what to modify
+-  Relevant files with exact locations
+-  Found functions with complete code
+-  Important variables and constants
+-  Dependencies between components
+-  Recommendations on what to modify
 
 **More info**: See [CodeSearcher Guide](CodeSearcher)
 
@@ -585,8 +585,8 @@ Indexes your project in vector memory for fast semantic searches.
 You: /index
 
 # Output:
-📚 Indexing project in vector memory...
-✅ Indexing completed!
+ Indexing project in vector memory...
+ Indexing completed!
   • Indexed files: 45
   • Chunks created: 234
 ```
@@ -600,7 +600,7 @@ You: /index
 
 ---
 
-## 🎯 How to Use Tools
+##  How to Use Tools
 
 ### Natural Way (Recommended)
 
@@ -627,7 +627,7 @@ You: use analyze_python_file on auth.py
 
 ---
 
-## 💡 Usage Tips
+##  Usage Tips
 
 1. **Combine tools**: The agent can use multiple tools in one task
    ```bash
@@ -657,7 +657,7 @@ You: use analyze_python_file on auth.py
 
 ---
 
-## 📚 See Also
+##  See Also
 
 - **[CodeSearcher](CodeSearcher)** - Specialized search agent
 - **[File Mentions](File-Mentions)** - Complete file mentions guide

@@ -10,6 +10,9 @@ daveagent_cli.egg-info/*
 .env.local
 .env.*.local
 
+# PyPI credentials - NEVER COMMIT
+.pypirc
+
 # Build artifacts
 dist/
 build/
