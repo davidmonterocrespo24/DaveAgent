@@ -1,5 +1,5 @@
 """
-Sistema de planificación y gestión de tareas con agente planner
+Task planning and management system with planner agent
 """
 from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel
@@ -16,7 +16,7 @@ from src.config import (
 
 
 class Task(BaseModel):
-    """Representa una tarea individual en el plan"""
+    """Represents an individual task in the plan"""
     id: int
     title: str
     description: str
@@ -27,7 +27,7 @@ class Task(BaseModel):
 
 
 class ExecutionPlan(BaseModel):
-    """Plan de ejecución completo con lista de tareas"""
+    """Complete execution plan with task list"""
     goal: str
     tasks: List[Task]
     reasoning: str
@@ -35,7 +35,7 @@ class ExecutionPlan(BaseModel):
 
 
 class PlanUpdate(BaseModel):
-    """Actualización del plan basada en resultados de ejecución"""
+    """Plan update based on execution results"""
     reasoning: str
     modified_tasks: List[Task]
     new_tasks: List[Task] = []
@@ -43,58 +43,58 @@ class PlanUpdate(BaseModel):
 
 
 class TaskPlanner:
-    """Gestiona la creación y actualización de planes de ejecución"""
+    """Manages the creation and updating of execution plans"""
 
     def __init__(self, model_client: OpenAIChatCompletionClient):
         """
         Args:
-            model_client: Cliente del modelo para el agente planner
+            model_client: Model client for the planner agent
         """
         self.model_client = model_client
 
-        # Crear el agente planner SIN output estructurado (para compatibilidad con DeepSeek)
-        # Siguiendo mejores prácticas de AutoGen: incluir description clara para el selector
+        # Create planner agent WITHOUT structured output (for DeepSeek compatibility)
+        # Following AutoGen best practices: include clear description for selector
         self.planner_agent = AssistantAgent(
             name="Planner",
             description=TASK_PLANNER_DESCRIPTION,
             model_client=model_client,
             system_message=TASK_PLANNER_SYSTEM_MESSAGE,
-            # NO usar output_content_type porque DeepSeek no soporta structured_output
+            # DO NOT use output_content_type because DeepSeek doesn't support structured_output
         )
 
-        # Agente para actualizar planes
+        # Agent for updating plans
         self.plan_updater_agent = AssistantAgent(
             name="PlanUpdater",
             description="Agent specialized in adapting execution plans based on results and errors",
             model_client=model_client,
             system_message=TASK_PLANNER_UPDATER_MESSAGE,
-            # NO usar output_content_type porque DeepSeek no soporta structured_output
+            # DO NOT use output_content_type because DeepSeek doesn't support structured_output
         )
 
         self.current_plan: Optional[ExecutionPlan] = None
 
     async def create_plan(self, user_goal: str, context: str = "") -> ExecutionPlan:
         """
-        Crea un nuevo plan de ejecución basado en el objetivo del usuario
+        Creates a new execution plan based on the user's goal
 
         Args:
-            user_goal: Objetivo o solicitud del usuario
-            context: Contexto adicional (historial, estado del proyecto, etc.)
+            user_goal: User's goal or request
+            context: Additional context (history, project state, etc.)
 
         Returns:
-            ExecutionPlan con las tareas planificadas
+            ExecutionPlan with the planned tasks
         """
-        planning_prompt = f"""OBJETIVO DEL USUARIO:
+        planning_prompt = f"""USER GOAL:
 {user_goal}
 
-CONTEXTO ADICIONAL:
-{context if context else 'Sin contexto adicional'}
+ADDITIONAL CONTEXT:
+{context if context else 'No additional context'}
 
-Crea un plan de ejecución detallado para lograr este objetivo."""
+Create a detailed execution plan to achieve this goal."""
 
         result = await self.planner_agent.run(task=planning_prompt)
 
-        # Extraer el texto del último mensaje
+        # Extract text from the last message
         plan_text = None
         for message in reversed(result.messages):
             if isinstance(message, TextMessage) and message.source != "user":
@@ -102,11 +102,11 @@ Crea un plan de ejecución detallado para lograr este objetivo."""
                 break
 
         if not plan_text:
-            raise Exception("No se recibió respuesta del agente planner")
+            raise Exception("No response received from planner agent")
 
-        # Parsear el JSON
+        # Parse the JSON
         try:
-            # Limpiar el texto (quitar markdown code blocks si los hay)
+            # Clean the text (remove markdown code blocks if present)
             plan_text = plan_text.strip()
             if plan_text.startswith("```json"):
                 plan_text = plan_text[7:]
@@ -116,17 +116,17 @@ Crea un plan de ejecución detallado para lograr este objetivo."""
                 plan_text = plan_text[:-3]
             plan_text = plan_text.strip()
 
-            # Parsear JSON
+            # Parse JSON
             plan_dict = json.loads(plan_text)
 
-            # Crear el ExecutionPlan desde el diccionario
+            # Create ExecutionPlan from dictionary
             self.current_plan = ExecutionPlan(**plan_dict)
             return self.current_plan
 
         except json.JSONDecodeError as e:
-            raise Exception(f"Error parseando JSON del plan: {e}\nTexto recibido: {plan_text[:500]}")
+            raise Exception(f"Error parsing plan JSON: {e}\nReceived text: {plan_text[:500]}")
         except Exception as e:
-            raise Exception(f"Error creando plan: {e}")
+            raise Exception(f"Error creating plan: {e}")
 
     async def update_plan(
         self,
@@ -136,21 +136,21 @@ Crea un plan de ejecución detallado para lograr este objetivo."""
         error_message: Optional[str] = None
     ) -> PlanUpdate:
         """
-        Actualiza el plan basándose en el resultado de una tarea
+        Updates the plan based on a task's result
 
         Args:
-            task_result: Resultado de la tarea ejecutada
-            task_id: ID de la tarea ejecutada
-            success: Si la tarea fue exitosa
-            error_message: Mensaje de error si la tarea falló
+            task_result: Result of the executed task
+            task_id: ID of the executed task
+            success: Whether the task was successful
+            error_message: Error message if the task failed
 
         Returns:
-            PlanUpdate con las modificaciones al plan
+            PlanUpdate with modifications to the plan
         """
         if not self.current_plan:
-            raise Exception("No hay un plan actual para actualizar")
+            raise Exception("No current plan to update")
 
-        # Encontrar la tarea ejecutada
+        # Find the executed task
         executed_task = None
         for task in self.current_plan.tasks:
             if task.id == task_id:
@@ -158,32 +158,32 @@ Crea un plan de ejecución detallado para lograr este objetivo."""
                 break
 
         if not executed_task:
-            raise Exception(f"Tarea {task_id} no encontrada en el plan actual")
+            raise Exception(f"Task {task_id} not found in current plan")
 
-        update_prompt = f"""PLAN ACTUAL:
-Objetivo: {self.current_plan.goal}
-Tareas totales: {len(self.current_plan.tasks)}
+        update_prompt = f"""CURRENT PLAN:
+Goal: {self.current_plan.goal}
+Total tasks: {len(self.current_plan.tasks)}
 
-TAREA EJECUTADA:
+EXECUTED TASK:
 ID: {executed_task.id}
-Título: {executed_task.title}
-Descripción: {executed_task.description}
+Title: {executed_task.title}
+Description: {executed_task.description}
 
-RESULTADO:
-Éxito: {success}
-Resultado: {task_result}
+RESULT:
+Success: {success}
+Result: {task_result}
 {f'Error: {error_message}' if error_message else ''}
 
-PLAN COMPLETO (JSON):
+COMPLETE PLAN (JSON):
 {json.dumps([task.model_dump() for task in self.current_plan.tasks], indent=2, ensure_ascii=False)}
 
-Basándote en este resultado, determina si el plan necesita actualizarse.
-Si la tarea fue exitosa y todo va según lo planeado, devuelve listas vacías.
-Si necesitas cambios, especifica qué tareas modificar, añadir o eliminar."""
+Based on this result, determine if the plan needs to be updated.
+If the task was successful and everything is going as planned, return empty lists.
+If changes are needed, specify which tasks to modify, add, or remove."""
 
         result = await self.plan_updater_agent.run(task=update_prompt)
 
-        # Extraer el texto del último mensaje
+        # Extract text from the last message
         update_text = None
         for message in reversed(result.messages):
             if isinstance(message, TextMessage) and message.source != "user":
@@ -191,9 +191,9 @@ Si necesitas cambios, especifica qué tareas modificar, añadir o eliminar."""
                 break
 
         if not update_text:
-            raise Exception("No se recibió respuesta del agente updater")
+            raise Exception("No response received from updater agent")
 
-        # Parsear el JSON
+        # Parse the JSON
         try:
             # Limpiar el texto
             update_text = update_text.strip()
@@ -205,50 +205,50 @@ Si necesitas cambios, especifica qué tareas modificar, añadir o eliminar."""
                 update_text = update_text[:-3]
             update_text = update_text.strip()
 
-            # Parsear JSON
+            # Parse JSON
             update_dict = json.loads(update_text)
 
-            # Crear el PlanUpdate desde el diccionario
+            # Create PlanUpdate from dictionary
             plan_update = PlanUpdate(**update_dict)
 
-            # Aplicar la actualización al plan actual
+            # Apply the update to the current plan
             self._apply_plan_update(plan_update)
             return plan_update
 
         except json.JSONDecodeError as e:
-            raise Exception(f"Error parseando JSON de actualización: {e}\nTexto recibido: {update_text[:500]}")
+            raise Exception(f"Error parsing update JSON: {e}\nReceived text: {update_text[:500]}")
         except Exception as e:
-            raise Exception(f"Error creando actualización: {e}")
+            raise Exception(f"Error creating update: {e}")
 
     def _apply_plan_update(self, update: PlanUpdate):
-        """Aplica una actualización al plan actual"""
+        """Applies an update to the current plan"""
         if not self.current_plan:
             return
 
-        # Eliminar tareas marcadas para eliminación
+        # Remove tasks marked for deletion
         self.current_plan.tasks = [
             task for task in self.current_plan.tasks
             if task.id not in update.removed_task_ids
         ]
 
-        # Actualizar tareas modificadas
+        # Update modified tasks
         for modified_task in update.modified_tasks:
             for i, task in enumerate(self.current_plan.tasks):
                 if task.id == modified_task.id:
                     self.current_plan.tasks[i] = modified_task
                     break
 
-        # Añadir nuevas tareas
+        # Add new tasks
         if update.new_tasks:
-            # Encontrar el ID máximo actual
+            # Find the current maximum ID
             max_id = max([task.id for task in self.current_plan.tasks], default=0)
             for i, new_task in enumerate(update.new_tasks):
-                # Reasignar IDs para evitar conflictos
+                # Reassign IDs to avoid conflicts
                 new_task.id = max_id + i + 1
             self.current_plan.tasks.extend(update.new_tasks)
 
     def get_next_task(self) -> Optional[Task]:
-        """Obtiene la siguiente tarea pendiente que se puede ejecutar"""
+        """Gets the next pending task that can be executed"""
         if not self.current_plan:
             return None
 
@@ -256,7 +256,7 @@ Si necesitas cambios, especifica qué tareas modificar, añadir o eliminar."""
             if task.status != "pending":
                 continue
 
-            # Verificar que todas las dependencias estén completadas
+            # Verify that all dependencies are completed
             dependencies_met = True
             for dep_id in task.dependencies:
                 for dep_task in self.current_plan.tasks:
@@ -276,7 +276,7 @@ Si necesitas cambios, especifica qué tareas modificar, añadir o eliminar."""
         result: Optional[str] = None,
         error: Optional[str] = None
     ):
-        """Actualiza el estado de una tarea"""
+        """Updates the status of a task"""
         if not self.current_plan:
             return
 
@@ -290,28 +290,28 @@ Si necesitas cambios, especifica qué tareas modificar, añadir o eliminar."""
                 break
 
     def get_plan_summary(self) -> str:
-        """Obtiene un resumen del plan actual"""
+        """Gets a summary of the current plan"""
         if not self.current_plan:
-            return "No hay plan activo"
+            return "No active plan"
 
         completed = sum(1 for t in self.current_plan.tasks if t.status == "completed")
         failed = sum(1 for t in self.current_plan.tasks if t.status == "failed")
         in_progress = sum(1 for t in self.current_plan.tasks if t.status == "in_progress")
         pending = sum(1 for t in self.current_plan.tasks if t.status == "pending")
 
-        summary = f"""=== PLAN DE EJECUCIÓN ===
-Objetivo: {self.current_plan.goal}
-Complejidad: {self.current_plan.estimated_complexity}
-Razonamiento: {self.current_plan.reasoning}
+        summary = f"""=== EXECUTION PLAN ===
+Goal: {self.current_plan.goal}
+Complexity: {self.current_plan.estimated_complexity}
+Reasoning: {self.current_plan.reasoning}
 
-Progreso:
-  ✓ Completadas: {completed}
-  ⚡ En progreso: {in_progress}
-  ○ Pendientes: {pending}
-  ✗ Fallidas: {failed}
+Progress:
+  ✓ Completed: {completed}
+  ⚡ In progress: {in_progress}
+  ○ Pending: {pending}
+  ✗ Failed: {failed}
   Total: {len(self.current_plan.tasks)}
 
-Tareas:
+Tasks:
 """
         for task in self.current_plan.tasks:
             status_icon = {
@@ -329,7 +329,7 @@ Tareas:
         return summary
 
     def is_plan_complete(self) -> bool:
-        """Verifica si todas las tareas del plan están completadas"""
+        """Checks if all tasks in the plan are completed"""
         if not self.current_plan:
             return True
 
@@ -339,7 +339,7 @@ Tareas:
         )
 
     def get_plan_json(self) -> str:
-        """Obtiene el plan en formato JSON"""
+        """Gets the plan in JSON format"""
         if not self.current_plan:
             return "{}"
         return self.current_plan.model_dump_json(indent=2, exclude_none=True)

@@ -1,16 +1,16 @@
 """
-Configuración de DaveAgent - Manejo de API keys y URLs
-Variables de entorno se cargan desde .daveagent/.env
+DaveAgent Configuration - API keys and URLs management
+Environment variables are loaded from .daveagent/.env
 """
 import os
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 
-# Cargar variables de entorno desde .daveagent/.env si existe
-# Prioridad: .daveagent/.env > .env (para compatibilidad)
-# Buscar desde la raiz del proyecto (donde esta src/), no desde cwd
-# Esto asegura que funcione incluso cuando se ejecuta desde subdirectorios (ej. eval/)
+# Load environment variables from .daveagent/.env if it exists
+# Priority: .daveagent/.env > .env (for compatibility)
+# Search from project root (where src/ is), not from cwd
+# This ensures it works even when executed from subdirectories (e.g. eval/)
 project_root = Path(__file__).resolve().parent.parent.parent
 daveagent_env = project_root / '.daveagent' / '.env'
 legacy_env = project_root / '.env'
@@ -22,7 +22,7 @@ elif legacy_env.exists():
 
 
 class DaveAgentSettings:
-    """Configuración centralizada de DaveAgent"""
+    """Centralized DaveAgent configuration"""
 
     # Valores por defecto
     DEFAULT_BASE_URL = "https://api.deepseek.com"
@@ -37,49 +37,49 @@ class DaveAgentSettings:
         ssl_verify: Optional[bool] = None
     ):
         """
-        Inicializa la configuración con prioridad:
-        1. Parámetros pasados directamente
-        2. Variables de entorno
-        3. Valores por defecto
+        Initializes the configuration with priority:
+        1. Parameters passed directly
+        2. Environment variables
+        3. Default values
 
         Args:
-            api_key: API key para el modelo LLM
-            base_url: URL base de la API
-            model: Nombre del modelo a usar
-            ssl_verify: Si True, verifica certificados SSL (por defecto True)
+            api_key: API key for the LLM model
+            base_url: Base URL of the API
+            model: Name of the model to use
+            ssl_verify: If True, verify SSL certificates (default True)
         """
-        # API Key (requerida)
+        # API Key (required)
         self.api_key = (
             api_key
             or os.getenv("DAVEAGENT_API_KEY")
-            or os.getenv("CODEAGENT_API_KEY")  # Compatibilidad
-            or os.getenv("OPENAI_API_KEY")  # Compatibilidad
-            or os.getenv("DEEPSEEK_API_KEY")  # Compatibilidad
+            or os.getenv("CODEAGENT_API_KEY")  # Compatibility
+            or os.getenv("OPENAI_API_KEY")  # Compatibility
+            or os.getenv("DEEPSEEK_API_KEY")  # Compatibility
         )
 
-        # Base URL (opcional, con valor por defecto)
+        # Base URL (optional, with default value)
         self.base_url = (
             base_url
             or os.getenv("DAVEAGENT_BASE_URL")
-            or os.getenv("CODEAGENT_BASE_URL")  # Compatibilidad
-            or os.getenv("OPENAI_BASE_URL")  # Compatibilidad
+            or os.getenv("CODEAGENT_BASE_URL")  # Compatibility
+            or os.getenv("OPENAI_BASE_URL")  # Compatibility
             or self.DEFAULT_BASE_URL
         )
 
-        # Modelo (opcional, con valor por defecto)
+        # Model (optional, with default value)
         self.model = (
             model
             or os.getenv("DAVEAGENT_MODEL")
-            or os.getenv("CODEAGENT_MODEL")  # Compatibilidad
-            or os.getenv("OPENAI_MODEL")  # Compatibilidad
+            or os.getenv("CODEAGENT_MODEL")  # Compatibility
+            or os.getenv("OPENAI_MODEL")  # Compatibility
             or self.DEFAULT_MODEL
         )
 
-        # SSL Verify (opcional, con valor por defecto)
+        # SSL Verify (optional, with default value)
         if ssl_verify is not None:
             self.ssl_verify = ssl_verify
         else:
-            # Leer de variable de entorno (puede ser "true", "false", "1", "0")
+            # Read from environment variable (can be "true", "false", "1", "0")
             env_ssl = (
                 os.getenv("DAVEAGENT_SSL_VERIFY") 
                 or os.getenv("SSL_VERIFY")
@@ -91,80 +91,80 @@ class DaveAgentSettings:
 
     def validate(self, interactive: bool = True) -> tuple[bool, Optional[str]]:
         """
-        Valida que la configuración sea correcta
+        Validates that the configuration is correct
 
         Args:
-            interactive: Si True, puede iniciar setup interactivo si falta API key
+            interactive: If True, can start interactive setup if API key is missing
 
         Returns:
-            Tupla (is_valid, error_message)
+            Tuple (is_valid, error_message)
         """
         if not self.api_key:
             if interactive:
-                # Iniciar setup interactivo
+                # Start interactive setup
                 from src.utils import run_interactive_setup
 
                 try:
                     print()
-                    print("[WARNING] No se encontro una API key configurada.")
+                    print("[WARNING] No API key found.")
                     print()
-                    response = input("Quieres configurar DaveAgent ahora? (S/n): ").strip().lower()
+                    response = input("Do you want to configure DaveAgent now? (Y/n): ").strip().lower()
 
                     if response == 'n' or response == 'no':
                         return False, (
-                            "[ERROR] API key no configurada.\n\n"
-                            "Opciones para configurarla:\n"
-                            "  1. Variable de entorno: export DAVEAGENT_API_KEY='tu-api-key'\n"
-                            "  2. Archivo .daveagent/.env: DAVEAGENT_API_KEY=tu-api-key\n"
-                            "  3. Argumento CLI: daveagent --api-key 'tu-api-key'\n\n"
-                            "Obtén tu API key en: https://platform.deepseek.com/api_keys"
+                            "[ERROR] API key not configured.\n\n"
+                            "Options to configure it:\n"
+                            "  1. Environment variable: export DAVEAGENT_API_KEY='your-api-key'\n"
+                            "  2. File .daveagent/.env: DAVEAGENT_API_KEY=your-api-key\n"
+                            "  3. CLI argument: daveagent --api-key 'your-api-key'\n\n"
+                            "Get your API key at: https://platform.deepseek.com/api_keys"
                         )
 
-                    # Ejecutar setup interactivo
+                    # Execute interactive setup
                     api_key, base_url, model = run_interactive_setup()
 
-                    # Actualizar configuración
+                    # Update configuration
                     self.api_key = api_key
                     if base_url:
                         self.base_url = base_url
                     if model:
                         self.model = model
 
-                    # Validar de nuevo (sin interactividad para evitar loop)
+                    # Validate again (without interactivity to avoid loop)
                     return self.validate(interactive=False)
 
                 except KeyboardInterrupt:
-                    print("\n\n[ERROR] Configuracion cancelada por el usuario.")
-                    return False, "Configuracion cancelada"
+                    print("\n\n[ERROR] Configuration cancelled by user.")
+                    return False, "Configuration cancelled"
                 except Exception as e:
-                    print(f"\n[ERROR] Error durante la configuracion: {e}")
-                    return False, f"Error en configuración: {e}"
+                    print(f"\n[ERROR] Error during configuration: {e}")
+                    return False, f"Configuration error: {e}"
             else:
                 return False, (
-                    "[ERROR] API key no configurada.\n\n"
-                    "Opciones para configurarla:\n"
-                    "  1. Variable de entorno: export DAVEAGENT_API_KEY='tu-api-key'\n"
-                    "  2. Archivo .daveagent/.env: DAVEAGENT_API_KEY=tu-api-key\n"
-                    "  3. Argumento CLI: daveagent --api-key 'tu-api-key'\n\n"
-                    "Obten tu API key en: https://platform.deepseek.com/api_keys"
+                    "[ERROR] API key not configured.\n\n"
+                    "Options to configure it:\n"
+                    "  1. Environment variable: export DAVEAGENT_API_KEY='your-api-key'\n"
+                    "  2. File .daveagent/.env: DAVEAGENT_API_KEY=your-api-key\n"
+                    "  3. CLI argument: daveagent --api-key 'your-api-key'\n\n"
+                    "Get your API key at: https://platform.deepseek.com/api_keys"
                 )
 
         if not self.base_url:
-            return False, "[ERROR] Base URL no configurada"
+            return False, "[ERROR] Base URL not configured"
 
         if not self.model:
-            return False, "[ERROR] Modelo no configurado"
+            return False, "[ERROR] Model not configured"
 
         return True, None
 
     def get_model_capabilities(self) -> dict:
         """
-        Obtiene las capacidades del modelo según la base URL
+        Gets the model's capabilities according to the base URL
 
         Returns:
-            Diccionario con capacidades del modelo
+            Dictionary with model capabilities
         """
-        # Capacidades para DeepSeek
+        # Capabilities for DeepSeek
         if "deepseek" in self.base_url.lower():
             return {
                 "vision": False,
@@ -173,7 +173,7 @@ class DaveAgentSettings:
                 "structured_output": False,
             }
 
-        # Capacidades para OpenAI
+        # Capabilities for OpenAI
         if "openai" in self.base_url.lower():
             return {
                 "vision": True,  # GPT-4 Vision
@@ -182,7 +182,7 @@ class DaveAgentSettings:
                 "structured_output": True,
             }
 
-        # Capacidades genéricas por defecto
+        # Generic capabilities by default
         return {
             "vision": False,
             "function_calling": True,
@@ -191,8 +191,8 @@ class DaveAgentSettings:
         }
 
     def __repr__(self) -> str:
-        """Representación en string (ocultando API key)"""
-        masked_key = f"{self.api_key[:8]}...{self.api_key[-4:]}" if self.api_key else "No configurada"
+        """String representation (hiding API key)"""
+        masked_key = f"{self.api_key[:8]}...{self.api_key[-4:]}" if self.api_key else "Not configured"
         return (
             f"DaveAgentSettings(\n"
             f"  api_key={masked_key},\n"
@@ -210,19 +210,19 @@ def get_settings(
     ssl_verify: Optional[bool] = None
 ) -> DaveAgentSettings:
     """
-    Factory function para obtener configuración
+    Factory function to get configuration
 
     Args:
-        api_key: API key (opcional)
-        base_url: URL base (opcional)
-        model: Nombre del modelo (opcional)
-        ssl_verify: Si verificar SSL (opcional)
+        api_key: API key (optional)
+        base_url: Base URL (optional)
+        model: Model name (optional)
+        ssl_verify: Whether to verify SSL (optional)
 
     Returns:
-        Instancia de DaveAgentSettings
+        DaveAgentSettings instance
     """
     return DaveAgentSettings(api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify)
 
 
-# Mantener compatibilidad con código antiguo
+# Maintain compatibility with old code
 CodeAgentSettings = DaveAgentSettings

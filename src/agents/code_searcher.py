@@ -1,6 +1,6 @@
 """
-Code Searcher Agent - Agente especializado en búsqueda y análisis de código
-Este agente busca y recopila información relevante sobre el código antes de hacer modificaciones
+Code Searcher Agent - Agent specialized in code search and analysis
+This agent searches and collects relevant information about code before making modifications
 """
 from typing import Dict, List, Optional, Any, AsyncGenerator
 import re
@@ -12,7 +12,7 @@ from src.config import CODE_SEARCHER_DESCRIPTION, CODE_SEARCHER_SYSTEM_MESSAGE
 
 class CodeSearcher:
     """
-    Agente especializado en buscar y analizar código para proporcionar contexto completo
+    Agent specialized in searching and analyzing code to provide complete context
     """
 
     def __init__(
@@ -22,44 +22,44 @@ class CodeSearcher:
         memory: Optional[List[Memory]] = None
     ):
         """
-        Inicializa el agente CodeSearcher
+        Initializes the CodeSearcher agent
 
         Args:
-            model_client: Cliente del modelo LLM
-            tools: Lista de herramientas disponibles para el agente
-            memory: Lista de memorias vectoriales (opcional)
+            model_client: LLM model client
+            tools: List of tools available to the agent
+            memory: List of vector memories (optional)
         """
         self.model_client = model_client
-        self._search_history: List[Dict[str, Any]] = []  # Historial de búsquedas
+        self._search_history: List[Dict[str, Any]] = []  # Search history
 
-        # Crear el agente con un system message especializado
+        # Create the agent with a specialized system message
         self.searcher_agent = AssistantAgent(
             name="CodeSearcher",
             description=CODE_SEARCHER_DESCRIPTION,
             system_message=CODE_SEARCHER_SYSTEM_MESSAGE,
             model_client=model_client,
             tools=tools,
-            max_tool_iterations=10,  # Permitir más iteraciones para búsqueda exhaustiva
-            reflect_on_tool_use=True,  # Reflexionar sobre resultados de herramientas
-            memory=memory or []  # Memoria de código base indexado
+            max_tool_iterations=10,  # Allow more iterations for exhaustive search
+            reflect_on_tool_use=True,  # Reflect on tool results
+            memory=memory or []  # Indexed codebase memory
         )
 
     async def search_code_context(self, query: str) -> Dict[str, Any]:
         """
-        Busca y analiza código relacionado con una consulta
+        Searches and analyzes code related to a query
 
         Args:
-            query: Consulta del usuario sobre qué buscar en el código
+            query: User query about what to search in the code
 
         Returns:
-            Diccionario con el análisis completo del código
+            Dictionary with the complete code analysis
         """
         from datetime import datetime
 
-        # Ejecutar el agente para buscar
+        # Execute the agent to search
         result = await self.searcher_agent.run(task=query)
 
-        # Extraer información del resultado
+        # Extract information from the result
         analysis = {
             "query": query,
             "messages": result.messages,
@@ -73,7 +73,7 @@ class CodeSearcher:
             "raw_result": result
         }
 
-        # Procesar mensajes para extraer el análisis
+        # Process messages to extract the analysis
         analysis_text = ""
         for msg in result.messages:
             if hasattr(msg, 'content') and hasattr(msg, 'source'):
@@ -82,59 +82,59 @@ class CodeSearcher:
                     analysis["analysis"] = analysis_text
                     break
 
-        # Extraer información estructurada del análisis
+        # Extract structured information from the analysis
         if analysis_text:
-            # Extraer archivos mencionados
+            # Extract mentioned files
             file_pattern = r'`([^`]+\.(py|js|ts|json|md|txt|csv))`'
             files = re.findall(file_pattern, analysis_text)
             analysis["files"] = [f[0] for f in files]
 
-            # Extraer nombres de funciones
+            # Extract function names
             function_pattern = r'`([a-zA-Z_][a-zA-Z0-9_]*)\(`'
             functions = re.findall(function_pattern, analysis_text)
             analysis["functions"] = list(set(functions))
 
-            # Extraer referencias a ubicaciones (archivo:línea)
+            # Extract location references (file:line)
             location_pattern = r'`([^`]+\.(py|js|ts)):(\d+)`'
             locations = re.findall(location_pattern, analysis_text)
             analysis["locations"] = [f"{loc[0]}:{loc[2]}" for loc in locations]
 
-        # Guardar en historial
+        # Save to history
         self._search_history.append(analysis)
 
         return analysis
 
     async def search_code_context_stream(self, query: str):
         """
-        Busca y analiza código en modo streaming (para ver progreso en tiempo real)
+        Searches and analyzes code in streaming mode (to see real-time progress)
 
         Args:
-            query: Consulta del usuario sobre qué buscar en el código
+            query: User query about what to search in the code
 
         Yields:
-            Mensajes del agente conforme realiza la búsqueda
+            Agent messages as the search is performed
 
         Note:
-            Este método NO guarda en el historial automáticamente.
-            Para guardar, usa search_code_context() después del streaming.
+            This method does NOT save to history automatically.
+            To save, use search_code_context() after streaming.
         """
         async for msg in self.searcher_agent.run_stream(task=query):
             yield msg
 
     def get_search_summary(self) -> str:
         """
-        Obtiene un resumen de las búsquedas realizadas
+        Gets a summary of searches performed
 
         Returns:
-            Resumen en texto de las búsquedas
+            Text summary of searches
         """
         if not self._search_history:
-            return "📋 No se han realizado búsquedas todavía."
+            return "📋 No searches have been performed yet."
 
-        summary = f"📋 Historial de Búsquedas ({len(self._search_history)} búsquedas):\n\n"
+        summary = f"📋 Search History ({len(self._search_history)} searches):\n\n"
 
-        for i, search in enumerate(self._search_history[-5:], 1):  # Últimas 5
-            query = search.get("query", "Consulta desconocida")
+        for i, search in enumerate(self._search_history[-5:], 1):  # Last 5
+            query = search.get("query", "Unknown query")
             files = search.get("files", [])
             functions = search.get("functions", [])
 
@@ -149,25 +149,25 @@ class CodeSearcher:
 
     def get_last_search(self) -> Optional[Dict[str, Any]]:
         """
-        Obtiene la última búsqueda realizada
+        Gets the last search performed
 
         Returns:
-            Diccionario con información de la última búsqueda o None
+            Dictionary with information from the last search or None
         """
         if self._search_history:
             return self._search_history[-1]
         return None
 
     def clear_history(self):
-        """Limpia el historial de búsquedas"""
+        """Clears the search history"""
         self._search_history.clear()
 
     def get_files_found(self) -> List[str]:
         """
-        Obtiene lista de todos los archivos encontrados en todas las búsquedas
+        Gets list of all files found in all searches
 
         Returns:
-            Lista de archivos únicos encontrados
+            List of unique files found
         """
         all_files = set()
         for search in self._search_history:
@@ -177,10 +177,10 @@ class CodeSearcher:
 
     def get_functions_found(self) -> List[str]:
         """
-        Obtiene lista de todas las funciones encontradas en todas las búsquedas
+        Gets list of all functions found in all searches
 
         Returns:
-            Lista de funciones únicas encontradas
+            List of unique functions found
         """
         all_functions = set()
         for search in self._search_history:
