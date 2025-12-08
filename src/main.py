@@ -456,104 +456,104 @@ class DaveAgentCLI:
         elif cmd == "/clear":
             # Clear screen only - AutoGen handles history
             self.cli.clear_screen()
-            self.cli.print_success("Pantalla limpiada")
+            self.cli.print_success("Screen cleared")
 
         elif cmd == "/new":
             # Just clear screen - new session will be auto-created if needed
             self.cli.clear_screen()
-            self.cli.print_success("Nueva conversación iniciada")
+            self.cli.print_success("New conversation started")
 
         elif cmd == "/new-session":
-            # Crear nueva sesión con metadata
+            # Create new session with metadata
             await self._new_session_command(parts)
 
         elif cmd == "/save-state" or cmd == "/save-session":
-            # Guardar estado completo usando AutoGen save_state
+            # Save complete state using AutoGen save_state
             await self._save_state_command(parts)
 
         elif cmd == "/load-state" or cmd == "/load-session":
-            # Cargar estado usando AutoGen load_state
+            # Load state using AutoGen load_state
             await self._load_state_command(parts)
 
         elif cmd == "/list-sessions" or cmd == "/sessions":
-            # Listar sesiones guardadas con tabla Rich
+            # List saved sessions with Rich table
             await self._list_sessions_command()
 
         elif cmd == "/history":
-            # Mostrar historial de la sesión actual
+            # Show current session history
             await self._show_history_command(parts)
 
         # REMOVED: /load command - Use /load-state instead (AutoGen official)
 
         elif cmd == "/debug":
-            # Cambiar nivel de logging
+            # Change logging level
             current_level = self.logger.logger.level
             if current_level == logging.DEBUG:
                 self.logger.logger.setLevel(logging.INFO)
-                self.cli.print_success("🔧 Modo debug DESACTIVADO (nivel: INFO)")
-                self.logger.info("Nivel de logging cambiado a INFO")
+                self.cli.print_success("🔧 Debug mode DISABLED (level: INFO)")
+                self.logger.info("Logging level changed to INFO")
             else:
                 self.logger.logger.setLevel(logging.DEBUG)
-                self.cli.print_success("🐛 Modo debug ACTIVADO (nivel: DEBUG)")
-                self.logger.debug("Nivel de logging cambiado a DEBUG")
+                self.cli.print_success("🐛 Debug mode ENABLED (level: DEBUG)")
+                self.logger.debug("Logging level changed to DEBUG")
 
         elif cmd == "/logs":
-            # Mostrar ubicación del archivo de logs
+            # Show log file location
             log_files = list(self.logger.logger.handlers)
             file_handlers = [h for h in log_files if isinstance(h, logging.FileHandler)]
             if file_handlers:
                 log_path = file_handlers[0].baseFilename
-                self.cli.print_info(f"📄 Archivo de logs: {log_path}")
+                self.cli.print_info(f"📄 Log file: {log_path}")
             else:
-                self.cli.print_info("No hay archivos de log configurados")
+                self.cli.print_info("No log files configured")
 
         elif cmd == "/modo-agente":
-            # Cambiar a modo agente (con todas las herramientas)
+            # Switch to agent mode (with all tools)
             if self.current_mode == "agente":
-                self.cli.print_info("Ya estás en modo AGENTE")
+                self.cli.print_info("Already in AGENT mode")
             else:
                 self.current_mode = "agente"
-                self.cli.set_mode("agente")  # Actualizar display del CLI
+                self.cli.set_mode("agente")  # Update CLI display
                 await self._update_agent_tools_for_mode()
-                self.cli.print_success("🔧 Modo AGENTE activado")
-                self.cli.print_info("✓ Todas las herramientas habilitadas (lectura + modificación)")
-                self.cli.print_info("✓ El agente puede modificar archivos y ejecutar comandos")
-                self.logger.info("Modo cambiado a: AGENTE")
+                self.cli.print_success("🔧 AGENT mode enabled")
+                self.cli.print_info("✓ All tools enabled (read + modification)")
+                self.cli.print_info("✓ The agent can modify files and execute commands")
+                self.logger.info("Mode changed to: AGENT")
 
         elif cmd == "/modo-chat":
-            # Cambiar a modo chat (solo herramientas de lectura)
+            # Switch to chat mode (read-only tools)
             if self.current_mode == "chat":
-                self.cli.print_info("Ya estás en modo CHAT")
+                self.cli.print_info("Already in CHAT mode")
             else:
                 self.current_mode = "chat"
-                self.cli.set_mode("chat")  # Actualizar display del CLI
+                self.cli.set_mode("chat")  # Update CLI display
                 await self._update_agent_tools_for_mode()
-                self.cli.print_success("💬 Modo CHAT activado")
-                self.cli.print_info("✓ Solo herramientas de lectura habilitadas")
-                self.cli.print_info("✗ El agente NO puede modificar archivos ni ejecutar comandos")
-                self.cli.print_info("ℹ️  Usa /modo-agente para volver al modo completo")
-                self.logger.info("Modo cambiado a: CHAT")
+                self.cli.print_success("💬 CHAT mode enabled")
+                self.cli.print_info("✓ Only read tools enabled")
+                self.cli.print_info("✗ The agent CANNOT modify files or execute commands")
+                self.cli.print_info("ℹ️  Use /modo-agente to return to full mode")
+                self.logger.info("Mode changed to: CHAT")
 
         elif cmd == "/config" or cmd == "/configuracion":
-            # Mostrar configuración actual
-            self.cli.print_info("\n⚙️  Configuración Actual\n")
-            masked_key = f"{self.settings.api_key[:8]}...{self.settings.api_key[-4:]}" if self.settings.api_key else "No configurada"
+            # Show current configuration
+            self.cli.print_info("\n⚙️  Current Configuration\n")
+            masked_key = f"{self.settings.api_key[:8]}...{self.settings.api_key[-4:]}" if self.settings.api_key else "Not configured"
             self.cli.print_info(f"  • API Key: {masked_key}")
             self.cli.print_info(f"  • Base URL: {self.settings.base_url}")
-            self.cli.print_info(f"  • Modelo: {self.settings.model}")
+            self.cli.print_info(f"  • Model: {self.settings.model}")
             self.cli.print_info(f"  • SSL Verify: {self.settings.ssl_verify}")
-            self.cli.print_info(f"  • Modo: {self.current_mode.upper()}")
-            self.cli.print_info("\n💡 Comandos disponibles:")
-            self.cli.print_info("  • /set-model <modelo> - Cambiar el modelo")
-            self.cli.print_info("  • /set-url <url> - Cambiar la URL base")
-            self.cli.print_info("  • /set-ssl <true|false> - Cambiar verificación SSL")
-            self.cli.print_info("\n📄 Archivo de configuración: .daveagent/.env")
+            self.cli.print_info(f"  • Mode: {self.current_mode.upper()}")
+            self.cli.print_info("\n💡 Available commands:")
+            self.cli.print_info("  • /set-model <model> - Change the model")
+            self.cli.print_info("  • /set-url <url> - Change the base URL")
+            self.cli.print_info("  • /set-ssl <true|false> - Change SSL verification")
+            self.cli.print_info("\n📄 Configuration file: .daveagent/.env")
 
         elif cmd == "/set-model":
-            # Cambiar el modelo
+            # Change the model
             if len(parts) < 2:
-                self.cli.print_error("Uso: /set-model <nombre-del-modelo>")
-                self.cli.print_info("\nEjemplos:")
+                self.cli.print_error("Usage: /set-model <model-name>")
+                self.cli.print_info("\nExamples:")
                 self.cli.print_info("  /set-model deepseek-chat")
                 self.cli.print_info("  /set-model deepseek-reasoner")
                 self.cli.print_info("  /set-model gpt-4")
@@ -561,33 +561,33 @@ class DaveAgentCLI:
                 new_model = parts[1]
                 old_model = self.settings.model
                 self.settings.model = new_model
-                self.model_client._model = new_model  # Actualizar cliente
-                self.cli.print_success(f"✓ Modelo cambiado: {old_model} → {new_model}")
-                self.logger.info(f"Modelo cambiado de {old_model} a {new_model}")
+                self.model_client._model = new_model  # Update client
+                self.cli.print_success(f"✓ Model changed: {old_model} → {new_model}")
+                self.logger.info(f"Model changed from {old_model} to {new_model}")
 
         elif cmd == "/set-url":
-            # Cambiar la URL base
+            # Change the base URL
             if len(parts) < 2:
-                self.cli.print_error("Uso: /set-url <url-base>")
-                self.cli.print_info("\nEjemplos:")
+                self.cli.print_error("Usage: /set-url <base-url>")
+                self.cli.print_info("\nExamples:")
                 self.cli.print_info("  /set-url https://api.deepseek.com")
                 self.cli.print_info("  /set-url https://api.openai.com/v1")
             else:
                 new_url = parts[1]
                 old_url = self.settings.base_url
                 self.settings.base_url = new_url
-                self.model_client._base_url = new_url  # Actualizar cliente
-                self.cli.print_success(f"✓ URL cambiada: {old_url} → {new_url}")
-                self.logger.info(f"URL base cambiada de {old_url} a {new_url}")
+                self.model_client._base_url = new_url  # Update client
+                self.cli.print_success(f"✓ URL changed: {old_url} → {new_url}")
+                self.logger.info(f"Base URL changed from {old_url} to {new_url}")
 
         elif cmd == "/set-ssl":
-            # Cambiar verificación SSL
+            # Change SSL verification
             if len(parts) < 2:
-                self.cli.print_error("Uso: /set-ssl <true|false>")
-                self.cli.print_info("\nEjemplos:")
-                self.cli.print_info("  /set-ssl true   # Verificar certificados SSL (por defecto)")
-                self.cli.print_info("  /set-ssl false  # Deshabilitar verificación SSL")
-                self.cli.print_warning("\n⚠️  Advertencia: Deshabilitar SSL reduce la seguridad")
+                self.cli.print_error("Usage: /set-ssl <true|false>")
+                self.cli.print_info("\nExamples:")
+                self.cli.print_info("  /set-ssl true   # Verify SSL certificates (default)")
+                self.cli.print_info("  /set-ssl false  # Disable SSL verification")
+                self.cli.print_warning("\n⚠️  Warning: Disabling SSL reduces security")
             else:
                 ssl_value = parts[1].lower()
                 if ssl_value in ("true", "1", "yes", "on"):
@@ -595,46 +595,46 @@ class DaveAgentCLI:
                 elif ssl_value in ("false", "0", "no", "off"):
                     new_ssl = False
                 else:
-                    self.cli.print_error(f"Valor inválido: {ssl_value}")
-                    self.cli.print_info("Usa: true o false")
+                    self.cli.print_error(f"Invalid value: {ssl_value}")
+                    self.cli.print_info("Use: true or false")
                     return True
 
                 old_ssl = self.settings.ssl_verify
                 self.settings.ssl_verify = new_ssl
 
-                # Recrear el cliente HTTP con nueva configuración SSL
+                # Recreate HTTP client with new SSL configuration
                 import httpx
                 http_client = httpx.AsyncClient(verify=new_ssl)
 
-                # Actualizar el cliente del modelo
+                # Update model client
                 if hasattr(self.model_client, '_wrapped_client'):
-                    # Es LoggingModelClientWrapper, actualizar el wrapped client
+                    # It's LoggingModelClientWrapper, update wrapped client
                     self.model_client._wrapped_client._http_client = http_client
                 else:
                     self.model_client._http_client = http_client
 
-                self.cli.print_success(f"✓ SSL Verify cambiado: {old_ssl} → {new_ssl}")
+                self.cli.print_success(f"✓ SSL Verify changed: {old_ssl} → {new_ssl}")
                 if not new_ssl:
-                    self.cli.print_warning("⚠️  Verificación SSL deshabilitada - Las conexiones no son seguras")
-                self.logger.info(f"SSL verify cambiado de {old_ssl} a {new_ssl}")
+                    self.cli.print_warning("⚠️  SSL verification disabled - Connections are not secure")
+                self.logger.info(f"SSL verify changed from {old_ssl} to {new_ssl}")
 
         elif cmd == "/search":
-            # Invocar CodeSearcher para buscar en el código
+            # Invoke CodeSearcher to search in the code
             if len(parts) < 2:
-                self.cli.print_error("Uso: /search <consulta>")
-                self.cli.print_info("Ejemplo: /search función de autenticación")
+                self.cli.print_error("Usage: /search <query>")
+                self.cli.print_info("Example: /search authentication function")
             else:
                 query = parts[1]
-                self.cli.print_thinking(f"🔍 Buscando en el código: {query}")
+                self.cli.print_thinking(f"🔍 Searching in code: {query}")
                 await self._run_code_searcher(query)
 
         elif cmd == "/index":
-            # Indexar el proyecto en memoria
-            self.cli.print_info("📚 Indexando proyecto en memoria vectorial...")
+            # Index project in memory
+            self.cli.print_info("📚 Indexing project in vector memory...")
             await self._index_project()
 
         elif cmd == "/memory":
-            # Mostrar estadísticas de memoria
+            # Show memory statistics
             if len(parts) < 2:
                 await self._show_memory_stats()
             else:
@@ -642,141 +642,141 @@ class DaveAgentCLI:
                 if subcommand == "clear":
                     await self._clear_memory()
                 elif subcommand == "query":
-                    self.cli.print_info("Uso: /memory query <texto>")
+                    self.cli.print_info("Usage: /memory query <text>")
                 else:
-                    self.cli.print_error(f"Subcomando desconocido: {subcommand}")
-                    self.cli.print_info("Uso: /memory [clear|query]")
+                    self.cli.print_error(f"Unknown subcommand: {subcommand}")
+                    self.cli.print_info("Usage: /memory [clear|query]")
 
         else:
-            self.cli.print_error(f"Comando desconocido: {cmd}")
-            self.cli.print_info("Usa /help para ver los comandos disponibles")
+            self.cli.print_error(f"Unknown command: {cmd}")
+            self.cli.print_info("Use /help to see available commands")
 
         return True
 
     # =========================================================================
-    # MEMORY MANAGEMENT - Gestión de memoria vectorial
+    # MEMORY MANAGEMENT - Vector memory management
     # =========================================================================
 
     async def _index_project(self):
-        """Indexa el proyecto actual en memoria vectorial"""
+        """Index current project in vector memory"""
         try:
             from pathlib import Path
 
             self.cli.start_thinking()
-            self.logger.info("📚 Iniciando indexación del proyecto...")
+            self.logger.info("📚 Starting project indexing...")
 
-            # Crear indexer
+            # Create indexer
             indexer = DocumentIndexer(
                 memory=self.memory_manager.codebase_memory,
                 chunk_size=1500
             )
 
-            # Indexar directorio actual
+            # Index current directory
             project_dir = Path.cwd()
             stats = await indexer.index_project(
                 project_dir=project_dir,
-                max_files=500  # Limitar a 500 archivos para no sobrecargar
+                max_files=500  # Limit to 500 files to avoid overload
             )
 
             self.cli.stop_thinking()
 
-            # Mostrar estadísticas
-            self.cli.print_success(f"✅ Indexación completada!")
-            self.cli.print_info(f"  • Archivos indexados: {stats['files_indexed']}")
-            self.cli.print_info(f"  • Chunks creados: {stats['chunks_created']}")
-            self.cli.print_info(f"  • Archivos omitidos: {stats['files_skipped']}")
+            # Show statistics
+            self.cli.print_success(f"✅ Indexing completed!")
+            self.cli.print_info(f"  • Files indexed: {stats['files_indexed']}")
+            self.cli.print_info(f"  • Chunks created: {stats['chunks_created']}")
+            self.cli.print_info(f"  • Files skipped: {stats['files_skipped']}")
             if stats['errors'] > 0:
-                self.cli.print_warning(f"  • Errores: {stats['errors']}")
+                self.cli.print_warning(f"  • Errors: {stats['errors']}")
 
-            self.logger.info(f"✅ Proyecto indexado: {stats}")
+            self.logger.info(f"✅ Project indexed: {stats}")
 
         except Exception as e:
             self.cli.stop_thinking()
             self.logger.log_error_with_context(e, "_index_project")
-            self.cli.print_error(f"Error indexando proyecto: {str(e)}")
+            self.cli.print_error(f"Error indexing project: {str(e)}")
 
     async def _show_memory_stats(self):
-        """Muestra estadísticas de memoria"""
+        """Show memory statistics"""
         try:
-            self.cli.print_info("\n🧠 Estadísticas de Memoria Vectorial\n")
+            self.cli.print_info("\n🧠 Vector Memory Statistics\n")
 
-            # Nota: ChromaDB no expone fácilmente el conteo de items
-            # Podríamos hacer queries dummy o mantener contadores
-            # Por ahora, mostrar información general
+            # Note: ChromaDB doesn't easily expose item counts
+            # We could do dummy queries or maintain counters
+            # For now, show general information
 
-            self.cli.print_info("📚 Sistema de memoria activo con 5 colecciones:")
-            self.cli.print_info("  • Conversations: Historial de conversaciones")
-            self.cli.print_info("  • Codebase: Código fuente indexado")
-            self.cli.print_info("  • Decisions: Decisiones arquitectónicas")
-            self.cli.print_info("  • Preferences: Preferencias del usuario")
-            self.cli.print_info("  • User Info: Información del usuario (nombre, experiencia, proyectos)")
+            self.cli.print_info("📚 Active memory system with 5 collections:")
+            self.cli.print_info("  • Conversations: Conversation history")
+            self.cli.print_info("  • Codebase: Indexed source code")
+            self.cli.print_info("  • Decisions: Architectural decisions")
+            self.cli.print_info("  • Preferences: User preferences")
+            self.cli.print_info("  • User Info: User information (name, experience, projects)")
 
             memory_path = self.memory_manager.persistence_path
-            self.cli.print_info(f"\n💾 Ubicación: {memory_path}")
+            self.cli.print_info(f"\n💾 Location: {memory_path}")
 
-            # Calcular tamaño del directorio de memoria
+            # Calculate memory directory size
             try:
                 from pathlib import Path
                 total_size = sum(f.stat().st_size for f in Path(memory_path).rglob('*') if f.is_file())
                 size_mb = total_size / (1024 * 1024)
-                self.cli.print_info(f"📊 Tamaño total: {size_mb:.2f} MB")
+                self.cli.print_info(f"📊 Total size: {size_mb:.2f} MB")
             except Exception as e:
-                self.logger.warning(f"No se pudo calcular tamaño: {e}")
+                self.logger.warning(f"Could not calculate size: {e}")
 
-            self.cli.print_info("\n💡 Comandos disponibles:")
-            self.cli.print_info("  • /index - Indexar proyecto actual")
-            self.cli.print_info("  • /memory clear - Limpiar toda la memoria")
+            self.cli.print_info("\n💡 Available commands:")
+            self.cli.print_info("  • /index - Index current project")
+            self.cli.print_info("  • /memory clear - Clear all memory")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "_show_memory_stats")
-            self.cli.print_error(f"Error mostrando estadísticas: {str(e)}")
+            self.cli.print_error(f"Error showing statistics: {str(e)}")
 
     async def _clear_memory(self):
-        """Limpia toda la memoria vectorial"""
+        """Clear all vector memory"""
         try:
-            self.cli.print_warning("⚠️  ¿Estás seguro de que quieres borrar TODA la memoria?")
-            self.cli.print_info("Esto eliminará:")
-            self.cli.print_info("  • Historial de conversaciones")
-            self.cli.print_info("  • Código base indexado")
-            self.cli.print_info("  • Decisiones arquitectónicas")
-            self.cli.print_info("  • Preferencias del usuario")
+            self.cli.print_warning("⚠️  Are you sure you want to delete ALL memory?")
+            self.cli.print_info("This will remove:")
+            self.cli.print_info("  • Conversation history")
+            self.cli.print_info("  • Indexed codebase")
+            self.cli.print_info("  • Architectural decisions")
+            self.cli.print_info("  • User preferences")
 
-            # En CLI no tenemos confirmación interactiva fácil
-            # Por seguridad, requerir un segundo comando
-            self.cli.print_warning("\n⚠️  Para confirmar, ejecuta: /memory clear confirm")
+            # In CLI we don't have easy interactive confirmation
+            # For safety, require a second command
+            self.cli.print_warning("\n⚠️  To confirm, execute: /memory clear confirm")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "_clear_memory")
-            self.cli.print_error(f"Error limpiando memoria: {str(e)}")
+            self.cli.print_error(f"Error clearing memory: {str(e)}")
 
     # =========================================================================
-    # STATE MANAGEMENT - Gestión de estado con AutoGen save_state/load_state
+    # STATE MANAGEMENT - State management with AutoGen save_state/load_state
     # =========================================================================
 
     async def _new_session_command(self, parts: list):
         """
-        Comando /new-session: Crea una nueva sesión con metadata
+        Command /new-session: Create a new session with metadata
 
-        Uso:
-            /new-session <título>
-            /new-session "Mi proyecto web" --tags backend,api --desc "API REST con FastAPI"
+        Usage:
+            /new-session <title>
+            /new-session "My web project" --tags backend,api --desc "REST API with FastAPI"
         """
         try:
             # Parse arguments
             import shlex
-            
+
             if len(parts) < 2:
-                self.cli.print_error("Uso: /new-session <título> [--tags tag1,tag2] [--desc descripción]")
-                self.cli.print_info("Ejemplo: /new-session \"Proyecto Web\" --tags python,web --desc \"Desarrollo de API\"")
+                self.cli.print_error("Usage: /new-session <title> [--tags tag1,tag2] [--desc description]")
+                self.cli.print_info("Example: /new-session \"Web Project\" --tags python,web --desc \"API Development\"")
                 return
 
             # Join and parse
             cmd_str = " ".join(parts[1:])
-            
+
             # Extract title (first argument)
             args = shlex.split(cmd_str)
             if not args:
-                self.cli.print_error("Debes proporcionar un título para la sesión")
+                self.cli.print_error("You must provide a title for the session")
                 return
             
             title = args[0]
@@ -807,46 +807,46 @@ class DaveAgentCLI:
                 description=description
             )
 
-            self.cli.print_success(f"✅ Nueva sesión creada: {title}")
+            self.cli.print_success(f"✅ New session created: {title}")
             self.cli.print_info(f"  • Session ID: {session_id}")
             if tags:
                 self.cli.print_info(f"  • Tags: {', '.join(tags)}")
             if description:
-                self.cli.print_info(f"  • Descripción: {description}")
+                self.cli.print_info(f"  • Description: {description}")
 
-            self.logger.info(f"✅ Nueva sesión creada: {session_id} - {title}")
+            self.logger.info(f"✅ New session created: {session_id} - {title}")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "_new_session_command")
-            self.cli.print_error(f"Error creando sesión: {str(e)}")
+            self.cli.print_error(f"Error creating session: {str(e)}")
 
     async def _generate_session_title(self) -> str:
         """
-        Genera un título descriptivo para la sesión usando LLM basado en el historial
+        Generate a descriptive title for the session using LLM based on history
 
         Returns:
-            Título generado (máximo 50 caracteres)
+            Generated title (maximum 50 characters)
         """
         try:
-            # Obtener mensajes del historial actual
+            # Get messages from current history
             messages = self.state_manager.get_session_history()
-            
+
             if not messages or len(messages) < 2:
                 return "Untitled Session"
-            
-            # Tomar los primeros mensajes para entender el contexto
-            context_messages = messages[:5]  # Primeros 5 mensajes
-            
-            # Formatear contexto
+
+            # Take first messages to understand context
+            context_messages = messages[:5]  # First 5 messages
+
+            # Format context
             conversation_summary = ""
             for msg in context_messages:
                 role = msg.get("source", "unknown")
                 content = msg.get("content", "")
-                # Limitar longitud de cada mensaje
+                # Limit length of each message
                 content_preview = content[:200] if len(content) > 200 else content
                 conversation_summary += f"{role}: {content_preview}\n"
             
-            # Crear prompt para generar título
+            # Create prompt to generate title
             title_prompt = f"""Based on the following conversation, generate a short, descriptive title (maximum 50 characters).
 The title should capture the main topic or task being discussed.
 
@@ -858,51 +858,51 @@ Examples: "Python API Development", "Bug Fix in Authentication", "Database Migra
 
 TITLE:"""
 
-            # Llamar al LLM
+            # Call the LLM
             from autogen_core.models import UserMessage
             result = await self.model_client.create(
                 messages=[UserMessage(content=title_prompt, source="user")]
             )
-            
-            # Extraer título
+
+            # Extract title
             title = result.content.strip()
-            
-            # Limpiar título (remover comillas, etc.)
+
+            # Clean title (remove quotes, etc.)
             title = title.strip('"').strip("'").strip()
-            
-            # Limitar longitud
+
+            # Limit length
             if len(title) > 50:
                 title = title[:47] + "..."
-            
-            self.logger.info(f"📝 Título generado: {title}")
+
+            self.logger.info(f"📝 Title generated: {title}")
             return title
-            
+
         except Exception as e:
-            self.logger.warning(f"Error generando título: {e}")
+            self.logger.warning(f"Error generating title: {e}")
             return "Untitled Session"
 
     async def _auto_save_agent_states(self):
         """
-        Auto-guarda el estado de todos los agentes después de cada respuesta.
-        Se ejecuta silenciosamente en background.
-        Genera un título automático si la sesión no tiene uno.
+        Auto-save the state of all agents after each response.
+        Runs silently in background.
+        Generates an automatic title if the session doesn't have one.
         """
         try:
-            # Iniciar sesión si no está iniciada
+            # Start session if not started
             if not self.state_manager.session_id:
                 from datetime import datetime
                 session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
-                # Generar título automáticamente usando LLM
+
+                # Generate title automatically using LLM
                 title = await self._generate_session_title()
-                
+
                 self.state_manager.start_session(
                     session_id=session_id,
                     title=title
                 )
-                self.logger.info(f"🎯 Nueva sesión creada con título: {title}")
+                self.logger.info(f"🎯 New session created with title: {title}")
 
-            # Guardar estado de cada agente
+            # Save state of each agent
             await self.state_manager.save_agent_state(
                 "coder",
                 self.coder_agent,
@@ -921,57 +921,57 @@ TITLE:"""
                 metadata={"description": "Planning and task management agent"}
             )
 
-            # Guardar a disco
+            # Save to disk
             await self.state_manager.save_to_disk()
 
-            self.logger.debug("💾 Auto-save: Estado guardado automáticamente")
+            self.logger.debug("💾 Auto-save: State saved automatically")
 
         except Exception as e:
-            # No fallar si el auto-save falla, solo log
-            self.logger.warning(f"⚠️ Auto-save falló: {str(e)}")
+            # Don't fail if auto-save fails, just log
+            self.logger.warning(f"⚠️ Auto-save failed: {str(e)}")
 
     async def _save_state_command(self, parts: list):
         """
-        Comando /save-state o /save-session: Guarda el estado completo de agentes y teams
+        Command /save-state or /save-session: Save complete state of agents and teams
 
-        Uso:
-            /save-state                  # Guarda sesión actual
-            /save-state <título>         # Guarda con título específico (crea nueva sesión)
-            /save-session <título>       # Alias
+        Usage:
+            /save-state                  # Save current session
+            /save-state <title>          # Save with specific title (create new session)
+            /save-session <title>        # Alias
         """
         try:
-            self.cli.start_thinking(message="guardando sesión")
-            self.logger.info("💾 Guardando estado de agentes...")
+            self.cli.start_thinking(message="saving session")
+            self.logger.info("💾 Saving agent states...")
 
-            # Determinar si es nueva sesión o actualización
+            # Determine if it's a new session or update
             if len(parts) > 1 and not self.state_manager.session_id:
-                # Nueva sesión con título manual
+                # New session with manual title
                 title = " ".join(parts[1:])
                 from datetime import datetime
                 session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
+
                 self.state_manager.start_session(
                     session_id=session_id,
                     title=title
                 )
             elif not self.state_manager.session_id:
-                # Auto-generar sesión con título automático usando LLM
+                # Auto-generate session with automatic title using LLM
                 from datetime import datetime
                 session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
-                # Generar título inteligente
+
+                # Generate smart title
                 title = await self._generate_session_title()
-                
+
                 self.state_manager.start_session(
                     session_id=session_id,
                     title=title
                 )
-                self.logger.info(f"📝 Título generado automáticamente: {title}")
+                self.logger.info(f"📝 Title generated automatically: {title}")
             else:
-                # Actualizar sesión existente
+                # Update existing session
                 session_id = self.state_manager.session_id
 
-            # Guardar estado de cada agente
+            # Save state of each agent
             await self.state_manager.save_agent_state(
                 "coder",
                 self.coder_agent,
@@ -990,7 +990,7 @@ TITLE:"""
                 metadata={"description": "Planning and task management agent"}
             )
 
-            # Guardar a disco
+            # Save to disk
             state_path = await self.state_manager.save_to_disk(session_id)
 
             self.cli.stop_thinking()
@@ -999,39 +999,39 @@ TITLE:"""
             metadata = self.state_manager.get_session_metadata()
             messages = self.state_manager.get_session_history()
 
-            self.cli.print_success(f"✅ Estado guardado correctamente!")
-            self.cli.print_info(f"  • Título: {metadata.get('title', 'Sin título')}")
+            self.cli.print_success(f"✅ State saved successfully!")
+            self.cli.print_info(f"  • Title: {metadata.get('title', 'Untitled')}")
             self.cli.print_info(f"  • Session ID: {session_id}")
-            self.cli.print_info(f"  • Ubicación: {state_path}")
-            self.cli.print_info(f"  • Agentes guardados: 3")
-            self.cli.print_info(f"  • Mensajes guardados: {len(messages)}")
+            self.cli.print_info(f"  • Location: {state_path}")
+            self.cli.print_info(f"  • Agents saved: 3")
+            self.cli.print_info(f"  • Messages saved: {len(messages)}")
 
-            self.logger.info(f"✅ Estado guardado en sesión: {session_id}")
+            self.logger.info(f"✅ State saved in session: {session_id}")
 
         except Exception as e:
             self.cli.stop_thinking()
             self.logger.log_error_with_context(e, "_save_state_command")
-            self.cli.print_error(f"Error guardando estado: {str(e)}")
+            self.cli.print_error(f"Error saving state: {str(e)}")
 
     async def _load_state_command(self, parts: list):
         """
-        Comando /load-state o /load-session: Carga el estado de agentes desde una sesión
-        y muestra el historial completo
+        Command /load-state or /load-session: Load agent state from a session
+        and display complete history
 
-        Uso:
-            /load-state                  # Carga sesión más reciente
-            /load-state my_session       # Carga sesión específica
+        Usage:
+            /load-state                  # Load most recent session
+            /load-state my_session       # Load specific session
             /load-session <session_id>   # Alias
         """
         try:
-            self.cli.start_thinking(message="cargando sesión")
-            self.logger.info("📂 Cargando estado de agentes...")
+            self.cli.start_thinking(message="loading session")
+            self.logger.info("📂 Loading agent states...")
 
-            # Determinar session_id
+            # Determine session_id
             if len(parts) > 1:
                 session_id = parts[1]
             else:
-                # Usar sesión más reciente
+                # Use most recent session
                 sessions = self.state_manager.list_sessions()
                 if not sessions:
                     self.cli.stop_thinking()
@@ -1039,18 +1039,18 @@ TITLE:"""
                     return
 
                 session_id = sessions[0]["session_id"]
-                title = sessions[0].get("title", "Sesión más reciente")
+                title = sessions[0].get("title", "Most recent session")
                 self.history_viewer.display_loading_session(session_id, title)
 
-            # Cargar desde disco
+            # Load from disk
             loaded = await self.state_manager.load_from_disk(session_id)
 
             if not loaded:
                 self.cli.stop_thinking()
-                self.cli.print_error(f"No se encontró sesión: {session_id}")
+                self.cli.print_error(f"Session not found: {session_id}")
                 return
 
-            # Cargar estado en cada agente
+            # Load state into each agent
             agents_loaded = 0
 
             if await self.state_manager.load_agent_state("coder", self.coder_agent):
@@ -1080,30 +1080,30 @@ TITLE:"""
 
             # Display conversation history
             if messages:
-                self.cli.print_info("📜 Mostrando historial de conversación:\n")
+                self.cli.print_info("📜 Displaying conversation history:\n")
                 self.history_viewer.display_conversation_history(
                     messages=messages,
                     max_messages=20,  # Show last 20 messages
                     show_thoughts=False
                 )
-                
-                if len(messages) > 20:
-                    self.cli.print_info(f"💡 Se muestran los últimos 20 de {len(messages)} mensajes")
-                    self.cli.print_info("💡 Usa /history --all para ver todos los mensajes")
-            else:
-                self.cli.print_warning("⚠️ No hay mensajes en el historial de esta sesión")
 
-            self.cli.print_info("\n✅ El agente continuará desde donde quedó la conversación")
-            self.logger.info(f"✅ Estado cargado desde sesión: {session_id}")
+                if len(messages) > 20:
+                    self.cli.print_info(f"💡 Showing last 20 of {len(messages)} messages")
+                    self.cli.print_info("💡 Use /history --all to see all messages")
+            else:
+                self.cli.print_warning("⚠️ No messages in this session's history")
+
+            self.cli.print_info("\n✅ The agent will continue from where the conversation left off")
+            self.logger.info(f"✅ State loaded from session: {session_id}")
 
         except Exception as e:
             self.cli.stop_thinking()
             self.logger.log_error_with_context(e, "_load_state_command")
-            self.cli.print_error(f"Error cargando estado: {str(e)}")
+            self.cli.print_error(f"Error loading state: {str(e)}")
 
     async def _list_sessions_command(self):
         """
-        Comando /list-sessions o /sessions: Lista todas las sesiones guardadas con Rich
+        Command /list-sessions or /sessions: List all saved sessions with Rich
         """
         try:
             sessions = self.state_manager.list_sessions()
@@ -1115,22 +1115,22 @@ TITLE:"""
             # Display sessions using Rich table
             self.history_viewer.display_sessions_list(sessions)
 
-            self.cli.print_info("💡 Usa /load-session <session_id> para cargar una sesión")
-            self.cli.print_info("💡 Usa /history para ver el historial de la sesión actual")
+            self.cli.print_info("💡 Use /load-session <session_id> to load a session")
+            self.cli.print_info("💡 Use /history to view current session history")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "_list_sessions_command")
-            self.cli.print_error(f"Error listando sesiones: {str(e)}")
+            self.cli.print_error(f"Error listing sessions: {str(e)}")
 
     async def _show_history_command(self, parts: list):
         """
-        Comando /history: Muestra el historial de la sesión actual
+        Command /history: Display current session history
 
-        Uso:
-            /history              # Muestra últimos 20 mensajes
-            /history --all        # Muestra todos los mensajes
-            /history --thoughts   # Incluye pensamientos/razonamientos
-            /history <session_id> # Muestra historial de sesión específica
+        Usage:
+            /history              # Show last 20 messages
+            /history --all        # Show all messages
+            /history --thoughts   # Include thoughts/reasoning
+            /history <session_id> # Show specific session history
         """
         try:
             # Parse options
@@ -1152,17 +1152,17 @@ TITLE:"""
             else:
                 # Use current session
                 if not self.state_manager.session_id:
-                    self.cli.print_warning("⚠️ No hay una sesión activa")
-                    self.cli.print_info("💡 Usa /load-session <id> para cargar una sesión")
-                    self.cli.print_info("💡 O usa /new-session <título> para crear una nueva")
+                    self.cli.print_warning("⚠️ No active session")
+                    self.cli.print_info("💡 Use /load-session <id> to load a session")
+                    self.cli.print_info("💡 Or use /new-session <title> to create a new one")
                     return
-                
+
                 messages = self.state_manager.get_session_history()
                 metadata = self.state_manager.get_session_metadata()
                 session_id = self.state_manager.session_id
 
             if not messages:
-                self.cli.print_warning("⚠️ No hay mensajes en el historial de esta sesión")
+                self.cli.print_warning("⚠️ No messages in this session's history")
                 return
 
             # Display metadata
@@ -1178,53 +1178,53 @@ TITLE:"""
 
             # Show info about truncation
             if not show_all and len(messages) > 20:
-                self.cli.print_info(f"\n💡 Se muestran los últimos 20 de {len(messages)} mensajes")
-                self.cli.print_info("💡 Usa /history --all para ver todos los mensajes")
+                self.cli.print_info(f"\n💡 Showing last 20 of {len(messages)} messages")
+                self.cli.print_info("💡 Use /history --all to see all messages")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "_show_history_command")
-            self.cli.print_error(f"Error mostrando historial: {str(e)}")
+            self.cli.print_error(f"Error showing history: {str(e)}")
 
     # =========================================================================
-    # COMPLEXITY DETECTION - Detección de complejidad de tareas
+    # COMPLEXITY DETECTION - Task complexity detection
     # =========================================================================
 
     async def _detect_task_complexity(self, user_input: str) -> str:
         """
-        🔀 ENRUTADOR SIMPLE: Detecta complejidad con llamada directa al modelo.
+        🔀 SIMPLE ROUTER: Detect complexity with direct model call.
 
-        NO usa agentes, solo llama al modelo con un prompt optimizado.
+        Does NOT use agents, only calls the model with an optimized prompt.
 
-        FLUJOS:
+        FLOWS:
         - SIMPLE → SelectorGroupChat (CodeSearcher + Coder)
-        - COMPLEX → Planner + TaskExecutor + Agentes
+        - COMPLEX → Planner + TaskExecutor + Agents
 
         Returns:
-            "simple" o "complex"
+            "simple" or "complex"
         """
         try:
-            self.logger.debug(f"🔀 Enrutador: analizando complejidad...")
+            self.logger.debug(f"🔀 Router: analyzing complexity...")
 
-            # Crear prompt con la solicitud del usuario
+            # Create prompt with user request
             prompt = COMPLEXITY_DETECTOR_PROMPT.format(user_input=user_input)
 
-            # Llamada DIRECTA al modelo (sin agentes, más rápido)
+            # DIRECT call to model (without agents, faster)
             from autogen_core.models import UserMessage
 
             result = await self.model_client.create(
                 messages=[UserMessage(content=prompt, source="user")]
             )
 
-            # Extraer y parsear respuesta JSON
+            # Extract and parse JSON response
             response = result.content.strip()
-            self.logger.debug(f"🔀 Respuesta del modelo: {response[:200]}")
+            self.logger.debug(f"🔀 Model response: {response[:200]}")
 
-            # Parsear JSON
+            # Parse JSON
             import json
             import re
 
             try:
-                # Limpiar markdown si existe (algunos modelos agregan ```json```)
+                # Clean markdown if it exists (some models add ```json```)
                 json_match = re.search(r'\{[^{}]*"complexity"[^{}]*\}', response, re.DOTALL)
                 if json_match:
                     json_str = json_match.group(0)
@@ -1232,56 +1232,56 @@ TITLE:"""
                     complexity = response_data.get("complexity", "simple").lower()
                     reasoning = response_data.get("reasoning", "No reasoning provided")
 
-                    self.logger.info(f"✅ Enrutador decidió: {complexity.upper()}")
-                    self.logger.debug(f"   Razonamiento: {reasoning}")
+                    self.logger.info(f"✅ Router decided: {complexity.upper()}")
+                    self.logger.debug(f"   Reasoning: {reasoning}")
                 else:
-                    # Fallback: buscar la palabra en la respuesta
-                    self.logger.warning("⚠️ No se encontró JSON válido, usando fallback")
+                    # Fallback: search for the word in the response
+                    self.logger.warning("⚠️ Valid JSON not found, using fallback")
                     if "complex" in response.lower():
                         complexity = "complex"
                     else:
                         complexity = "simple"
-                    self.logger.warning(f"   Fallback decidió: {complexity}")
+                    self.logger.warning(f"   Fallback decided: {complexity}")
 
             except json.JSONDecodeError as e:
-                # Si falla el parseo JSON, usar fallback simple
-                self.logger.warning(f"⚠️ Error parseando JSON: {e}, usando fallback")
+                # If JSON parsing fails, use simple fallback
+                self.logger.warning(f"⚠️ Error parsing JSON: {e}, using fallback")
                 if "complex" in response.lower():
                     complexity = "complex"
                 else:
                     complexity = "simple"
-                self.logger.warning(f"   Fallback decidió: {complexity}")
+                self.logger.warning(f"   Fallback decided: {complexity}")
 
             return complexity
 
         except Exception as e:
-            # Fallback seguro
-            self.logger.error(f"❌ Error en enrutador: {str(e)}")
-            self.logger.warning("⚠️ Fallback: usando flujo SIMPLE")
+            # Safe fallback
+            self.logger.error(f"❌ Error in router: {str(e)}")
+            self.logger.warning("⚠️ Fallback: using SIMPLE flow")
             return "simple"
 
     # =========================================================================
-    # CODE SEARCHER - Búsqueda de código
+    # CODE SEARCHER - Code search
     # =========================================================================
 
     async def _run_code_searcher(self, query: str):
         """
-        Ejecuta CodeSearcher para buscar y analizar código
+        Execute CodeSearcher to search and analyze code
 
         Args:
-            query: Consulta de búsqueda del usuario
+            query: User's search query
         """
         try:
-            self.logger.info(f"🔍 Ejecutando CodeSearcher: {query}")
+            self.logger.info(f"🔍 Executing CodeSearcher: {query}")
 
-            # Usar streaming para mostrar progreso en tiempo real
+            # Use streaming to show progress in real-time
             message_count = 0
             agent_messages_shown = set()
 
             async for msg in self.code_searcher.search_code_context_stream(query):
                 message_count += 1
                 msg_type = type(msg).__name__
-                self.logger.debug(f"CodeSearcher mensaje #{message_count} - Tipo: {msg_type}")
+                self.logger.debug(f"CodeSearcher message #{message_count} - Type: {msg_type}")
 
                 if hasattr(msg, 'source') and msg.source != "user":
                     agent_name = msg.source
@@ -1291,7 +1291,7 @@ TITLE:"""
                     else:
                         content = str(msg)
 
-                    # Crear clave única
+                    # Create unique key
                     try:
                         if isinstance(content, list):
                             content_str = str(content)
@@ -1302,7 +1302,7 @@ TITLE:"""
                         message_key = f"{agent_name}:{hash(str(content))}"
 
                     if message_key not in agent_messages_shown:
-                        # Mostrar diferentes tipos de mensajes
+                        # Show different message types
                         if msg_type == "ThoughtEvent":
                             self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
                             self.logger.debug(f"💭 Thought: {content_str}")
@@ -1313,7 +1313,7 @@ TITLE:"""
                                 for tool_call in content:
                                     if hasattr(tool_call, 'name'):
                                         tool_name = tool_call.name
-                                        self.cli.print_info(f"🔧 Buscando con: {tool_name}", agent_name)
+                                        self.cli.print_info(f"🔧 Searching with: {tool_name}", agent_name)
                                         self.logger.debug(f"🔧 Tool call: {tool_name}")
                             agent_messages_shown.add(message_key)
 
@@ -1328,67 +1328,67 @@ TITLE:"""
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "TextMessage":
-                            # Mostrar el análisis completo
+                            # Show complete analysis
                             self.cli.print_agent_message(content_str, agent_name)
                             agent_messages_shown.add(message_key)
 
-            self.cli.print_success("\n✅ Búsqueda completada. Usa esta información para tu próxima solicitud.")
-            self.logger.info("✅ CodeSearcher completado")
+            self.cli.print_success("\n✅ Search completed. Use this information for your next request.")
+            self.logger.info("✅ CodeSearcher completed")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "_run_code_searcher")
-            self.cli.print_error(f"Error en búsqueda de código: {str(e)}")
+            self.cli.print_error(f"Error in code search: {str(e)}")
 
     # =========================================================================
-    # COMPLEX TASK EXECUTION - SelectorGroupChat con selector_func
+    # COMPLEX TASK EXECUTION - SelectorGroupChat with selector_func
     # =========================================================================
 
     async def _execute_complex_task(self, user_input: str):
         """
-        Ejecuta tareas complejas usando SelectorGroupChat con re-planificación dinámica.
+        Execute complex tasks using SelectorGroupChat with dynamic re-planning.
 
-        ARQUITECTURA:
-        - PlanningAgent: Crea plan, revisa progreso, re-planifica
-        - CodeSearcher: Busca y analiza código existente
-        - Coder: Ejecuta modificaciones, crea archivos
+        ARCHITECTURE:
+        - PlanningAgent: Create plan, review progress, re-plan
+        - CodeSearcher: Search and analyze existing code
+        - Coder: Execute modifications, create files
 
-        FLUJO:
-        1. Planner crea plan inicial
-        2. Selector LLM elige CodeSearcher o Coder para cada tarea
-        3. selector_func fuerza a Planner a revisar después de cada acción
-        4. Planner puede re-planificar si es necesario
-        5. Cuando todo está completo, Planner marca TASK_COMPLETED
+        FLOW:
+        1. Planner creates initial plan
+        2. LLM Selector chooses CodeSearcher or Coder for each task
+        3. selector_func forces Planner to review after each action
+        4. Planner can re-plan if necessary
+        5. When everything is complete, Planner marks TASK_COMPLETED
         """
         try:
-            self.logger.info("🎯 Usando flujo COMPLEJO: SelectorGroupChat + re-planificación")
-            self.cli.print_info("📋 Tarea compleja detectada. Iniciando planificación...\n")
+            self.logger.info("🎯 Using COMPLEX flow: SelectorGroupChat + re-planning")
+            self.cli.print_info("📋 Complex task detected. Starting planning...\n")
 
-            # Función de selección personalizada para re-planificación dinámica
+            # Custom selection function for dynamic re-planning
             def custom_selector_func(messages):
                 """
-                Controla el flujo para permitir re-planificación:
-                - Después de Planner → Selector LLM decide (Coder/CodeSearcher)
-                - Después de Coder/CodeSearcher → Volver a Planner (revisar progreso)
+                Control flow to allow re-planning:
+                - After Planner → LLM Selector decides (Coder/CodeSearcher)
+                - After Coder/CodeSearcher → Return to Planner (review progress)
                 """
                 if not messages:
                     return None
 
                 last_message = messages[-1]
 
-                # Si el PlanningAgent acaba de hablar
+                # If PlanningAgent just spoke
                 if last_message.source == "Planner":
-                    # Dejar que el selector LLM elija entre Coder/CodeSearcher
-                    return None  # None = usar selector LLM por defecto
+                    # Let the LLM selector choose between Coder/CodeSearcher
+                    return None  # None = use default LLM selector
 
-                # Si Coder o CodeSearcher actuaron, SIEMPRE volver a Planner
-                # para que revise progreso y actualice el plan
+                # If Coder or CodeSearcher acted, ALWAYS return to Planner
+                # so it can review progress and update the plan
                 if last_message.source in ["Coder", "CodeSearcher"]:
                     return "Planner"
 
-                # Para otros casos, usar selector por defecto
+                # For other cases, use default selector
                 return None
 
-            # Crear equipo complejo con selector_func
+            # Create complex team with selector_func
             termination = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(15)
 
             complex_team = SelectorGroupChat(
@@ -1399,18 +1399,18 @@ TITLE:"""
                 ],
                 model_client=self.router_client,
                 termination_condition=termination,
-                selector_func=custom_selector_func  # ← Clave para re-planificación
+                selector_func=custom_selector_func  # ← Key for re-planning
             )
 
-            # Ejecutar con streaming
-            self.logger.debug("Iniciando SelectorGroupChat con streaming...")
+            # Execute with streaming
+            self.logger.debug("Starting SelectorGroupChat with streaming...")
 
             agent_messages_shown = set()
             message_count = 0
             spinner_active = False
 
             # Start initial spinner
-            self.cli.start_thinking(message="iniciando planificación")
+            self.cli.start_thinking(message="starting planning")
             spinner_active = True
 
             async for msg in complex_team.run_stream(task=user_input):
@@ -1433,7 +1433,7 @@ TITLE:"""
                         message_key = f"{agent_name}:{hash(str(content))}"
 
                     if message_key not in agent_messages_shown:
-                        # Mostrar mensajes según tipo
+                        # Show messages by type
                         if msg_type == "TextMessage":
                             if spinner_active:
                                 self.cli.stop_thinking(clear=True)
@@ -1444,7 +1444,7 @@ TITLE:"""
                             agent_messages_shown.add(message_key)
 
                             # After agent finishes, start spinner waiting for next agent
-                            self.cli.start_thinking(message=f"esperando siguiente acción")
+                            self.cli.start_thinking(message=f"waiting for next action")
                             spinner_active = True
 
                         elif msg_type == "ToolCallRequestEvent":
@@ -1456,12 +1456,12 @@ TITLE:"""
                                 for tool_call in content:
                                     if hasattr(tool_call, 'name'):
                                         tool_name = tool_call.name
-                                        self.cli.print_info(f"🔧 Ejecutando: {tool_name}", agent_name)
+                                        self.cli.print_info(f"🔧 Executing: {tool_name}", agent_name)
                                         tool_names.append(tool_name)
 
                                 # Restart spinner ONCE with first tool name (not in loop)
                                 if tool_names:
-                                    self.cli.start_thinking(message=f"ejecutando {tool_names[0]}")
+                                    self.cli.start_thinking(message=f"executing {tool_names[0]}")
                                     spinner_active = True
                             agent_messages_shown.add(message_key)
 
@@ -1504,7 +1504,7 @@ TITLE:"""
                             spinner_active = True
                             agent_messages_shown.add(message_key)
 
-            # Asegurar que el spinner esté detenido
+            # Ensure spinner is stopped
             if spinner_active:
                 self.cli.stop_thinking(clear=True)
 
@@ -1512,10 +1512,10 @@ TITLE:"""
             if self.cli.task_panel_active:
                 self.cli.stop_task_tracking()
 
-            self.logger.info("✅ Flujo complejo completado")
-            self.cli.print_success("\n✅ Tarea compleja completada!")
+            self.logger.info("✅ Complex flow completed")
+            self.cli.print_success("\n✅ Complex task completed!")
 
-            # 💾 AUTO-SAVE: Guardar estado de agentes automáticamente después de cada respuesta
+            # 💾 AUTO-SAVE: Save agent states automatically after each response
             await self._auto_save_agent_states()
 
         except Exception as e:
@@ -1525,35 +1525,35 @@ TITLE:"""
             if self.cli.task_panel_active:
                 self.cli.stop_task_tracking()
             self.logger.log_error_with_context(e, "_execute_complex_task")
-            self.cli.print_error(f"Error en tarea compleja: {str(e)}")
+            self.cli.print_error(f"Error in complex task: {str(e)}")
             import traceback
             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
     # =========================================================================
-    # PROCESAMIENTO DE SOLICITUDES DEL USUARIO
+    # USER REQUEST PROCESSING
     # =========================================================================
 
     async def process_user_request(self, user_input: str):
         """
-        Procesa una solicitud del usuario usando el ROUTER TEAM único.
+        Process a user request using the single ROUTER TEAM.
 
-        NUEVA ARQUITECTURA (SIMPLIFICADA):
-        - Un solo SelectorGroupChat (self.main_team) que enruta automáticamente
-        - El LLM router decide qué agente usar según el contexto
-        - No más detección manual de complejidad
-        - No más recreación de teams
-        - El team persiste y maneja todo automáticamente
+        NEW ARCHITECTURE (SIMPLIFIED):
+        - Single SelectorGroupChat (self.main_team) that routes automatically
+        - The LLM router decides which agent to use based on context
+        - No more manual complexity detection
+        - No more team recreation
+        - The team persists and handles everything automatically
 
-        AGENTES DISPONIBLES EN EL ROUTER:
-        - Planner: Tareas complejas multi-paso
-        - CodeSearcher: Búsqueda y análisis de código
-        - Coder: Modificaciones directas de código
+        AVAILABLE AGENTS IN THE ROUTER:
+        - Planner: Complex multi-step tasks
+        - CodeSearcher: Code search and analysis
+        - Coder: Direct code modifications
         """
         try:
-            self.logger.info(f"📝 Nueva solicitud del usuario: {user_input[:100]}...")
+            self.logger.info(f"📝 New user request: {user_input[:100]}...")
 
-            # ============= INICIAR SESIÓN DE JSON LOGGING =============
-            # Captura TODAS las interacciones en JSON (independiente de Langfuse)
+            # ============= START JSON LOGGING SESSION =============
+            # Capture ALL interactions in JSON (independent of Langfuse)
             self.json_logger.start_session(
                 mode=self.current_mode,
                 model=self.settings.model,
@@ -1576,29 +1576,29 @@ TITLE:"""
             else:
                 full_input = user_input
 
-            # ============= USAR ROUTER TEAM ÚNICO =============
-            self.logger.info("🎯 Usando ROUTER TEAM (SelectorGroupChat automático)")
+            # ============= USE SINGLE ROUTER TEAM =============
+            self.logger.info("🎯 Using ROUTER TEAM (automatic SelectorGroupChat)")
 
             # Start spinner
             self.cli.start_thinking()
-            self.logger.debug("Iniciando SelectorGroupChat (router automático)")
+            self.logger.debug("Starting SelectorGroupChat (automatic router)")
 
             agent_messages_shown = set()
             message_count = 0
             spinner_active = True
 
-            # Track para logging
+            # Track for logging
             all_agent_responses = []
             agents_used = []
             tools_called = []
 
-            # Procesar mensajes con streaming usando el ROUTER TEAM
+            # Process messages with streaming using the ROUTER TEAM
             async for msg in self.main_team.run_stream(task=full_input):
                 message_count += 1
                 msg_type = type(msg).__name__
                 self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
 
-                # Solo procesar mensajes que NO sean del usuario
+                # Only process messages that are NOT from the user
                 if hasattr(msg, 'source') and msg.source != "user":
                     agent_name = msg.source
 
@@ -1606,15 +1606,15 @@ TITLE:"""
                     if agent_name not in agents_used:
                         agents_used.append(agent_name)
 
-                    # Determinar el contenido del mensaje
+                    # Determine message content
                     if hasattr(msg, 'content'):
                         content = msg.content
                     else:
                         content = str(msg)
-                        self.logger.warning(f"Mensaje sin atributo 'content'. Usando str(): {content[:100]}...")
+                        self.logger.warning(f"Message without 'content' attribute. Using str(): {content[:100]}...")
 
-                    # Crear clave única para evitar duplicados
-                    # Si content es una lista (ej. FunctionCall), convertir a string
+                    # Create unique key to avoid duplicates
+                    # If content is a list (e.g. FunctionCall), convert to string
                     try:
                         if isinstance(content, list):
                             content_str = str(content)
@@ -1622,25 +1622,25 @@ TITLE:"""
                             content_str = content
                         message_key = f"{agent_name}:{hash(content_str)}"
                     except TypeError:
-                        # Si aún no se puede hacer hash, usar un hash del string
+                        # If still can't hash, use hash of string
                         message_key = f"{agent_name}:{hash(str(content))}"
 
                     if message_key not in agent_messages_shown:
-                        # MOSTRAR DIFERENTES TIPOS DE MENSAJES EN CONSOLA EN TIEMPO REAL
+                        # SHOW DIFFERENT MESSAGE TYPES IN CONSOLE IN REAL-TIME
                         if msg_type == "ThoughtEvent":
-                            # 💭 Mostrar pensamientos/reflexiones del agente
+                            # 💭 Show agent thoughts/reflections
                             # Stop spinner for thoughts to show them clearly
                             if spinner_active:
                                 self.cli.stop_thinking(clear=True)
                                 spinner_active = False
                             self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
                             self.logger.debug(f"💭 Thought: {content_str}")
-                            # JSON Logger: Capturar pensamiento
+                            # JSON Logger: Capture thought
                             self.json_logger.log_thought(agent_name, content_str)
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "ToolCallRequestEvent":
-                            # 🔧 Mostrar herramientas que se van a llamar
+                            # 🔧 Show tools to be called
                             # Stop spinner to show tool call, then restart with specific message
                             if spinner_active:
                                 self.cli.stop_thinking(clear=True)
@@ -1651,9 +1651,9 @@ TITLE:"""
                                     if hasattr(tool_call, 'name'):
                                         tool_name = tool_call.name
                                         tool_args = tool_call.arguments if hasattr(tool_call, 'arguments') else {}
-                                        self.cli.print_info(f"🔧 Llamando herramienta: {tool_name} con los parámetros {tool_args}",  agent_name)
+                                        self.cli.print_info(f"🔧 Calling tool: {tool_name} with parameters {tool_args}",  agent_name)
                                         self.logger.debug(f"🔧 Tool call: {tool_name}({tool_args})")
-                                        # JSON Logger: Capturar llamada a herramienta
+                                        # JSON Logger: Capture tool call
                                         self.json_logger.log_tool_call(
                                             agent_name=agent_name,
                                             tool_name=tool_name,
@@ -1666,12 +1666,12 @@ TITLE:"""
 
                                 # Restart spinner ONCE with first tool name (not in loop)
                                 if tool_names:
-                                    self.cli.start_thinking(message=f"ejecutando {tool_names[0]}")
+                                    self.cli.start_thinking(message=f"executing {tool_names[0]}")
                                     spinner_active = True
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "ToolCallExecutionEvent":
-                            # ✅ Mostrar resultados de herramientas
+                            # ✅ Show tool results
                             # Stop spinner to show results
                             if spinner_active:
                                 self.cli.stop_thinking(clear=True)
@@ -1710,7 +1710,7 @@ TITLE:"""
                                             self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
                                             self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
 
-                                        # JSON Logger: Capturar resultado de herramienta
+                                        # JSON Logger: Capture tool result
                                         self.json_logger.log_tool_result(
                                             agent_name=agent_name,
                                             tool_name=tool_name,
@@ -1724,7 +1724,7 @@ TITLE:"""
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "TextMessage":
-                            # 💬 Mostrar respuesta final del agente
+                            # 💬 Show final agent response
                             # Stop spinner for final response
                             if spinner_active:
                                 self.cli.stop_thinking(clear=True)
@@ -1733,7 +1733,7 @@ TITLE:"""
                             preview = content_str[:100] if len(content_str) > 100 else content_str
                             self.logger.log_message_processing(msg_type, agent_name, preview)
                             self.cli.print_agent_message(content_str, agent_name)
-                            # JSON Logger: Capturar mensaje de agente
+                            # JSON Logger: Capture agent message
                             self.json_logger.log_agent_message(
                                 agent_name=agent_name,
                                 content=content_str,
@@ -1744,14 +1744,14 @@ TITLE:"""
                             agent_messages_shown.add(message_key)
 
                             # After agent finishes, start spinner waiting for next agent
-                            self.cli.start_thinking(message=f"esperando siguiente acción")
+                            self.cli.start_thinking(message=f"waiting for next action")
                             spinner_active = True
 
                         else:
-                            # Otros tipos de mensaje (para debugging)
-                            self.logger.debug(f"Mensaje tipo {msg_type} no mostrado en CLI")
+                            # Other message types (for debugging)
+                            self.logger.debug(f"Message type {msg_type} not shown in CLI")
 
-            self.logger.debug(f"✅ Stream completado. Total mensajes procesados: {message_count}")
+            self.logger.debug(f"✅ Stream completed. Total messages processed: {message_count}")
 
             # Ensure spinner is stopped
             self.cli.stop_thinking()
@@ -1767,35 +1767,35 @@ TITLE:"""
             # Generate task completion summary
             await self._generate_task_summary(user_input)
 
-            # 💾 AUTO-SAVE: Guardar estado de agentes automáticamente después de cada respuesta
+            # 💾 AUTO-SAVE: Save agent states automatically after each response
             await self._auto_save_agent_states()
 
-            # ============= FINALIZAR SESIÓN DE JSON LOGGING =============
-            # Guardar todos los eventos capturados a archivo JSON timestamped
+            # ============= END JSON LOGGING SESSION =============
+            # Save all captured events to timestamped JSON file
             self.json_logger.end_session(summary="Request completed successfully")
-            self.logger.debug("📝 JSON logging session finalizada y guardada")
+            self.logger.debug("📝 JSON logging session ended and saved")
 
-            # Comprimir historial si es necesario (DISABLED - ya no usamos TaskExecutor)
+            # Compress history if necessary (DISABLED - we no longer use TaskExecutor)
             # if self.conversation_manager.needs_compression():
-            #     self.logger.warning("⚠️ Historial necesita compresión")
-            #     # TODO: Implementar compresión directa sin TaskExecutor
+            #     self.logger.warning("⚠️ History needs compression")
+            #     # TODO: Implement direct compression without TaskExecutor
 
-            self.logger.info("✅ Solicitud procesada exitosamente")
+            self.logger.info("✅ Request processed successfully")
 
         except Exception as e:
             # Stop spinner on error
             self.cli.stop_thinking()
 
-            # JSON Logger: Capturar error
+            # JSON Logger: Capture error
             self.json_logger.log_error(e, context="process_user_request")
             self.json_logger.end_session(summary=f"Request failed with error: {str(e)}")
 
             self.logger.log_error_with_context(e, "process_user_request")
-            self.cli.print_error(f"Error al procesar solicitud: {str(e)}")
+            self.cli.print_error(f"Error processing request: {str(e)}")
             import traceback
             error_traceback = traceback.format_exc()
-            self.logger.error(f"Traceback completo:\n{error_traceback}")
-            self.cli.print_error(f"Detalles:\n{error_traceback}")
+            self.logger.error(f"Full traceback:\n{error_traceback}")
+            self.cli.print_error(f"Details:\n{error_traceback}")
 
     # =========================================================================
     # CONVERSATION TRACKING - Log to JSON
@@ -1809,13 +1809,13 @@ TITLE:"""
         tools_called: list
     ):
         """
-        Registra la interacción con el LLM en el archivo JSON y en memoria vectorial
+        Log the interaction with the LLM to JSON file and vector memory
 
         Args:
-            user_input: La solicitud del usuario
-            agent_responses: Lista de respuestas de los agentes
-            agents_used: Lista de agentes que participaron
-            tools_called: Lista de herramientas llamadas
+            user_input: User's request
+            agent_responses: List of agent responses
+            agents_used: List of participating agents
+            tools_called: List of tools called
         """
         try:
             # Combine all agent responses
@@ -1845,11 +1845,11 @@ TITLE:"""
                 }
             )
 
-            self.logger.debug(f"📝 Interacción registrada en JSON con ID: {interaction_id}")
+            self.logger.debug(f"📝 Interaction logged to JSON with ID: {interaction_id}")
 
-            # NUEVO: También guardar en memoria vectorial (async)
-            # Esto permite que futuros agentes encuentren conversaciones relevantes
-            # ChromaDB solo acepta str, int, float, bool en metadata - convertir listas a strings
+            # NEW: Also save to vector memory (async)
+            # This allows future agents to find relevant conversations
+            # ChromaDB only accepts str, int, float, bool in metadata - convert lists to strings
             import asyncio
             asyncio.create_task(
                 self.memory_manager.add_conversation(
@@ -1866,31 +1866,31 @@ TITLE:"""
             )
 
         except Exception as e:
-            self.logger.error(f"Error registrando interacción en JSON: {str(e)}")
+            self.logger.error(f"Error logging interaction to JSON: {str(e)}")
             # Don't fail the whole request if logging fails
 
     # =========================================================================
-    # TASK SUMMARY - Resumen de tarea completada
+    # TASK SUMMARY - Completed task summary
     # =========================================================================
 
     async def _generate_task_summary(self, original_request: str):
         """
-        Muestra un mensaje de tarea completada
-        (Simplificado - ya no usa SummaryAgent)
+        Display task completed message
+        (Simplified - no longer uses SummaryAgent)
 
         Args:
-            original_request: La solicitud original del usuario
+            original_request: User's original request
         """
         try:
-            self.logger.info("✅ Tarea completada")
+            self.logger.info("✅ Task completed")
             self.cli.print_success("\n✅ Task completed successfully.")
         except Exception as e:
-            self.logger.error(f"Error mostrando resumen: {str(e)}")
+            self.logger.error(f"Error showing summary: {str(e)}")
             # Fail silently with default message
             self.cli.print_success("\n✅ Task completed.")
 
     # =========================================================================
-    # FUNCIONES SIN CAMBIOS
+    # UNCHANGED FUNCTIONS
     # =========================================================================
 
     async def _check_and_resume_session(self):
@@ -1899,16 +1899,16 @@ TITLE:"""
         """
         try:
             sessions = self.state_manager.list_sessions()
-            
+
             if not sessions:
                 # No previous sessions, start fresh
-                self.logger.info("No hay sesiones previas, iniciando sesión nueva")
+                self.logger.info("No previous sessions, starting new session")
                 return
 
             # Get most recent session
             latest_session = sessions[0]
             session_id = latest_session.get("session_id")
-            title = latest_session.get("title", "Sin título")
+            title = latest_session.get("title", "Untitled")
             total_messages = latest_session.get("total_messages", 0)
             last_interaction = latest_session.get("last_interaction", "")
 
@@ -1921,30 +1921,30 @@ TITLE:"""
                 except:
                     formatted_date = last_interaction
             else:
-                formatted_date = "Desconocida"
+                formatted_date = "Unknown"
 
             # Display session info
-            self.cli.print_info("\n📋 Sesión anterior encontrada:")
-            self.cli.print_info(f"  • Título: {title}")
-            self.cli.print_info(f"  • Última interacción: {formatted_date}")
-            self.cli.print_info(f"  • Mensajes: {total_messages}")
-            
+            self.cli.print_info("\n📋 Previous session found:")
+            self.cli.print_info(f"  • Title: {title}")
+            self.cli.print_info(f"  • Last interaction: {formatted_date}")
+            self.cli.print_info(f"  • Messages: {total_messages}")
+
             # Prompt user (use async prompt)
             from prompt_toolkit import PromptSession
             from prompt_toolkit.patch_stdout import patch_stdout
-            
+
             session = PromptSession()
             with patch_stdout():
-                response = await session.prompt_async("\n¿Deseas continuar con esta sesión? (S/n): ")
+                response = await session.prompt_async("\nDo you want to continue with this session? (Y/n): ")
             response = response.strip().lower()
 
             if response in ['s', 'si', 'sí', 'yes', 'y', '']:
                 # Load the session
-                self.cli.print_info(f"\n📂 Cargando sesión: {title}...")
-                
+                self.cli.print_info(f"\n📂 Loading session: {title}...")
+
                 # Load state
                 loaded = await self.state_manager.load_from_disk(session_id)
-                
+
                 if loaded:
                     # Load agents
                     agents_loaded = 0
@@ -1960,35 +1960,35 @@ TITLE:"""
                     messages = self.state_manager.get_session_history()
 
                     # Display success
-                    self.cli.print_success(f"\n✅ Sesión cargada: {title}")
-                    self.cli.print_info(f"  • Mensajes restaurados: {len(messages)}")
-                    self.cli.print_info(f"  • Agentes restaurados: {agents_loaded}")
+                    self.cli.print_success(f"\n✅ Session loaded: {title}")
+                    self.cli.print_info(f"  • Messages restored: {len(messages)}")
+                    self.cli.print_info(f"  • Agents restored: {agents_loaded}")
 
                     # Show last few messages
                     if messages:
-                        self.cli.print_info("\n📜 Últimos mensajes:")
+                        self.cli.print_info("\n📜 Recent messages:")
                         self.history_viewer.display_conversation_history(
                             messages=messages,
                             max_messages=5,  # Show last 5 messages
                             show_thoughts=False
                         )
-                        
-                        if len(messages) > 5:
-                            self.cli.print_info(f"💡 Usa /history para ver todos los {len(messages)} mensajes")
 
-                    self.cli.print_info("\n✅ Puedes continuar la conversación\n")
+                        if len(messages) > 5:
+                            self.cli.print_info(f"💡 Use /history to see all {len(messages)} messages")
+
+                    self.cli.print_info("\n✅ You can continue the conversation\n")
                 else:
-                    self.cli.print_error("Error cargando la sesión")
+                    self.cli.print_error("Error loading session")
             else:
-                self.cli.print_info("\n✨ Iniciando nueva sesión")
-                self.cli.print_info("💡 Usa /new-session <título> para crear una sesión con nombre\n")
+                self.cli.print_info("\n✨ Starting new session")
+                self.cli.print_info("💡 Use /new-session <title> to create a named session\n")
 
         except Exception as e:
             self.logger.error(f"Error checking previous sessions: {e}")
             # Continue without loading session
 
     async def run(self):
-        """Ejecuta el loop principal de la CLI"""        
+        """Execute the main CLI loop"""
         self.cli.print_banner()
 
         # Check for previous sessions and offer to resume
@@ -2001,47 +2001,47 @@ TITLE:"""
                 if not user_input:
                     continue
 
-                self.logger.debug(f"Input recibido: {user_input[:100]}")
+                self.logger.debug(f"Input received: {user_input[:100]}")
                 self.cli.print_user_message(user_input)
 
                 if user_input.startswith("/"):
                     should_continue = await self.handle_command(user_input)
                     if not should_continue:
-                        self.logger.info("👋 Usuario solicitó salir")
+                        self.logger.info("👋 User requested exit")
                         break
                     continue
 
                 await self.process_user_request(user_input)
 
         except KeyboardInterrupt:
-            self.logger.warning("⚠️ Interrupción por teclado (Ctrl+C)")
-            self.cli.print_warning("\nInterrumpido por el usuario")
+            self.logger.warning("⚠️ Keyboard interrupt (Ctrl+C)")
+            self.cli.print_warning("\nInterrupted by user")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "main loop")
-            self.cli.print_error(f"Error fatal: {str(e)}")
+            self.cli.print_error(f"Fatal error: {str(e)}")
 
         finally:
-            self.logger.info("🔚 Cerrando DaveAgent CLI")
+            self.logger.info("🔚 Closing DaveAgent CLI")
             self.cli.print_goodbye()
 
-            # Cerrar sistema de estado (guarda estado final automáticamente)
+            # Close state system (saves final state automatically)
             try:
-                await self.state_manager.close()                
+                await self.state_manager.close()
             except Exception as e:
-                self.logger.error(f"Error cerrando estado: {e}")
+                self.logger.error(f"Error closing state: {e}")
 
-            # Cerrar sistema de memoria
+            # Close memory system
             try:
-                await self.memory_manager.close()                
+                await self.memory_manager.close()
             except Exception as e:
-                self.logger.error(f"Error cerrando memoria: {e}")
+                self.logger.error(f"Error closing memory: {e}")
 
-            # Langfuse: OpenLit hace flush automático al salir
+            # Langfuse: OpenLit does automatic flush on exit
             if self.langfuse_enabled:
-                self.logger.info("📊 Langfuse: datos enviados automáticamente por OpenLit")
+                self.logger.info("📊 Langfuse: data sent automatically by OpenLit")
 
-            # Cerrar cliente del modelo
+            # Close model client
             await self.model_client.close()
 
 
@@ -2053,14 +2053,14 @@ async def main(
     ssl_verify: bool = None
 ):
     """
-    Punto de entrada principal
+    Main entry point
 
     Args:
-        debug: Si True, activa el modo debug con logging detallado
-        api_key: API key para el modelo LLM
-        base_url: URL base de la API
-        model: Nombre del modelo a usar
-        ssl_verify: Si verificar certificados SSL (por defecto True)
+        debug: If True, enable debug mode with detailed logging
+        api_key: API key for the LLM model
+        base_url: Base URL of the API
+        model: Name of the model to use
+        ssl_verify: Whether to verify SSL certificates (default True)
     """
     app = DaveAgentCLI(debug=debug, api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify)
     await app.run()
@@ -2069,10 +2069,10 @@ async def main(
 if __name__ == "__main__":
     import sys
 
-    # Detectar si se pasó el flag --debug
+    # Detect if --debug flag was passed
     debug_mode = "--debug" in sys.argv or "-d" in sys.argv
 
     if debug_mode:
-        print("🐛 Modo DEBUG activado")
+        print("🐛 DEBUG mode enabled")
 
     asyncio.run(main(debug=debug_mode))

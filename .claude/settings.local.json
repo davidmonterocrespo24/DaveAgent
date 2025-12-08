@@ -17,7 +17,8 @@
       "Bash(bash:*)",
       "Bash(del srcutilsdeepseek_reasoner_client.py)",
       "Bash(cat:*)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Read(//c/Python312/Lib/site-packages/src/config/**)"
     ],
     "deny": [],
     "ask": []
