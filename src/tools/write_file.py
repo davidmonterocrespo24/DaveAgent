@@ -3,7 +3,7 @@ from src.tools.common import get_workspace
 from src.utils.linter import lint_code_check
 
 async def write_file(target_file: str, file_content: str) -> str:
-    """Escribe contenido en un archivo"""
+    """Writes content to a file"""
     try:
         workspace = get_workspace()
         target = workspace / target_file if not Path(target_file).is_absolute() else Path(target_file)

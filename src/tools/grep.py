@@ -1,5 +1,5 @@
 """
-Herramienta de búsqueda GREP (Git Grep + Python Fallback)
+GREP Search Tool (Git Grep + Python Fallback)
 """
 import os
 import re
@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Optional
 from src.tools.common import get_workspace
 
-# --- Configuración de Exclusiones (Fallback) ---
-# Se usa solo si git grep no está disponible
+# --- Exclusion Configuration (Fallback) ---
+# Used only if git grep is not available
 EXCLUDED_DIRS = {
     'node_modules', '__pycache__', '.git', '.venv', 'venv', 'env', 
     '.pytest_cache', '.mypy_cache', '.tox', 'dist', 'build', 
@@ -27,7 +27,7 @@ def _is_git_repo(path: Path) -> bool:
     return (path / ".git").exists()
 
 def _run_git_grep(query: str, path: Path, include: Optional[str] = None, case_sensitive: bool = False) -> str | None:
-    """Ejecuta 'git grep' optimizado."""
+    """Executes optimized 'git grep'."""
     if not shutil.which("git"):
         return None
         
@@ -36,11 +36,11 @@ def _run_git_grep(query: str, path: Path, include: Optional[str] = None, case_se
     if not case_sensitive:
         cmd.append("-i")
         
-    # Extended regex para mayor compatibilidad
+    # Extended regex for better compatibility
     cmd.append("-E") 
     
-    # Construir comando
-    # Nota: git grep maneja includes al final con --
+    # Build command
+    # Note: git grep handles includes at the end with --
     cmd.append(query)
     
     if include:
@@ -48,7 +48,7 @@ def _run_git_grep(query: str, path: Path, include: Optional[str] = None, case_se
         cmd.append(include)
         
     try:
-        # Ejecutar en el directorio objetivo
+        # Execute in target directory
         result = subprocess.run(
             cmd, 
             cwd=str(path),
@@ -63,13 +63,13 @@ def _run_git_grep(query: str, path: Path, include: Optional[str] = None, case_se
         elif result.returncode == 1:
             return "" # No matches found
         else:
-            return None # Error en ejecución (ej. bad regex)
+            return None # Execution error (e.g. bad regex)
             
     except Exception:
         return None
 
 def _python_grep_fallback(query: str, root_path: Path, include_pattern: str | None, case_sensitive: bool) -> str:
-    """Implementación pura en Python (lenta pero segura)."""
+    """Pure Python implementation (slow but safe)."""
     results = []
     flags = 0 if case_sensitive else re.IGNORECASE
     
@@ -78,38 +78,38 @@ def _python_grep_fallback(query: str, root_path: Path, include_pattern: str | No
     except re.error as e:
         return f"Error: Invalid regex pattern: {e}"
 
-    # Recolectar archivos
-    # Si hay include_pattern, usamos glob con ese patrón, si no rglob('*')
+    # Collect files
+    # If there's include_pattern, use glob with that pattern, otherwise rglob('*')
     search_pattern = include_pattern if include_pattern else "**/*"
     
-    # Manejo básico de glob relativo si el include no tiene **
+    # Basic handling of relative glob if include doesn't have **
     if include_pattern and not include_pattern.startswith("**"):
-         # Si el usuario pide "*.py", queremos buscar recursivamente "**/*.py"
-         # Esto es una heurística común para UX de grep
+         # If user requests "*.py", we want to search recursively "**/*.py"
+         # This is a common UX heuristic for grep
          pass 
 
     try:
-        # Usamos rglob para iterar eficientemente
-        # Nota: Path.rglob no acepta patterns complejos como exclude, hay que filtrar manual
+        # Use rglob to iterate efficiently
+        # Note: Path.rglob doesn't accept complex patterns like exclude, must filter manually
         files_iter = root_path.rglob(search_pattern) if include_pattern else root_path.rglob("*")
         
         for file_path in files_iter:
             if not file_path.is_file():
                 continue
                 
-            # Filtros de exclusión
+            # Exclusion filters
             if any(part in EXCLUDED_DIRS for part in file_path.parts):
                 continue
             if file_path.suffix.lower() in EXCLUDED_EXTS:
                 continue
                 
             try:
-                # Lectura línea a línea para no cargar archivos grandes en memoria
+                # Line-by-line reading to avoid loading large files into memory
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     for i, line in enumerate(f, 1):
                         if pattern.search(line):
-                            # Formato compatible con git grep: file:line:content
-                            # Truncamos líneas muy largas para no saturar contexto
+                            # Format compatible with git grep: file:line:content
+                            # Truncate very long lines to avoid saturating context
                             clean_line = line.strip()[:300] 
                             rel_path = file_path.relative_to(root_path)
                             results.append(f"{rel_path}:{i}:{clean_line}")
@@ -138,21 +138,21 @@ async def grep_search(
     """
     workspace = get_workspace()
     
-    # 1. Intentar Git Grep (Estrategia Rápida)
-    # Solo si estamos en un repo git y no hay patrones de exclusión complejos 
-    # (git grep usa .gitignore, que suele ser lo que queremos)
+    # 1. Try Git Grep (Fast Strategy)
+    # Only if we're in a git repo and there are no complex exclusion patterns
+    # (git grep uses .gitignore, which is usually what we want)
     if _is_git_repo(workspace) and not exclude_pattern:
         git_output = _run_git_grep(query, workspace, include_pattern, case_sensitive)
         if git_output is not None:
             if not git_output.strip():
                 return f"No matches found for '{query}'"
             
-            # Limitar salida si es muy larga
+            # Limit output if too long
             lines = git_output.splitlines()
             if len(lines) > 500:
                 return "\n".join(lines[:500]) + f"\n... ({len(lines)-500} more matches truncated)"
             return git_output
 
-    # 2. Fallback a Python (Estrategia Lenta pero Universal)
-    # Se usa si falla git grep, si no es repo git, o si hay excludes manuales
+    # 2. Fallback to Python (Slow but Universal Strategy)
+    # Used if git grep fails, if not a git repo, or if there are manual excludes
     return _python_grep_fallback(query, workspace, include_pattern, case_sensitive)

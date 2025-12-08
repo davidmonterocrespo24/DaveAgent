@@ -1,6 +1,6 @@
 """
-Herramientas de análisis de código - Formato AutoGen
-Analiza estructura de archivos Python para extraer funciones, clases e imports
+Code Analysis Tools - AutoGen Format
+Analyzes Python file structure to extract functions, classes, and imports
 """
 import ast
 from pathlib import Path
@@ -9,35 +9,35 @@ from typing import Dict, List, Any
 
 async def analyze_python_file(filepath: str) -> str:
     """
-    Analiza un archivo Python y extrae su estructura (funciones, clases, imports).
+    Analyzes a Python file and extracts its structure (functions, classes, imports).
 
     Args:
-        filepath: Ruta al archivo Python
+        filepath: Path to the Python file
 
     Returns:
-        str: Análisis detallado del archivo
+        str: Detailed file analysis
     """
     try:
         file_path = Path(filepath)
         if not file_path.exists():
-            return f"ERROR: Archivo no encontrado: {filepath}"
+            return f"ERROR: File not found: {filepath}"
 
         if not filepath.endswith('.py'):
-            return f"ERROR: {filepath} no es un archivo Python (.py)"
+            return f"ERROR: {filepath} is not a Python file (.py)"
 
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         tree = ast.parse(content, filename=filepath)
 
-        # Extraer información
+        # Extract information
         imports = _extract_imports(tree)
         classes = _extract_classes(tree, content)
         functions = _extract_functions(tree, content)
 
-        # Formatear salida
-        output = f"=== Análisis de {file_path.name} ===\n\n"
-        output += f"Líneas de código: {len(content.splitlines())}\n\n"
+        # Format output
+        output = f"=== Analysis of {file_path.name} ===\n\n"
+        output += f"Lines of code: {len(content.splitlines())}\n\n"
 
         if imports:
             output += f"IMPORTS ({len(imports)}):\n"
@@ -49,23 +49,23 @@ async def analyze_python_file(filepath: str) -> str:
             output += "\n"
 
         if classes:
-            output += f"CLASES ({len(classes)}):\n"
+            output += f"CLASSES ({len(classes)}):\n"
             for cls in classes:
                 output += f"  class {cls['name']}:\n"
-                output += f"    Líneas: {cls['line_start']}-{cls['line_end']}\n"
+                output += f"    Lines: {cls['line_start']}-{cls['line_end']}\n"
                 if cls['bases']:
-                    output += f"    Hereda de: {', '.join(cls['bases'])}\n"
-                output += f"    Métodos: {len(cls['methods'])}\n"
+                    output += f"    Inherits from: {', '.join(cls['bases'])}\n"
+                output += f"    Methods: {len(cls['methods'])}\n"
                 for method in cls['methods']:
                     output += f"      - {method['name']}()\n"
                 output += "\n"
 
         if functions:
-            output += f"FUNCIONES ({len(functions)}):\n"
+            output += f"FUNCTIONS ({len(functions)}):\n"
             for func in functions:
-                if not func['is_method']:  # Solo funciones de nivel superior
+                if not func['is_method']:  # Only top-level functions
                     output += f"  {func['signature']}\n"
-                    output += f"    Líneas: {func['line_start']}-{func['line_end']}\n"
+                    output += f"    Lines: {func['line_start']}-{func['line_end']}\n"
                     if func.get('docstring'):
                         doc = func['docstring'].split('\n')[0][:60]
                         output += f"    Doc: {doc}...\n"
@@ -74,26 +74,26 @@ async def analyze_python_file(filepath: str) -> str:
         return output
 
     except SyntaxError as e:
-        return f"ERROR: Sintaxis inválida en {filepath}:\n  Línea {e.lineno}: {e.msg}"
+        return f"ERROR: Invalid syntax in {filepath}:\n  Line {e.lineno}: {e.msg}"
     except Exception as e:
-        return f"ERROR analizando {filepath}: {str(e)}"
+        return f"ERROR analyzing {filepath}: {str(e)}"
 
 
 async def find_function_definition(filepath: str, function_name: str) -> str:
     """
-    Busca la definición de una función en un archivo Python.
+    Finds the definition of a function in a Python file.
 
     Args:
-        filepath: Ruta al archivo Python
-        function_name: Nombre de la función a buscar
+        filepath: Path to the Python file
+        function_name: Name of the function to search for
 
     Returns:
-        str: Código de la función o mensaje de error
+        str: Function code or error message
     """
     try:
         file_path = Path(filepath)
         if not file_path.exists():
-            return f"ERROR: Archivo no encontrado: {filepath}"
+            return f"ERROR: File not found: {filepath}"
 
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -102,7 +102,7 @@ async def find_function_definition(filepath: str, function_name: str) -> str:
         tree = ast.parse(content, filename=filepath)
         functions = _extract_functions(tree, content)
 
-        # Buscar función
+        # Search for function
         for func in functions:
             if func['name'] == function_name:
                 start = func['line_start'] - 1
@@ -110,15 +110,15 @@ async def find_function_definition(filepath: str, function_name: str) -> str:
 
                 func_code = '\n'.join(lines[start:end])
 
-                output = f"Función '{function_name}' en {file_path.name}:\n"
-                output += f"Líneas: {func['line_start']}-{func['line_end']}\n"
-                output += f"Firma: {func['signature']}\n\n"
-                output += "Código:\n"
+                output = f"Function '{function_name}' in {file_path.name}:\n"
+                output += f"Lines: {func['line_start']}-{func['line_end']}\n"
+                output += f"Signature: {func['signature']}\n\n"
+                output += "Code:\n"
                 output += func_code
 
                 return output
 
-        return f"ERROR: Función '{function_name}' no encontrada en {filepath}"
+        return f"ERROR: Function '{function_name}' not found in {filepath}"
 
     except Exception as e:
         return f"ERROR: {str(e)}"
@@ -126,18 +126,18 @@ async def find_function_definition(filepath: str, function_name: str) -> str:
 
 async def list_all_functions(filepath: str) -> str:
     """
-    Lista todas las funciones en un archivo Python.
+    Lists all functions in a Python file.
 
     Args:
-        filepath: Ruta al archivo Python
+        filepath: Path to the Python file
 
     Returns:
-        str: Lista de funciones con sus firmas
+        str: List of functions with their signatures
     """
     try:
         file_path = Path(filepath)
         if not file_path.exists():
-            return f"ERROR: Archivo no encontrado: {filepath}"
+            return f"ERROR: File not found: {filepath}"
 
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -146,13 +146,13 @@ async def list_all_functions(filepath: str) -> str:
         functions = _extract_functions(tree, content)
 
         if not functions:
-            return f"No se encontraron funciones en {filepath}"
+            return f"No functions found in {filepath}"
 
-        output = f"=== Funciones en {file_path.name} ===\n\n"
+        output = f"=== Functions in {file_path.name} ===\n\n"
         for func in functions:
-            prefix = "  Método" if func['is_method'] else "Función"
+            prefix = "  Method" if func['is_method'] else "Function"
             output += f"{prefix}: {func['signature']}\n"
-            output += f"  Líneas: {func['line_start']}-{func['line_end']}\n"
+            output += f"  Lines: {func['line_start']}-{func['line_end']}\n"
             if func.get('docstring'):
                 doc = func['docstring'].split('\n')[0][:70]
                 output += f"  {doc}\n"
@@ -165,7 +165,7 @@ async def list_all_functions(filepath: str) -> str:
 
 
 def _extract_imports(tree: ast.AST) -> List[Dict[str, Any]]:
-    """Extrae imports del AST"""
+    """Extracts imports from AST"""
     imports = []
 
     for node in ast.walk(tree):
@@ -192,7 +192,7 @@ def _extract_imports(tree: ast.AST) -> List[Dict[str, Any]]:
 
 
 def _extract_classes(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
-    """Extrae clases del AST"""
+    """Extracts classes from AST"""
     classes = []
 
     class ClassVisitor(ast.NodeVisitor):
@@ -225,7 +225,7 @@ def _extract_classes(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
 
 
 def _extract_functions(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
-    """Extrae funciones del AST"""
+    """Extracts functions from AST"""
     functions = []
     lines = content.splitlines()
 
@@ -268,7 +268,7 @@ def _extract_functions(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
 
 
 def _get_function_signature(node: ast.FunctionDef) -> str:
-    """Obtiene la firma de una función"""
+    """Gets the function signature"""
     args = []
 
     for arg in node.args.args:

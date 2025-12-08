@@ -1,5 +1,5 @@
 """
-Herramienta para ejecutar comandos de terminal de forma segura
+Tool for executing terminal commands safely
 """
 import subprocess
 import os
@@ -12,7 +12,7 @@ async def run_terminal_cmd(
     require_user_approval: bool = False,
     explanation: str = ""
 ) -> str:
-    """Ejecuta un comando de terminal"""
+    """Executes a terminal command"""
     dangerous_keywords = [
         "rm",
         "del",

@@ -2,7 +2,7 @@ from pathlib import Path
 from src.tools.common import get_workspace
 
 async def list_dir(target_dir: str = ".") -> str:
-    """Lista archivos en un directorio"""
+    """Lists files in a directory"""
     try:
         workspace = get_workspace()
         target = workspace / target_dir if not Path(target_dir).is_absolute() else Path(target_dir)

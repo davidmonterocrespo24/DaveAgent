@@ -5,7 +5,7 @@ from src.utils.linter import lint_code_check
 
 
 """
-Operaciones de sistema de archivos - Smart Edit v2 (Con Auto-Corrección)
+File System Operations - Smart Edit v2 (With Auto-Correction)
 """
 import os
 import re

@@ -1,5 +1,5 @@
 """
-Herramientas de Git para AutoGen - Operaciones básicas de git
+Git Tools for AutoGen - Basic git operations
 """
 import asyncio
 import os
@@ -8,18 +8,18 @@ from typing import Optional, List, Union
 
 async def git_status(path: Optional[str] = None) -> str:
     """
-    Obtiene el estado del repositorio git.
+    Gets the git repository status.
 
     Args:
-        path: Ruta del repositorio (usa directorio actual si no se especifica)
+        path: Repository path (uses current directory if not specified)
 
     Returns:
-        str: Estado del repositorio en formato legible
+        str: Repository status in readable format
     """
     work_dir = path or os.getcwd()
 
     try:
-        # Verificar si es un repositorio git
+        # Verify if it's a git repository
         proc = await asyncio.create_subprocess_exec(
             'git', 'rev-parse', '--git-dir',
             cwd=work_dir,
@@ -29,9 +29,9 @@ async def git_status(path: Optional[str] = None) -> str:
         await proc.communicate()
 
         if proc.returncode != 0:
-            return f"ERROR: {work_dir} no es un repositorio git"
+            return f"ERROR: {work_dir} is not a git repository"
 
-        # Obtener status
+        # Get status
         proc = await asyncio.create_subprocess_exec(
             'git', 'status', '--porcelain=v1', '-b',
             cwd=work_dir,
@@ -46,43 +46,43 @@ async def git_status(path: Optional[str] = None) -> str:
         output = stdout.decode('utf-8', errors='replace')
         lines = output.strip().split('\n') if output.strip() else []
 
-        # Parsear información
+        # Parse information
         branch_line = lines[0] if lines else ""
-        branch = branch_line[3:].split('...')[0] if branch_line.startswith('##') else "desconocida"
+        branch = branch_line[3:].split('...')[0] if branch_line.startswith('##') else "unknown"
 
-        # Contar archivos por estado
+        # Count files by status
         staged = sum(1 for line in lines[1:] if line and line[0] in 'MADRC')
         modified = sum(1 for line in lines[1:] if line and line[1] in 'MD')
         untracked = sum(1 for line in lines[1:] if line and line.startswith('??'))
 
-        result = f"""Estado del repositorio Git:
+        result = f"""Git repository status:
 Branch: {branch}
-Archivos staged: {staged}
-Archivos modificados: {modified}
-Archivos sin seguimiento: {untracked}
+Staged files: {staged}
+Modified files: {modified}
+Untracked files: {untracked}
 
 """
         if len(lines) > 1:
-            result += "Detalles:\n" + '\n'.join(lines[1:])
+            result += "Details:\n" + '\n'.join(lines[1:])
         else:
-            result += "Working tree limpio"
+            result += "Clean working tree"
 
         return result
 
     except Exception as e:
-        return f"ERROR ejecutando git status: {str(e)}"
+        return f"ERROR executing git status: {str(e)}"
 
 
 async def git_add(files: Union[str, List[str]], path: Optional[str] = None) -> str:
     """
-    Agrega archivos al área de staging de git.
+    Adds files to the git staging area.
 
     Args:
-        files: Archivo(s) a agregar (string o lista de strings)
-        path: Ruta del repositorio (usa directorio actual si no se especifica)
+        files: File(s) to add (string or list of strings)
+        path: Repository path (uses current directory if not specified)
 
     Returns:
-        str: Resultado de la operación
+        str: Operation result
     """
     work_dir = path or os.getcwd()
 
@@ -101,22 +101,22 @@ async def git_add(files: Union[str, List[str]], path: Optional[str] = None) -> s
         if proc.returncode != 0:
             return f"ERROR: {stderr.decode('utf-8', errors='replace')}"
 
-        return f"✓ Archivos agregados exitosamente: {', '.join(files)}"
+        return f"✓ Files added successfully: {', '.join(files)}"
 
     except Exception as e:
-        return f"ERROR ejecutando git add: {str(e)}"
+        return f"ERROR executing git add: {str(e)}"
 
 
 async def git_commit(message: str, path: Optional[str] = None) -> str:
     """
-    Crea un commit con los cambios staged.
+    Creates a commit with staged changes.
 
     Args:
-        message: Mensaje del commit
-        path: Ruta del repositorio (usa directorio actual si no se especifica)
+        message: Commit message
+        path: Repository path (uses current directory if not specified)
 
     Returns:
-        str: Resultado del commit incluyendo hash
+        str: Commit result including hash
     """
     work_dir = path or os.getcwd()
 
@@ -133,24 +133,24 @@ async def git_commit(message: str, path: Optional[str] = None) -> str:
             return f"ERROR: {stderr.decode('utf-8', errors='replace')}"
 
         output = stdout.decode('utf-8', errors='replace')
-        return f"✓ Commit creado exitosamente:\n{output}"
+        return f"✓ Commit created successfully:\n{output}"
 
     except Exception as e:
-        return f"ERROR ejecutando git commit: {str(e)}"
+        return f"ERROR executing git commit: {str(e)}"
 
 
 async def git_push(remote: str = "origin", branch: Optional[str] = None,
                    path: Optional[str] = None) -> str:
     """
-    Hace push de commits al repositorio remoto.
+    Pushes commits to the remote repository.
 
     Args:
-        remote: Nombre del remoto (default: origin)
-        branch: Nombre del branch (usa el actual si no se especifica)
-        path: Ruta del repositorio (usa directorio actual si no se especifica)
+        remote: Remote name (default: origin)
+        branch: Branch name (uses current if not specified)
+        path: Repository path (uses current directory if not specified)
 
     Returns:
-        str: Resultado del push
+        str: Push result
     """
     work_dir = path or os.getcwd()
 
@@ -167,30 +167,30 @@ async def git_push(remote: str = "origin", branch: Optional[str] = None,
         )
         stdout, stderr = await proc.communicate()
 
-        # Git push escribe información en stderr incluso cuando es exitoso
+        # Git push writes information to stderr even when successful
         output = stderr.decode('utf-8', errors='replace') + stdout.decode('utf-8', errors='replace')
 
         if proc.returncode != 0:
-            return f"ERROR en git push:\n{output}"
+            return f"ERROR in git push:\n{output}"
 
-        return f"✓ Push exitoso:\n{output}"
+        return f"✓ Push successful:\n{output}"
 
     except Exception as e:
-        return f"ERROR ejecutando git push: {str(e)}"
+        return f"ERROR executing git push: {str(e)}"
 
 
 async def git_pull(remote: str = "origin", branch: Optional[str] = None,
                    path: Optional[str] = None) -> str:
     """
-    Hace pull de cambios desde el repositorio remoto.
+    Pulls changes from the remote repository.
 
     Args:
-        remote: Nombre del remoto (default: origin)
-        branch: Nombre del branch (usa el actual si no se especifica)
-        path: Ruta del repositorio (usa directorio actual si no se especifica)
+        remote: Remote name (default: origin)
+        branch: Branch name (uses current if not specified)
+        path: Repository path (uses current directory if not specified)
 
     Returns:
-        str: Resultado del pull
+        str: Pull result
     """
     work_dir = path or os.getcwd()
 
@@ -210,24 +210,24 @@ async def git_pull(remote: str = "origin", branch: Optional[str] = None,
         output = stdout.decode('utf-8', errors='replace') + stderr.decode('utf-8', errors='replace')
 
         if proc.returncode != 0:
-            return f"ERROR en git pull:\n{output}"
+            return f"ERROR in git pull:\n{output}"
 
-        return f"✓ Pull exitoso:\n{output}"
+        return f"✓ Pull successful:\n{output}"
 
     except Exception as e:
-        return f"ERROR ejecutando git pull: {str(e)}"
+        return f"ERROR executing git pull: {str(e)}"
 
 
 async def git_log(limit: int = 10, path: Optional[str] = None) -> str:
     """
-    Muestra el historial de commits.
+    Shows the commit history.
 
     Args:
-        limit: Número máximo de commits a mostrar
-        path: Ruta del repositorio (usa directorio actual si no se especifica)
+        limit: Maximum number of commits to show
+        path: Repository path (uses current directory if not specified)
 
     Returns:
-        str: Lista de commits recientes
+        str: List of recent commits
     """
     work_dir = path or os.getcwd()
 
@@ -244,24 +244,24 @@ async def git_log(limit: int = 10, path: Optional[str] = None) -> str:
             return f"ERROR: {stderr.decode('utf-8', errors='replace')}"
 
         output = stdout.decode('utf-8', errors='replace')
-        return f"Últimos {limit} commits:\n{output}"
+        return f"Last {limit} commits:\n{output}"
 
     except Exception as e:
-        return f"ERROR ejecutando git log: {str(e)}"
+        return f"ERROR executing git log: {str(e)}"
 
 
 async def git_branch(operation: str = "list", branch_name: Optional[str] = None,
                      path: Optional[str] = None) -> str:
     """
-    Gestiona branches de git.
+    Manages git branches.
 
     Args:
-        operation: Operación a realizar ('list', 'create', 'delete', 'switch')
-        branch_name: Nombre del branch (requerido para create, delete, switch)
-        path: Ruta del repositorio (usa directorio actual si no se especifica)
+        operation: Operation to perform ('list', 'create', 'delete', 'switch')
+        branch_name: Branch name (required for create, delete, switch)
+        path: Repository path (uses current directory if not specified)
 
     Returns:
-        str: Resultado de la operación
+        str: Operation result
     """
     work_dir = path or os.getcwd()
 
@@ -275,7 +275,7 @@ async def git_branch(operation: str = "list", branch_name: Optional[str] = None,
         elif operation == "switch" and branch_name:
             command = ['git', 'checkout', branch_name]
         else:
-            return f"ERROR: Operación '{operation}' inválida o falta branch_name"
+            return f"ERROR: Invalid operation '{operation}' or missing branch_name"
 
         proc = await asyncio.create_subprocess_exec(
             *command,
@@ -289,15 +289,15 @@ async def git_branch(operation: str = "list", branch_name: Optional[str] = None,
             return f"ERROR: {stderr.decode('utf-8', errors='replace')}"
 
         output = stdout.decode('utf-8', errors='replace')
-        return output if output else f"✓ Operación '{operation}' completada"
+        return output if output else f"✓ Operation '{operation}' completed"
 
     except Exception as e:
-        return f"ERROR ejecutando git branch: {str(e)}"
+        return f"ERROR executing git branch: {str(e)}"
 
 
 async def git_diff(cached: bool = False, path: Optional[str] = None) -> str:
     """
-    Muestra las diferencias en el repositorio.
+    Shows the differences in the repository.
 
     Args:
         cached: Si True, muestra diff de cambios staged

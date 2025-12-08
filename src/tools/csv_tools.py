@@ -1,5 +1,5 @@
 """
-Herramientas para trabajar con archivos CSV - Formato AutoGen
+CSV File Tools - AutoGen Format
 """
 import logging
 from typing import List, Dict, Any
@@ -7,9 +7,9 @@ from importlib import util
 
 
 def _check_pandas():
-    """Verifica si pandas está instalado"""
+    """Checks if pandas is installed"""
     if util.find_spec('pandas') is None:
-        raise ImportError("pandas package no disponible. Instalar con: pip install pandas")
+        raise ImportError("pandas package not available. Install with: pip install pandas")
     import pandas as pd
     return pd
 
@@ -21,16 +21,16 @@ async def read_csv(
     max_rows: int = None
 ) -> str:
     """
-    Lee un archivo CSV y retorna su contenido.
+    Reads a CSV file and returns its contents.
 
     Args:
-        filepath: Ruta al archivo CSV
-        delimiter: Delimitador de columnas (default: ',')
-        encoding: Codificación del archivo (default: utf-8)
-        max_rows: Número máximo de filas a leer (None = todas)
+        filepath: Path to the CSV file
+        delimiter: Column delimiter (default: ',')
+        encoding: File encoding (default: utf-8)
+        max_rows: Maximum number of rows to read (None = all)
 
     Returns:
-        str: Contenido del CSV en formato legible
+        str: CSV contents in readable format
     """
     try:
         pd = _check_pandas()
@@ -43,18 +43,18 @@ async def read_csv(
         )
 
         output = f"CSV: {filepath}\n"
-        output += f"Filas: {len(df)}, Columnas: {len(df.columns)}\n\n"
-        output += f"Columnas: {', '.join(df.columns.tolist())}\n\n"
-        output += "Primeras filas:\n"
+        output += f"Rows: {len(df)}, Columns: {len(df.columns)}\n\n"
+        output += f"Columns: {', '.join(df.columns.tolist())}\n\n"
+        output += "First rows:\n"
         output += df.head(10).to_string()
 
         if len(df) > 10:
-            output += f"\n\n... (mostrando 10 de {len(df)} filas)"
+            output += f"\n\n... (showing 10 of {len(df)} rows)"
 
         return output
 
     except Exception as e:
-        error_msg = f"Error leyendo CSV {filepath}: {str(e)}"
+        error_msg = f"Error reading CSV {filepath}: {str(e)}"
         logging.error(error_msg)
         return error_msg
 
@@ -67,76 +67,76 @@ async def write_csv(
     encoding: str = 'utf-8'
 ) -> str:
     """
-    Escribe datos en un archivo CSV.
+    Writes data to a CSV file.
 
     Args:
-        filepath: Ruta del archivo de salida
-        data: Datos en formato CSV (string con delimitadores)
-        delimiter: Delimitador de columnas (default: ',')
-        mode: Modo de escritura ('w' = sobrescribir, 'a' = agregar)
-        encoding: Codificación del archivo (default: utf-8)
+        filepath: Output file path
+        data: Data in CSV format (string with delimiters)
+        delimiter: Column delimiter (default: ',')
+        mode: Write mode ('w' = overwrite, 'a' = append)
+        encoding: File encoding (default: utf-8)
 
     Returns:
-        str: Mensaje de éxito o error
+        str: Success or error message
     """
     try:
-        # Escribir directamente el string como CSV
+        # Write string directly as CSV
         with open(filepath, mode, encoding=encoding, newline='') as f:
             f.write(data)
             if not data.endswith('\n'):
                 f.write('\n')
 
-        return f"✓ Datos escritos en {filepath}"
+        return f"✓ Data written to {filepath}"
 
     except Exception as e:
-        error_msg = f"Error escribiendo CSV {filepath}: {str(e)}"
+        error_msg = f"Error writing CSV {filepath}: {str(e)}"
         logging.error(error_msg)
         return error_msg
 
 
 async def csv_info(filepath: str, delimiter: str = ',', encoding: str = 'utf-8') -> str:
     """
-    Obtiene información estadística sobre un archivo CSV.
+    Gets statistical information about a CSV file.
 
     Args:
-        filepath: Ruta al archivo CSV
-        delimiter: Delimitador de columnas
-        encoding: Codificación del archivo
+        filepath: Path to the CSV file
+        delimiter: Column delimiter
+        encoding: File encoding
 
     Returns:
-        str: Información estadística del CSV
+        str: Statistical information about the CSV
     """
     try:
         pd = _check_pandas()
 
         df = pd.read_csv(filepath, delimiter=delimiter, encoding=encoding)
 
-        output = f"=== Información de {filepath} ===\n\n"
-        output += f"Dimensiones: {len(df)} filas x {len(df.columns)} columnas\n\n"
+        output = f"=== Information for {filepath} ===\n\n"
+        output += f"Dimensions: {len(df)} rows x {len(df.columns)} columns\n\n"
 
-        output += "Columnas y tipos:\n"
+        output += "Columns and types:\n"
         for col in df.columns:
             output += f"  - {col}: {df[col].dtype}\n"
 
-        output += f"\nValores nulos:\n"
+        output += f"\nNull values:\n"
         nulls = df.isnull().sum()
         if nulls.sum() == 0:
-            output += "  No hay valores nulos\n"
+            output += "  No null values\n"
         else:
             for col in nulls[nulls > 0].index:
-                output += f"  - {col}: {nulls[col]} nulos\n"
+                output += f"  - {col}: {nulls[col]} nulls\n"
 
-        output += "\nEstadísticas numéricas:\n"
+        output += "\nNumeric statistics:\n"
         numeric_df = df.select_dtypes(include=['number'])
         if not numeric_df.empty:
             output += numeric_df.describe().to_string()
         else:
-            output += "  No hay columnas numéricas\n"
+            output += "  No numeric columns\n"
 
         return output
 
     except Exception as e:
-        error_msg = f"Error obteniendo info de CSV {filepath}: {str(e)}"
+        error_msg = f"Error getting CSV info {filepath}: {str(e)}"
         logging.error(error_msg)
         return error_msg
 
@@ -149,17 +149,17 @@ async def filter_csv(
     delimiter: str = ','
 ) -> str:
     """
-    Filtra un CSV por el valor de una columna.
+    Filters a CSV by a column value.
 
     Args:
-        filepath: Ruta al archivo CSV
-        column: Nombre de la columna a filtrar
-        value: Valor a buscar
-        output_file: Archivo de salida (None = retornar como texto)
-        delimiter: Delimitador de columnas
+        filepath: Path to the CSV file
+        column: Name of the column to filter
+        value: Value to search for
+        output_file: Output file (None = return as text)
+        delimiter: Column delimiter
 
     Returns:
-        str: Resultado filtrado o mensaje de éxito
+        str: Filtered result or success message
     """
     try:
         pd = _check_pandas()
@@ -167,24 +167,24 @@ async def filter_csv(
         df = pd.read_csv(filepath, delimiter=delimiter)
 
         if column not in df.columns:
-            return f"ERROR: Columna '{column}' no existe. Columnas disponibles: {', '.join(df.columns)}"
+            return f"ERROR: Column '{column}' does not exist. Available columns: {', '.join(df.columns)}"
 
-        # Filtrar
+        # Filter
         filtered_df = df[df[column].astype(str).str.contains(value, case=False, na=False)]
 
         if len(filtered_df) == 0:
-            return f"No se encontraron filas con '{value}' en columna '{column}'"
+            return f"No rows found with '{value}' in column '{column}'"
 
         if output_file:
             filtered_df.to_csv(output_file, index=False, sep=delimiter)
-            return f"✓ {len(filtered_df)} filas filtradas guardadas en {output_file}"
+            return f"✓ {len(filtered_df)} filtered rows saved to {output_file}"
         else:
-            output = f"Filtrado: {len(filtered_df)} filas con '{value}' en '{column}':\n\n"
+            output = f"Filtered: {len(filtered_df)} rows with '{value}' in '{column}':\n\n"
             output += filtered_df.to_string()
             return output
 
     except Exception as e:
-        error_msg = f"Error filtrando CSV: {str(e)}"
+        error_msg = f"Error filtering CSV: {str(e)}"
         logging.error(error_msg)
         return error_msg
 
@@ -197,17 +197,17 @@ async def merge_csv_files(
     how: str = 'inner'
 ) -> str:
     """
-    Fusiona dos archivos CSV.
+    Merges two CSV files.
 
     Args:
-        file1: Primer archivo CSV
-        file2: Segundo archivo CSV
-        output_file: Archivo de salida
-        on_column: Columna para hacer merge (None = concatenar)
-        how: Tipo de merge ('inner', 'outer', 'left', 'right')
+        file1: First CSV file
+        file2: Second CSV file
+        output_file: Output file
+        on_column: Column to merge on (None = concatenate)
+        how: Type of merge ('inner', 'outer', 'left', 'right')
 
     Returns:
-        str: Mensaje de éxito o error
+        str: Success or error message
     """
     try:
         pd = _check_pandas()
@@ -216,25 +216,25 @@ async def merge_csv_files(
         df2 = pd.read_csv(file2)
 
         if on_column:
-            # Merge por columna
+            # Merge by column
             if on_column not in df1.columns:
-                return f"ERROR: Columna '{on_column}' no existe en {file1}"
+                return f"ERROR: Column '{on_column}' does not exist in {file1}"
             if on_column not in df2.columns:
-                return f"ERROR: Columna '{on_column}' no existe en {file2}"
+                return f"ERROR: Column '{on_column}' does not exist in {file2}"
 
             result = pd.merge(df1, df2, on=on_column, how=how)
-            operation = f"merge por '{on_column}' (tipo: {how})"
+            operation = f"merge on '{on_column}' (type: {how})"
         else:
-            # Concatenar verticalmente
+            # Concatenate vertically
             result = pd.concat([df1, df2], ignore_index=True)
-            operation = "concatenación"
+            operation = "concatenation"
 
         result.to_csv(output_file, index=False)
 
-        return f"✓ Archivos fusionados ({operation})\n  Resultado: {len(result)} filas x {len(result.columns)} columnas\n  Guardado en: {output_file}"
+        return f"✓ Files merged ({operation})\n  Result: {len(result)} rows x {len(result.columns)} columns\n  Saved to: {output_file}"
 
     except Exception as e:
-        error_msg = f"Error fusionando CSVs: {str(e)}"
+        error_msg = f"Error merging CSVs: {str(e)}"
         logging.error(error_msg)
         return error_msg
 
@@ -245,15 +245,15 @@ async def csv_to_json(
     orient: str = 'records'
 ) -> str:
     """
-    Convierte un archivo CSV a JSON.
+    Converts a CSV file to JSON.
 
     Args:
-        csv_file: Archivo CSV de entrada
-        json_file: Archivo JSON de salida
-        orient: Orientación del JSON ('records', 'index', 'columns', 'values')
+        csv_file: Input CSV file
+        json_file: Output JSON file
+        orient: JSON orientation ('records', 'index', 'columns', 'values')
 
     Returns:
-        str: Mensaje de éxito o error
+        str: Success or error message
     """
     try:
         pd = _check_pandas()
@@ -261,10 +261,10 @@ async def csv_to_json(
         df = pd.read_csv(csv_file)
         df.to_json(json_file, orient=orient, indent=2)
 
-        return f"✓ CSV convertido a JSON\n  {len(df)} filas exportadas a {json_file}"
+        return f"✓ CSV converted to JSON\n  {len(df)} rows exported to {json_file}"
 
     except Exception as e:
-        error_msg = f"Error convirtiendo CSV a JSON: {str(e)}"
+        error_msg = f"Error converting CSV to JSON: {str(e)}"
         logging.error(error_msg)
         return error_msg
 
@@ -276,16 +276,16 @@ async def sort_csv(
     ascending: bool = True
 ) -> str:
     """
-    Ordena un archivo CSV por una columna.
+    Sorts a CSV file by a column.
 
     Args:
-        filepath: Archivo CSV
-        column: Columna por la que ordenar
-        output_file: Archivo de salida (None = sobrescribir original)
-        ascending: True para ascendente, False para descendente
+        filepath: CSV file
+        column: Column to sort by
+        output_file: Output file (None = overwrite original)
+        ascending: True for ascending, False for descending
 
     Returns:
-        str: Mensaje de éxito o error
+        str: Success or error message
     """
     try:
         pd = _check_pandas()
@@ -293,7 +293,7 @@ async def sort_csv(
         df = pd.read_csv(filepath)
 
         if column not in df.columns:
-            return f"ERROR: Columna '{column}' no existe. Columnas: {', '.join(df.columns)}"
+            return f"ERROR: Column '{column}' does not exist. Columns: {', '.join(df.columns)}"
 
         df_sorted = df.sort_values(by=column, ascending=ascending)
 
