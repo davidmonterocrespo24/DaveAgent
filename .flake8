@@ -1,0 +1,24 @@
+[flake8]
+max-line-length = 100
+max-complexity = 10
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    *.egg-info,
+    .venv,
+    venv,
+    .daveagent,
+    logs,
+    test/site_dump
+ignore =
+    # W503: line break before binary operator (conflicts with black)
+    W503,
+    # E203: whitespace before ':' (conflicts with black)
+    E203,
+    # E501: line too long (handled by black)
+    E501,
+per-file-ignores =
+    __init__.py:F401,F403
+    test_*.py:F401,F811
