@@ -1,22 +1,22 @@
 """
-DeepSeek Reasoning Client - Solución COMPLETA para usar DeepSeek R1 con razonamiento
+DeepSeek Reasoning Client - COMPLETE solution to use DeepSeek R1 with reasoning
 
-Este cliente wrappea el OpenAIChatCompletionClient de AutoGen para:
-1. Habilitar thinking mode mediante extra_body
-2. Preservar reasoning_content en mensajes del asistente (REQUERIDO para tool calls)
-3. Cachear y restaurar reasoning_content en el historial
+This client wraps AutoGen's OpenAIChatCompletionClient to:
+1. Enable thinking mode via extra_body
+2. Preserve reasoning_content in assistant messages (REQUIRED for tool calls)
+3. Cache and restore reasoning_content in history
 
-Basado en:
+Based on:
 - https://api-docs.deepseek.com/guides/thinking_mode
 - https://docs.ag2.ai/docs/api/autogen_ext.models.openai
 
-PROBLEMA RESUELTO:
-El error "Missing `reasoning_content` field in the assistant message at message index X"
-ocurre porque AutoGen convierte mensajes a LLMMessage y pierde reasoning_content.
+PROBLEM SOLVED:
+The error "Missing `reasoning_content` field in the assistant message at message index X"
+occurs because AutoGen converts messages to LLMMessage and loses reasoning_content.
 
-SOLUCIÓN:
-Interceptamos el cliente OpenAI ANTES de que AutoGen procese los mensajes,
-inyectamos reasoning_content desde un cache, y lo extraemos de las respuestas.
+SOLUTION:
+We intercept the OpenAI client BEFORE AutoGen processes messages,
+inject reasoning_content from a cache, and extract it from responses.
 """
 import logging
 from typing import Any, Dict, Sequence, Mapping, Literal, AsyncGenerator
@@ -36,17 +36,17 @@ from pydantic import BaseModel
 
 class DeepSeekReasoningClient(OpenAIChatCompletionClient):
     """
-    Cliente especializado para DeepSeek R1 que soporta thinking mode con tool calls.
+    Specialized client for DeepSeek R1 that supports thinking mode with tool calls.
 
-    USO:
-        # Opción 1: Usar deepseek-reasoner (recomendado)
+    USAGE:
+        # Option 1: Use deepseek-reasoner (recommended)
         client = DeepSeekReasoningClient(
             model="deepseek-reasoner",
             api_key="your-api-key",
             base_url="https://api.deepseek.com"
         )
 
-        # Opción 2: Usar deepseek-chat con thinking habilitado
+        # Option 2: Use deepseek-chat with thinking enabled
         client = DeepSeekReasoningClient(
             model="deepseek-chat",
             api_key="your-api-key",
@@ -63,25 +63,25 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
     ):
         """
         Args:
-            enable_thinking: Si True, habilita thinking mode con extra_body.
-                           Si None (default), se habilita automáticamente si model="deepseek-reasoner"
-            *args, **kwargs: Se pasan a OpenAIChatCompletionClient
+            enable_thinking: If True, enables thinking mode with extra_body.
+                           If None (default), automatically enabled if model="deepseek-reasoner"
+            *args, **kwargs: Passed to OpenAIChatCompletionClient
         """
-        # Detectar si debemos habilitar thinking mode automáticamente
+        # Detect if we should enable thinking mode automatically
         model = kwargs.get('model', args[0] if args else None)
 
         if enable_thinking is None:
-            # Habilitar automáticamente para deepseek-reasoner
+            # Enable automatically for deepseek-reasoner
             enable_thinking = (model == "deepseek-reasoner")
 
         self.enable_thinking = enable_thinking
         self.logger = logging.getLogger(__name__)
 
-        # Cache de reasoning_content por message content hash
-        # Esto nos permite restaurar reasoning_content cuando AutoGen reconstruye mensajes
+        # Cache of reasoning_content by message content hash
+        # This allows us to restore reasoning_content when AutoGen reconstructs messages
         self._reasoning_cache: Dict[str, str] = {}
 
-        # Inicializar el cliente base
+        # Initialize base client
         super().__init__(*args, **kwargs)
 
         if self.enable_thinking:
@@ -100,39 +100,39 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         cancellation_token: CancellationToken | None = None
     ) -> CreateResult:
         """
-        Override de create() para manejar reasoning_content.
+        Override create() to handle reasoning_content.
 
-        Proceso:
-        1. Inyectar reasoning_content en mensajes desde cache (si existen)
-        2. Habilitar thinking mode mediante extra_body (si está configurado)
-        3. Llamar al cliente base de AutoGen
-        4. Extraer reasoning_content de la respuesta
-        5. Cachear reasoning_content para futuros usos
+        Process:
+        1. Inject reasoning_content in messages from cache (if exists)
+        2. Enable thinking mode via extra_body (if configured)
+        3. Call AutoGen base client
+        4. Extract reasoning_content from response
+        5. Cache reasoning_content for future use
         """
-        # PASO 1: Construir extra_create_args con thinking mode
+        # STEP 1: Build extra_create_args with thinking mode
         modified_extra_args = dict(extra_create_args)
 
         if self.enable_thinking:
-            # Inyectar thinking parameter según documentación DeepSeek
-            # Usamos extra_body para pasar parámetros no estándar y evitar errores de validación
+            # Inject thinking parameter according to DeepSeek documentation
+            # We use extra_body to pass non-standard parameters and avoid validation errors
             if "extra_body" not in modified_extra_args:
                 modified_extra_args["extra_body"] = {}
-            
-            # Asegurar que thinking está en extra_body
+
+            # Ensure thinking is in extra_body
             if "thinking" not in modified_extra_args["extra_body"]:
                 modified_extra_args["extra_body"]["thinking"] = {"type": "enabled"}
                 self.logger.debug("💭 Thinking mode injected via extra_body")
 
-        # PASO 2: INTENTAR inyectar reasoning_content en mensajes
-        # Esto es complicado porque AutoGen ya convirtió los mensajes a LLMMessage
-        # y no podemos modificarlos directamente. Sin embargo, el SDK de OpenAI
-        # que AutoGen usa INTERNAMENTE debería preservar campos extra si los pasamos.
+        # STEP 2: ATTEMPT to inject reasoning_content into messages
+        # This is complicated because AutoGen already converted messages to LLMMessage
+        # and we can't modify them directly. However, the OpenAI SDK that
+        # AutoGen uses INTERNALLY should preserve extra fields if we pass them.
 
-        # NOTA: Esta es la limitación principal - AutoGen no expone una forma
-        # de inyectar campos custom en mensajes. La solución es confiar en que
-        # el SDK de OpenAI preserve reasoning_content si viene en el objeto message.
+        # NOTE: This is the main limitation - AutoGen doesn't expose a way
+        # to inject custom fields in messages. The solution is to trust that
+        # the OpenAI SDK preserves reasoning_content if it comes in the message object.
 
-        # PASO 3: Llamar al cliente base
+        # STEP 3: Call base client
         try:
             result = await super().create(
                 messages=messages,
@@ -143,17 +143,17 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                 cancellation_token=cancellation_token
             )
 
-            # PASO 4: Extraer reasoning_content de la respuesta
-            # El SDK de OpenAI devuelve reasoning_content en response.choices[0].message
-            # pero AutoGen lo convierte a CreateResult, necesitamos acceder al original
+            # STEP 4: Extract reasoning_content from response
+            # OpenAI SDK returns reasoning_content in response.choices[0].message
+            # but AutoGen converts it to CreateResult, we need to access the original
 
-            # Intentar acceder al reasoning_content si existe
+            # Attempt to access reasoning_content if it exists
             reasoning_content = getattr(result, 'reasoning_content', None)
 
             if reasoning_content:
                 self.logger.info(f"💭 Reasoning content received: {len(reasoning_content)} chars")
 
-                # PASO 5: Cachear reasoning_content usando content como key
+                # STEP 5: Cache reasoning_content using content as key
                 content_key = self._make_cache_key(result.content)
                 self._reasoning_cache[content_key] = reasoning_content
                 self.logger.debug(f"💾 Cached reasoning_content with key: {content_key[:50]}...")
@@ -177,20 +177,20 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         include_usage: bool | None = None
     ) -> AsyncGenerator[str | CreateResult, None]:
         """
-        Override de create_stream() para manejar reasoning_content en streaming.
+        Override create_stream() to handle reasoning_content in streaming.
         """
-        # Construir extra_create_args con thinking mode
+        # Build extra_create_args with thinking mode
         modified_extra_args = dict(extra_create_args)
 
         if self.enable_thinking:
             if "extra_body" not in modified_extra_args:
                 modified_extra_args["extra_body"] = {}
-                
+
             if "thinking" not in modified_extra_args["extra_body"]:
                 modified_extra_args["extra_body"]["thinking"] = {"type": "enabled"}
                 self.logger.debug("💭 Thinking mode injected in streaming via extra_body")
 
-        # Llamar al stream base
+        # Call base stream
         async for chunk in super().create_stream(
             messages=messages,
             tools=tools,
@@ -201,7 +201,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             max_consecutive_empty_chunk_tolerance=max_consecutive_empty_chunk_tolerance,
             include_usage=include_usage
         ):
-            # El último chunk es un CreateResult con reasoning_content
+            # Last chunk is a CreateResult with reasoning_content
             if isinstance(chunk, CreateResult):
                 reasoning_content = getattr(chunk, 'reasoning_content', None)
                 if reasoning_content:
@@ -213,20 +213,20 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
     def _make_cache_key(self, content: Any) -> str:
         """
-        Crea una key para el cache basada en el content del mensaje.
+        Creates a cache key based on message content.
 
         Args:
-            content: El contenido del mensaje (puede ser string o lista de FunctionCall)
+            content: The message content (can be string or list of FunctionCall)
 
         Returns:
-            String hash único para este contenido
+            Unique string hash for this content
         """
-        # Convertir content a string para usar como key
+        # Convert content to string to use as key
         if isinstance(content, str):
-            # Para texto, usar directamente (primeros 200 chars)
+            # For text, use directly (first 200 chars)
             return content[:200]
         elif isinstance(content, list):
-            # Para tool calls, usar los IDs
+            # For tool calls, use the IDs
             try:
                 ids = [getattr(item, 'id', str(item)) for item in content]
                 return f"tool_calls:{','.join(ids)}"
@@ -237,9 +237,9 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
     def clear_reasoning_cache(self):
         """
-        Limpia el cache de reasoning_content.
+        Clears the reasoning_content cache.
 
-        Útil al iniciar una nueva conversación independiente.
+        Useful when starting a new independent conversation.
         """
         count = len(self._reasoning_cache)
         self._reasoning_cache.clear()
@@ -247,13 +247,13 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """
-        Obtiene estadísticas del cache de reasoning_content.
+        Gets reasoning_content cache statistics.
 
         Returns:
-            Dict con estadísticas del cache
+            Dict with cache statistics
         """
         return {
             "cached_entries": len(self._reasoning_cache),
             "total_reasoning_chars": sum(len(r) for r in self._reasoning_cache.values()),
-            "cache_keys": list(self._reasoning_cache.keys())[:5]  # Primeras 5 keys
+            "cache_keys": list(self._reasoning_cache.keys())[:5]  # First 5 keys
         }

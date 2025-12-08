@@ -1,29 +1,29 @@
-# 🛠️ Herramientas y Características - CodeAgent
+# 🛠️ Tools and Features - CodeAgent
 
-CodeAgent incluye **45+ herramientas** integradas, organizadas en 6 categorías principales. Esta página documenta cada herramienta con ejemplos de uso.
+CodeAgent includes **45+ integrated tools**, organized in 6 main categories. This page documents each tool with usage examples.
 
-## 📊 Resumen de Herramientas
+## 📊 Tools Summary
 
-| Categoría | Cantidad | Descripción |
-|-----------|----------|-------------|
-| [📁 Filesystem](#-filesystem-7-herramientas) | 7 | Operaciones de archivos y directorios |
-| [🔀 Git](#-git-8-herramientas) | 8 | Control de versiones completo |
-| [📊 JSON](#-json-8-herramientas) | 8 | Procesamiento y validación JSON |
-| [📈 CSV](#-csv-7-herramientas) | 7 | Análisis y manipulación CSV |
-| [🌐 Web](#-web-7-herramientas) | 7 | Wikipedia y búsqueda web |
-| [🔍 Analysis](#-analysis-5-herramientas) | 5 | Análisis de código Python y búsqueda |
-| [🧠 Memory](#-memory-8-herramientas) | 8 | Sistema RAG de memoria vectorial |
+| Category | Quantity | Description |
+|----------|----------|-------------|
+| [📁 Filesystem](#-filesystem-7-tools) | 7 | File and directory operations |
+| [🔀 Git](#-git-8-tools) | 8 | Complete version control |
+| [📊 JSON](#-json-8-tools) | 8 | JSON processing and validation |
+| [📈 CSV](#-csv-7-tools) | 7 | CSV analysis and manipulation |
+| [🌐 Web](#-web-7-tools) | 7 | Wikipedia and web search |
+| [🔍 Analysis](#-analysis-5-tools) | 5 | Python code analysis and search |
+| [🧠 Memory](#-memory-8-tools) | 8 | RAG vector memory system |
 
-**Total**: **50 herramientas**
+**Total**: **50 tools**
 
 ---
 
-## 📁 Filesystem (7 herramientas)
+## 📁 Filesystem (7 tools)
 
 ### `read_file`
-Lee el contenido de un archivo con soporte para rangos de líneas.
+Reads file content with support for line ranges.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: read the README.md file
 You: read main.py lines 10 to 50
@@ -31,18 +31,18 @@ You: show me the content of config.py
 ```
 
 ### `write_file`
-Crea o sobrescribe un archivo con contenido.
+Creates or overwrites a file with content.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: create a file utils.py with a function to validate emails
 You: write a new config.json with the database settings
 ```
 
 ### `edit_file`
-Edita archivos usando búsqueda y reemplazo quirúrgico.
+Edits files using surgical search and replace.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: @auth.py change the password hash algorithm to bcrypt
 You: in config.py, update the database URL
@@ -50,9 +50,9 @@ You: fix the typo in line 45 of main.py
 ```
 
 ### `list_dir`
-Lista el contenido de un directorio.
+Lists directory contents.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: list files in the src/ directory
 You: show me what's in the current directory
@@ -60,27 +60,27 @@ You: list all files in utils/
 ```
 
 ### `delete_file`
-Elimina un archivo de forma segura.
+Safely deletes a file.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: delete the old_config.py file
 You: remove test_old.py
 ```
 
 ### `file_search`
-Búsqueda difusa de archivos por nombre.
+Fuzzy file search by name.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: find files with 'auth' in the name
 You: search for config files
 ```
 
 ### `glob_search`
-Búsqueda de archivos usando patrones glob.
+File search using glob patterns.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: find all Python files (*.py)
 You: search for all JSON files in src/
@@ -89,21 +89,21 @@ You: list all test files (**/*test*.py)
 
 ---
 
-## 🔀 Git (8 herramientas)
+## 🔀 Git (8 tools)
 
 ### `git_status`
-Obtiene el estado del repositorio Git.
+Gets Git repository status.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: show git status
 You: what files have changed?
 ```
 
 ### `git_add`
-Agrega archivos al área de preparación.
+Adds files to staging area.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: git add main.py
 You: stage all changes
@@ -111,45 +111,45 @@ You: add all Python files
 ```
 
 ### `git_commit`
-Crea un commit con los cambios preparados.
+Creates a commit with staged changes.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: commit with message "Added authentication"
 You: create a commit for these changes
 ```
 
 ### `git_push`
-Envía commits al repositorio remoto.
+Pushes commits to remote repository.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: push changes to origin
 You: git push to main branch
 ```
 
 ### `git_pull`
-Obtiene cambios del repositorio remoto.
+Gets changes from remote repository.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: pull latest changes
 You: git pull from origin
 ```
 
 ### `git_log`
-Muestra el historial de commits.
+Shows commit history.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: show last 5 commits
 You: git log with 10 entries
 ```
 
 ### `git_branch`
-Gestiona ramas: listar, crear, eliminar, cambiar.
+Manages branches: list, create, delete, switch.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: list all branches
 You: create a new branch feature/auth
@@ -158,9 +158,9 @@ You: delete branch old-feature
 ```
 
 ### `git_diff`
-Muestra diferencias en el repositorio.
+Shows repository differences.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: show git diff
 You: what changed in staged files?
@@ -169,75 +169,75 @@ You: diff of working tree
 
 ---
 
-## 📊 JSON (8 herramientas)
+## 📊 JSON (8 tools)
 
 ### `read_json`
-Lee y parsea un archivo JSON.
+Reads and parses a JSON file.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: read the package.json file
 You: show me the content of config.json
 ```
 
 ### `write_json`
-Escribe datos a un archivo JSON.
+Writes data to a JSON file.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: create a config.json with database settings
 You: write user data to users.json
 ```
 
 ### `merge_json_files`
-Combina dos archivos JSON en uno.
+Combines two JSON files into one.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: merge config1.json and config2.json into final_config.json
 You: combine user data from two JSON files
 ```
 
 ### `validate_json`
-Valida que un archivo contenga JSON válido.
+Validates that a file contains valid JSON.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: validate the syntax of config.json
 You: check if data.json is valid JSON
 ```
 
 ### `format_json`
-Formatea un archivo JSON con indentación consistente.
+Formats a JSON file with consistent indentation.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: format config.json with proper indentation
 You: prettify the messy JSON file
 ```
 
 ### `json_get_value`
-Obtiene un valor específico usando ruta de claves (dot notation).
+Gets a specific value using key path (dot notation).
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: get the value of user.name from config.json
 You: extract database.host from settings.json
 ```
 
 ### `json_set_value`
-Establece un valor específico usando ruta de claves.
+Sets a specific value using key path.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: set user.email to "test@example.com" in config.json
 You: update database.port to 5432 in settings.json
 ```
 
 ### `json_to_text`
-Convierte un archivo JSON a formato de texto legible.
+Converts a JSON file to readable text format.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: convert config.json to readable text
 You: show data.json in text format
@@ -245,12 +245,12 @@ You: show data.json in text format
 
 ---
 
-## 📈 CSV (7 herramientas)
+## 📈 CSV (7 tools)
 
 ### `read_csv`
-Lee un archivo CSV y muestra su contenido.
+Reads a CSV file and shows its content.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: read the sales.csv file
 You: show me the first 10 rows of data.csv
@@ -258,18 +258,18 @@ You: read customers.csv with semicolon delimiter
 ```
 
 ### `write_csv`
-Escribe datos a un archivo CSV.
+Writes data to a CSV file.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: create a products.csv with columns: id, name, price
 You: write sales data to output.csv
 ```
 
 ### `csv_info`
-Obtiene información estadística sobre un archivo CSV.
+Gets statistical information about a CSV file.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: show statistics for sales.csv
 You: get column types and null values from data.csv
@@ -277,9 +277,9 @@ You: analyze the structure of customers.csv
 ```
 
 ### `filter_csv`
-Filtra un CSV por valor de columna.
+Filters a CSV by column value.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: filter sales.csv where product="Laptop"
 You: get all rows from customers.csv where country="USA"
@@ -287,9 +287,9 @@ You: find sales in data.csv where amount > 1000
 ```
 
 ### `merge_csv_files`
-Combina dos archivos CSV.
+Combines two CSV files.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: merge sales_2023.csv and sales_2024.csv
 You: join customers.csv and orders.csv on customer_id
@@ -297,18 +297,18 @@ You: concatenate all monthly reports
 ```
 
 ### `csv_to_json`
-Convierte un archivo CSV a formato JSON.
+Converts a CSV file to JSON format.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: convert sales.csv to sales.json
 You: transform data.csv to JSON format
 ```
 
 ### `sort_csv`
-Ordena un CSV por columna.
+Sorts a CSV by column.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: sort sales.csv by amount in descending order
 You: order customers.csv by name alphabetically
@@ -316,66 +316,66 @@ You: order customers.csv by name alphabetically
 
 ---
 
-## 🌐 Web (7 herramientas)
+## 🌐 Web (7 tools)
 
 ### `wiki_search`
-Busca artículos de Wikipedia relacionados con una consulta.
+Searches for Wikipedia articles related to a query.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: search Wikipedia for "Python programming"
 You: find articles about "machine learning"
 ```
 
 ### `wiki_summary`
-Obtiene un resumen de un artículo de Wikipedia.
+Gets a summary of a Wikipedia article.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: get a summary of the Python article on Wikipedia
 You: show me a brief description of "FastAPI"
 ```
 
 ### `wiki_content`
-Obtiene el contenido completo de un artículo.
+Gets the complete content of an article.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: get the full content of "Git" article
 You: show me the complete Wikipedia page for "REST API"
 ```
 
 ### `wiki_page_info`
-Obtiene información detallada sobre una página de Wikipedia.
+Gets detailed information about a Wikipedia page.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: get metadata for "Python programming" page
 You: show categories and links for "Docker" article
 ```
 
 ### `wiki_random`
-Obtiene títulos de páginas aleatorias de Wikipedia.
+Gets random Wikipedia page titles.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: get 5 random Wikipedia pages
 You: show me a random article
 ```
 
 ### `wiki_set_language`
-Cambia el idioma para búsquedas de Wikipedia.
+Changes language for Wikipedia searches.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: set Wikipedia language to Spanish
 You: change wiki language to French (fr)
 ```
 
 ### `web_search`
-Búsqueda general en la web.
+General web search.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: search the web for "best Python frameworks 2024"
 You: find information about "Docker deployment"
@@ -383,18 +383,18 @@ You: find information about "Docker deployment"
 
 ---
 
-## 🔍 Analysis (5 herramientas)
+## 🔍 Analysis (5 tools)
 
 ### `analyze_python_file`
-Analiza un archivo Python para extraer su estructura.
+Analyzes a Python file to extract its structure.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: analyze the structure of main.py
 You: show imports, classes, and functions in auth.py
 ```
 
-**Salida**:
+**Output**:
 ```python
 # Imports:
 - import os
@@ -406,31 +406,31 @@ You: show imports, classes, and functions in auth.py
 
 # Functions:
 - validate_user(email, password) (lines 55-70)
-- createtoken(user_id) (lines 75-85)
+- create_token(user_id) (lines 75-85)
 ```
 
 ### `find_function_definition`
-Encuentra y muestra la definición de una función específica.
+Finds and shows a specific function definition.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: find the definition of login_user in auth.py
 You: show me the validate_email function
 ```
 
 ### `list_all_functions`
-Lista todas las funciones en un archivo Python.
+Lists all functions in a Python file.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: list all functions in utils.py
 You: show me all methods in the services.py file
 ```
 
 ### `grep_search`
-Búsqueda de texto con patrones (regex).
+Text search with patterns (regex).
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: search for "def authenticate" in all Python files
 You: find where "database_url" is used
@@ -438,9 +438,9 @@ You: grep for "TODO" comments in src/
 ```
 
 ### `run_terminal_cmd`
-Ejecuta comandos de shell.
+Executes shell commands.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: run pytest to test the application
 You: execute npm install
@@ -449,81 +449,81 @@ You: run the Flask development server
 
 ---
 
-## 🧠 Memory (8 herramientas)
+## 🧠 Memory (8 tools)
 
-Sistema RAG (Retrieval-Augmented Generation) con ChromaDB para memoria persistente.
+RAG (Retrieval-Augmented Generation) system with ChromaDB for persistent memory.
 
-### Herramientas de Consulta
+### Query Tools
 
 #### `query_conversation_memory`
-Busca en el historial de conversaciones pasadas.
+Searches in past conversation history.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: what did we discuss about authentication last week?
 You: find conversations about database optimization
 ```
 
 #### `query_codebase_memory`
-Busca en el código indexado del proyecto.
+Searches in indexed project code.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: where did we implement caching logic?
 You: find the authentication middleware code
 ```
 
 #### `query_decision_memory`
-Busca decisiones arquitectónicas registradas.
+Searches recorded architectural decisions.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: what was our decision about the database schema?
 You: recall our choice for the API framework
 ```
 
 #### `query_preferences_memory`
-Busca preferencias de usuario.
+Searches user preferences.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: what's my preferred coding style?
 You: recall my framework preferences
 ```
 
 #### `query_user_memory`
-Busca información del usuario.
+Searches user information.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: what's my name and role?
 You: recall my expertise areas
 ```
 
-### Herramientas de Guardado
+### Save Tools
 
 #### `save_user_info`
-Guarda información sobre el usuario.
+Saves information about the user.
 
-**Ejemplos**:
+**Examples**:
 ```bash
-You: remember that my name is Juan and I'm a backend developer
+You: remember that my name is John and I'm a backend developer
 You: save that I work on microservices architecture
 ```
 
 #### `save_decision`
-Registra una decisión arquitectónica.
+Records an architectural decision.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: remember we decided to use PostgreSQL for the database
 You: save our decision to implement JWT authentication
 ```
 
 #### `save_preference`
-Guarda una preferencia de usuario.
+Saves a user preference.
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: remember I prefer async/await over callbacks
 You: save that I like using FastAPI over Flask
@@ -531,22 +531,22 @@ You: save that I like using FastAPI over Flask
 
 ---
 
-## 📎 Características Especiales
+## 📎 Special Features
 
-### File Mentions con @
+### File Mentions with @
 
-Menciona archivos específicos para darles máxima prioridad en el contexto.
+Mention specific files to give them maximum priority in context.
 
-**Sintaxis**: `@<nombre_archivo>`
+**Syntax**: `@<filename>`
 
-**Características**:
-- Selector interactivo con navegación por teclado (↑↓)
-- Búsqueda y filtrado en tiempo real
-- Los archivos mencionados tienen **máxima prioridad**
-- Soporta múltiples archivos en una sola consulta
-- Excluye automáticamente archivos ocultos y binarios
+**Features**:
+- Interactive selector with keyboard navigation (↑↓)
+- Real-time search and filtering
+- Mentioned files have **maximum priority**
+- Supports multiple files in a single query
+- Automatically excludes hidden and binary files
 
-**Ejemplos**:
+**Examples**:
 ```bash
 You: @main.py explain how this file works
 You: @config.py @.env update the database settings
@@ -554,57 +554,57 @@ You: @auth.py add docstrings to all functions
 You: @src/agents/coder.py refactor to use async
 ```
 
-**Más info**: Ver [File Mentions Guide](File-Mentions)
+**More info**: See [File Mentions Guide](File-Mentions)
 
-### Comando /search (CodeSearcher)
+### /search Command (CodeSearcher)
 
-El comando `/search` invoca el agente **CodeSearcher** especializado.
+The `/search` command invokes the specialized **CodeSearcher** agent.
 
-**Uso**:
+**Usage**:
 ```bash
 You: /search authentication function
 You: /search where is TaskPlanner used
 You: /search how does logging work
 ```
 
-**CodeSearcher proporciona**:
-- 📍 Archivos relevantes con ubicaciones exactas
-- 🔧 Funciones encontradas con código completo
-- 📦 Variables y constantes importantes
-- 🔗 Dependencias entre componentes
-- 💡 Recomendaciones de qué modificar
+**CodeSearcher provides**:
+- 📍 Relevant files with exact locations
+- 🔧 Found functions with complete code
+- 📦 Important variables and constants
+- 🔗 Dependencies between components
+- 💡 Recommendations on what to modify
 
-**Más info**: Ver [CodeSearcher Guide](CodeSearcher)
+**More info**: See [CodeSearcher Guide](CodeSearcher)
 
-### Comando /index (Indexación de Proyecto)
+### /index Command (Project Indexing)
 
-Indexa tu proyecto en la memoria vectorial para búsquedas semánticas rápidas.
+Indexes your project in vector memory for fast semantic searches.
 
-**Uso**:
+**Usage**:
 ```bash
 You: /index
 
-# Salida:
+# Output:
 📚 Indexing project in vector memory...
 ✅ Indexing completed!
   • Indexed files: 45
   • Chunks created: 234
 ```
 
-**Beneficios**:
-- Búsqueda semántica instantánea
-- El agente recuerda la estructura del proyecto
-- Consultas más rápidas y precisas
+**Benefits**:
+- Instant semantic search
+- Agent remembers project structure
+- Faster and more accurate queries
 
-**Más info**: Ver [Memory System](Memory-System)
+**More info**: See [Memory System](Memory-System)
 
 ---
 
-## 🎯 Cómo Usar las Herramientas
+## 🎯 How to Use Tools
 
-### Forma Natural (Recomendado)
+### Natural Way (Recommended)
 
-Simplemente describe lo que necesitas en lenguaje natural:
+Simply describe what you need in natural language:
 
 ```bash
 You: read the README.md file
@@ -613,11 +613,11 @@ You: show me the git status
 You: search for "login" function in the codebase
 ```
 
-El agente selecciona automáticamente las herramientas apropiadas.
+The agent automatically selects the appropriate tools.
 
-### Forma Directa (Para usuarios avanzados)
+### Direct Way (For advanced users)
 
-También puedes ser más específico:
+You can also be more specific:
 
 ```bash
 You: use read_file to show main.py lines 10-50
@@ -627,44 +627,44 @@ You: use analyze_python_file on auth.py
 
 ---
 
-## 💡 Consejos de Uso
+## 💡 Usage Tips
 
-1. **Combina herramientas**: El agente puede usar múltiples herramientas en una sola tarea
+1. **Combine tools**: The agent can use multiple tools in one task
    ```bash
    You: read auth.py, find the login function, and add error handling
-   # Usa: read_file + find_function_definition + edit_file
+   # Uses: read_file + find_function_definition + edit_file
    ```
 
-2. **Usa /search antes de modificar**: Entiende el código primero
+2. **Use /search before modifying**: Understand the code first
    ```bash
    You: /search authentication system
-   # Luego: modify the auth logic
+   # Then: modify the auth logic
    ```
 
-3. **Aprovecha la memoria**: El agente recuerda entre sesiones
+3. **Leverage memory**: The agent remembers between sessions
    ```bash
-   # Sesión 1
+   # Session 1
    You: /index
    
-   # Sesión 2 (otro día)
+   # Session 2 (another day)
    You: where did we put the caching logic?
    ``` 
 
-4. **File mentions para precisión**: Usa @ cuando sabes qué archivo necesitas
+4. **File mentions for precision**: Use @ when you know which file you need
    ```bash
    You: @config.py update database URL to localhost
    ```
 
 ---
 
-## 📚 Ver También
+## 📚 See Also
 
-- **[CodeSearcher](CodeSearcher)** - Agente de búsqueda especializado
-- **[File Mentions](File-Mentions)** - Guía completa de menciones de archivos
-- **[Memory System](Memory-System)** - Sistema de memoria RAG
-- **[Usage Guide](Usage-Guide)** - Guía completa de uso
-- **[Configuration](Configuration)** - Configuración de herramientas
+- **[CodeSearcher](CodeSearcher)** - Specialized search agent
+- **[File Mentions](File-Mentions)** - Complete file mentions guide
+- **[Memory System](Memory-System)** - RAG memory system
+- **[Usage Guide](Usage-Guide)** - Complete usage guide
+- **[Configuration](Configuration)** - Tools configuration
 
 ---
 
-[← Volver al Home](Home) | [Arquitectura →](Architecture)
+[← Back to Home](Home) | [Architecture →](Architecture)

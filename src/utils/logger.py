@@ -30,7 +30,7 @@ class DaveAgentLogger:
 
         self.console = Console(stderr=True)
 
-        # Handler para consola con colores (usando Rich)
+        # Console handler with colors (using Rich)
         console_handler = RichHandler(
             console=self.console,
             show_time=True,
@@ -46,7 +46,7 @@ class DaveAgentLogger:
         console_handler.setFormatter(console_formatter)
         self.logger.addHandler(console_handler)
 
-        # Handler para archivo (si se especifica o usar default)
+        # File handler (if specified or use default)
         if log_file is None:
             # Default: .daveagent/logs/daveagent_YYYYMMDD_HHMMSS.log
             log_dir = Path(".daveagent") / "logs"
@@ -58,7 +58,7 @@ class DaveAgentLogger:
             log_path.parent.mkdir(parents=True, exist_ok=True)
 
             file_handler = logging.FileHandler(log_file, encoding='utf-8')
-            file_handler.setLevel(logging.DEBUG)  # Siempre DEBUG en archivo
+            file_handler.setLevel(logging.DEBUG)  # Always DEBUG in file
             file_formatter = logging.Formatter(
                 '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
                 datefmt='%Y-%m-%d %H:%M:%S'
@@ -67,15 +67,15 @@ class DaveAgentLogger:
             self.logger.addHandler(file_handler)
 
     def debug(self, message: str, **kwargs):
-        """Log mensaje de debug"""
+        """Log debug message"""
         self.logger.debug(message, extra=kwargs)
 
     def info(self, message: str, **kwargs):
-        """Log mensaje informativo"""
+        """Log informational message"""
         self.logger.info(message, extra=kwargs)
 
     def warning(self, message: str, **kwargs):
-        """Log advertencia"""
+        """Log warning"""
         self.logger.warning(message, extra=kwargs)
 
     def error(self, message: str, **kwargs):
@@ -83,52 +83,52 @@ class DaveAgentLogger:
         self.logger.error(message, extra=kwargs)
 
     def critical(self, message: str, **kwargs):
-        """Log error crítico"""
+        """Log critical error"""
         self.logger.critical(message, extra=kwargs)
 
     def exception(self, message: str, **kwargs):
-        """Log excepción con traceback"""
+        """Log exception with traceback"""
         self.logger.exception(message, extra=kwargs)
 
     def log_api_call(self, endpoint: str, params: dict):
-        """Log llamada a API"""
+        """Log API call"""
         self.debug(f"🌐 API Call: {endpoint}")
         self.debug(f"   Params: {params}")
 
     def log_api_response(self, endpoint: str, status: str, data: any = None):
-        """Log respuesta de API"""
+        """Log API response"""
         self.debug(f"✅ API Response: {endpoint} - {status}")
         if data:
             self.debug(f"   Data: {str(data)[:200]}...")
 
     def log_agent_selection(self, selected_agent: str, reason: str = ""):
-        """Log selección de agente"""
-        self.info(f"🤖 Agente seleccionado: {selected_agent}")
+        """Log agent selection"""
+        self.info(f"🤖 Agent selected: {selected_agent}")
         if reason:
-            self.debug(f"   Razón: {reason}")
+            self.debug(f"   Reason: {reason}")
 
     def log_task_start(self, task_id: int, task_title: str):
-        """Log inicio de tarea"""
-        self.info(f"▶️  Iniciando tarea {task_id}: {task_title}")
+        """Log task start"""
+        self.info(f"▶️  Starting task {task_id}: {task_title}")
 
     def log_task_complete(self, task_id: int, success: bool):
-        """Log finalización de tarea"""
-        status = "✅ Completada" if success else "❌ Fallida"
-        self.info(f"{status} - Tarea {task_id}")
+        """Log task completion"""
+        status = "✅ Completed" if success else "❌ Failed"
+        self.info(f"{status} - Task {task_id}")
 
     def log_message_processing(self, message_type: str, source: str, content_preview: str):
-        """Log procesamiento de mensaje"""
-        self.debug(f"📨 Procesando mensaje:")
-        self.debug(f"   Tipo: {message_type}")
-        self.debug(f"   Fuente: {source}")
-        self.debug(f"   Contenido: {content_preview[:100]}...")
+        """Log message processing"""
+        self.debug(f"📨 Processing message:")
+        self.debug(f"   Type: {message_type}")
+        self.debug(f"   Source: {source}")
+        self.debug(f"   Content: {content_preview[:100]}...")
 
     def log_error_with_context(self, error: Exception, context: str):
-        """Log error con contexto"""
-        self.error(f"💥 Error en {context}")
-        self.error(f"   Tipo: {type(error).__name__}")
-        self.error(f"   Mensaje: {str(error)}")
-        self.exception(f"   Traceback completo:")
+        """Log error with context"""
+        self.error(f"💥 Error in {context}")
+        self.error(f"   Type: {type(error).__name__}")
+        self.error(f"   Message: {str(error)}")
+        self.exception(f"   Full traceback:")
 
 
 # Instancia global del logger
@@ -172,5 +172,5 @@ def set_log_level(level: int):
             handler.setLevel(level)
 
 
-# Mantener compatibilidad con código antiguo
+# Maintain compatibility with old code
 CodeAgentLogger = DaveAgentLogger

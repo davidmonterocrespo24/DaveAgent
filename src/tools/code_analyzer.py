@@ -207,7 +207,7 @@ def _extract_classes(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
                 'methods': []
             }
 
-            # Obtener métodos
+            # Get methods
             for item in node.body:
                 if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     class_info['methods'].append({

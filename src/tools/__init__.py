@@ -1,5 +1,5 @@
 """
-Herramientas del agente - Organizadas por categoría
+Agent tools - Organized by category
 """
 
 # Filesystem tools

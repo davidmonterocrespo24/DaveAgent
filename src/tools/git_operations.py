@@ -300,11 +300,11 @@ async def git_diff(cached: bool = False, path: Optional[str] = None) -> str:
     Shows the differences in the repository.
 
     Args:
-        cached: Si True, muestra diff de cambios staged
-        path: Ruta del repositorio (usa directorio actual si no se especifica)
+        cached: If True, shows diff of staged changes
+        path: Repository path (uses current directory if not specified)
 
     Returns:
-        str: Diff de los cambios
+        str: Diff of changes
     """
     work_dir = path or os.getcwd()
 
@@ -326,9 +326,9 @@ async def git_diff(cached: bool = False, path: Optional[str] = None) -> str:
 
         output = stdout.decode('utf-8', errors='replace')
         if not output:
-            return "No hay cambios para mostrar"
+            return "No changes to show"
 
-        return f"Diferencias {'(staged)' if cached else '(working tree)'}:\n{output}"
+        return f"Differences {'(staged)' if cached else '(working tree)'}:\n{output}"
 
     except Exception as e:
-        return f"ERROR ejecutando git diff: {str(e)}"
+        return f"ERROR executing git diff: {str(e)}"
