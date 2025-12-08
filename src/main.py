@@ -305,12 +305,31 @@ class DaveAgentCLI:
         # conflictos con system messages.
         # =====================================================================
 
+        # Crear wrappers separados para cada agente (para logging con nombres correctos)
+        coder_client = LoggingModelClientWrapper(
+            wrapped_client=self.model_client._wrapped,
+            json_logger=self.json_logger,
+            agent_name="Coder"
+        )
+
+        searcher_client = LoggingModelClientWrapper(
+            wrapped_client=self.model_client._wrapped,
+            json_logger=self.json_logger,
+            agent_name="CodeSearcher"
+        )
+
+        planner_client = LoggingModelClientWrapper(
+            wrapped_client=self.model_client._wrapped,
+            json_logger=self.json_logger,
+            agent_name="Planner"
+        )
+
         # Crear agente de código con herramientas RAG (sin memory parameter)
         self.coder_agent = AssistantAgent(
             name="Coder",
             description=CODER_AGENT_DESCRIPTION,
             system_message=system_prompt,
-            model_client=self.model_client,
+            model_client=coder_client,
             tools=coder_tools,  # Incluye herramientas RAG de memoria
             max_tool_iterations=5,
             reflect_on_tool_use=False
@@ -319,7 +338,7 @@ class DaveAgentCLI:
 
         # Crear CodeSearcher con herramientas de búsqueda (sin memory parameter)
         self.code_searcher = CodeSearcher(
-            self.model_client,
+            searcher_client,
             self.all_tools["search"]  # Incluye query_codebase_memory, query_conversation_memory
             # NO memory parameter - uses RAG tools instead
         )
@@ -329,7 +348,7 @@ class DaveAgentCLI:
             name="Planner",
             description=PLANNING_AGENT_DESCRIPTION,
             system_message=PLANNING_AGENT_SYSTEM_MESSAGE,
-            model_client=self.model_client,
+            model_client=planner_client,
             tools=[]  # Planner no tiene herramientas, solo planifica
             # NO memory parameter
         )

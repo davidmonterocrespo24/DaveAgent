@@ -251,6 +251,11 @@ class JSONLogger:
             self.logger.info(f"📝 JSON log saved: {filepath}")
             self.logger.info(f"   Events: {len(self.events)}, Duration: {duration:.1f}s")
             self.logger.info(f"   Stats: {self.stats}")
+            
+            # Contar LLM calls en los eventos
+            llm_calls = sum(1 for e in self.events if e.get("event_type") == "llm_call")
+            if llm_calls > 0:
+                self.logger.info(f"   🤖 LLM calls logged: {llm_calls}")
 
         except Exception as e:
             self.logger.error(f"Error saving JSON log: {e}")
