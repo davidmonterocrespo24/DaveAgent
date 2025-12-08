@@ -1,12 +1,12 @@
-# ⚙️ Configuración - CodeAgent
+# ⚙️ Configuration - CodeAgent
 
-Esta guía documenta todas las opciones de configuración disponibles para personalizar CodeAgent.
+This guide documents all available configuration options to customize CodeAgent.
 
-## 📁 Archivos de Configuración
+## 📁 Configuration Files
 
-### 1. `.env` - Variables de Entorno
+### 1. `.env` - Environment Variables
 
-Crea un archivo `.env` en el directorio raíz del proyecto:
+Create a `.env` file in the project root directory:
 
 ```env
 # ==================== API Configuration ====================
@@ -33,13 +33,13 @@ DAVEAGENT_TEMPERATURE=0.7
 
 ---
 
-## 🔑 Configuración de API
+## 🔑 API Configuration
 
-### Proveedores Soportados
+### Supported Providers
 
-CodeAgent soporta cualquier proveedor compatible con la API de OpenAI.
+CodeAgent supports any OpenAI-compatible API provider.
 
-#### DeepSeek (Por Defecto)
+#### DeepSeek (Default)
 
 ```env
 DAVEAGENT_API_KEY=sk-your-deepseek-key
@@ -81,29 +81,29 @@ DAVEAGENT_BASE_URL=https://api.groq.com/openai/v1
 
 ---
 
-## 🛡️ Configuración SSL
+## 🛡️ SSL Configuration
 
-### Deshabilitar Verificación SSL
+### Disable SSL Verification
 
-Para redes corporativas con certificados auto-firmados:
+For corporate networks with self-signed certificates:
 
 ```env
 DAVEAGENT_SSL_VERIFY=false
 ```
 
-O usar argumento de línea de comandos:
+Or use command line argument:
 
 ```bash
 daveagent --no-ssl-verify
 ```
 
-### Usar Certificado Personalizado
+### Use Custom Certificate
 
 ```env
 DAVEAGENT_CA_BUNDLE=/path/to/your/ca-bundle.crt
 ```
 
-O configurar en `main.py`:
+Or configure in `main.py`:
 
 ```python
 import os
@@ -112,51 +112,51 @@ os.environ['REQUESTS_CA_BUNDLE'] = '/path/to/ca-bundle.crt'
 
 ---
 
-## 🧠 Configuración de Memoria
+## 🧠 Memory Configuration
 
-### Directorio de Memoria
+### Memory Directory
 
-Por defecto: `.daveagent/memory/`
+Default: `.daveagent/memory/`
 
 ```env
 DAVEAGENT_MEMORY_PATH=custom/path/to/memory
 ```
 
-### Auto-Indexación
+### Auto-Indexing
 
-Indexar automáticamente al iniciar:
+Automatically index on start:
 
 ```env
 DAVEAGENT_AUTO_INDEX=true
 ```
 
-### Colecciones de Memoria
+### Memory Collections
 
-ChromaDB crea estas colecciones automáticamente:
+ChromaDB creates these collections automatically:
 
-| Colección | Propósito | Ejemplo |
-|-----------|-----------|---------|
-| `conversations` | Historial de conversaciones | Conversaciones pasadas |
-| `codebase` | Código indexado | Archivos .py, .js, .md |
-| `decisions` | Decisiones arquitectónicas | "Usamos PostgreSQL" |
-| `preferences` | Preferencias del usuario | "Prefiero async/await" |
-| `user_info` | Información del usuario | "Nombre: Juan, Rol: Backend Dev" |
+| Collection | Purpose | Example |
+|------------|---------|---------|
+| `conversations` | Conversation history | Past conversations |
+| `codebase` | Indexed code | .py, .js, .md files |
+| `decisions` | Architectural decisions | "We use PostgreSQL" |
+| `preferences` | User preferences | "Prefer async/await" |
+| `user_info` | User information | "Name: John, Role: Backend Dev" |
 
 ---
 
-## 📊 Configuración de Historial
+## 📊 History Configuration
 
-### Límites de Tokens
+### Token Limits
 
 ```env
-# Máximo de tokens en el historial
+# Maximum tokens in history
 DAVEAGENT_MAX_TOKENS=8000
 
-# Umbral para compresión automática
+# Threshold for automatic compression
 DAVEAGENT_SUMMARY_THRESHOLD=6000
 ```
 
-En `main.py`:
+In `main.py`:
 
 ```python
 self.conversation_manager = ConversationManager(
@@ -165,67 +165,67 @@ self.conversation_manager = ConversationManager(
 )
 ```
 
-### Comportamiento de Compresión
+### Compression Behavior
 
-La compresión automática:
-1. Se activa cuando `tokens > summary_threshold`
-2. Crea un resumen con LLM
-3. Mantiene últimos 3 mensajes + resumen
-4. Reduce uso de tokens significativamente
+Automatic compression:
+1. Activates when `tokens > summary_threshold`
+2. Creates summary with LLM
+3. Keeps last 3 messages + summary
+4. Significantly reduces token usage
 
 ---
 
-## 🎨 Configuración de CLI
+## 🎨 CLI Configuration
 
-### Nivel de Logging
+### Logging Level
 
 ```env
 DAVEAGENT_LOG_LEVEL=DEBUG  # DEBUG, INFO, WARNING, ERROR
 ```
 
-### Directorio de Logs
+### Logs Directory
 
 ```env
 DAVEAGENT_LOG_PATH=logs/
 ```
 
-### Deshabilitar Colores
+### Disable Colors
 
 ```env
 DAVEAGENT_NO_COLOR=true
 ```
 
-### Modo Debug
+### Debug Mode
 
 ```bash
-# Argumento de línea de comandos
+# Command line argument
 daveagent --debug
 
-# Variable de entorno
+# Environment variable
 DAVEAGENT_DEBUG=true
 ```
 
 ---
 
-## 🤖 Configuración de Agentes
+## 🤖 Agent Configuration
 
-### Temperatura del Modelo
+### Model Temperature
 
 ```env
-DAVEAGENT_TEMPERATURE=0.7  # 0.0 (determinista) a 1.0 (creativo)
+DAVEAGENT_TEMPERATURE=0.7  # 0.0 (deterministic) to 1.0 (creative)
 ```
 
-En `main.py`:
+In `main.py`:
 
 ```python
 self.model_client = OpenAIChatCompletionClient(
     model="your-model",
-    temperature=0.7,  # Ajustar aquí
+    temperature=0.7,  # Adjust here
     # ...
 )
 ```
 
-### Max Tokens por Respuesta
+### Max Tokens per Response
 
 ```env
 DAVEAGENT_MAX_COMPLETION_TOKENS=4000
@@ -239,11 +239,11 @@ DAVEAGENT_TOP_P=0.9
 
 ---
 
-## 🔧 Configuración Avanzada
+## 🔧 Advanced Configuration
 
-### Editar `main.py` Directamente
+### Edit `main.py` Directly
 
-Para configuraciones más avanzadas, edita `src/main.py`:
+For more advanced configurations, edit `src/main.py`:
 
 ```python
 class DaveAgent:
@@ -275,39 +275,39 @@ class DaveAgent:
 
 ---
 
-## 📝 Configuración de Prompts
+## 📝 Prompts Configuration
 
-Los prompts del sistema están centralizados en `src/config/prompts.py`.
+System prompts are centralized in `src/config/prompts.py`.
 
-### Modificar Prompt del Coder
+### Modify Coder Prompt
 
-Edita `src/config/prompts.py`:
+Edit `src/config/prompts.py`:
 
 ```python
 AGENT_SYSTEM_PROMPT = r"""
 You are a powerful agentic AI coding assistant.
-[Personaliza este prompt según tus necesidades]
+[Customize this prompt for your needs]
 ...
 """
 ```
 
-### Modificar Prompt del CodeSearcher
+### Modify CodeSearcher Prompt
 
 ```python
 CODE_SEARCHER_SYSTEM_MESSAGE = """
 You are an expert code analyst specialized in SEARCH and ANALYSIS ONLY.
-[Personaliza aquí]
+[Customize here]
 ...
 """
 ```
 
-### Agregar Instrucciones Personalizadas
+### Add Custom Instructions
 
-Agrega al final del prompt:
+Add at the end of the prompt:
 
 ```python
 AGENT_SYSTEM_PROMPT = r"""
-[... prompt existente ...]
+[... existing prompt ...]
 
 CUSTOM INSTRUCTIONS:
 - Always use type hints in Python
@@ -319,9 +319,9 @@ CUSTOM INSTRUCTIONS:
 
 ---
 
-## 🌐 Configuración de Network
+## 🌐 Network Configuration
 
-### Proxy HTTP/HTTPS
+### HTTP/HTTPS Proxy
 
 ```env
 HTTP_PROXY=http://proxy.example.com:8080
@@ -329,42 +329,42 @@ HTTPS_PROXY=https://proxy.example.com:8080
 NO_PROXY=localhost,127.0.0.1
 ```
 
-### Timeout de Requests
+### Request Timeout
 
-En `main.py`:
+In `main.py`:
 
 ```python
 import httpx
 
 self.http_client = httpx.Client(
-    timeout=30.0,  # 30 segundos
+    timeout=30.0,  # 30 seconds
     # ...
 )
 ```
 
 ---
 
-## 📍 Configuración por Proyecto
+## 📍 Per-Project Configuration
 
-Puedes tener configuraciones diferentes por proyecto creando `.env` en cada directorio:
+You can have different configurations per project by creating `.env` in each directory:
 
 ```
 ~/project1/
-  ├── .env  # Configuración para project1
+  ├── .env  # Configuration for project1
   └── ...
 
 ~/project2/
-  ├── .env  # Configuración para project2
+  ├── .env  # Configuration for project2
   └── ...
 ```
 
-CodeAgent usa automáticamente el `.env` del directorio actual.
+CodeAgent automatically uses the `.env` from the current directory.
 
 ---
 
-## 🎯 Configuración Recomendada
+## 🎯 Recommended Configuration
 
-### Para Desarrollo
+### For Development
 
 ```env
 DAVEAGENT_API_KEY=your-key
@@ -374,7 +374,7 @@ DAVEAGENT_TEMPERATURE=0.7
 DAVEAGENT_AUTO_INDEX=true
 ```
 
-### Para Producción
+### For Production
 
 ```env
 DAVEAGENT_API_KEY=your-key
@@ -384,33 +384,33 @@ DAVEAGENT_TEMPERATURE=0.5
 DAVEAGENT_SSL_VERIFY=true
 ```
 
-### Para Testing
+### For Testing
 
 ```env
 DAVEAGENT_MODEL=gpt-3.5-turbo
-DAVEAGENT_TEMPERATURE=0.0  # Determinista
+DAVEAGENT_TEMPERATURE=0.0  # Deterministic
 DAVEAGENT_LOG_LEVEL=ERROR
 ```
 
 ---
 
-## 🔐 Seguridad
+## 🔐 Security
 
-### Proteger API Keys
+### Protect API Keys
 
-**NUNCA** incluyas API keys en el código fuente. Usa variables de entorno:
+**NEVER** include API keys in source code. Use environment variables:
 
 ```bash
-# Mal ❌
+# Bad ❌
 api_key = "sk-1234567890"
 
-# Bien ✅
+# Good ✅
 api_key = os.getenv("DAVEAGENT_API_KEY")
 ```
 
 ### .gitignore
 
-Asegúrate de que `.env` esté en `.gitignore`:
+Make sure `.env` is in `.gitignore`:
 
 ```gitignore
 .env
@@ -422,7 +422,7 @@ logs/
 
 ---
 
-## 🔄 Variables de Entorno Completas
+## 🔄 Complete Environment Variables
 
 ```env
 # ==================== API ====================
@@ -464,13 +464,13 @@ LANGFUSE_HOST=https://cloud.langfuse.com
 
 ---
 
-## 📚 Ver También
+## 📚 See Also
 
-- **[Installation](Installation)** - Instalación inicial
-- **[Usage Guide](Usage-Guide)** - Cómo usar CodeAgent
-- **[Troubleshooting](Troubleshooting)** - Solución de problemas
-- **[Development](Development)** - Desarrollo y contribución
+- **[Installation](Installation)** - Initial installation
+- **[Usage Guide](Usage-Guide)** - How to use CodeAgent
+- **[Troubleshooting](Troubleshooting)** - Problem solving
+- **[Development](Development)** - Development and contribution
 
 ---
 
-[← Volver al Home](Home) | [Solución de Problemas →](Troubleshooting)
+[← Back to Home](Home) | [Troubleshooting →](Troubleshooting)
