@@ -27,3 +27,4 @@ __pycache__/
 
 .daveagent/*
 .agent_history
+.claude/settings.local.json
