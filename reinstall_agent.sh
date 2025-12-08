@@ -5,7 +5,6 @@ echo "========================================"
 echo "  Reinstalando DaveAgent"
 echo "========================================"
 
-# 1. Desinstalar versión anterior
 echo "[1/3] Desinstalando versión anterior..."
 pip uninstall -y daveagent 2>/dev/null || echo "No había versión instalada"
 
