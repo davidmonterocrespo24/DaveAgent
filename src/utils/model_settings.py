@@ -1,5 +1,5 @@
 """
-Model Settings - Configuración de modelos y proveedores
+Model Settings - Model and provider configuration
 """
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 @dataclass
 class ModelProvider:
-    """Información de un proveedor de modelos"""
+    """Model provider information"""
     name: str
     display_name: str
     base_url: str
@@ -18,11 +18,11 @@ class ModelProvider:
     capabilities: Dict[str, Any]
 
 
-# Definición de proveedores soportados
+# Supported provider definitions
 PROVIDERS = {
     "deepseek": ModelProvider(
         name="deepseek",
-        display_name="DeepSeek (Recomendado - Rápido y económico)",
+        display_name="DeepSeek (Recommended - Fast and affordable)",
         base_url="https://api.deepseek.com",
         default_model="deepseek-reasoner",
         models=["deepseek-chat", "deepseek-reasoner"],
@@ -37,7 +37,7 @@ PROVIDERS = {
     ),
     "openai": ModelProvider(
         name="openai",
-        display_name="OpenAI (GPT-4 - Potente pero costoso)",
+        display_name="OpenAI (GPT-4 - Powerful but expensive)",
         base_url="https://api.openai.com/v1",
         default_model="gpt-5",
         models=["gpt-5", "gpt-5-mini"],
@@ -53,7 +53,7 @@ PROVIDERS = {
     "azure": ModelProvider(
         name="azure",
         display_name="Azure OpenAI",
-        base_url="",  # Usuario debe proporcionar
+        base_url="",  # User must provide
         default_model="gpt-4o",
         models=["gpt-4o", "gpt-4", "gpt-35-turbo"],
         requires_api_key=True,
@@ -86,7 +86,7 @@ PROVIDERS = {
     ),
     "ollama": ModelProvider(
         name="ollama",
-        display_name="Ollama (Local - Gratis)",
+        display_name="Ollama (Local - Free)",
         base_url="http://localhost:11434/v1",
         default_model="llama3.2",
         models=["llama3.2", "llama3.1", "mistral", "codellama", "phi3"],
@@ -137,32 +137,32 @@ PROVIDERS = {
 
 def show_providers_menu() -> str:
     """
-    Muestra el menú de proveedores y retorna la selección
+    Shows the provider menu and returns the selection
 
     Returns:
-        Nombre del proveedor seleccionado
+        Selected provider name
     """
     print()
-    print("🌐 Selección de Proveedor de IA")
+    print("🌐 AI Provider Selection")
     print("=" * 70)
     print()
-    print("Selecciona el proveedor que quieres usar:")
+    print("Select the provider you want to use:")
     print()
 
-    # Listar proveedores
+    # List providers
     providers_list = list(PROVIDERS.keys())
     for i, provider_key in enumerate(providers_list, 1):
         provider = PROVIDERS[provider_key]
         cost_info = ""
         if provider.requires_api_key:
             if "deepseek" in provider_key.lower():
-                cost_info = " [Gratis para empezar]"
+                cost_info = " [Free to start]"
             elif "ollama" in provider_key.lower():
-                cost_info = " [Gratis - Local]"
+                cost_info = " [Free - Local]"
             elif "openai" in provider_key.lower():
-                cost_info = " [Pago]"
+                cost_info = " [Paid]"
         else:
-            cost_info = " [Gratis]"
+            cost_info = " [Free]"
 
         print(f"  {i}. {provider.display_name}{cost_info}")
 
@@ -170,10 +170,10 @@ def show_providers_menu() -> str:
 
     while True:
         try:
-            choice = input(f"Selecciona una opción (1-{len(providers_list)}): ").strip()
+            choice = input(f"Select an option (1-{len(providers_list)}): ").strip()
 
             if not choice:
-                print("❌ Debes seleccionar una opción.")
+                print("❌ You must select an option.")
                 continue
 
             choice_num = int(choice)
@@ -182,45 +182,45 @@ def show_providers_menu() -> str:
                 selected = providers_list[choice_num - 1]
                 return selected
             else:
-                print(f"❌ Opción inválida. Selecciona entre 1 y {len(providers_list)}.")
+                print(f"❌ Invalid option. Select between 1 and {len(providers_list)}.")
 
         except ValueError:
-            print("❌ Por favor ingresa un número válido.")
+            print("❌ Please enter a valid number.")
         except KeyboardInterrupt:
-            print("\n\n❌ Selección cancelada.")
+            print("\n\n❌ Selection cancelled.")
             raise
 
 
 def show_models_menu(provider_name: str) -> str:
     """
-    Muestra el menú de modelos para un proveedor
+    Shows the model menu for a provider
 
     Args:
-        provider_name: Nombre del proveedor
+        provider_name: Provider name
 
     Returns:
-        Nombre del modelo seleccionado
+        Selected model name
     """
     provider = PROVIDERS[provider_name]
 
     print()
-    print(f"📊 Selección de Modelo ({provider.display_name})")
+    print(f"📊 Model Selection ({provider.display_name})")
     print("=" * 70)
     print()
-    print("Modelos disponibles:")
+    print("Available models:")
     print()
 
     for i, model in enumerate(provider.models, 1):
-        default_mark = " (Por defecto)" if model == provider.default_model else ""
+        default_mark = " (Default)" if model == provider.default_model else ""
         print(f"  {i}. {model}{default_mark}")
 
     print()
-    print(f"  0. Usar modelo por defecto ({provider.default_model})")
+    print(f"  0. Use default model ({provider.default_model})")
     print()
 
     while True:
         try:
-            choice = input(f"Selecciona una opción (0-{len(provider.models)}): ").strip()
+            choice = input(f"Select an option (0-{len(provider.models)}): ").strip()
 
             if not choice or choice == "0":
                 return provider.default_model
@@ -230,30 +230,30 @@ def show_models_menu(provider_name: str) -> str:
             if 1 <= choice_num <= len(provider.models):
                 return provider.models[choice_num - 1]
             else:
-                print(f"❌ Opción inválida. Selecciona entre 0 y {len(provider.models)}.")
+                print(f"❌ Invalid option. Select between 0 and {len(provider.models)}.")
 
         except ValueError:
-            print("❌ Por favor ingresa un número válido.")
+            print("❌ Please enter a valid number.")
         except KeyboardInterrupt:
-            print("\n\n❌ Selección cancelada.")
+            print("\n\n❌ Selection cancelled.")
             raise
 
 
 def configure_azure_settings() -> Dict[str, str]:
     """
-    Configura settings específicos de Azure
+    Configures Azure-specific settings
 
     Returns:
-        Diccionario con configuración de Azure
+        Dictionary with Azure configuration
     """
     print()
-    print("⚙️  Configuración de Azure OpenAI")
+    print("⚙️  Azure OpenAI Configuration")
     print("=" * 70)
     print()
-    print("Para usar Azure OpenAI necesitas proporcionar:")
+    print("To use Azure OpenAI you need to provide:")
     print()
 
-    endpoint = input("Azure Endpoint (ej: https://tu-recurso.openai.azure.com/): ").strip()
+    endpoint = input("Azure Endpoint (e.g.: https://your-resource.openai.azure.com/): ").strip()
     deployment = input("Deployment Name: ").strip()
     api_version = input("API Version (default: 2024-06-01): ").strip() or "2024-06-01"
 
@@ -266,46 +266,46 @@ def configure_azure_settings() -> Dict[str, str]:
 
 def get_provider_info(provider_name: str) -> ModelProvider:
     """
-    Obtiene información de un proveedor
+    Gets provider information
 
     Args:
-        provider_name: Nombre del proveedor
+        provider_name: Provider name
 
     Returns:
-        Información del proveedor
+        Provider information
     """
     return PROVIDERS.get(provider_name, PROVIDERS["deepseek"])
 
 
 def interactive_model_selection() -> tuple[str, str, str, Optional[Dict[str, str]]]:
     """
-    Selección interactiva de proveedor y modelo
+    Interactive provider and model selection
 
     Returns:
-        Tupla (provider_name, base_url, model_name, extra_config)
+        Tuple (provider_name, base_url, model_name, extra_config)
     """
-    # Seleccionar proveedor
+    # Select provider
     provider_name = show_providers_menu()
     provider = PROVIDERS[provider_name]
 
-    # Mostrar información del proveedor
+    # Show provider information
     print()
     print("=" * 70)
-    print(f"✓ Proveedor seleccionado: {provider.display_name}")
+    print(f"✓ Provider selected: {provider.display_name}")
 
     if provider.requires_api_key:
-        print(f"  API Key requerida: Sí")
-        print(f"  Obtener API key en: {provider.api_key_url}")
+        print(f"  API Key required: Yes")
+        print(f"  Get API key at: {provider.api_key_url}")
     else:
-        print(f"  API Key requerida: No")
+        print(f"  API Key required: No")
 
-    # Seleccionar modelo
+    # Select model
     model_name = show_models_menu(provider_name)
 
-    print(f"✓ Modelo seleccionado: {model_name}")
+    print(f"✓ Model selected: {model_name}")
     print("=" * 70)
 
-    # Configuración extra para Azure
+    # Extra configuration for Azure
     extra_config = None
     if provider_name == "azure":
         extra_config = configure_azure_settings()

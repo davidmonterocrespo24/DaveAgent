@@ -23,12 +23,12 @@ import traceback
 
 class JSONLogger:
     """
-    Logger dedicado para capturar todas las interacciones del sistema en JSON.
+    Dedicated logger to capture all system interactions in JSON.
 
-    Cada sesión crea un archivo JSON con:
-    - Metadata de la sesión
-    - Lista completa de eventos cronológicos
-    - Resumen de estadísticas
+    Each session creates a JSON file with:
+    - Session metadata
+    - Complete list of chronological events
+    - Statistics summary
     """
 
     def __init__(self, log_dir: Optional[Path] = None):
@@ -63,13 +63,13 @@ class JSONLogger:
 
         self.logger.info(f"📝 JSONLogger initialized: {self.log_dir}")
 
-    def start_session(self, session_id: Optional[str] = None, mode: str = "agente", **kwargs):
+    def start_session(self, session_id: Optional[str] = None, mode: str = "agent", **kwargs):
         """
         Start a new logging session
 
         Args:
             session_id: Session ID (defaults to timestamp)
-            mode: Current mode (agente/chat)
+            mode: Current mode (agent/chat)
             **kwargs: Additional metadata
         """
         if session_id is None:
@@ -198,7 +198,7 @@ class JSONLogger:
         tokens_used: Optional[Dict[str, int]] = None
     ):
         """
-        Log complete LLM call (entrada y salida)
+        Log complete LLM call (input and output)
 
         Args:
             agent_name: Name of the agent making the call
@@ -251,8 +251,8 @@ class JSONLogger:
             self.logger.info(f"📝 JSON log saved: {filepath}")
             self.logger.info(f"   Events: {len(self.events)}, Duration: {duration:.1f}s")
             self.logger.info(f"   Stats: {self.stats}")
-            
-            # Contar LLM calls en los eventos
+
+            # Count LLM calls in events
             llm_calls = sum(1 for e in self.events if e.get("event_type") == "llm_call")
             if llm_calls > 0:
                 self.logger.info(f"   🤖 LLM calls logged: {llm_calls}")

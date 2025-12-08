@@ -194,44 +194,44 @@ def _search_google_simple(query: str, headers: dict, max_results: int) -> List[D
 
 async def web_search_news(query: str, max_results: int = 5) -> str:
     """
-    Busca noticias recientes en la web.
+    Search for recent news on the web.
 
     Args:
-        query: Consulta de búsqueda de noticias
-        max_results: Número máximo de resultados (default: 5)
+        query: News search query
+        max_results: Maximum number of results (default: 5)
 
     Returns:
-        str: Resultados de noticias formateados
+        str: Formatted news results
     """
     try:
         try:
             from duckduckgo_search import DDGS
         except ImportError:
             return (
-                "ERROR: duckduckgo_search no está instalado.\n"
-                "Instalar con: pip install duckduckgo-search"
+                "ERROR: duckduckgo_search is not installed.\n"
+                "Install with: pip install duckduckgo-search"
             )
 
         try:
             with DDGS() as ddgs:
                 results = list(ddgs.news(query, max_results=max_results))
         except Exception as search_error:
-            logging.error(f"Error en búsqueda de noticias: {search_error}")
-            return f"ERROR al buscar noticias '{query}': {str(search_error)}"
+            logging.error(f"Error in news search: {search_error}")
+            return f"ERROR searching for news '{query}': {str(search_error)}"
 
         if not results:
-            return f"No se encontraron noticias para '{query}'"
+            return f"No news found for '{query}'"
 
-        # Formatear resultados
-        output = f"📰 Noticias sobre: '{query}'\n"
+        # Format results
+        output = f"📰 News about: '{query}'\n"
         output += f"{'=' * 70}\n\n"
 
         for i, result in enumerate(results, 1):
-            title = result.get('title', 'Sin título')
-            snippet = result.get('body', 'Sin descripción')
+            title = result.get('title', 'Untitled')
+            snippet = result.get('body', 'No description')
             url = result.get('url', '')
-            date = result.get('date', 'Fecha desconocida')
-            source = result.get('source', 'Fuente desconocida')
+            date = result.get('date', 'Unknown date')
+            source = result.get('source', 'Unknown source')
 
             output += f"{i}. **{title}**\n"
             output += f"   {snippet}\n"

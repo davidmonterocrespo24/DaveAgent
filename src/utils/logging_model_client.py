@@ -1,13 +1,13 @@
 """
-Logging Model Client Wrapper - Intercepta llamadas al LLM para logging
+Logging Model Client Wrapper - Intercepts LLM calls for logging
 
-Este wrapper se coloca alrededor del model_client real y captura:
-- Mensajes enviados al LLM (input)
-- Respuestas recibidas del LLM (output)
-- Uso de tokens
+This wrapper is placed around the real model_client and captures:
+- Messages sent to the LLM (input)
+- Responses received from the LLM (output)
+- Token usage
 - Timing
 
-Lo registra todo en el JSONLogger para trazabilidad completa.
+Records everything in the JSONLogger for complete traceability.
 """
 import logging
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -25,9 +25,9 @@ from datetime import datetime
 
 class LoggingModelClientWrapper:
     """
-    Wrapper que intercepta todas las llamadas al model_client y las registra.
+    Wrapper that intercepts all model_client calls and records them.
 
-    Se usa así:
+    Usage:
         original_client = OpenAIChatCompletionClient(...)
         wrapped_client = LoggingModelClientWrapper(original_client, json_logger)
         agent = AssistantAgent(model_client=wrapped_client, ...)
@@ -36,9 +36,9 @@ class LoggingModelClientWrapper:
     def __init__(self, wrapped_client: ChatCompletionClient, json_logger, agent_name: str = "Unknown"):
         """
         Args:
-            wrapped_client: El cliente real (OpenAIChatCompletionClient)
-            json_logger: Instancia de JSONLogger
-            agent_name: Nombre del agente (para logging)
+            wrapped_client: The real client (OpenAIChatCompletionClient)
+            json_logger: JSONLogger instance
+            agent_name: Agent name (for logging)
         """
         self._wrapped = wrapped_client
         self._json_logger = json_logger
@@ -52,37 +52,37 @@ class LoggingModelClientWrapper:
         **kwargs
     ) -> CreateResult:
         """
-        Intercepta el método create() y registra entrada/salida
+        Intercepts the create() method and records input/output
 
-        Acepta cualquier argumento que el cliente wrapped pueda necesitar
+        Accepts any arguments the wrapped client may need
         (tools, json_output, extra_create_args, cancellation_token, tool_choice, etc.)
 
-        IMPORTANTE: Para DeepSeek Reasoner, preserva el campo reasoning_content
-        en los mensajes del asistente según lo requiere la API.
+        IMPORTANT: For DeepSeek Reasoner, preserves the reasoning_content field
+        in assistant messages as required by the API.
         """
-        # Preservar reasoning_content en mensajes de asistente para DeepSeek Reasoner
-        # Según documentación: https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
+        # Preserve reasoning_content in assistant messages for DeepSeek Reasoner
+        # According to documentation: https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
         processed_messages = self._preserve_reasoning_content(messages)
 
-        # Extraer contenido de los mensajes para logging
+        # Extract message content for logging
         input_messages = []
         for msg in processed_messages:
             msg_dict = {
                 "role": self._get_role(msg),
                 "content": self._get_content(msg)
             }
-            # Incluir reasoning_content si existe (para DeepSeek Reasoner)
+            # Include reasoning_content if it exists (for DeepSeek Reasoner)
             if hasattr(msg, 'reasoning_content') and msg.reasoning_content:
                 msg_dict["reasoning_content"] = msg.reasoning_content
             input_messages.append(msg_dict)
 
-        # Log: Llamada a LLM iniciada
+        # Log: LLM call started
         self.logger.info(f"🤖 LLM call started: {self._agent_name}, {len(processed_messages)} messages")
 
         start_time = datetime.now()
 
         try:
-            # Llamar al cliente real con mensajes procesados + todos los kwargs
+            # Call the real client with processed messages + all kwargs
             result = await self._wrapped.create(
                 messages=processed_messages,
                 **kwargs
@@ -91,11 +91,11 @@ class LoggingModelClientWrapper:
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
-            # Extraer respuesta y reasoning_content (para DeepSeek Reasoner)
+            # Extract response and reasoning_content (for DeepSeek Reasoner)
             response_content = result.content if hasattr(result, 'content') else str(result)
             reasoning_content = getattr(result, 'reasoning_content', None)
 
-            # Extraer uso de tokens
+            # Extract token usage
             tokens_used = None
             if hasattr(result, 'usage') and result.usage:
                 tokens_used = {
@@ -104,11 +104,11 @@ class LoggingModelClientWrapper:
                     "total_tokens": (result.usage.prompt_tokens + result.usage.completion_tokens) if hasattr(result.usage, 'prompt_tokens') else 0
                 }
 
-            # Registrar en JSONLogger
+            # Record in JSONLogger
             if self._json_logger:
                 model_name = self._wrapped.model if hasattr(self._wrapped, 'model') else "unknown"
 
-                # Agregar información de timing y modelo
+                # Add timing and model information
                 llm_call_data = {
                     "timestamp": start_time.isoformat(),
                     "event_type": "llm_call",
@@ -120,12 +120,12 @@ class LoggingModelClientWrapper:
                     "tokens_used": tokens_used or {}
                 }
 
-                # Agregar reasoning_content si existe (DeepSeek Reasoner)
+                # Add reasoning_content if it exists (DeepSeek Reasoner)
                 if reasoning_content:
                     llm_call_data["reasoning_content"] = reasoning_content
                     self.logger.debug(f"💭 Reasoning content captured: {len(reasoning_content)} chars")
 
-                # Agregar a eventos manualmente (más directo que usar log_llm_call)
+                # Add to events manually (more direct than using log_llm_call)
                 self._json_logger.events.append(llm_call_data)
 
                 self.logger.info(f"✅ LLM call logged: {self._agent_name}, {duration:.2f}s, tokens={tokens_used.get('total_tokens', 0) if tokens_used else 0}")
@@ -136,7 +136,7 @@ class LoggingModelClientWrapper:
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
-            # Registrar error
+            # Record error
             if self._json_logger:
                 self._json_logger.log_error(e, context=f"LLM call failed for {self._agent_name}")
 
@@ -144,7 +144,7 @@ class LoggingModelClientWrapper:
             raise
 
     def _get_role(self, message: LLMMessage) -> str:
-        """Extrae el rol del mensaje"""
+        """Extracts the message role"""
         if isinstance(message, SystemMessage):
             return "system"
         elif isinstance(message, UserMessage):
@@ -157,10 +157,10 @@ class LoggingModelClientWrapper:
             return "unknown"
 
     def _get_content(self, message: LLMMessage) -> str:
-        """Extrae el contenido del mensaje"""
+        """Extracts the message content"""
         if hasattr(message, 'content'):
             content = message.content
-            # Si es una lista (FunctionCall), convertir a string
+            # If it's a list (FunctionCall), convert to string
             if isinstance(content, list):
                 return str(content)
             return content
@@ -168,30 +168,30 @@ class LoggingModelClientWrapper:
 
     def _preserve_reasoning_content(self, messages: Sequence[LLMMessage]) -> Sequence[LLMMessage]:
         """
-        Preserva el campo reasoning_content en mensajes de asistente.
+        Preserves the reasoning_content field in assistant messages.
 
-        Esto es crítico para DeepSeek Reasoner cuando se usan tool calls.
-        Según la documentación oficial de DeepSeek:
+        This is critical for DeepSeek Reasoner when using tool calls.
+        According to official DeepSeek documentation:
         https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
 
-        El campo reasoning_content debe incluirse en los mensajes del asistente
-        cuando se continúa una conversación después de tool calls.
+        The reasoning_content field must be included in assistant messages
+        when continuing a conversation after tool calls.
 
         Args:
-            messages: Secuencia de mensajes LLM
+            messages: Sequence of LLM messages
 
         Returns:
-            Secuencia de mensajes con reasoning_content preservado
+            Sequence of messages with reasoning_content preserved
         """
-        # Los mensajes ya vienen con reasoning_content si AutoGen lo preservó
-        # Este método es principalmente para asegurar que no se pierda
-        # y para logging/debugging
+        # Messages already come with reasoning_content if AutoGen preserved it
+        # This method is mainly to ensure it doesn't get lost
+        # and for logging/debugging
 
         processed = []
         for msg in messages:
             processed.append(msg)
 
-            # Log si encontramos reasoning_content
+            # Log if we find reasoning_content
             if isinstance(msg, AssistantMessage) and hasattr(msg, 'reasoning_content'):
                 if msg.reasoning_content:
                     self.logger.info(f"💭 Preserving reasoning_content in assistant message: {len(msg.reasoning_content)} chars")
@@ -200,16 +200,16 @@ class LoggingModelClientWrapper:
 
     def set_agent_name(self, agent_name: str):
         """
-        Actualiza el nombre del agente para logging
+        Updates the agent name for logging
 
         Args:
-            agent_name: Nuevo nombre del agente
+            agent_name: New agent name
         """
         old_name = self._agent_name
         self._agent_name = agent_name
         self.logger.info(f"🔄 Agent name updated: {old_name} → {agent_name}")
 
-    # Delegar todos los demás atributos al cliente wrapped
+    # Delegate all other attributes to the wrapped client
     def __getattr__(self, name):
-        """Delegar atributos no encontrados al cliente original"""
+        """Delegate attributes not found to the original client"""
         return getattr(self._wrapped, name)

@@ -1,4 +1,4 @@
 """
-DaveAgent - Agente de código inteligente con AutoGen
+DaveAgent - Intelligent code agent with AutoGen
 """
 __version__ = "1.0.0"

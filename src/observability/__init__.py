@@ -1,24 +1,24 @@
 """
-Módulo de observabilidad con Langfuse
+Observability module with Langfuse
 
-Este módulo proporciona integración con Langfuse para trazabilidad
-y monitoreo de agentes de AutoGen.
+This module provides integration with Langfuse for traceability
+and monitoring of AutoGen agents.
 
-Hay dos formas de usar Langfuse:
+There are two ways to use Langfuse:
 
-1. **Simple (Recomendado)**: Usando OpenLit - tracking automático
+1. **Simple (Recommended)**: Using OpenLit - automatic tracking
    from src.observability import init_langfuse_tracing
    init_langfuse_tracing()
 
-2. **Avanzado**: Usando LangfuseTracker - control manual
+2. **Advanced**: Using LangfuseTracker - manual control
    from src.observability import LangfuseTracker
    tracker = LangfuseTracker()
 """
 
 from .langfuse_simple import init_langfuse_tracing, is_langfuse_enabled
 
-# Solo exportar el método simple con OpenLit (recomendado)
+# Only export the simple method with OpenLit (recommended)
 __all__ = [
-    "init_langfuse_tracing",      # Método simple con OpenLit (recomendado)
-    "is_langfuse_enabled",         # Verificar configuración
+    "init_langfuse_tracing",      # Simple method with OpenLit (recommended)
+    "is_langfuse_enabled",         # Verify configuration
 ]

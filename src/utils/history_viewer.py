@@ -1,8 +1,8 @@
 """
-History Viewer - Visualización Rich del historial de conversaciones
+History Viewer - Rich visualization of conversation history
 
-Muestra el historial de sesiones de manera formateada y amigable
-usando Rich para tablas, paneles y sintaxis destacada.
+Displays session history in a formatted and user-friendly way
+using Rich for tables, panels, and syntax highlighting.
 """
 from typing import List, Dict, Any, Optional
 from rich.console import Console
@@ -15,7 +15,7 @@ from datetime import datetime
 
 
 class HistoryViewer:
-    """Visualizador de historial de conversaciones con Rich"""
+    """Conversation history viewer with Rich"""
 
     def __init__(self, console: Optional[Console] = None):
         """
@@ -34,7 +34,7 @@ class HistoryViewer:
             sessions: List of session metadata dicts
         """
         if not sessions:
-            self.console.print("\n[yellow]📭 No hay sesiones guardadas[/yellow]\n")
+            self.console.print("\n[yellow]📭 No saved sessions[/yellow]\n")
             return
 
         # Create table
@@ -55,7 +55,7 @@ class HistoryViewer:
         # Add rows
         for i, session in enumerate(sessions, 1):
             session_id = session.get("session_id", "unknown")
-            title = session.get("title", "Sin título")
+            title = session.get("title", "Untitled")
             total_messages = session.get("total_messages", 0)
             last_interaction = session.get("last_interaction", "")
             tags = ", ".join(session.get("tags", []))
@@ -91,15 +91,15 @@ class HistoryViewer:
         """
         # Create metadata table
         info_table = Table(show_header=False, box=None, padding=(0, 1))
-        info_table.add_column("Campo", style="cyan")
-        info_table.add_column("Valor", style="white")
+        info_table.add_column("Field", style="cyan")
+        info_table.add_column("Value", style="white")
 
         # Add metadata fields
         info_table.add_row("Session ID", session_id)
-        info_table.add_row("Título", metadata.get("title", "Sin título"))
-        
+        info_table.add_row("Title", metadata.get("title", "Untitled"))
+
         if metadata.get("description"):
-            info_table.add_row("Descripción", metadata.get("description"))
+            info_table.add_row("Description", metadata.get("description"))
         
         if metadata.get("tags"):
             tags_str = ", ".join(metadata.get("tags"))
@@ -110,23 +110,23 @@ class HistoryViewer:
             try:
                 dt = datetime.fromisoformat(created_at)
                 formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
-                info_table.add_row("Creada", formatted)
+                info_table.add_row("Created", formatted)
             except:
-                info_table.add_row("Creada", created_at)
-        
+                info_table.add_row("Created", created_at)
+
         last_interaction = metadata.get("last_interaction", "")
         if last_interaction:
             try:
                 dt = datetime.fromisoformat(last_interaction)
                 formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
-                info_table.add_row("Última interacción", formatted)
+                info_table.add_row("Last interaction", formatted)
             except:
-                info_table.add_row("Última interacción", last_interaction)
+                info_table.add_row("Last interaction", last_interaction)
 
         # Display in panel
         panel = Panel(
             info_table,
-            title="📊 Información de la Sesión",
+            title="📊 Session Information",
             border_style="cyan",
             box=box.ROUNDED
         )
@@ -150,7 +150,7 @@ class HistoryViewer:
             show_thoughts: Include thought/reasoning messages
         """
         if not messages:
-            self.console.print("\n[yellow]💬 No hay mensajes en el historial[/yellow]\n")
+            self.console.print("\n[yellow]💬 No messages in history[/yellow]\n")
             return
 
         # Limit messages if requested
@@ -159,8 +159,8 @@ class HistoryViewer:
 
         self.console.print("\n")
         self.console.print(Panel(
-            f"[bold cyan]📜 Historial de Conversación[/bold cyan]\n"
-            f"[dim]Mostrando {len(messages)} mensaje(s)[/dim]",
+            f"[bold cyan]📜 Conversation History[/bold cyan]\n"
+            f"[dim]Showing {len(messages)} message(s)[/dim]",
             box=box.ROUNDED
         ))
         self.console.print("\n")
@@ -196,7 +196,7 @@ class HistoryViewer:
             title_style = "bold green"
 
         # Create title
-        title = f"{icon} {source} (mensaje {index})"
+        title = f"{icon} {source} (message {index})"
 
         # Check if content is code
         content_str = str(content)
@@ -230,7 +230,7 @@ class HistoryViewer:
         if show_thoughts and thought:
             thought_panel = Panel(
                 f"[dim italic]{thought}[/dim italic]",
-                title="💭 Razonamiento",
+                title="💭 Reasoning",
                 title_align="left",
                 border_style="yellow",
                 box=box.SIMPLE
@@ -256,20 +256,20 @@ class HistoryViewer:
         """
         # Create summary content
         summary_parts = []
-        
+
         summary_parts.append(f"[bold]Session:[/bold] {session_id}")
-        summary_parts.append(f"[bold]Título:[/bold] {metadata.get('title', 'Sin título')}")
-        
+        summary_parts.append(f"[bold]Title:[/bold] {metadata.get('title', 'Untitled')}")
+
         if metadata.get("description"):
-            summary_parts.append(f"[bold]Descripción:[/bold] {metadata.get('description')}")
-        
-        summary_parts.append(f"\n[bold cyan]📊 Estadísticas:[/bold cyan]")
-        summary_parts.append(f"  • Total de mensajes: {total_messages}")
-        summary_parts.append(f"  • Agentes participantes: {len(agents_used)}")
-        
+            summary_parts.append(f"[bold]Description:[/bold] {metadata.get('description')}")
+
+        summary_parts.append(f"\n[bold cyan]📊 Statistics:[/bold cyan]")
+        summary_parts.append(f"  • Total messages: {total_messages}")
+        summary_parts.append(f"  • Participating agents: {len(agents_used)}")
+
         if agents_used:
             agents_str = ", ".join(agents_used)
-            summary_parts.append(f"  • Agentes: {agents_str}")
+            summary_parts.append(f"  • Agents: {agents_str}")
         
         if metadata.get("tags"):
             tags_str = ", ".join(metadata.get("tags"))
@@ -280,7 +280,7 @@ class HistoryViewer:
         # Display in panel
         panel = Panel(
             summary_text,
-            title="📋 Resumen de Sesión",
+            title="📋 Session Summary",
             border_style="cyan",
             box=box.DOUBLE
         )
@@ -300,17 +300,17 @@ class HistoryViewer:
             Selected session ID or None
         """
         if not sessions:
-            self.console.print("\n[yellow]No hay sesiones disponibles[/yellow]\n")
+            self.console.print("\n[yellow]No sessions available[/yellow]\n")
             return None
 
         # Display sessions table
         self.display_sessions_list(sessions)
 
         # Prompt for selection
-        self.console.print("[cyan]Selecciona una sesión:[/cyan]")
-        self.console.print("[dim]  • Ingresa el número de la sesión[/dim]")
-        self.console.print("[dim]  • O ingresa el session_id completo[/dim]")
-        self.console.print("[dim]  • Presiona Enter para cancelar[/dim]\n")
+        self.console.print("[cyan]Select a session:[/cyan]")
+        self.console.print("[dim]  • Enter the session number[/dim]")
+        self.console.print("[dim]  • Or enter the complete session_id[/dim]")
+        self.console.print("[dim]  • Press Enter to cancel[/dim]\n")
 
         return None  # Actual input would be handled by CLI
 
@@ -322,7 +322,7 @@ class HistoryViewer:
             session_id: Session ID being loaded
             title: Session title
         """
-        self.console.print(f"\n[cyan]📂 Cargando sesión:[/cyan] [bold]{title}[/bold]")
+        self.console.print(f"\n[cyan]📂 Loading session:[/cyan] [bold]{title}[/bold]")
         self.console.print(f"[dim]ID: {session_id}[/dim]\n")
 
     def display_session_loaded(
@@ -339,18 +339,18 @@ class HistoryViewer:
             total_messages: Number of messages restored
             agents_restored: Number of agents restored
         """
-        self.console.print(f"\n[green]✅ Sesión cargada exitosamente![/green]")
+        self.console.print(f"\n[green]✅ Session loaded successfully![/green]")
         self.console.print(f"  • Session: {session_id}")
-        self.console.print(f"  • Mensajes restaurados: {total_messages}")
-        self.console.print(f"  • Agentes restaurados: {agents_restored}\n")
+        self.console.print(f"  • Messages restored: {total_messages}")
+        self.console.print(f"  • Agents restored: {agents_restored}\n")
 
     def display_no_sessions(self):
         """Display message when no sessions exist"""
         panel = Panel(
-            "[yellow]No hay sesiones guardadas.[/yellow]\n\n"
-            "[dim]Usa /new-session para crear una nueva sesión\n"
-            "o comienza a chatear para crear una sesión automática.[/dim]",
-            title="📭 Sin Sesiones",
+            "[yellow]No saved sessions.[/yellow]\n\n"
+            "[dim]Use /new-session to create a new session\n"
+            "or start chatting to create an automatic session.[/dim]",
+            title="📭 No Sessions",
             border_style="yellow",
             box=box.ROUNDED
         )
