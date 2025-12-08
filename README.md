@@ -514,7 +514,7 @@ This project is under the MIT License. See [LICENSE](LICENSE) for more details.
 - **Discord Community**: [Join our Discord server](https://discord.gg/2dRTd4Cv) - Get help, report bugs, suggest improvements, and collaborate with other users
 - **GitHub**: https://github.com/davidmonterocrespo24/DaveAgent
 - **Issues**: https://github.com/davidmonterocrespo24/DaveAgent/issues
-- **Email**: contact@daveagent.ai
+- **Email**: davidmonterocrespo24@gmail.com
 
 ### Join Our Discord Community
 
