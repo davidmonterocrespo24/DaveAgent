@@ -1,6 +1,7 @@
 """
 Git Tools for AutoGen - Basic git operations
 """
+
 import asyncio
 import os
 from typing import Optional, List, Union
@@ -21,10 +22,12 @@ async def git_status(path: Optional[str] = None) -> str:
     try:
         # Verify if it's a git repository
         proc = await asyncio.create_subprocess_exec(
-            'git', 'rev-parse', '--git-dir',
+            "git",
+            "rev-parse",
+            "--git-dir",
             cwd=work_dir,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
         )
         await proc.communicate()
 
@@ -33,27 +36,30 @@ async def git_status(path: Optional[str] = None) -> str:
 
         # Get status
         proc = await asyncio.create_subprocess_exec(
-            'git', 'status', '--porcelain=v1', '-b',
+            "git",
+            "status",
+            "--porcelain=v1",
+            "-b",
             cwd=work_dir,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
 
         if proc.returncode != 0:
             return f"ERROR: {stderr.decode('utf-8', errors='replace')}"
 
-        output = stdout.decode('utf-8', errors='replace')
-        lines = output.strip().split('\n') if output.strip() else []
+        output = stdout.decode("utf-8", errors="replace")
+        lines = output.strip().split("\n") if output.strip() else []
 
         # Parse information
         branch_line = lines[0] if lines else ""
-        branch = branch_line[3:].split('...')[0] if branch_line.startswith('##') else "unknown"
+        branch = branch_line[3:].split("...")[0] if branch_line.startswith("##") else "unknown"
 
         # Count files by status
-        staged = sum(1 for line in lines[1:] if line and line[0] in 'MADRC')
-        modified = sum(1 for line in lines[1:] if line and line[1] in 'MD')
-        untracked = sum(1 for line in lines[1:] if line and line.startswith('??'))
+        staged = sum(1 for line in lines[1:] if line and line[0] in "MADRC")
+        modified = sum(1 for line in lines[1:] if line and line[1] in "MD")
+        untracked = sum(1 for line in lines[1:] if line and line.startswith("??"))
 
         result = f"""Git repository status:
 Branch: {branch}
@@ -63,7 +69,7 @@ Untracked files: {untracked}
 
 """
         if len(lines) > 1:
-            result += "Details:\n" + '\n'.join(lines[1:])
+            result += "Details:\n" + "\n".join(lines[1:])
         else:
             result += "Clean working tree"
 
@@ -91,10 +97,12 @@ async def git_add(files: Union[str, List[str]], path: Optional[str] = None) -> s
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            'git', 'add', *files,
+            "git",
+            "add",
+            *files,
             cwd=work_dir,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
 
@@ -122,25 +130,29 @@ async def git_commit(message: str, path: Optional[str] = None) -> str:
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            'git', 'commit', '-m', message,
+            "git",
+            "commit",
+            "-m",
+            message,
             cwd=work_dir,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
 
         if proc.returncode != 0:
             return f"ERROR: {stderr.decode('utf-8', errors='replace')}"
 
-        output = stdout.decode('utf-8', errors='replace')
+        output = stdout.decode("utf-8", errors="replace")
         return f"✓ Commit created successfully:\n{output}"
 
     except Exception as e:
         return f"ERROR executing git commit: {str(e)}"
 
 
-async def git_push(remote: str = "origin", branch: Optional[str] = None,
-                   path: Optional[str] = None) -> str:
+async def git_push(
+    remote: str = "origin", branch: Optional[str] = None, path: Optional[str] = None
+) -> str:
     """
     Pushes commits to the remote repository.
 
@@ -155,20 +167,17 @@ async def git_push(remote: str = "origin", branch: Optional[str] = None,
     work_dir = path or os.getcwd()
 
     try:
-        command = ['git', 'push', remote]
+        command = ["git", "push", remote]
         if branch:
             command.append(branch)
 
         proc = await asyncio.create_subprocess_exec(
-            *command,
-            cwd=work_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            *command, cwd=work_dir, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await proc.communicate()
 
         # Git push writes information to stderr even when successful
-        output = stderr.decode('utf-8', errors='replace') + stdout.decode('utf-8', errors='replace')
+        output = stderr.decode("utf-8", errors="replace") + stdout.decode("utf-8", errors="replace")
 
         if proc.returncode != 0:
             return f"ERROR in git push:\n{output}"
@@ -179,8 +188,9 @@ async def git_push(remote: str = "origin", branch: Optional[str] = None,
         return f"ERROR executing git push: {str(e)}"
 
 
-async def git_pull(remote: str = "origin", branch: Optional[str] = None,
-                   path: Optional[str] = None) -> str:
+async def git_pull(
+    remote: str = "origin", branch: Optional[str] = None, path: Optional[str] = None
+) -> str:
     """
     Pulls changes from the remote repository.
 
@@ -195,19 +205,16 @@ async def git_pull(remote: str = "origin", branch: Optional[str] = None,
     work_dir = path or os.getcwd()
 
     try:
-        command = ['git', 'pull', remote]
+        command = ["git", "pull", remote]
         if branch:
             command.append(branch)
 
         proc = await asyncio.create_subprocess_exec(
-            *command,
-            cwd=work_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            *command, cwd=work_dir, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await proc.communicate()
 
-        output = stdout.decode('utf-8', errors='replace') + stderr.decode('utf-8', errors='replace')
+        output = stdout.decode("utf-8", errors="replace") + stderr.decode("utf-8", errors="replace")
 
         if proc.returncode != 0:
             return f"ERROR in git pull:\n{output}"
@@ -233,25 +240,30 @@ async def git_log(limit: int = 10, path: Optional[str] = None) -> str:
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            'git', 'log', f'-{limit}', '--oneline', '--decorate',
+            "git",
+            "log",
+            f"-{limit}",
+            "--oneline",
+            "--decorate",
             cwd=work_dir,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
 
         if proc.returncode != 0:
             return f"ERROR: {stderr.decode('utf-8', errors='replace')}"
 
-        output = stdout.decode('utf-8', errors='replace')
+        output = stdout.decode("utf-8", errors="replace")
         return f"Last {limit} commits:\n{output}"
 
     except Exception as e:
         return f"ERROR executing git log: {str(e)}"
 
 
-async def git_branch(operation: str = "list", branch_name: Optional[str] = None,
-                     path: Optional[str] = None) -> str:
+async def git_branch(
+    operation: str = "list", branch_name: Optional[str] = None, path: Optional[str] = None
+) -> str:
     """
     Manages git branches.
 
@@ -267,28 +279,25 @@ async def git_branch(operation: str = "list", branch_name: Optional[str] = None,
 
     try:
         if operation == "list":
-            command = ['git', 'branch', '-a']
+            command = ["git", "branch", "-a"]
         elif operation == "create" and branch_name:
-            command = ['git', 'branch', branch_name]
+            command = ["git", "branch", branch_name]
         elif operation == "delete" and branch_name:
-            command = ['git', 'branch', '-d', branch_name]
+            command = ["git", "branch", "-d", branch_name]
         elif operation == "switch" and branch_name:
-            command = ['git', 'checkout', branch_name]
+            command = ["git", "checkout", branch_name]
         else:
             return f"ERROR: Invalid operation '{operation}' or missing branch_name"
 
         proc = await asyncio.create_subprocess_exec(
-            *command,
-            cwd=work_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            *command, cwd=work_dir, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await proc.communicate()
 
         if proc.returncode != 0:
             return f"ERROR: {stderr.decode('utf-8', errors='replace')}"
 
-        output = stdout.decode('utf-8', errors='replace')
+        output = stdout.decode("utf-8", errors="replace")
         return output if output else f"✓ Operation '{operation}' completed"
 
     except Exception as e:
@@ -309,22 +318,19 @@ async def git_diff(cached: bool = False, path: Optional[str] = None) -> str:
     work_dir = path or os.getcwd()
 
     try:
-        command = ['git', 'diff']
+        command = ["git", "diff"]
         if cached:
-            command.append('--cached')
+            command.append("--cached")
 
         proc = await asyncio.create_subprocess_exec(
-            *command,
-            cwd=work_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            *command, cwd=work_dir, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await proc.communicate()
 
         if proc.returncode != 0:
             return f"ERROR: {stderr.decode('utf-8', errors='replace')}"
 
-        output = stdout.decode('utf-8', errors='replace')
+        output = stdout.decode("utf-8", errors="replace")
         if not output:
             return "No changes to show"
 

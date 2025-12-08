@@ -13,6 +13,7 @@ Records in JSON:
 
 This provides complete system traceability independent of Langfuse.
 """
+
 import json
 import logging
 import traceback
@@ -58,7 +59,7 @@ class JSONLogger:
             "agent_messages": 0,
             "tool_calls": 0,
             "thoughts": 0,
-            "errors": 0
+            "errors": 0,
         }
 
         self.logger.info(f"📝 JSONLogger initialized: {self.log_dir}")
@@ -83,14 +84,14 @@ class JSONLogger:
             "agent_messages": 0,
             "tool_calls": 0,
             "thoughts": 0,
-            "errors": 0
+            "errors": 0,
         }
 
         self.metadata = {
             "session_id": session_id,
             "start_time": self.session_start.isoformat(),
             "mode": mode,
-            **kwargs
+            **kwargs,
         }
 
         self.logger.info(f"📝 Started JSON logging session: {session_id}")
@@ -101,7 +102,7 @@ class JSONLogger:
             "timestamp": datetime.now().isoformat(),
             "event_type": "user_message",
             "content": content,
-            "mentioned_files": mentioned_files or []
+            "mentioned_files": mentioned_files or [],
         }
         self.events.append(event)
         self.stats["user_messages"] += 1
@@ -114,7 +115,7 @@ class JSONLogger:
             "event_type": "agent_message",
             "agent_name": agent_name,
             "message_type": message_type,
-            "content": content
+            "content": content,
         }
         self.events.append(event)
         self.stats["agent_messages"] += 1
@@ -126,7 +127,7 @@ class JSONLogger:
             "timestamp": datetime.now().isoformat(),
             "event_type": "thought",
             "agent_name": agent_name,
-            "content": thought
+            "content": thought,
         }
         self.events.append(event)
         self.stats["thoughts"] += 1
@@ -139,7 +140,7 @@ class JSONLogger:
             "event_type": "tool_call",
             "agent_name": agent_name,
             "tool_name": tool_name,
-            "arguments": arguments
+            "arguments": arguments,
         }
         self.events.append(event)
         self.stats["tool_calls"] += 1
@@ -159,10 +160,12 @@ class JSONLogger:
             "agent_name": agent_name,
             "tool_name": tool_name,
             "success": success,
-            "result": str(result_preview)
+            "result": str(result_preview),
         }
         self.events.append(event)
-        self.logger.debug(f"📝 Logged tool result: {tool_name} - {'success' if success else 'failed'}")
+        self.logger.debug(
+            f"📝 Logged tool result: {tool_name} - {'success' if success else 'failed'}"
+        )
 
     def log_router_decision(self, selected_agent: str, reason: Optional[str] = None):
         """Log router's agent selection decision"""
@@ -170,7 +173,7 @@ class JSONLogger:
             "timestamp": datetime.now().isoformat(),
             "event_type": "router_decision",
             "selected_agent": selected_agent,
-            "reason": reason
+            "reason": reason,
         }
         self.events.append(event)
         self.logger.debug(f"📝 Logged router decision: {selected_agent}")
@@ -183,19 +186,19 @@ class JSONLogger:
             "error_type": type(error).__name__,
             "error_message": str(error),
             "context": context,
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
         self.events.append(event)
         self.stats["errors"] += 1
         self.logger.error(f"📝 Logged error: {error}")
 
     def log_llm_call(
-            self,
-            agent_name: str,
-            messages: List[Dict[str, Any]],
-            response: Optional[str] = None,
-            model: Optional[str] = None,
-            tokens_used: Optional[Dict[str, int]] = None
+        self,
+        agent_name: str,
+        messages: List[Dict[str, Any]],
+        response: Optional[str] = None,
+        model: Optional[str] = None,
+        tokens_used: Optional[Dict[str, int]] = None,
     ):
         """
         Log complete LLM call (input and output)
@@ -214,7 +217,7 @@ class JSONLogger:
             "model": model,
             "input_messages": messages,
             "response": response,
-            "tokens_used": tokens_used or {}
+            "tokens_used": tokens_used or {},
         }
         self.events.append(event)
         self.logger.debug(f"📝 Logged LLM call: {agent_name} - {len(messages)} messages")
@@ -234,10 +237,10 @@ class JSONLogger:
                 **self.metadata,
                 "end_time": session_end.isoformat(),
                 "duration_seconds": duration,
-                "summary": summary
+                "summary": summary,
             },
             "statistics": self.stats,
-            "events": self.events
+            "events": self.events,
         }
 
         # Save to file
@@ -245,7 +248,7 @@ class JSONLogger:
         filepath = self.log_dir / filename
 
         try:
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(log_data, f, indent=2, ensure_ascii=False)
 
             self.logger.info(f"📝 JSON log saved: {filepath}")

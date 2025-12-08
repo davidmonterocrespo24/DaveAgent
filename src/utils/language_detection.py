@@ -2,103 +2,104 @@
 Language detection utility based on file extensions.
 Migrated from TypeScript implementation.
 """
+
 import os
 
 EXTENSION_TO_LANGUAGE_MAP = {
-    '.ts': 'TypeScript',
-    '.js': 'JavaScript',
-    '.mjs': 'JavaScript',
-    '.cjs': 'JavaScript',
-    '.jsx': 'JavaScript',
-    '.tsx': 'TypeScript',
-    '.py': 'Python',
-    '.java': 'Java',
-    '.go': 'Go',
-    '.rb': 'Ruby',
-    '.php': 'PHP',
-    '.phtml': 'PHP',
-    '.cs': 'C#',
-    '.cpp': 'C++',
-    '.cxx': 'C++',
-    '.cc': 'C++',
-    '.c': 'C',
-    '.h': 'C/C++',
-    '.hpp': 'C++',
-    '.swift': 'Swift',
-    '.kt': 'Kotlin',
-    '.rs': 'Rust',
-    '.m': 'Objective-C',
-    '.mm': 'Objective-C',
-    '.pl': 'Perl',
-    '.pm': 'Perl',
-    '.lua': 'Lua',
-    '.r': 'R',
-    '.scala': 'Scala',
-    '.sc': 'Scala',
-    '.sh': 'Shell',
-    '.ps1': 'PowerShell',
-    '.bat': 'Batch',
-    '.cmd': 'Batch',
-    '.sql': 'SQL',
-    '.html': 'HTML',
-    '.htm': 'HTML',
-    '.css': 'CSS',
-    '.less': 'Less',
-    '.sass': 'Sass',
-    '.scss': 'Sass',
-    '.json': 'JSON',
-    '.xml': 'XML',
-    '.yaml': 'YAML',
-    '.yml': 'YAML',
-    '.md': 'Markdown',
-    '.markdown': 'Markdown',
-    '.dockerfile': 'Dockerfile',
-    '.vim': 'Vim script',
-    '.vb': 'Visual Basic',
-    '.fs': 'F#',
-    '.clj': 'Clojure',
-    '.cljs': 'Clojure',
-    '.dart': 'Dart',
-    '.ex': 'Elixir',
-    '.erl': 'Erlang',
-    '.hs': 'Haskell',
-    '.lisp': 'Lisp',
-    '.rkt': 'Racket',
-    '.groovy': 'Groovy',
-    '.jl': 'Julia',
-    '.tex': 'LaTeX',
-    '.ino': 'Arduino',
-    '.asm': 'Assembly',
-    '.s': 'Assembly',
-    '.toml': 'TOML',
-    '.vue': 'Vue',
-    '.svelte': 'Svelte',
-    '.gohtml': 'Go Template',
-    '.hbs': 'Handlebars',
-    '.ejs': 'EJS',
-    '.erb': 'ERB',
-    '.jsp': 'JSP',
-    '.dockerignore': 'Docker',
-    '.gitignore': 'Git',
-    '.npmignore': 'npm',
-    '.editorconfig': 'EditorConfig',
-    '.prettierrc': 'Prettier',
-    '.eslintrc': 'ESLint',
-    '.babelrc': 'Babel',
-    '.tsconfig': 'TypeScript',
-    '.flow': 'Flow',
-    '.graphql': 'GraphQL',
-    '.proto': 'Protocol Buffers',
+    ".ts": "TypeScript",
+    ".js": "JavaScript",
+    ".mjs": "JavaScript",
+    ".cjs": "JavaScript",
+    ".jsx": "JavaScript",
+    ".tsx": "TypeScript",
+    ".py": "Python",
+    ".java": "Java",
+    ".go": "Go",
+    ".rb": "Ruby",
+    ".php": "PHP",
+    ".phtml": "PHP",
+    ".cs": "C#",
+    ".cpp": "C++",
+    ".cxx": "C++",
+    ".cc": "C++",
+    ".c": "C",
+    ".h": "C/C++",
+    ".hpp": "C++",
+    ".swift": "Swift",
+    ".kt": "Kotlin",
+    ".rs": "Rust",
+    ".m": "Objective-C",
+    ".mm": "Objective-C",
+    ".pl": "Perl",
+    ".pm": "Perl",
+    ".lua": "Lua",
+    ".r": "R",
+    ".scala": "Scala",
+    ".sc": "Scala",
+    ".sh": "Shell",
+    ".ps1": "PowerShell",
+    ".bat": "Batch",
+    ".cmd": "Batch",
+    ".sql": "SQL",
+    ".html": "HTML",
+    ".htm": "HTML",
+    ".css": "CSS",
+    ".less": "Less",
+    ".sass": "Sass",
+    ".scss": "Sass",
+    ".json": "JSON",
+    ".xml": "XML",
+    ".yaml": "YAML",
+    ".yml": "YAML",
+    ".md": "Markdown",
+    ".markdown": "Markdown",
+    ".dockerfile": "Dockerfile",
+    ".vim": "Vim script",
+    ".vb": "Visual Basic",
+    ".fs": "F#",
+    ".clj": "Clojure",
+    ".cljs": "Clojure",
+    ".dart": "Dart",
+    ".ex": "Elixir",
+    ".erl": "Erlang",
+    ".hs": "Haskell",
+    ".lisp": "Lisp",
+    ".rkt": "Racket",
+    ".groovy": "Groovy",
+    ".jl": "Julia",
+    ".tex": "LaTeX",
+    ".ino": "Arduino",
+    ".asm": "Assembly",
+    ".s": "Assembly",
+    ".toml": "TOML",
+    ".vue": "Vue",
+    ".svelte": "Svelte",
+    ".gohtml": "Go Template",
+    ".hbs": "Handlebars",
+    ".ejs": "EJS",
+    ".erb": "ERB",
+    ".jsp": "JSP",
+    ".dockerignore": "Docker",
+    ".gitignore": "Git",
+    ".npmignore": "npm",
+    ".editorconfig": "EditorConfig",
+    ".prettierrc": "Prettier",
+    ".eslintrc": "ESLint",
+    ".babelrc": "Babel",
+    ".tsconfig": "TypeScript",
+    ".flow": "Flow",
+    ".graphql": "GraphQL",
+    ".proto": "Protocol Buffers",
 }
 
 
 def get_language_from_file_path(file_path: str) -> str | None:
     """
     Determines the programming language based on the file extension.
-    
+
     Args:
         file_path: The path to the file.
-        
+
     Returns:
         The name of the language or None if not found.
     """
@@ -122,7 +123,7 @@ def get_language_from_file_path(file_path: str) -> str | None:
     # The TS code does: extensionToLanguageMap[`.${filename}`]
     # If filename is "Dockerfile", it looks for ".Dockerfile".
     # If filename is ".gitignore", it looks for "..gitignore" which is wrong based on the map keys provided in TS example?
-    # Wait, in TS: path.extname('.gitignore') returns '' on some systems or '.gitignore'? 
+    # Wait, in TS: path.extname('.gitignore') returns '' on some systems or '.gitignore'?
     # Node path.extname('.index') returns ''
     # Node path.extname('index.html') returns '.html'
 
@@ -130,7 +131,7 @@ def get_language_from_file_path(file_path: str) -> str | None:
     # 1. Try extension.
     # 2. If no extension, try `.` + filename.
 
-    # In Python os.path.splitext('.gitignore') returns ('.gitignore', '') on Linux/Mac, but ('.gitignore', '')? 
+    # In Python os.path.splitext('.gitignore') returns ('.gitignore', '') on Linux/Mac, but ('.gitignore', '')?
     # Actually os.path.splitext('.cshrc') -> ('.cshrc', '')
     # So extension is empty.
 

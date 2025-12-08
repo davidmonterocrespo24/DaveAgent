@@ -1,6 +1,7 @@
 """
 Task planning and management system with planner agent
 """
+
 import json
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.messages import TextMessage, StructuredMessage
@@ -12,12 +13,13 @@ from typing import List, Dict, Any, Optional, Literal
 from src.config import (
     TASK_PLANNER_DESCRIPTION,
     TASK_PLANNER_SYSTEM_MESSAGE,
-    TASK_PLANNER_UPDATER_MESSAGE
+    TASK_PLANNER_UPDATER_MESSAGE,
 )
 
 
 class Task(BaseModel):
     """Represents an individual task in the plan"""
+
     id: int
     title: str
     description: str
@@ -29,6 +31,7 @@ class Task(BaseModel):
 
 class ExecutionPlan(BaseModel):
     """Complete execution plan with task list"""
+
     goal: str
     tasks: List[Task]
     reasoning: str
@@ -37,6 +40,7 @@ class ExecutionPlan(BaseModel):
 
 class PlanUpdate(BaseModel):
     """Plan update based on execution results"""
+
     reasoning: str
     modified_tasks: List[Task]
     new_tasks: List[Task] = []
@@ -130,11 +134,7 @@ Create a detailed execution plan to achieve this goal."""
             raise Exception(f"Error creating plan: {e}")
 
     async def update_plan(
-            self,
-            task_result: str,
-            task_id: int,
-            success: bool,
-            error_message: Optional[str] = None
+        self, task_result: str, task_id: int, success: bool, error_message: Optional[str] = None
     ) -> PlanUpdate:
         """
         Updates the plan based on a task's result
@@ -228,8 +228,7 @@ If changes are needed, specify which tasks to modify, add, or remove."""
 
         # Remove tasks marked for deletion
         self.current_plan.tasks = [
-            task for task in self.current_plan.tasks
-            if task.id not in update.removed_task_ids
+            task for task in self.current_plan.tasks if task.id not in update.removed_task_ids
         ]
 
         # Update modified tasks
@@ -271,11 +270,11 @@ If changes are needed, specify which tasks to modify, add, or remove."""
         return None
 
     def update_task_status(
-            self,
-            task_id: int,
-            status: Literal["pending", "in_progress", "completed", "failed", "blocked"],
-            result: Optional[str] = None,
-            error: Optional[str] = None
+        self,
+        task_id: int,
+        status: Literal["pending", "in_progress", "completed", "failed", "blocked"],
+        result: Optional[str] = None,
+        error: Optional[str] = None,
     ):
         """Updates the status of a task"""
         if not self.current_plan:
@@ -320,7 +319,7 @@ Tasks:
                 "in_progress": "⚡",
                 "pending": "○",
                 "failed": "✗",
-                "blocked": "⊘"
+                "blocked": "⊘",
             }.get(task.status, "?")
 
             summary += f"  {status_icon} [{task.id}] {task.title}\n"
@@ -334,10 +333,7 @@ Tasks:
         if not self.current_plan:
             return True
 
-        return all(
-            task.status in ["completed", "failed"]
-            for task in self.current_plan.tasks
-        )
+        return all(task.status in ["completed", "failed"] for task in self.current_plan.tasks)
 
     def get_plan_json(self) -> str:
         """Gets the plan in JSON format"""

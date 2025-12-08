@@ -19,24 +19,28 @@ import pathspec
 WORKSPACE = Path(os.getcwd()).resolve()
 
 
-def _load_gitignore_patterns(root_path: Path) -> Optional['pathspec.PathSpec']:
+def _load_gitignore_patterns(root_path: Path) -> Optional["pathspec.PathSpec"]:
     gitignore = root_path / ".gitignore"
     if gitignore.exists():
         try:
-            with open(gitignore, "r", encoding='utf-8') as f:
+            with open(gitignore, "r", encoding="utf-8") as f:
                 return pathspec.PathSpec.from_lines("gitwildmatch", f)
         except Exception:
             return None
     return None
 
 
-def _is_ignored(path: Path, spec: Optional['pathspec.PathSpec']) -> bool:
+def _is_ignored(path: Path, spec: Optional["pathspec.PathSpec"]) -> bool:
     # Exclusiones hardcoded de seguridad
     parts = path.parts
-    if ".git" in parts: return True
-    if "node_modules" in parts: return True
-    if "__pycache__" in parts: return True
-    if ".venv" in parts: return True
+    if ".git" in parts:
+        return True
+    if "node_modules" in parts:
+        return True
+    if "__pycache__" in parts:
+        return True
+    if ".venv" in parts:
+        return True
 
     if spec:
         try:
@@ -69,11 +73,11 @@ def _sort_file_entries(entries: List[Path]) -> List[Path]:
 
 
 async def glob_search(
-        pattern: str,
-        dir_path: Optional[str] = None,
-        case_sensitive: bool = False,
-        respect_git_ignore: bool = True,
-        respect_gemini_ignore: bool = True
+    pattern: str,
+    dir_path: Optional[str] = None,
+    case_sensitive: bool = False,
+    respect_git_ignore: bool = True,
+    respect_gemini_ignore: bool = True,
 ) -> str:
     """
     Efficiently finds files matching specific glob patterns.
@@ -121,7 +125,7 @@ async def glob_search(
                 path_entries.append(p)
 
         if not path_entries:
-            return f"No files found matching pattern \"{pattern}\" within {search_dir}"
+            return f'No files found matching pattern "{pattern}" within {search_dir}'
 
         # Sort logic
         sorted_entries = _sort_file_entries(path_entries)
@@ -145,7 +149,7 @@ async def glob_search(
 
         file_list = "\n".join(output_paths)
 
-        return f"Found {total_count} file(s) matching \"{pattern}\" within {search_dir}, sorted by modification time (newest first):\n{file_list}{truncated_msg}"
+        return f'Found {total_count} file(s) matching "{pattern}" within {search_dir}, sorted by modification time (newest first):\n{file_list}{truncated_msg}'
 
     except Exception as e:
         return f"Error during glob search operation: {str(e)}"

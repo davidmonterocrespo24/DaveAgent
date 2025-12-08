@@ -4,6 +4,7 @@ State Manager - State management using AutoGen's save_state/load_state
 Integrates the official AutoGen system to persist agent and team state
 with the ChromaDB vector memory system.
 """
+
 import asyncio
 import json
 import logging
@@ -26,10 +27,10 @@ class StateManager:
     """
 
     def __init__(
-            self,
-            state_dir: Optional[Path] = None,
-            auto_save_enabled: bool = True,
-            auto_save_interval: int = 300,  # 5 minutos
+        self,
+        state_dir: Optional[Path] = None,
+        auto_save_enabled: bool = True,
+        auto_save_interval: int = 300,  # 5 minutos
     ):
         """
         Initialize State Manager
@@ -68,11 +69,11 @@ class StateManager:
     # =========================================================================
 
     def start_session(
-            self,
-            session_id: Optional[str] = None,
-            title: Optional[str] = None,
-            tags: Optional[List[str]] = None,
-            description: Optional[str] = None
+        self,
+        session_id: Optional[str] = None,
+        title: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        description: Optional[str] = None,
     ) -> str:
         """
         Start a new session or resume existing one
@@ -98,7 +99,7 @@ class StateManager:
             "tags": tags or [],
             "description": description or "",
             "created_at": datetime.now().isoformat(),
-            "last_interaction": datetime.now().isoformat()
+            "last_interaction": datetime.now().isoformat(),
         }
 
         self.logger.info(f"📝 Session started: {session_id} - {title or 'Untitled'}")
@@ -140,19 +141,21 @@ class StateManager:
                     messages = llm_context.get("messages", [])
                     total_messages += len(messages)
 
-                sessions.append({
-                    "session_id": data.get("session_id"),
-                    "title": metadata.get("title", "Untitled"),
-                    "description": metadata.get("description", ""),
-                    "tags": metadata.get("tags", []),
-                    "created_at": metadata.get("created_at"),
-                    "saved_at": data.get("saved_at"),
-                    "last_interaction": metadata.get("last_interaction"),
-                    "num_agents": len(data.get("agent_states", {})),
-                    "num_teams": len(data.get("team_states", {})),
-                    "total_messages": total_messages,
-                    "file_path": str(state_file)
-                })
+                sessions.append(
+                    {
+                        "session_id": data.get("session_id"),
+                        "title": metadata.get("title", "Untitled"),
+                        "description": metadata.get("description", ""),
+                        "tags": metadata.get("tags", []),
+                        "created_at": metadata.get("created_at"),
+                        "saved_at": data.get("saved_at"),
+                        "last_interaction": metadata.get("last_interaction"),
+                        "num_agents": len(data.get("agent_states", {})),
+                        "num_teams": len(data.get("team_states", {})),
+                        "total_messages": total_messages,
+                        "file_path": str(state_file),
+                    }
+                )
 
             except Exception as e:
                 self.logger.warning(f"Failed to read session {state_file}: {e}")
@@ -167,10 +170,7 @@ class StateManager:
     # =========================================================================
 
     async def save_agent_state(
-            self,
-            agent_name: str,
-            agent: Any,
-            metadata: Optional[Dict] = None
+        self, agent_name: str, agent: Any, metadata: Optional[Dict] = None
     ) -> None:
         """
         Save state of a single agent
@@ -188,7 +188,7 @@ class StateManager:
             self._agent_states[agent_name] = {
                 "state": agent_state,
                 "metadata": metadata or {},
-                "saved_at": datetime.now().isoformat()
+                "saved_at": datetime.now().isoformat(),
             }
 
             self.logger.debug(f"💾 Agent state saved: {agent_name}")
@@ -197,11 +197,7 @@ class StateManager:
             self.logger.error(f"Failed to save agent state {agent_name}: {e}")
             raise
 
-    async def load_agent_state(
-            self,
-            agent_name: str,
-            agent: Any
-    ) -> bool:
+    async def load_agent_state(self, agent_name: str, agent: Any) -> bool:
         """
         Load state into an agent
 
@@ -235,10 +231,7 @@ class StateManager:
     # =========================================================================
 
     async def save_team_state(
-            self,
-            team_name: str,
-            team: Any,
-            metadata: Optional[Dict] = None
+        self, team_name: str, team: Any, metadata: Optional[Dict] = None
     ) -> None:
         """
         Save state of a team (includes all agents in the team)
@@ -256,7 +249,7 @@ class StateManager:
             self._team_states[team_name] = {
                 "state": team_state,
                 "metadata": metadata or {},
-                "saved_at": datetime.now().isoformat()
+                "saved_at": datetime.now().isoformat(),
             }
 
             self.logger.debug(f"💾 Team state saved: {team_name}")
@@ -265,11 +258,7 @@ class StateManager:
             self.logger.error(f"Failed to save team state {team_name}: {e}")
             raise
 
-    async def load_team_state(
-            self,
-            team_name: str,
-            team: Any
-    ) -> bool:
+    async def load_team_state(self, team_name: str, team: Any) -> bool:
         """
         Load state into a team
 
@@ -303,9 +292,7 @@ class StateManager:
     # =========================================================================
 
     async def save_to_disk(
-            self,
-            session_id: Optional[str] = None,
-            include_metadata: bool = True
+        self, session_id: Optional[str] = None, include_metadata: bool = True
     ) -> Path:
         """
         Save all cached states to disk
@@ -353,10 +340,7 @@ class StateManager:
             self.logger.error(f"Failed to save state to disk: {e}")
             raise
 
-    async def load_from_disk(
-            self,
-            session_id: Optional[str] = None
-    ) -> bool:
+    async def load_from_disk(self, session_id: Optional[str] = None) -> bool:
         """
         Load states from disk
 
@@ -399,9 +383,7 @@ class StateManager:
 
     async def _auto_save_loop(self):
         """Background task that auto-saves state periodically"""
-        self.logger.info(
-            f"🔄 Auto-save enabled: every {self.auto_save_interval}s"
-        )
+        self.logger.info(f"🔄 Auto-save enabled: every {self.auto_save_interval}s")
 
         while self.auto_save_enabled:
             try:
@@ -547,13 +529,15 @@ class StateManager:
                 messages = llm_context.get("messages", [])
 
                 for msg in messages:
-                    all_messages.append({
-                        "agent": agent_name,
-                        "source": msg.get("source", "unknown"),
-                        "type": msg.get("type", "unknown"),
-                        "content": msg.get("content", ""),
-                        "thought": msg.get("thought"),
-                    })
+                    all_messages.append(
+                        {
+                            "agent": agent_name,
+                            "source": msg.get("source", "unknown"),
+                            "type": msg.get("type", "unknown"),
+                            "content": msg.get("content", ""),
+                            "thought": msg.get("thought"),
+                        }
+                    )
 
             return all_messages
 

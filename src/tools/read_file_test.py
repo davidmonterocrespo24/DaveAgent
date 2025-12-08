@@ -1,6 +1,7 @@
 """
 Test para read_file tool
 """
+
 import asyncio
 import os
 from pathlib import Path
@@ -23,7 +24,7 @@ async def test_read_file():
         "src/tools/common.py",
         should_read_entire_file=False,
         start_line_one_indexed=1,
-        end_line_one_indexed_inclusive=3
+        end_line_one_indexed_inclusive=3,
     )
     print(f"Resultado:\n{result}\n")
 

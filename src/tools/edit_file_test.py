@@ -1,6 +1,7 @@
 """
 Test para edit_file tool
 """
+
 import asyncio
 import os
 from pathlib import Path
@@ -16,18 +17,16 @@ async def test_edit_file():
     test_file = "test_edit.py"
 
     # Crear archivo de prueba
-    initial_content = '''def hello():
+    initial_content = """def hello():
     print("Hello World")
     return True
-'''
+"""
     await write_file(test_file, initial_content)
 
     # Test 1: Edición exacta
     print("Test 1: Edición exacta")
     result = await edit_file(
-        test_file,
-        old_string='print("Hello World")',
-        new_string='print("Hello Universe")'
+        test_file, old_string='print("Hello World")', new_string='print("Hello Universe")'
     )
     print(f"Resultado: {result}\n")
 
@@ -36,17 +35,13 @@ async def test_edit_file():
     result = await edit_file(
         test_file,
         old_string='def hello():\n    print("Hello Universe")',
-        new_string='def hello():\n    print("Goodbye World")'
+        new_string='def hello():\n    print("Goodbye World")',
     )
     print(f"Resultado: {result}\n")
 
     # Test 3: String no encontrado
     print("Test 3: String no encontrado")
-    result = await edit_file(
-        test_file,
-        old_string='este texto no existe',
-        new_string='nuevo texto'
-    )
+    result = await edit_file(test_file, old_string="este texto no existe", new_string="nuevo texto")
     print(f"Resultado: {result}\n")
 
     # Cleanup

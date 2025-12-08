@@ -1,6 +1,7 @@
 """
 Test para write_file tool
 """
+
 import asyncio
 import os
 from pathlib import Path
@@ -28,18 +29,18 @@ async def test_write_file():
 
     # Test 3: Escribir código Python válido
     print("Test 3: Escribir código Python válido")
-    python_code = '''def hello():
+    python_code = """def hello():
     print("Hello World")
     return True
-'''
+"""
     result = await write_file("test_code.py", python_code)
     print(f"Resultado: {result}\n")
 
     # Test 4: Intentar escribir código Python inválido
     print("Test 4: Código Python inválido (debe fallar)")
-    invalid_code = '''def broken(
+    invalid_code = """def broken(
     print("Missing closing parenthesis"
-'''
+"""
     result = await write_file("test_invalid.py", invalid_code)
     print(f"Resultado: {result}\n")
 

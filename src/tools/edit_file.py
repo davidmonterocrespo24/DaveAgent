@@ -16,18 +16,19 @@ from pathlib import Path
 
 # --- Helper Functions ---
 
+
 def _normalize_line_endings(text: str) -> str:
-    return text.replace('\r\n', '\n')
+    return text.replace("\r\n", "\n")
 
 
 def _detect_line_ending(content: str) -> str:
-    return '\r\n' if '\r\n' in content else '\n'
+    return "\r\n" if "\r\n" in content else "\n"
 
 
 def _restore_line_endings(content: str, original_ending: str) -> str:
-    if original_ending == '\n':
+    if original_ending == "\n":
         return content
-    return content.replace('\n', '\r\n')
+    return content.replace("\n", "\r\n")
 
 
 def _escape_regex(s: str) -> str:
@@ -35,10 +36,11 @@ def _escape_regex(s: str) -> str:
 
 
 def _hash_content(content: str) -> str:
-    return hashlib.sha256(content.encode('utf-8')).hexdigest()
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 # --- Replacement Strategies ---
+
 
 def _calculate_exact_replacement(current_content: str, old_string: str, new_string: str):
     occurrences = current_content.count(old_string)
@@ -94,16 +96,17 @@ def _calculate_flexible_replacement(current_content: str, old_string: str, new_s
 
 
 def _calculate_regex_replacement(current_content: str, old_string: str, new_string: str):
-    delimiters = [r'\(', r'\)', r':', r'\[', r'\]', r'\{', r'\}', r'>', r'<', r'=']
+    delimiters = [r"\(", r"\)", r":", r"\[", r"\]", r"\{", r"\}", r">", r"<", r"="]
     processed = old_string
     for d in delimiters:
         processed = re.sub(f"({d})", r" \1 ", processed)
     tokens = [t for t in processed.split() if t.strip()]
 
-    if not tokens: return None, 0
+    if not tokens:
+        return None, 0
 
     escaped_tokens = [re.escape(t) for t in tokens]
-    pattern_str = r'\s*'.join(escaped_tokens)
+    pattern_str = r"\s*".join(escaped_tokens)
     final_pattern = f"(?m)^(\\s*){pattern_str}"
 
     try:
@@ -112,19 +115,23 @@ def _calculate_regex_replacement(current_content: str, old_string: str, new_stri
         return None, 0
 
     match = regex.search(current_content)
-    if not match: return None, 0
+    if not match:
+        return None, 0
 
     indentation = match.group(1) or ""
     new_lines = new_string.splitlines()
     new_block = "\n".join([f"{indentation}{line}" for line in new_lines])
 
-    new_content = current_content[:match.start()] + new_block + current_content[match.end():]
+    new_content = current_content[: match.start()] + new_block + current_content[match.end() :]
     return new_content, 1
 
 
 # --- Main Tool Function ---
 
-async def edit_file(target_file: str, old_string: str, new_string: str, instructions: str = "") -> str:
+
+async def edit_file(
+    target_file: str, old_string: str, new_string: str, instructions: str = ""
+) -> str:
     """
     Replaces a specific string in a file with a new string using smart matching strategies.
 
@@ -145,17 +152,19 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
     """
     try:
         workspace = Path(os.getcwd()).resolve()
-        target = workspace / target_file if not Path(target_file).is_absolute() else Path(target_file)
+        target = (
+            workspace / target_file if not Path(target_file).is_absolute() else Path(target_file)
+        )
 
         if not target.exists():
             # Support creating new file if old_string is empty
             if not old_string:
-                with open(target, 'w', encoding='utf-8') as f:
+                with open(target, "w", encoding="utf-8") as f:
                     f.write(new_string)
                 return f"Successfully created new file: {target_file}"
             return f"Error: File '{target_file}' not found."
 
-        with open(target, 'r', encoding='utf-8') as f:
+        with open(target, "r", encoding="utf-8") as f:
             raw_content = f.read()
 
         original_line_ending = _detect_line_ending(raw_content)
@@ -167,7 +176,7 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
         strategies = [
             ("Exact Match", _calculate_exact_replacement),
             ("Flexible Match", _calculate_flexible_replacement),
-            ("Token-based Fuzzy Match", _calculate_regex_replacement)
+            ("Token-based Fuzzy Match", _calculate_regex_replacement),
         ]
 
         new_content = None
@@ -187,7 +196,9 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
             error_msg = "Could not find the 'old_string' using exact, flexible, or regex matching."
 
             # Intentar arreglar con LLM
-            correction = await _llm_fix_edit(instructions, norm_old, norm_new, error_msg, current_content)
+            correction = await _llm_fix_edit(
+                instructions, norm_old, norm_new, error_msg, current_content
+            )
 
             if correction:
                 fixed_old, fixed_new = correction
@@ -199,10 +210,12 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
                     strategy_used = "LLM Auto-Correction"
 
             if count == 0:  # Si aún falla
-                return (f"Error: {error_msg}\n"
-                        f"1. Check exact indentation and whitespace.\n"
-                        f"2. Use read_file to verify current content.\n"
-                        f"3. Do NOT escape characters manually.")
+                return (
+                    f"Error: {error_msg}\n"
+                    f"1. Check exact indentation and whitespace.\n"
+                    f"2. Use read_file to verify current content.\n"
+                    f"3. Do NOT escape characters manually."
+                )
 
         # --- GUARDRAILS ---
         # 1. No changes check
@@ -216,7 +229,7 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
 
         # Save
         final_content = _restore_line_endings(new_content, original_line_ending)
-        with open(target, 'w', encoding='utf-8') as f:
+        with open(target, "w", encoding="utf-8") as f:
             f.write(final_content)
 
         return f"Successfully edited {target_file} using {strategy_used} strategy. ({count} replacements)"

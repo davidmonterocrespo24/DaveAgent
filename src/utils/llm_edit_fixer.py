@@ -64,8 +64,10 @@ Return valid JSON.
 
 # --- Implementation ---
 
-async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, error_msg: str, file_content: str) -> tuple[
-                                                                                                                      str, str] | None:
+
+async def _llm_fix_edit(
+    instruction: str, old_string: str, new_string: str, error_msg: str, file_content: str
+) -> tuple[str, str] | None:
     """
     Attempts to correct old_string and new_string using an LLM when search fails.
     Replicating the logic of Google's FixLLMEditWithInstruction.
@@ -76,7 +78,7 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
         old_string=old_string,
         new_string=new_string,
         error=error_msg,
-        current_content=file_content
+        current_content=file_content,
     )
 
     settings = get_settings()
@@ -93,7 +95,7 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
                 model_capabilities=settings.get_model_capabilities(),
                 http_client=http_client,
                 enable_thinking=None,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
         else:
             client = OpenAIChatCompletionClient(
@@ -102,12 +104,12 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
                 api_key=settings.api_key,
                 model_capabilities=settings.get_model_capabilities(),
                 http_client=http_client,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
 
         messages = [
             SystemMessage(content=EDIT_SYS_PROMPT),
-            UserMessage(content=user_prompt, source="user")
+            UserMessage(content=user_prompt, source="user"),
         ]
 
         result = await client.create(messages)
@@ -118,8 +120,8 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
         data = json.loads(response_content)
 
         if data.get("noChangesRequired", False):
-            # El LLM dice que ya está hecho. 
-            # Podríamos lanzar una excepción específica o retornar los valores originales 
+            # El LLM dice que ya está hecho.
+            # Podríamos lanzar una excepción específica o retornar los valores originales
             # para que el validador de "no changes" lo capture arriba.
             return old_string, old_string  # Esto disparará 'new == old' error
 

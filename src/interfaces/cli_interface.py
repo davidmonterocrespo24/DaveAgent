@@ -1,6 +1,7 @@
 """
 Interactive CLI interface in the style of Claude Code
 """
+
 import asyncio
 import random
 import sys
@@ -62,13 +63,17 @@ class CLIInterface:
 ║              Intelligent Development Agent                   ║
 ║                    Version 1.2.1                            ║
 ╚══════════════════════════════════════════════════════════════╝
-        """.strip('\n').split('\n')
+        """.strip(
+            "\n"
+        ).split(
+            "\n"
+        )
 
         height = len(banner_lines)
         width = max(len(line) for line in banner_lines)
 
         # Characters to use as "particles"
-        particles = ['.', ':', '*', '°', '·', ' ']
+        particles = [".", ":", "*", "°", "·", " "]
 
         # 1. Create initial state (particle field)
         # Use a list of character lists so we can mutate it
@@ -77,10 +82,10 @@ class CLIInterface:
             row = []
             for c in range(width):
                 # If there's a character in the final banner, place a particle
-                if c < len(banner_lines[r]) and banner_lines[r][c] != ' ':
+                if c < len(banner_lines[r]) and banner_lines[r][c] != " ":
                     row.append(random.choice(particles))
                 else:
-                    row.append(' ')  # Keep empty spaces
+                    row.append(" ")  # Keep empty spaces
             current_state.append(row)
 
         # 2. Get all coordinates (row, col) of the real characters
@@ -88,7 +93,7 @@ class CLIInterface:
         for r in range(height):
             for c in range(width):
                 # We only want to "resolve" characters that are not spaces
-                if c < len(banner_lines[r]) and banner_lines[r][c] != ' ':
+                if c < len(banner_lines[r]) and banner_lines[r][c] != " ":
                     coords.append((r, c))
 
         # 3. Shuffle coordinates for random assembly effect
@@ -100,26 +105,26 @@ class CLIInterface:
 
         with Live(console=self.console, refresh_per_second=15, transient=True) as live:
             # Show initial particle field for a moment
-            text = Text('\n'.join(''.join(row) for row in current_state), style="bold cyan")
+            text = Text("\n".join("".join(row) for row in current_state), style="bold cyan")
             live.update(text)
             time.sleep(0.3)  # Initial pause
 
             # 5. Start revealing characters in batches
             for i in range(0, len(coords), reveal_per_frame):
-                batch = coords[i: i + reveal_per_frame]
+                batch = coords[i : i + reveal_per_frame]
 
                 for r, c in batch:
                     # Replace particle with correct character
                     current_state[r][c] = banner_lines[r][c]
 
                 # Update Live with new state
-                text = Text('\n'.join(''.join(row) for row in current_state), style="bold cyan")
+                text = Text("\n".join("".join(row) for row in current_state), style="bold cyan")
                 live.update(text)
                 time.sleep(0.02)  # Small pause between frames
 
         # 6. Print final banner permanently
         # (Live with transient=True disappears, so we print it again)
-        final_text = Text('\n'.join(banner_lines), style="bold cyan")
+        final_text = Text("\n".join(banner_lines), style="bold cyan")
         self.console.print(final_text)
         self.console.print()
 
@@ -160,14 +165,11 @@ class CLIInterface:
         try:
             # Ejecutar el prompt en un executor para no bloquear el loop
             loop = asyncio.get_event_loop()
-            user_input = await loop.run_in_executor(
-                None,
-                lambda: self.session.prompt(prompt)
-            )
+            user_input = await loop.run_in_executor(None, lambda: self.session.prompt(prompt))
             user_input = user_input.strip()
 
             # Check for @ mentions
-            if '@' in user_input:
+            if "@" in user_input:
                 user_input = await self._process_file_mentions(user_input)
 
             return user_input
@@ -192,7 +194,7 @@ class CLIInterface:
         current_pos = 0
 
         while True:
-            at_pos = user_input.find('@', current_pos)
+            at_pos = user_input.find("@", current_pos)
             if at_pos == -1:
                 # No more @ symbols
                 parts.append(user_input[current_pos:])
@@ -204,7 +206,7 @@ class CLIInterface:
             # Extract query after @ (until space or end)
             query_start = at_pos + 1
             query_end = query_start
-            while query_end < len(user_input) and user_input[query_end] not in (' ', '\t', '\n'):
+            while query_end < len(user_input) and user_input[query_end] not in (" ", "\t", "\n"):
                 query_end += 1
 
             query = user_input[query_start:query_end]
@@ -214,12 +216,7 @@ class CLIInterface:
 
             # Run file selector (synchronously since we're in a coroutine)
             loop = asyncio.get_event_loop()
-            selected_file = await loop.run_in_executor(
-                None,
-                select_file_interactive,
-                ".",
-                query
-            )
+            selected_file = await loop.run_in_executor(None, select_file_interactive, ".", query)
 
             if selected_file:
                 # Add selected file to mentioned files list
@@ -236,22 +233,22 @@ class CLIInterface:
 
             current_pos = query_end
 
-        result = ''.join(parts)
+        result = "".join(parts)
 
         # If result is just file mentions with no actual query, ask user to continue
         if result.strip() and all(
-                part.strip().startswith('`') and part.strip().endswith('`') or part.strip() == '' for part in
-                result.split()):
-            self.console.print("\n[cyan]💬 Now type your request (you can use @ for more files):[/cyan]")
+            part.strip().startswith("`") and part.strip().endswith("`") or part.strip() == ""
+            for part in result.split()
+        ):
+            self.console.print(
+                "\n[cyan]💬 Now type your request (you can use @ for more files):[/cyan]"
+            )
             # Get additional input from user
             loop = asyncio.get_event_loop()
-            additional_input = await loop.run_in_executor(
-                None,
-                lambda: self.session.prompt("   ")
-            )
+            additional_input = await loop.run_in_executor(None, lambda: self.session.prompt("   "))
 
             # Process the additional input for more @ mentions
-            if '@' in additional_input:
+            if "@" in additional_input:
                 additional_input = await self._process_file_mentions(additional_input)
 
             result = result + " " + additional_input.strip()
@@ -273,19 +270,16 @@ class CLIInterface:
     def print_plan(self, plan_summary: str):
         """Shows the execution plan"""
         self.console.print()
-        self.console.print(Panel(
-            plan_summary,
-            title="[bold cyan]Execution Plan[/bold cyan]",
-            border_style="cyan"
-        ))
+        self.console.print(
+            Panel(plan_summary, title="[bold cyan]Execution Plan[/bold cyan]", border_style="cyan")
+        )
         self.console.print()
 
     def print_task_start(self, task_id: int, task_title: str, task_description: str):
         """Shows that a task is starting"""
         self.console.print()
         self.console.print(
-            f"[bold yellow]⚡ Executing Task {task_id}:[/bold yellow] {task_title}",
-            style="bold"
+            f"[bold yellow]⚡ Executing Task {task_id}:[/bold yellow] {task_title}", style="bold"
         )
         self.console.print(f"   {task_description}", style="dim")
         self.console.print()
@@ -293,38 +287,28 @@ class CLIInterface:
     def print_task_complete(self, task_id: int, task_title: str, result_summary: str):
         """Shows that a task was completed"""
         self.console.print()
-        self.console.print(
-            f"[bold green]✓ Task {task_id} Completed:[/bold green] {task_title}"
-        )
+        self.console.print(f"[bold green]✓ Task {task_id} Completed:[/bold green] {task_title}")
         if result_summary:
-            self.console.print(Panel(
-                result_summary,
-                border_style="green",
-                title="Result"
-            ))
+            self.console.print(Panel(result_summary, border_style="green", title="Result"))
         self.console.print()
 
     def print_task_failed(self, task_id: int, task_title: str, error: str):
         """Shows that a task failed"""
         self.console.print()
-        self.console.print(
-            f"[bold red]✗ Task {task_id} Failed:[/bold red] {task_title}"
-        )
-        self.console.print(Panel(
-            error,
-            border_style="red",
-            title="Error"
-        ))
+        self.console.print(f"[bold red]✗ Task {task_id} Failed:[/bold red] {task_title}")
+        self.console.print(Panel(error, border_style="red", title="Error"))
         self.console.print()
 
     def print_plan_update(self, reasoning: str, changes_summary: str):
         """Shows that the plan is being updated"""
         self.console.print()
         self.console.print("[bold yellow]🔄 Updating Execution Plan[/bold yellow]")
-        self.console.print(Panel(
-            f"**Reasoning:**\n{reasoning}\n\n**Changes:**\n{changes_summary}",
-            border_style="yellow"
-        ))
+        self.console.print(
+            Panel(
+                f"**Reasoning:**\n{reasoning}\n\n**Changes:**\n{changes_summary}",
+                border_style="yellow",
+            )
+        )
         self.console.print()
 
     def start_thinking(self, message: Optional[str] = None):
@@ -340,18 +324,11 @@ class CLIInterface:
         if message:
             # Single custom message
             self.vibe_spinner = VibeSpinner(
-                messages=[message],
-                spinner_style="dots",
-                color="cyan",
-                language="es"
+                messages=[message], spinner_style="dots", color="cyan", language="es"
             )
         else:
             # Rotating vibe messages
-            self.vibe_spinner = VibeSpinner(
-                spinner_style="dots",
-                color="cyan",
-                language="es"
-            )
+            self.vibe_spinner = VibeSpinner(spinner_style="dots", color="cyan", language="es")
 
         self.vibe_spinner.start()
 
@@ -375,27 +352,19 @@ class CLIInterface:
 
     def print_error(self, error: str):
         """Shows an error message"""
-        self.console.print(Panel(
-            error,
-            title="[bold red]Error[/bold red]",
-            border_style="red"
-        ))
+        self.console.print(Panel(error, title="[bold red]Error[/bold red]", border_style="red"))
 
     def print_warning(self, warning: str):
         """Shows a warning message"""
-        self.console.print(Panel(
-            warning,
-            title="[bold yellow]Warning[/bold yellow]",
-            border_style="yellow"
-        ))
+        self.console.print(
+            Panel(warning, title="[bold yellow]Warning[/bold yellow]", border_style="yellow")
+        )
 
     def print_info(self, info: str, title: str = "Information"):
         """Shows an informative message"""
-        self.console.print(Panel(
-            info,
-            title=f"[bold cyan]{title}[/bold cyan]",
-            border_style="cyan"
-        ))
+        self.console.print(
+            Panel(info, title=f"[bold cyan]{title}[/bold cyan]", border_style="cyan")
+        )
 
     def print_success(self, message: str):
         """Shows a success message"""
@@ -408,17 +377,17 @@ class CLIInterface:
         Args:
             diff_text: Diff text in unified diff format
         """
-        for line in diff_text.split('\n'):
-            if line.startswith('---') or line.startswith('+++'):
+        for line in diff_text.split("\n"):
+            if line.startswith("---") or line.startswith("+++"):
                 # File headers in cyan
                 self.console.print(f"[bold cyan]{line}[/bold cyan]")
-            elif line.startswith('@@'):
+            elif line.startswith("@@"):
                 # Line numbers in yellow
                 self.console.print(f"[bold yellow]{line}[/bold yellow]")
-            elif line.startswith('-') and not line.startswith('---'):
+            elif line.startswith("-") and not line.startswith("---"):
                 # Deleted lines in red
                 self.console.print(f"[bold red]{line}[/bold red]")
-            elif line.startswith('+') and not line.startswith('+++'):
+            elif line.startswith("+") and not line.startswith("+++"):
                 # Added lines in green
                 self.console.print(f"[bold green]{line}[/bold green]")
             else:
@@ -450,14 +419,12 @@ class CLIInterface:
             "in_progress": "[yellow]⚡ In progress[/yellow]",
             "pending": "[dim]○ Pending[/dim]",
             "failed": "[red]✗ Failed[/red]",
-            "blocked": "[red]⊟ Blocked[/red]"
+            "blocked": "[red]⊟ Blocked[/red]",
         }
 
         for task in tasks:
             table.add_row(
-                str(task["id"]),
-                status_styles.get(task["status"], task["status"]),
-                task["title"]
+                str(task["id"]), status_styles.get(task["status"], task["status"]), task["title"]
             )
 
         return table
@@ -475,11 +442,11 @@ class CLIInterface:
 **Persistence:** State is automatically saved using AutoGen save_state()
         """
         self.console.print()
-        self.console.print(Panel(
-            Markdown(stats_text),
-            title="[bold cyan]Statistics[/bold cyan]",
-            border_style="cyan"
-        ))
+        self.console.print(
+            Panel(
+                Markdown(stats_text), title="[bold cyan]Statistics[/bold cyan]", border_style="cyan"
+            )
+        )
         self.console.print()
 
     def print_help(self):
@@ -606,11 +573,9 @@ Simply write what you need the agent to do. The agent will:
 "/search methods that modify the database"
         """
         self.console.print()
-        self.console.print(Panel(
-            Markdown(help_text),
-            title="[bold cyan]Help[/bold cyan]",
-            border_style="cyan"
-        ))
+        self.console.print(
+            Panel(Markdown(help_text), title="[bold cyan]Help[/bold cyan]", border_style="cyan")
+        )
         self.console.print()
 
     def print_goodbye(self):
@@ -670,7 +635,7 @@ Simply write what you need the agent to do. The agent will:
 
         for file_path in self.mentioned_files:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     file_content = f.read()
 
                 content_parts.append(f"\n{'=' * 60}")
@@ -682,4 +647,4 @@ Simply write what you need the agent to do. The agent will:
             except Exception as e:
                 content_parts.append(f"\n⚠️ Error reading {file_path}: {e}\n")
 
-        return '\n'.join(content_parts)
+        return "\n".join(content_parts)

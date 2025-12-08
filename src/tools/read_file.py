@@ -5,9 +5,12 @@ from src.tools.common import get_workspace
 from src.utils.file_utils import process_single_file_content
 
 
-async def read_file(target_file: str, should_read_entire_file: bool = True,
-                    start_line_one_indexed: int = 1,
-                    end_line_one_indexed_inclusive: int = -1) -> str:
+async def read_file(
+    target_file: str,
+    should_read_entire_file: bool = True,
+    start_line_one_indexed: int = 1,
+    end_line_one_indexed_inclusive: int = -1,
+) -> str:
     """
     Read the contents of a file with line range support.
     Uses advanced file processing to handle large files, binary files, and different encodings.
@@ -46,10 +49,7 @@ async def read_file(target_file: str, should_read_entire_file: bool = True,
 
         # Call process_single_file_content
         result = await process_single_file_content(
-            str_path,
-            str_workspace,
-            offset=offset,
-            limit=limit
+            str_path, str_workspace, offset=offset, limit=limit
         )
 
         # Handle Error
@@ -83,7 +83,9 @@ async def read_file(target_file: str, should_read_entire_file: bool = True,
         # Normal Text Content
         header = f"File: {target_file}"
         if not should_read_entire_file:
-            end_desc = end_line_one_indexed_inclusive if end_line_one_indexed_inclusive != -1 else 'end'
+            end_desc = (
+                end_line_one_indexed_inclusive if end_line_one_indexed_inclusive != -1 else "end"
+            )
             header += f" (lines {start_line_one_indexed}-{end_desc})"
         header += "\n"
 

@@ -1,6 +1,7 @@
 """
 Test para json_tools
 """
+
 import asyncio
 import os
 
@@ -15,11 +16,7 @@ async def test_json_tools():
 
     # Test 1: Escribir JSON
     print("Test 1: Escribir JSON")
-    test_data = {
-        "name": "Test",
-        "version": "1.0",
-        "items": [1, 2, 3]
-    }
+    test_data = {"name": "Test", "version": "1.0", "items": [1, 2, 3]}
     result = await write_json(test_file, test_data)
     print(f"Resultado: {result}\n")
 

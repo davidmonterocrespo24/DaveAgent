@@ -1,6 +1,7 @@
 """
 Specialized memory types for different use cases
 """
+
 from autogen_core.memory import Memory, MemoryContent
 from typing import List, Optional, Dict, Any
 
@@ -14,12 +15,12 @@ class ConversationMemory:
         self.memory = memory
 
     async def add_exchange(
-            self,
-            user_input: str,
-            agent_response: str,
-            agents_used: Optional[List[str]] = None,
-            tools_called: Optional[List[str]] = None,
-            **kwargs
+        self,
+        user_input: str,
+        agent_response: str,
+        agents_used: Optional[List[str]] = None,
+        tools_called: Optional[List[str]] = None,
+        **kwargs,
     ) -> None:
         """
         Add a conversation exchange with rich metadata
@@ -48,13 +49,13 @@ class CodebaseMemory:
         self.memory = memory
 
     async def add_file(
-            self,
-            file_path: str,
-            content: str,
-            language: str,
-            functions: Optional[List[str]] = None,
-            classes: Optional[List[str]] = None,
-            **kwargs
+        self,
+        file_path: str,
+        content: str,
+        language: str,
+        functions: Optional[List[str]] = None,
+        classes: Optional[List[str]] = None,
+        **kwargs,
     ) -> None:
         """
         Add a code file with extracted metadata
@@ -83,12 +84,12 @@ class DecisionMemory:
         self.memory = memory
 
     async def add_decision(
-            self,
-            decision: str,
-            context: str,
-            category: str = "architecture",
-            impact: str = "medium",
-            **kwargs
+        self,
+        decision: str,
+        context: str,
+        category: str = "architecture",
+        impact: str = "medium",
+        **kwargs,
     ) -> None:
         """
         Add an architectural or technical decision
@@ -116,11 +117,7 @@ class UserPreferencesMemory:
         self.memory = memory
 
     async def add_preference(
-            self,
-            preference: str,
-            category: str = "general",
-            priority: str = "normal",
-            **kwargs
+        self, preference: str, category: str = "general", priority: str = "normal", **kwargs
     ) -> None:
         """
         Add a user preference

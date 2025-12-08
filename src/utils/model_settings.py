@@ -1,6 +1,7 @@
 """
 Model Settings - Model and provider configuration
 """
+
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
 
@@ -8,6 +9,7 @@ from typing import Optional, Dict, Any
 @dataclass
 class ModelProvider:
     """Model provider information"""
+
     name: str
     display_name: str
     base_url: str
@@ -33,7 +35,7 @@ PROVIDERS = {
             "function_calling": True,
             "json_output": True,
             "structured_output": False,
-        }
+        },
     ),
     "openai": ModelProvider(
         name="openai",
@@ -48,7 +50,7 @@ PROVIDERS = {
             "function_calling": True,
             "json_output": True,
             "structured_output": True,
-        }
+        },
     ),
     "azure": ModelProvider(
         name="azure",
@@ -63,7 +65,7 @@ PROVIDERS = {
             "function_calling": True,
             "json_output": True,
             "structured_output": True,
-        }
+        },
     ),
     "anthropic": ModelProvider(
         name="anthropic",
@@ -73,7 +75,7 @@ PROVIDERS = {
         models=[
             "claude-3-7-sonnet-20250219",
             "claude-3-5-sonnet-20241022",
-            "claude-3-opus-20240229"
+            "claude-3-opus-20240229",
         ],
         requires_api_key=True,
         api_key_url="https://console.anthropic.com/settings/keys",
@@ -82,7 +84,7 @@ PROVIDERS = {
             "function_calling": True,
             "json_output": True,
             "structured_output": False,
-        }
+        },
     ),
     "ollama": ModelProvider(
         name="ollama",
@@ -97,7 +99,7 @@ PROVIDERS = {
             "function_calling": True,
             "json_output": True,
             "structured_output": False,
-        }
+        },
     ),
     "gemini": ModelProvider(
         name="gemini",
@@ -112,17 +114,14 @@ PROVIDERS = {
             "function_calling": True,
             "json_output": True,
             "structured_output": True,
-        }
+        },
     ),
     "llama": ModelProvider(
         name="llama",
         display_name="Llama API (Meta)",
         base_url="https://api.llama-api.com",
         default_model="Llama-4-Scout-17B-16E-Instruct-FP8",
-        models=[
-            "Llama-4-Scout-17B-16E-Instruct-FP8",
-            "Llama-4-Maverick-17B-128E-Instruct-FP8"
-        ],
+        models=["Llama-4-Scout-17B-16E-Instruct-FP8", "Llama-4-Maverick-17B-128E-Instruct-FP8"],
         requires_api_key=True,
         api_key_url="https://www.llama-api.com/",
         capabilities={
@@ -130,7 +129,7 @@ PROVIDERS = {
             "function_calling": True,
             "json_output": True,
             "structured_output": True,
-        }
+        },
     ),
 }
 

@@ -2,21 +2,24 @@
 Main file - Complete CLI interface for the code agent
 NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 """
+
 import asyncio
 import logging
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
+
 # Imports added for the new flow
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from src.agents import CodeSearcher
+
 # Import from new structure
 from src.config import (
     CODER_AGENT_DESCRIPTION,
     COMPLEXITY_DETECTOR_PROMPT,
     PLANNING_AGENT_DESCRIPTION,
-    PLANNING_AGENT_SYSTEM_MESSAGE
+    PLANNING_AGENT_SYSTEM_MESSAGE,
 )
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
@@ -30,13 +33,13 @@ class DaveAgentCLI:
     """Main CLI application for the code agent"""
 
     def __init__(
-            self,
-            debug: bool = False,
-            api_key: str = None,
-            base_url: str = None,
-            model: str = None,
-            ssl_verify: bool = None,
-            headless: bool = False
+        self,
+        debug: bool = False,
+        api_key: str = None,
+        base_url: str = None,
+        model: str = None,
+        ssl_verify: bool = None,
+        headless: bool = False,
     ):
         """
         Initialize all agent components
@@ -62,7 +65,9 @@ class DaveAgentCLI:
         # Load configuration (API key, URL, model)
         from src.config import get_settings
 
-        self.settings = get_settings(api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify)
+        self.settings = get_settings(
+            api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify
+        )
 
         # Validate configuration (without interactivity in headless mode)
         is_valid, error_msg = self.settings.validate(interactive=not headless)
@@ -83,11 +88,13 @@ class DaveAgentCLI:
 
         # Create custom HTTP client with SSL configuration
         import httpx
+
         http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
 
         # Complete JSON logging system (ALWAYS active, independent of Langfuse)
         # IMPORTANT: Initialize JSONLogger BEFORE creating the model_client wrapper
         from src.utils.json_logger import JSONLogger
+
         self.json_logger = JSONLogger()
         self.logger.info("✅ JSONLogger initialized - capturing all interactions")
 
@@ -102,7 +109,7 @@ class DaveAgentCLI:
                 api_key=self.settings.api_key,
                 model_capabilities=self.settings.get_model_capabilities(),
                 http_client=http_client,
-                enable_thinking=None  # Auto-detect based on model name
+                enable_thinking=None,  # Auto-detect based on model name
             )
 
             # Print info safely (avoid encoding errors in Windows)
@@ -118,7 +125,7 @@ class DaveAgentCLI:
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
                 model_capabilities=self.settings.get_model_capabilities(),
-                http_client=http_client
+                http_client=http_client,
             )
             self.logger.info(f"🤖 Standard client for {self.settings.model}")
 
@@ -126,7 +133,7 @@ class DaveAgentCLI:
         self.model_client = LoggingModelClientWrapper(
             wrapped_client=base_model_client,
             json_logger=self.json_logger,
-            agent_name="SystemRouter"  # Will be updated per agent
+            agent_name="SystemRouter",  # Will be updated per agent
         )
         self.logger.info("✅ Model client wrapped with logging interceptor")
 
@@ -144,20 +151,18 @@ class DaveAgentCLI:
             base_url=self.settings.base_url,
             api_key=self.settings.api_key,
             model_capabilities=self.settings.get_model_capabilities(),
-            http_client=http_client
+            http_client=http_client,
         )
         self.logger.info(f"✅ Router client created with model: {router_model}")
 
         # Memory system with ChromaDB (initialize BEFORE creating agents)
         self.memory_manager = MemoryManager(
-            k=5,  # Top 5 most relevant results
-            score_threshold=0.3  # Similarity threshold
+            k=5, score_threshold=0.3  # Top 5 most relevant results  # Similarity threshold
         )
 
         # State management system (AutoGen save_state/load_state)
         self.state_manager = StateManager(
-            auto_save_enabled=True,
-            auto_save_interval=300  # Auto-save every 5 minutes
+            auto_save_enabled=True, auto_save_interval=300  # Auto-save every 5 minutes
         )
 
         # Observability system with Langfuse (simple method with OpenLit)
@@ -178,30 +183,63 @@ class DaveAgentCLI:
         # Import all tools from the new structure
         from src.tools import (
             # Filesystem
-            read_file, write_file, list_dir, edit_file,
-            delete_file, file_search, glob_search,
+            read_file,
+            write_file,
+            list_dir,
+            edit_file,
+            delete_file,
+            file_search,
+            glob_search,
             # Git
-            git_status, git_add, git_commit, git_push, git_pull,
-            git_log, git_branch, git_diff,
+            git_status,
+            git_add,
+            git_commit,
+            git_push,
+            git_pull,
+            git_log,
+            git_branch,
+            git_diff,
             # JSON
-            read_json, write_json, merge_json_files, validate_json,
-            format_json, json_get_value, json_set_value, json_to_text,
+            read_json,
+            write_json,
+            merge_json_files,
+            validate_json,
+            format_json,
+            json_get_value,
+            json_set_value,
+            json_to_text,
             # CSV
-            read_csv, write_csv, csv_info, filter_csv,
-            merge_csv_files, csv_to_json, sort_csv,
+            read_csv,
+            write_csv,
+            csv_info,
+            filter_csv,
+            merge_csv_files,
+            csv_to_json,
+            sort_csv,
             # Web
-            wiki_search, wiki_summary, wiki_content,
-            wiki_page_info, wiki_random, wiki_set_language,
+            wiki_search,
+            wiki_summary,
+            wiki_content,
+            wiki_page_info,
+            wiki_random,
+            wiki_set_language,
             web_search,
             # Analysis
-            analyze_python_file, find_function_definition, list_all_functions,
-            grep_search, run_terminal_cmd,
+            analyze_python_file,
+            find_function_definition,
+            list_all_functions,
+            grep_search,
+            run_terminal_cmd,
             # Memory (RAG)
-            query_conversation_memory, query_codebase_memory,
-            query_decision_memory, query_preferences_memory,
-            query_user_memory, save_user_info,
-            save_decision, save_preference,
-            set_memory_manager
+            query_conversation_memory,
+            query_codebase_memory,
+            query_decision_memory,
+            query_preferences_memory,
+            query_user_memory,
+            save_user_info,
+            save_decision,
+            save_preference,
+            set_memory_manager,
         )
 
         # Configure memory manager for memory tools
@@ -211,37 +249,76 @@ class DaveAgentCLI:
         self.all_tools = {
             # READ-ONLY tools (available in both modes)
             "read_only": [
-                read_file, list_dir, file_search, glob_search,
-                git_status, git_log, git_branch, git_diff,
-                read_json, validate_json, json_get_value, json_to_text,
-                read_csv, csv_info, filter_csv,
-                wiki_search, wiki_summary, wiki_content, wiki_page_info, wiki_random, wiki_set_language,
+                read_file,
+                list_dir,
+                file_search,
+                glob_search,
+                git_status,
+                git_log,
+                git_branch,
+                git_diff,
+                read_json,
+                validate_json,
+                json_get_value,
+                json_to_text,
+                read_csv,
+                csv_info,
+                filter_csv,
+                wiki_search,
+                wiki_summary,
+                wiki_content,
+                wiki_page_info,
+                wiki_random,
+                wiki_set_language,
                 web_search,
-                analyze_python_file, find_function_definition, list_all_functions,
+                analyze_python_file,
+                find_function_definition,
+                list_all_functions,
                 grep_search,
                 # Memory query tools (read-only, available in both modes)
-                query_conversation_memory, query_codebase_memory,
-                query_decision_memory, query_preferences_memory,
-                query_user_memory
+                query_conversation_memory,
+                query_codebase_memory,
+                query_decision_memory,
+                query_preferences_memory,
+                query_user_memory,
             ],
             # MODIFICATION tools (only in agent mode)
             "modification": [
-                write_file, edit_file, delete_file,
-                git_add, git_commit, git_push, git_pull,
-                write_json, merge_json_files, format_json, json_set_value,
-                write_csv, merge_csv_files, csv_to_json, sort_csv,
+                write_file,
+                edit_file,
+                delete_file,
+                git_add,
+                git_commit,
+                git_push,
+                git_pull,
+                write_json,
+                merge_json_files,
+                format_json,
+                json_set_value,
+                write_csv,
+                merge_csv_files,
+                csv_to_json,
+                sort_csv,
                 run_terminal_cmd,
                 # Memory save tools (modification mode only)
-                save_user_info, save_decision, save_preference
+                save_user_info,
+                save_decision,
+                save_preference,
             ],
             # Specific tools for CodeSearcher (always available)
             "search": [
-                grep_search, file_search, glob_search,
-                read_file, list_dir,
-                analyze_python_file, find_function_definition, list_all_functions,
+                grep_search,
+                file_search,
+                glob_search,
+                read_file,
+                list_dir,
+                analyze_python_file,
+                find_function_definition,
+                list_all_functions,
                 # Memory query tools for CodeSearcher
-                query_codebase_memory, query_conversation_memory
-            ]
+                query_codebase_memory,
+                query_conversation_memory,
+            ],
         }
 
         # Initialize agents according to current mode
@@ -250,19 +327,23 @@ class DaveAgentCLI:
         # System components
         if headless:
             # Headless mode: without interactive CLI (for evaluations)
-            self.cli = type('DummyCLI', (), {
-                'print_success': lambda *args, **kwargs: None,
-                'print_error': lambda *args, **kwargs: None,
-                'print_info': lambda *args, **kwargs: None,
-                'print_thinking': lambda *args, **kwargs: None,
-                'print_agent_message': lambda *args, **kwargs: None,
-                'start_thinking': lambda *args, **kwargs: None,
-                'stop_thinking': lambda *args, **kwargs: None,
-                'mentioned_files': [],
-                'get_mentioned_files_content': lambda: "",
-                'print_mentioned_files': lambda: None,
-                'console': None
-            })()
+            self.cli = type(
+                "DummyCLI",
+                (),
+                {
+                    "print_success": lambda *args, **kwargs: None,
+                    "print_error": lambda *args, **kwargs: None,
+                    "print_info": lambda *args, **kwargs: None,
+                    "print_thinking": lambda *args, **kwargs: None,
+                    "print_agent_message": lambda *args, **kwargs: None,
+                    "start_thinking": lambda *args, **kwargs: None,
+                    "stop_thinking": lambda *args, **kwargs: None,
+                    "mentioned_files": [],
+                    "get_mentioned_files_content": lambda: "",
+                    "print_mentioned_files": lambda: None,
+                    "console": None,
+                },
+            )()
             self.history_viewer = None
         else:
             # Normal interactive mode
@@ -308,19 +389,19 @@ class DaveAgentCLI:
         coder_client = LoggingModelClientWrapper(
             wrapped_client=self.model_client._wrapped,
             json_logger=self.json_logger,
-            agent_name="Coder"
+            agent_name="Coder",
         )
 
         searcher_client = LoggingModelClientWrapper(
             wrapped_client=self.model_client._wrapped,
             json_logger=self.json_logger,
-            agent_name="CodeSearcher"
+            agent_name="CodeSearcher",
         )
 
         planner_client = LoggingModelClientWrapper(
             wrapped_client=self.model_client._wrapped,
             json_logger=self.json_logger,
-            agent_name="Planner"
+            agent_name="Planner",
         )
 
         # Create code agent with RAG tools (without memory parameter)
@@ -331,14 +412,14 @@ class DaveAgentCLI:
             model_client=coder_client,
             tools=coder_tools,  # Includes memory RAG tools
             max_tool_iterations=5,
-            reflect_on_tool_use=False
+            reflect_on_tool_use=False,
             # NO memory parameter - uses RAG tools instead
         )
 
         # Create CodeSearcher with search tools (without memory parameter)
         self.code_searcher = CodeSearcher(
             searcher_client,
-            self.all_tools["search"]  # Includes query_codebase_memory, query_conversation_memory
+            self.all_tools["search"],  # Includes query_codebase_memory, query_conversation_memory
             # NO memory parameter - uses RAG tools instead
         )
 
@@ -348,7 +429,7 @@ class DaveAgentCLI:
             description=PLANNING_AGENT_DESCRIPTION,
             system_message=PLANNING_AGENT_SYSTEM_MESSAGE,
             model_client=planner_client,
-            tools=[]  # Planner has no tools, only plans
+            tools=[],  # Planner has no tools, only plans
             # NO memory parameter
         )
 
@@ -377,17 +458,15 @@ class DaveAgentCLI:
         self.logger.debug(f"[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(10)")
 
         self.main_team = SelectorGroupChat(
-            participants=[
-                self.planning_agent,
-                self.code_searcher.searcher_agent,
-                self.coder_agent
-            ],
+            participants=[self.planning_agent, self.code_searcher.searcher_agent, self.coder_agent],
             model_client=self.router_client,
             termination_condition=termination_condition,
-            allow_repeated_speaker=True  # Allows the same agent to speak multiple times
+            allow_repeated_speaker=True,  # Allows the same agent to speak multiple times
         )
 
-        self.logger.debug(f"[SELECTOR] Router team created with {len(self.main_team._participants)} agents")
+        self.logger.debug(
+            f"[SELECTOR] Router team created with {len(self.main_team._participants)} agents"
+        )
 
     async def _update_agent_tools_for_mode(self):
         """
@@ -421,10 +500,7 @@ class DaveAgentCLI:
                 self.logger.warning(f"⚠️  Error closing previous MemoryManager: {e}")
 
         # Create NEW MemoryManager with completely clean collections
-        self.memory_manager = MemoryManager(
-            k=5,
-            score_threshold=0.3
-        )
+        self.memory_manager = MemoryManager(k=5, score_threshold=0.3)
 
         # Close the previous one (async) - ALREADY CLOSED ABOVE
         # try:
@@ -535,7 +611,11 @@ class DaveAgentCLI:
         elif cmd == "/config" or cmd == "/configuracion":
             # Show current configuration
             self.cli.print_info("\n⚙️  Current Configuration\n")
-            masked_key = f"{self.settings.api_key[:8]}...{self.settings.api_key[-4:]}" if self.settings.api_key else "Not configured"
+            masked_key = (
+                f"{self.settings.api_key[:8]}...{self.settings.api_key[-4:]}"
+                if self.settings.api_key
+                else "Not configured"
+            )
             self.cli.print_info(f"  • API Key: {masked_key}")
             self.cli.print_info(f"  • Base URL: {self.settings.base_url}")
             self.cli.print_info(f"  • Model: {self.settings.model}")
@@ -602,10 +682,11 @@ class DaveAgentCLI:
 
                 # Recreate HTTP client with new SSL configuration
                 import httpx
+
                 http_client = httpx.AsyncClient(verify=new_ssl)
 
                 # Update model client
-                if hasattr(self.model_client, '_wrapped_client'):
+                if hasattr(self.model_client, "_wrapped_client"):
                     # It's LoggingModelClientWrapper, update wrapped client
                     self.model_client._wrapped_client._http_client = http_client
                 else:
@@ -613,7 +694,9 @@ class DaveAgentCLI:
 
                 self.cli.print_success(f"✓ SSL Verify changed: {old_ssl} → {new_ssl}")
                 if not new_ssl:
-                    self.cli.print_warning("⚠️  SSL verification disabled - Connections are not secure")
+                    self.cli.print_warning(
+                        "⚠️  SSL verification disabled - Connections are not secure"
+                    )
                 self.logger.info(f"SSL verify changed from {old_ssl} to {new_ssl}")
 
         elif cmd == "/search":
@@ -664,16 +747,12 @@ class DaveAgentCLI:
             self.logger.info("📚 Starting project indexing...")
 
             # Create indexer
-            indexer = DocumentIndexer(
-                memory=self.memory_manager.codebase_memory,
-                chunk_size=1500
-            )
+            indexer = DocumentIndexer(memory=self.memory_manager.codebase_memory, chunk_size=1500)
 
             # Index current directory
             project_dir = Path.cwd()
             stats = await indexer.index_project(
-                project_dir=project_dir,
-                max_files=500  # Limit to 500 files to avoid overload
+                project_dir=project_dir, max_files=500  # Limit to 500 files to avoid overload
             )
 
             self.cli.stop_thinking()
@@ -683,7 +762,7 @@ class DaveAgentCLI:
             self.cli.print_info(f"  • Files indexed: {stats['files_indexed']}")
             self.cli.print_info(f"  • Chunks created: {stats['chunks_created']}")
             self.cli.print_info(f"  • Files skipped: {stats['files_skipped']}")
-            if stats['errors'] > 0:
+            if stats["errors"] > 0:
                 self.cli.print_warning(f"  • Errors: {stats['errors']}")
 
             self.logger.info(f"✅ Project indexed: {stats}")
@@ -715,7 +794,10 @@ class DaveAgentCLI:
             # Calculate memory directory size
             try:
                 from pathlib import Path
-                total_size = sum(f.stat().st_size for f in Path(memory_path).rglob('*') if f.is_file())
+
+                total_size = sum(
+                    f.stat().st_size for f in Path(memory_path).rglob("*") if f.is_file()
+                )
                 size_mb = total_size / (1024 * 1024)
                 self.cli.print_info(f"📊 Total size: {size_mb:.2f} MB")
             except Exception as e:
@@ -764,9 +846,12 @@ class DaveAgentCLI:
             import shlex
 
             if len(parts) < 2:
-                self.cli.print_error("Usage: /new-session <title> [--tags tag1,tag2] [--desc description]")
+                self.cli.print_error(
+                    "Usage: /new-session <title> [--tags tag1,tag2] [--desc description]"
+                )
                 self.cli.print_info(
-                    "Example: /new-session \"Web Project\" --tags python,web --desc \"API Development\"")
+                    'Example: /new-session "Web Project" --tags python,web --desc "API Development"'
+                )
                 return
 
             # Join and parse
@@ -796,14 +881,12 @@ class DaveAgentCLI:
 
             # Generate session_id
             from datetime import datetime
+
             session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
             # Start new session with metadata
             self.state_manager.start_session(
-                session_id=session_id,
-                title=title,
-                tags=tags,
-                description=description
+                session_id=session_id, title=title, tags=tags, description=description
             )
 
             self.cli.print_success(f"✅ New session created: {title}")
@@ -859,6 +942,7 @@ TITLE:"""
 
             # Call the LLM
             from autogen_core.models import UserMessage
+
             result = await self.model_client.create(
                 messages=[UserMessage(content=title_prompt, source="user")]
             )
@@ -890,34 +974,30 @@ TITLE:"""
             # Start session if not started
             if not self.state_manager.session_id:
                 from datetime import datetime
+
                 session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
                 # Generate title automatically using LLM
                 title = await self._generate_session_title()
 
-                self.state_manager.start_session(
-                    session_id=session_id,
-                    title=title
-                )
+                self.state_manager.start_session(session_id=session_id, title=title)
                 self.logger.info(f"🎯 New session created with title: {title}")
 
             # Save state of each agent
             await self.state_manager.save_agent_state(
-                "coder",
-                self.coder_agent,
-                metadata={"description": "Main coder agent with tools"}
+                "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
             )
 
             await self.state_manager.save_agent_state(
                 "code_searcher",
                 self.code_searcher.searcher_agent,
-                metadata={"description": "Code search and analysis agent"}
+                metadata={"description": "Code search and analysis agent"},
             )
 
             await self.state_manager.save_agent_state(
                 "planning",
                 self.planning_agent,
-                metadata={"description": "Planning and task management agent"}
+                metadata={"description": "Planning and task management agent"},
             )
 
             # Save to disk
@@ -947,24 +1027,20 @@ TITLE:"""
                 # New session with manual title
                 title = " ".join(parts[1:])
                 from datetime import datetime
+
                 session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-                self.state_manager.start_session(
-                    session_id=session_id,
-                    title=title
-                )
+                self.state_manager.start_session(session_id=session_id, title=title)
             elif not self.state_manager.session_id:
                 # Auto-generate session with automatic title using LLM
                 from datetime import datetime
+
                 session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
                 # Generate smart title
                 title = await self._generate_session_title()
 
-                self.state_manager.start_session(
-                    session_id=session_id,
-                    title=title
-                )
+                self.state_manager.start_session(session_id=session_id, title=title)
                 self.logger.info(f"📝 Title generated automatically: {title}")
             else:
                 # Update existing session
@@ -972,21 +1048,19 @@ TITLE:"""
 
             # Save state of each agent
             await self.state_manager.save_agent_state(
-                "coder",
-                self.coder_agent,
-                metadata={"description": "Main coder agent with tools"}
+                "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
             )
 
             await self.state_manager.save_agent_state(
                 "code_searcher",
                 self.code_searcher.searcher_agent,
-                metadata={"description": "Code search and analysis agent"}
+                metadata={"description": "Code search and analysis agent"},
             )
 
             await self.state_manager.save_agent_state(
                 "planning",
                 self.planning_agent,
-                metadata={"description": "Planning and task management agent"}
+                metadata={"description": "Planning and task management agent"},
             )
 
             # Save to disk
@@ -1055,7 +1129,9 @@ TITLE:"""
             if await self.state_manager.load_agent_state("coder", self.coder_agent):
                 agents_loaded += 1
 
-            if await self.state_manager.load_agent_state("code_searcher", self.code_searcher.searcher_agent):
+            if await self.state_manager.load_agent_state(
+                "code_searcher", self.code_searcher.searcher_agent
+            ):
                 agents_loaded += 1
 
             if await self.state_manager.load_agent_state("planning", self.planning_agent):
@@ -1069,9 +1145,7 @@ TITLE:"""
 
             # Display session info
             self.history_viewer.display_session_loaded(
-                session_id=session_id,
-                total_messages=len(messages),
-                agents_restored=agents_loaded
+                session_id=session_id, total_messages=len(messages), agents_restored=agents_loaded
             )
 
             # Display session metadata
@@ -1081,9 +1155,7 @@ TITLE:"""
             if messages:
                 self.cli.print_info("📜 Displaying conversation history:\n")
                 self.history_viewer.display_conversation_history(
-                    messages=messages,
-                    max_messages=20,  # Show last 20 messages
-                    show_thoughts=False
+                    messages=messages, max_messages=20, show_thoughts=False  # Show last 20 messages
                 )
 
                 if len(messages) > 20:
@@ -1170,9 +1242,7 @@ TITLE:"""
             # Display history
             max_messages = None if show_all else 20
             self.history_viewer.display_conversation_history(
-                messages=messages,
-                max_messages=max_messages,
-                show_thoughts=show_thoughts
+                messages=messages, max_messages=max_messages, show_thoughts=show_thoughts
             )
 
             # Show info about truncation
@@ -1282,10 +1352,10 @@ TITLE:"""
                 msg_type = type(msg).__name__
                 self.logger.debug(f"CodeSearcher message #{message_count} - Type: {msg_type}")
 
-                if hasattr(msg, 'source') and msg.source != "user":
+                if hasattr(msg, "source") and msg.source != "user":
                     agent_name = msg.source
 
-                    if hasattr(msg, 'content'):
+                    if hasattr(msg, "content"):
                         content = msg.content
                     else:
                         content = str(msg)
@@ -1310,20 +1380,27 @@ TITLE:"""
                         elif msg_type == "ToolCallRequestEvent":
                             if isinstance(content, list):
                                 for tool_call in content:
-                                    if hasattr(tool_call, 'name'):
+                                    if hasattr(tool_call, "name"):
                                         tool_name = tool_call.name
-                                        self.cli.print_info(f"🔧 Searching with: {tool_name}", agent_name)
+                                        self.cli.print_info(
+                                            f"🔧 Searching with: {tool_name}", agent_name
+                                        )
                                         self.logger.debug(f"🔧 Tool call: {tool_name}")
                             agent_messages_shown.add(message_key)
 
                         elif msg_type == "ToolCallExecutionEvent":
                             if isinstance(content, list):
                                 for execution_result in content:
-                                    if hasattr(execution_result, 'name'):
+                                    if hasattr(execution_result, "name"):
                                         tool_name = execution_result.name
-                                        result_preview = str(execution_result.content)[:100] if hasattr(
-                                            execution_result, 'content') else "OK"
-                                        self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
+                                        result_preview = (
+                                            str(execution_result.content)[:100]
+                                            if hasattr(execution_result, "content")
+                                            else "OK"
+                                        )
+                                        self.cli.print_thinking(
+                                            f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                        )
                                         self.logger.debug(f"✅ Tool result: {tool_name}")
                             agent_messages_shown.add(message_key)
 
@@ -1332,7 +1409,9 @@ TITLE:"""
                             self.cli.print_agent_message(content_str, agent_name)
                             agent_messages_shown.add(message_key)
 
-            self.cli.print_success("\n✅ Search completed. Use this information for your next request.")
+            self.cli.print_success(
+                "\n✅ Search completed. Use this information for your next request."
+            )
             self.logger.info("✅ CodeSearcher completed")
 
         except Exception as e:
@@ -1395,11 +1474,11 @@ TITLE:"""
                 participants=[
                     self.planning_agent,
                     self.code_searcher.searcher_agent,
-                    self.coder_agent
+                    self.coder_agent,
                 ],
                 model_client=self.router_client,
                 termination_condition=termination,
-                selector_func=custom_selector_func  # ← Key for re-planning
+                selector_func=custom_selector_func,  # ← Key for re-planning
             )
 
             # Execute with streaming
@@ -1417,10 +1496,10 @@ TITLE:"""
                 message_count += 1
                 msg_type = type(msg).__name__
 
-                if hasattr(msg, 'source') and msg.source != "user":
+                if hasattr(msg, "source") and msg.source != "user":
                     agent_name = msg.source
 
-                    if hasattr(msg, 'content'):
+                    if hasattr(msg, "content"):
                         content = msg.content
                     else:
                         content = str(msg)
@@ -1454,9 +1533,11 @@ TITLE:"""
                             if isinstance(content, list):
                                 tool_names = []
                                 for tool_call in content:
-                                    if hasattr(tool_call, 'name'):
+                                    if hasattr(tool_call, "name"):
                                         tool_name = tool_call.name
-                                        self.cli.print_info(f"🔧 Executing: {tool_name}", agent_name)
+                                        self.cli.print_info(
+                                            f"🔧 Executing: {tool_name}", agent_name
+                                        )
                                         tool_names.append(tool_name)
 
                                 # Restart spinner ONCE with first tool name (not in loop)
@@ -1472,36 +1553,55 @@ TITLE:"""
 
                             if isinstance(content, list):
                                 for result in content:
-                                    if hasattr(result, 'name'):
+                                    if hasattr(result, "name"):
                                         tool_name = result.name
-                                        result_content = str(result.content) if hasattr(result, 'content') else "OK"
+                                        result_content = (
+                                            str(result.content)
+                                            if hasattr(result, "content")
+                                            else "OK"
+                                        )
 
                                         # Check if this is an edit_file result with diff
-                                        if tool_name == "edit_file" and "DIFF (Changes Applied)" in result_content:
+                                        if (
+                                            tool_name == "edit_file"
+                                            and "DIFF (Changes Applied)" in result_content
+                                        ):
                                             # Extract and display the diff
                                             diff_start = result_content.find(
-                                                "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):")
+                                                "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):"
+                                            )
                                             diff_end = result_content.find(
                                                 "\n═══════════════════════════════════════════════════════════════",
-                                                diff_start + 100)
+                                                diff_start + 100,
+                                            )
 
                                             if diff_start != -1 and diff_end != -1:
-                                                diff_text = result_content[diff_start:diff_end + 64]
+                                                diff_text = result_content[
+                                                    diff_start : diff_end + 64
+                                                ]
                                                 # Print file info first
-                                                info_end = result_content.find("\n\n", 0, diff_start)
+                                                info_end = result_content.find(
+                                                    "\n\n", 0, diff_start
+                                                )
                                                 if info_end != -1:
                                                     file_info = result_content[:info_end]
-                                                    self.cli.print_thinking(f"✅ {tool_name}: {file_info}")
+                                                    self.cli.print_thinking(
+                                                        f"✅ {tool_name}: {file_info}"
+                                                    )
                                                 # Display diff with colors
                                                 self.cli.print_diff(diff_text)
                                             else:
                                                 # Fallback to showing preview
                                                 result_preview = result_content[:100]
-                                                self.cli.print_thinking(f"✅ {tool_name}: {result_preview}...")
+                                                self.cli.print_thinking(
+                                                    f"✅ {tool_name}: {result_preview}..."
+                                                )
                                         else:
                                             # Regular tool result
                                             result_preview = result_content[:100]
-                                            self.cli.print_thinking(f"✅ {tool_name}: {result_preview}...")
+                                            self.cli.print_thinking(
+                                                f"✅ {tool_name}: {result_preview}..."
+                                            )
 
                             self.cli.start_thinking()
                             spinner_active = True
@@ -1530,6 +1630,7 @@ TITLE:"""
             self.logger.log_error_with_context(e, "_execute_complex_task")
             self.cli.print_error(f"Error in complex task: {str(e)}")
             import traceback
+
             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
     # =========================================================================
@@ -1558,13 +1659,13 @@ TITLE:"""
             # ============= START JSON LOGGING SESSION =============
             # Capture ALL interactions in JSON (independent of Langfuse)
             self.json_logger.start_session(
-                mode=self.current_mode,
-                model=self.settings.model,
-                base_url=self.settings.base_url
+                mode=self.current_mode, model=self.settings.model, base_url=self.settings.base_url
             )
             self.json_logger.log_user_message(
                 content=user_input,
-                mentioned_files=[str(f) for f in self.cli.mentioned_files] if self.cli.mentioned_files else []
+                mentioned_files=(
+                    [str(f) for f in self.cli.mentioned_files] if self.cli.mentioned_files else []
+                ),
             )
 
             # Check if there are mentioned files and add their context
@@ -1572,7 +1673,9 @@ TITLE:"""
             if self.cli.mentioned_files:
                 self.cli.print_mentioned_files()
                 mentioned_files_content = self.cli.get_mentioned_files_content()
-                self.logger.info(f"📎 Including {len(self.cli.mentioned_files)} mentioned file(s) in context")
+                self.logger.info(
+                    f"📎 Including {len(self.cli.mentioned_files)} mentioned file(s) in context"
+                )
 
                 # Prepend file content to user input
                 full_input = f"{mentioned_files_content}\n\nUSER REQUEST:\n{user_input}"
@@ -1602,7 +1705,7 @@ TITLE:"""
                 self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
 
                 # Only process messages that are NOT from the user
-                if hasattr(msg, 'source') and msg.source != "user":
+                if hasattr(msg, "source") and msg.source != "user":
                     agent_name = msg.source
 
                     # Track which agents were used
@@ -1610,11 +1713,13 @@ TITLE:"""
                         agents_used.append(agent_name)
 
                     # Determine message content
-                    if hasattr(msg, 'content'):
+                    if hasattr(msg, "content"):
                         content = msg.content
                     else:
                         content = str(msg)
-                        self.logger.warning(f"Message without 'content' attribute. Using str(): {content[:100]}...")
+                        self.logger.warning(
+                            f"Message without 'content' attribute. Using str(): {content[:100]}..."
+                        )
 
                     # Create unique key to avoid duplicates
                     # If content is a list (e.g. FunctionCall), convert to string
@@ -1651,17 +1756,25 @@ TITLE:"""
                             if isinstance(content, list):
                                 tool_names = []
                                 for tool_call in content:
-                                    if hasattr(tool_call, 'name'):
+                                    if hasattr(tool_call, "name"):
                                         tool_name = tool_call.name
-                                        tool_args = tool_call.arguments if hasattr(tool_call, 'arguments') else {}
-                                        self.cli.print_info(f"🔧 Calling tool: {tool_name} with parameters {tool_args}",
-                                                            agent_name)
+                                        tool_args = (
+                                            tool_call.arguments
+                                            if hasattr(tool_call, "arguments")
+                                            else {}
+                                        )
+                                        self.cli.print_info(
+                                            f"🔧 Calling tool: {tool_name} with parameters {tool_args}",
+                                            agent_name,
+                                        )
                                         self.logger.debug(f"🔧 Tool call: {tool_name}({tool_args})")
                                         # JSON Logger: Capture tool call
                                         self.json_logger.log_tool_call(
                                             agent_name=agent_name,
                                             tool_name=tool_name,
-                                            arguments=tool_args if isinstance(tool_args, dict) else {}
+                                            arguments=(
+                                                tool_args if isinstance(tool_args, dict) else {}
+                                            ),
                                         )
                                         # Track tools called
                                         if tool_name not in tools_called:
@@ -1683,50 +1796,71 @@ TITLE:"""
 
                             if isinstance(content, list):
                                 for execution_result in content:
-                                    if hasattr(execution_result, 'name'):
+                                    if hasattr(execution_result, "name"):
                                         tool_name = execution_result.name
-                                        result_content = str(execution_result.content) if hasattr(execution_result,
-                                                                                                  'content') else "OK"
+                                        result_content = (
+                                            str(execution_result.content)
+                                            if hasattr(execution_result, "content")
+                                            else "OK"
+                                        )
 
                                         # Check if this is an edit_file result with diff
-                                        if tool_name == "edit_file" and "DIFF (Changes Applied)" in result_content:
+                                        if (
+                                            tool_name == "edit_file"
+                                            and "DIFF (Changes Applied)" in result_content
+                                        ):
                                             # Extract and display the diff
                                             diff_start = result_content.find(
-                                                "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):")
+                                                "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):"
+                                            )
                                             diff_end = result_content.find(
                                                 "\n═══════════════════════════════════════════════════════════════",
-                                                diff_start + 100)
+                                                diff_start + 100,
+                                            )
 
                                             if diff_start != -1 and diff_end != -1:
-                                                diff_text = result_content[diff_start:diff_end + 64]
+                                                diff_text = result_content[
+                                                    diff_start : diff_end + 64
+                                                ]
                                                 # Print file info first
-                                                info_end = result_content.find("\n\n", 0, diff_start)
+                                                info_end = result_content.find(
+                                                    "\n\n", 0, diff_start
+                                                )
                                                 if info_end != -1:
                                                     file_info = result_content[:info_end]
                                                     self.cli.print_thinking(
-                                                        f"✅ {agent_name} > {tool_name}: {file_info}")
+                                                        f"✅ {agent_name} > {tool_name}: {file_info}"
+                                                    )
                                                 # Display diff with colors
                                                 self.cli.print_diff(diff_text)
-                                                self.logger.debug(f"✅ Tool result: {tool_name} -> DIFF displayed")
+                                                self.logger.debug(
+                                                    f"✅ Tool result: {tool_name} -> DIFF displayed"
+                                                )
                                             else:
                                                 # Fallback to showing preview
                                                 result_preview = result_content[:100]
                                                 self.cli.print_thinking(
-                                                    f"✅ {agent_name} > {tool_name}: {result_preview}...")
-                                                self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
+                                                    f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                )
+                                                self.logger.debug(
+                                                    f"✅ Tool result: {tool_name} -> {result_preview}"
+                                                )
                                         else:
                                             # Regular tool result
                                             result_preview = result_content[:100]
                                             self.cli.print_thinking(
-                                                f"✅ {agent_name} > {tool_name}: {result_preview}...")
-                                            self.logger.debug(f"✅ Tool result: {tool_name} -> {result_preview}")
+                                                f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                            )
+                                            self.logger.debug(
+                                                f"✅ Tool result: {tool_name} -> {result_preview}"
+                                            )
 
                                         # JSON Logger: Capture tool result
                                         self.json_logger.log_tool_result(
                                             agent_name=agent_name,
                                             tool_name=tool_name,
                                             result=result_content,
-                                            success=True
+                                            success=True,
                                         )
 
                             # Restart spinner for next action
@@ -1746,9 +1880,7 @@ TITLE:"""
                             self.cli.print_agent_message(content_str, agent_name)
                             # JSON Logger: Capture agent message
                             self.json_logger.log_agent_message(
-                                agent_name=agent_name,
-                                content=content_str,
-                                message_type="text"
+                                agent_name=agent_name, content=content_str, message_type="text"
                             )
                             # Collect agent responses for logging
                             all_agent_responses.append(f"[{agent_name}] {content_str}")
@@ -1772,7 +1904,7 @@ TITLE:"""
                 user_input=user_input,
                 agent_responses=all_agent_responses,
                 agents_used=agents_used,
-                tools_called=tools_called
+                tools_called=tools_called,
             )
 
             # Generate task completion summary
@@ -1804,6 +1936,7 @@ TITLE:"""
             self.logger.log_error_with_context(e, "process_user_request")
             self.cli.print_error(f"Error processing request: {str(e)}")
             import traceback
+
             error_traceback = traceback.format_exc()
             self.logger.error(f"Full traceback:\n{error_traceback}")
             self.cli.print_error(f"Details:\n{error_traceback}")
@@ -1813,11 +1946,7 @@ TITLE:"""
     # =========================================================================
 
     def _log_interaction_to_json(
-            self,
-            user_input: str,
-            agent_responses: list,
-            agents_used: list,
-            tools_called: list
+        self, user_input: str, agent_responses: list, agents_used: list, tools_called: list
     ):
         """
         Log the interaction with the LLM to JSON file and vector memory
@@ -1852,8 +1981,8 @@ TITLE:"""
                     "agents_used": agents_used,
                     "tools_called": tools_called,
                     "total_agents": len(agents_used),
-                    "total_tools": len(tools_called)
-                }
+                    "total_tools": len(tools_called),
+                },
             )
 
             self.logger.debug(f"📝 Interaction logged to JSON with ID: {interaction_id}")
@@ -1862,6 +1991,7 @@ TITLE:"""
             # This allows future agents to find relevant conversations
             # ChromaDB only accepts str, int, float, bool in metadata - convert lists to strings
             import asyncio
+
             asyncio.create_task(
                 self.memory_manager.add_conversation(
                     user_input=user_input,
@@ -1871,8 +2001,8 @@ TITLE:"""
                         "tools_called": ", ".join(tools_called) if tools_called else "",
                         "interaction_id": interaction_id,
                         "model": self.settings.model,
-                        "provider": provider
-                    }
+                        "provider": provider,
+                    },
                 )
             )
 
@@ -1927,6 +2057,7 @@ TITLE:"""
             if last_interaction:
                 try:
                     from datetime import datetime
+
                     dt = datetime.fromisoformat(last_interaction)
                     formatted_date = dt.strftime("%Y-%m-%d %H:%M")
                 except:
@@ -1946,10 +2077,12 @@ TITLE:"""
 
             session = PromptSession()
             with patch_stdout():
-                response = await session.prompt_async("\nDo you want to continue with this session? (Y/n): ")
+                response = await session.prompt_async(
+                    "\nDo you want to continue with this session? (Y/n): "
+                )
             response = response.strip().lower()
 
-            if response in ['s', 'si', 'sí', 'yes', 'y', '']:
+            if response in ["s", "si", "sí", "yes", "y", ""]:
                 # Load the session
                 self.cli.print_info(f"\n📂 Loading session: {title}...")
 
@@ -1961,7 +2094,9 @@ TITLE:"""
                     agents_loaded = 0
                     if await self.state_manager.load_agent_state("coder", self.coder_agent):
                         agents_loaded += 1
-                    if await self.state_manager.load_agent_state("code_searcher", self.code_searcher.searcher_agent):
+                    if await self.state_manager.load_agent_state(
+                        "code_searcher", self.code_searcher.searcher_agent
+                    ):
                         agents_loaded += 1
                     if await self.state_manager.load_agent_state("planning", self.planning_agent):
                         agents_loaded += 1
@@ -1981,11 +2116,13 @@ TITLE:"""
                         self.history_viewer.display_conversation_history(
                             messages=messages,
                             max_messages=5,  # Show last 5 messages
-                            show_thoughts=False
+                            show_thoughts=False,
                         )
 
                         if len(messages) > 5:
-                            self.cli.print_info(f"💡 Use /history to see all {len(messages)} messages")
+                            self.cli.print_info(
+                                f"💡 Use /history to see all {len(messages)} messages"
+                            )
 
                     self.cli.print_info("\n✅ You can continue the conversation\n")
                 else:
@@ -2057,11 +2194,11 @@ TITLE:"""
 
 
 async def main(
-        debug: bool = False,
-        api_key: str = None,
-        base_url: str = None,
-        model: str = None,
-        ssl_verify: bool = None
+    debug: bool = False,
+    api_key: str = None,
+    base_url: str = None,
+    model: str = None,
+    ssl_verify: bool = None,
 ):
     """
     Main entry point
@@ -2073,7 +2210,9 @@ async def main(
         model: Name of the model to use
         ssl_verify: Whether to verify SSL certificates (default True)
     """
-    app = DaveAgentCLI(debug=debug, api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify)
+    app = DaveAgentCLI(
+        debug=debug, api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify
+    )
     await app.run()
 
 

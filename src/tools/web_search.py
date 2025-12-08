@@ -1,6 +1,7 @@
 """
 Web Search Tool - Real-time web search using DuckDuckGo
 """
+
 import logging
 import random
 import requests
@@ -13,12 +14,12 @@ from urllib.parse import quote_plus
 async def web_search(search_term: str, explanation: str = "", max_results: int = 5) -> str:
     """
     Search the web using web scraping from multiple search engines.
-    
+
     Parameters:
         search_term (str): The search query to look for on the web
         explanation (str): Optional explanation for the web search operation
         max_results (int): Maximum number of search results to return (default: 5)
-    
+
     Returns:
         str: Formatted search results with titles, URLs, and descriptions from multiple search engines
     """
@@ -27,17 +28,17 @@ async def web_search(search_term: str, explanation: str = "", max_results: int =
 
         # User agents to rotate for avoiding detection
         user_agents = [
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         ]
 
         headers = {
-            'User-Agent': random.choice(user_agents),
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
+            "User-Agent": random.choice(user_agents),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate",
+            "Connection": "keep-alive",
         }
 
         # Try DuckDuckGo first (more scraping-friendly)
@@ -87,27 +88,25 @@ def _search_duckduckgo(query: str, headers: dict, max_results: int) -> List[Dict
     response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()
 
-    soup = BeautifulSoup(response.content, 'html.parser')
+    soup = BeautifulSoup(response.content, "html.parser")
 
     # Find search results
-    result_divs = soup.find_all('div', class_='result')
+    result_divs = soup.find_all("div", class_="result")
 
     for div in result_divs[:max_results]:
         try:
-            title_elem = div.find('a', class_='result__a')
-            snippet_elem = div.find('a', class_='result__snippet')
+            title_elem = div.find("a", class_="result__a")
+            snippet_elem = div.find("a", class_="result__snippet")
 
             if title_elem and snippet_elem:
                 title = title_elem.get_text(strip=True)
-                url = title_elem.get('href', '')
+                url = title_elem.get("href", "")
                 snippet = snippet_elem.get_text(strip=True)
 
                 if title and url:
-                    results.append({
-                        'title': title,
-                        'url': url,
-                        'snippet': snippet or 'No snippet available'
-                    })
+                    results.append(
+                        {"title": title, "url": url, "snippet": snippet or "No snippet available"}
+                    )
         except Exception as e:
             continue
 
@@ -123,29 +122,29 @@ def _search_bing(query: str, headers: dict, max_results: int) -> List[Dict]:
     response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()
 
-    soup = BeautifulSoup(response.content, 'html.parser')
+    soup = BeautifulSoup(response.content, "html.parser")
 
     # Find search results
-    result_divs = soup.find_all('li', class_='b_algo')
+    result_divs = soup.find_all("li", class_="b_algo")
 
     for div in result_divs[:max_results]:
         try:
-            title_elem = div.find('h2')
+            title_elem = div.find("h2")
             if title_elem:
-                link_elem = title_elem.find('a')
+                link_elem = title_elem.find("a")
                 if link_elem:
                     title = link_elem.get_text(strip=True)
-                    url = link_elem.get('href', '')
+                    url = link_elem.get("href", "")
 
-                    snippet_elem = div.find('p') or div.find('div', class_='b_caption')
-                    snippet = snippet_elem.get_text(strip=True) if snippet_elem else 'No snippet available'
+                    snippet_elem = div.find("p") or div.find("div", class_="b_caption")
+                    snippet = (
+                        snippet_elem.get_text(strip=True)
+                        if snippet_elem
+                        else "No snippet available"
+                    )
 
                     if title and url:
-                        results.append({
-                            'title': title,
-                            'url': url,
-                            'snippet': snippet
-                        })
+                        results.append({"title": title, "url": url, "snippet": snippet})
         except Exception as e:
             continue
 
@@ -164,30 +163,30 @@ def _search_google_simple(query: str, headers: dict, max_results: int) -> List[D
     response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()
 
-    soup = BeautifulSoup(response.content, 'html.parser')
+    soup = BeautifulSoup(response.content, "html.parser")
 
     # Find search results (Google's structure changes frequently)
-    result_divs = soup.find_all('div', class_='g')
+    result_divs = soup.find_all("div", class_="g")
 
     for div in result_divs[:max_results]:
         try:
-            title_elem = div.find('h3')
-            link_elem = div.find('a')
+            title_elem = div.find("h3")
+            link_elem = div.find("a")
 
             if title_elem and link_elem:
                 title = title_elem.get_text(strip=True)
-                url = link_elem.get('href', '')
+                url = link_elem.get("href", "")
 
                 # Try to find snippet
-                snippet_elem = div.find('span', {'data-content-id': True}) or div.find('div', class_='VwiC3b')
-                snippet = snippet_elem.get_text(strip=True) if snippet_elem else 'No snippet available'
+                snippet_elem = div.find("span", {"data-content-id": True}) or div.find(
+                    "div", class_="VwiC3b"
+                )
+                snippet = (
+                    snippet_elem.get_text(strip=True) if snippet_elem else "No snippet available"
+                )
 
-                if title and url and not url.startswith('/search'):
-                    results.append({
-                        'title': title,
-                        'url': url,
-                        'snippet': snippet
-                    })
+                if title and url and not url.startswith("/search"):
+                    results.append({"title": title, "url": url, "snippet": snippet})
         except Exception as e:
             continue
 
@@ -229,11 +228,11 @@ async def web_search_news(query: str, max_results: int = 5) -> str:
         output += f"{'=' * 70}\n\n"
 
         for i, result in enumerate(results, 1):
-            title = result.get('title', 'Untitled')
-            snippet = result.get('body', 'No description')
-            url = result.get('url', '')
-            date = result.get('date', 'Unknown date')
-            source = result.get('source', 'Unknown source')
+            title = result.get("title", "Untitled")
+            snippet = result.get("body", "No description")
+            url = result.get("url", "")
+            date = result.get("date", "Unknown date")
+            source = result.get("source", "Unknown source")
 
             output += f"{i}. **{title}**\n"
             output += f"   {snippet}\n"

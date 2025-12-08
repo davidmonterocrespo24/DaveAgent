@@ -1,6 +1,7 @@
 """
 GREP Search Tool (Git Grep + Python Fallback)
 """
+
 import os
 import re
 import shutil
@@ -13,15 +14,50 @@ from src.tools.common import get_workspace
 # --- Exclusion Configuration (Fallback) ---
 # Used only if git grep is not available
 EXCLUDED_DIRS = {
-    'node_modules', '__pycache__', '.git', '.venv', 'venv', 'env',
-    '.pytest_cache', '.mypy_cache', '.tox', 'dist', 'build',
-    'site-packages', '.next', '.nuxt', 'coverage', '.idea', '.vscode'
+    "node_modules",
+    "__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+    "env",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".tox",
+    "dist",
+    "build",
+    "site-packages",
+    ".next",
+    ".nuxt",
+    "coverage",
+    ".idea",
+    ".vscode",
 }
 
 EXCLUDED_EXTS = {
-    '.pyc', '.pyo', '.pyd', '.so', '.dll', '.exe', '.bin', '.obj', '.o',
-    '.min.js', '.min.css', '.map', '.lock', '.log', '.sqlite', '.db',
-    '.jpg', '.jpeg', '.png', '.gif', '.ico', '.pdf', '.woff', '.ttf'
+    ".pyc",
+    ".pyo",
+    ".pyd",
+    ".so",
+    ".dll",
+    ".exe",
+    ".bin",
+    ".obj",
+    ".o",
+    ".min.js",
+    ".min.css",
+    ".map",
+    ".lock",
+    ".log",
+    ".sqlite",
+    ".db",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".ico",
+    ".pdf",
+    ".woff",
+    ".ttf",
 }
 
 
@@ -29,7 +65,9 @@ def _is_git_repo(path: Path) -> bool:
     return (path / ".git").exists()
 
 
-def _run_git_grep(query: str, path: Path, include: Optional[str] = None, case_sensitive: bool = False) -> str | None:
+def _run_git_grep(
+    query: str, path: Path, include: Optional[str] = None, case_sensitive: bool = False
+) -> str | None:
     """Executes optimized 'git grep'."""
     if not shutil.which("git"):
         return None
@@ -53,12 +91,7 @@ def _run_git_grep(query: str, path: Path, include: Optional[str] = None, case_se
     try:
         # Execute in target directory
         result = subprocess.run(
-            cmd,
-            cwd=str(path),
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace'
+            cmd, cwd=str(path), capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
 
         if result.returncode == 0:
@@ -72,7 +105,9 @@ def _run_git_grep(query: str, path: Path, include: Optional[str] = None, case_se
         return None
 
 
-def _python_grep_fallback(query: str, root_path: Path, include_pattern: str | None, case_sensitive: bool) -> str:
+def _python_grep_fallback(
+    query: str, root_path: Path, include_pattern: str | None, case_sensitive: bool
+) -> str:
     """Pure Python implementation (slow but safe)."""
     results = []
     flags = 0 if case_sensitive else re.IGNORECASE
@@ -132,11 +167,11 @@ def _python_grep_fallback(query: str, root_path: Path, include_pattern: str | No
 
 
 async def grep_search(
-        query: str,
-        case_sensitive: bool = False,
-        include_pattern: Optional[str] = None,
-        exclude_pattern: Optional[str] = None,  # Deprecated in favor of gitignore but kept for compat
-        explanation: Optional[str] = None
+    query: str,
+    case_sensitive: bool = False,
+    include_pattern: Optional[str] = None,
+    exclude_pattern: Optional[str] = None,  # Deprecated in favor of gitignore but kept for compat
+    explanation: Optional[str] = None,
 ) -> str:
     """
     Search for a regex pattern in files.

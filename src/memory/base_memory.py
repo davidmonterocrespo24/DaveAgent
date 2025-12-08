@@ -1,6 +1,7 @@
 """
 Base Memory Manager - Central memory system using ChromaDB
 """
+
 import logging
 import os
 from autogen_core.memory import MemoryContent, MemoryMimeType
@@ -25,11 +26,11 @@ class MemoryManager:
     """
 
     def __init__(
-            self,
-            persistence_path: Optional[str] = None,
-            embedding_model: str = "all-MiniLM-L6-v2",
-            k: int = 5,
-            score_threshold: float = 0.3,
+        self,
+        persistence_path: Optional[str] = None,
+        embedding_model: str = "all-MiniLM-L6-v2",
+        k: int = 5,
+        score_threshold: float = 0.3,
     ):
         """
         Initialize the memory manager
@@ -60,7 +61,9 @@ class MemoryManager:
         self._preferences_memory: Optional[ChromaDBVectorMemory] = None
         self._user_memory: Optional[ChromaDBVectorMemory] = None
 
-        self.logger.info(f"📚 MemoryManager initialized with persistence path: {self.persistence_path}")
+        self.logger.info(
+            f"📚 MemoryManager initialized with persistence path: {self.persistence_path}"
+        )
 
     def _create_memory_store(self, collection_name: str) -> ChromaDBVectorMemory:
         """Create a ChromaDB memory store with the given collection name"""
@@ -95,10 +98,7 @@ class MemoryManager:
         return self._conversation_memory
 
     async def add_conversation(
-            self,
-            user_input: str,
-            agent_response: str,
-            metadata: Optional[Dict[str, Any]] = None
+        self, user_input: str, agent_response: str, metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Add a conversation exchange to memory
@@ -113,17 +113,17 @@ class MemoryManager:
             conversation_text = f"USER: {user_input}\n\nAGENT: {agent_response}"
 
             mem_metadata = metadata or {}
-            mem_metadata.update({
-                "type": "conversation",
-                "user_input": user_input[:200],  # Store preview
-                "response_preview": agent_response[:200]
-            })
+            mem_metadata.update(
+                {
+                    "type": "conversation",
+                    "user_input": user_input[:200],  # Store preview
+                    "response_preview": agent_response[:200],
+                }
+            )
 
             await self.conversation_memory.add(
                 MemoryContent(
-                    content=conversation_text,
-                    mime_type=MemoryMimeType.TEXT,
-                    metadata=mem_metadata
+                    content=conversation_text, mime_type=MemoryMimeType.TEXT, metadata=mem_metadata
                 )
             )
 
@@ -136,7 +136,7 @@ class MemoryManager:
         """Query conversation memory for relevant past conversations"""
         try:
             results = await self.conversation_memory.query(query)
-            count = len(results.results) if hasattr(results, 'results') else len(results)
+            count = len(results.results) if hasattr(results, "results") else len(results)
             self.logger.debug(f"🔍 Found {count} relevant conversations")
             return results
         except Exception as e:
@@ -155,10 +155,7 @@ class MemoryManager:
         return self._codebase_memory
 
     async def add_code_chunk(
-            self,
-            code: str,
-            file_path: str,
-            metadata: Optional[Dict[str, Any]] = None
+        self, code: str, file_path: str, metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Add a code chunk to memory
@@ -170,18 +167,16 @@ class MemoryManager:
         """
         try:
             mem_metadata = metadata or {}
-            mem_metadata.update({
-                "type": "code",
-                "file_path": file_path,
-                "language": self._detect_language(file_path)
-            })
+            mem_metadata.update(
+                {
+                    "type": "code",
+                    "file_path": file_path,
+                    "language": self._detect_language(file_path),
+                }
+            )
 
             await self.codebase_memory.add(
-                MemoryContent(
-                    content=code,
-                    mime_type=MemoryMimeType.TEXT,
-                    metadata=mem_metadata
-                )
+                MemoryContent(content=code, mime_type=MemoryMimeType.TEXT, metadata=mem_metadata)
             )
 
             self.logger.debug(f"📝 Code chunk added: {file_path}")
@@ -193,7 +188,7 @@ class MemoryManager:
         """Query codebase memory for relevant code"""
         try:
             results = await self.codebase_memory.query(query)
-            count = len(results.results) if hasattr(results, 'results') else len(results)
+            count = len(results.results) if hasattr(results, "results") else len(results)
             self.logger.debug(f"🔍 Found {count} relevant code chunks")
             return results
         except Exception as e:
@@ -212,10 +207,7 @@ class MemoryManager:
         return self._decision_memory
 
     async def add_decision(
-            self,
-            decision: str,
-            context: str,
-            metadata: Optional[Dict[str, Any]] = None
+        self, decision: str, context: str, metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Add an architectural decision to memory
@@ -229,16 +221,11 @@ class MemoryManager:
             decision_text = f"DECISION: {decision}\n\nCONTEXT: {context}"
 
             mem_metadata = metadata or {}
-            mem_metadata.update({
-                "type": "decision",
-                "decision_summary": decision[:200]
-            })
+            mem_metadata.update({"type": "decision", "decision_summary": decision[:200]})
 
             await self.decision_memory.add(
                 MemoryContent(
-                    content=decision_text,
-                    mime_type=MemoryMimeType.TEXT,
-                    metadata=mem_metadata
+                    content=decision_text, mime_type=MemoryMimeType.TEXT, metadata=mem_metadata
                 )
             )
 
@@ -251,7 +238,7 @@ class MemoryManager:
         """Query decision memory for relevant past decisions"""
         try:
             results = await self.decision_memory.query(query)
-            count = len(results.results) if hasattr(results, 'results') else len(results)
+            count = len(results.results) if hasattr(results, "results") else len(results)
             self.logger.debug(f"🔍 Found {count} relevant decisions")
             return results
         except Exception as e:
@@ -270,10 +257,7 @@ class MemoryManager:
         return self._preferences_memory
 
     async def add_preference(
-            self,
-            preference: str,
-            category: str = "general",
-            metadata: Optional[Dict[str, Any]] = None
+        self, preference: str, category: str = "general", metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Add a user preference to memory
@@ -285,16 +269,11 @@ class MemoryManager:
         """
         try:
             mem_metadata = metadata or {}
-            mem_metadata.update({
-                "type": "preference",
-                "category": category
-            })
+            mem_metadata.update({"type": "preference", "category": category})
 
             await self.preferences_memory.add(
                 MemoryContent(
-                    content=preference,
-                    mime_type=MemoryMimeType.TEXT,
-                    metadata=mem_metadata
+                    content=preference, mime_type=MemoryMimeType.TEXT, metadata=mem_metadata
                 )
             )
 
@@ -307,7 +286,7 @@ class MemoryManager:
         """Query preferences memory for relevant preferences"""
         try:
             results = await self.preferences_memory.query(query)
-            count = len(results.results) if hasattr(results, 'results') else len(results)
+            count = len(results.results) if hasattr(results, "results") else len(results)
             self.logger.debug(f"🔍 Found {count} relevant preferences")
             return results
         except Exception as e:
@@ -326,10 +305,7 @@ class MemoryManager:
         return self._user_memory
 
     async def add_user_info(
-            self,
-            info: str,
-            category: str = "general",
-            metadata: Optional[Dict[str, Any]] = None
+        self, info: str, category: str = "general", metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Add user information to memory
@@ -341,17 +317,10 @@ class MemoryManager:
         """
         try:
             mem_metadata = metadata or {}
-            mem_metadata.update({
-                "type": "user_info",
-                "category": category
-            })
+            mem_metadata.update({"type": "user_info", "category": category})
 
             await self.user_memory.add(
-                MemoryContent(
-                    content=info,
-                    mime_type=MemoryMimeType.TEXT,
-                    metadata=mem_metadata
-                )
+                MemoryContent(content=info, mime_type=MemoryMimeType.TEXT, metadata=mem_metadata)
             )
 
             self.logger.debug(f"👤 User info added: {category}")
@@ -363,7 +332,7 @@ class MemoryManager:
         """Query user memory for relevant user information"""
         try:
             results = await self.user_memory.query(query)
-            count = len(results.results) if hasattr(results, 'results') else len(results)
+            count = len(results.results) if hasattr(results, "results") else len(results)
             self.logger.debug(f"🔍 Found {count} relevant user info")
             return results
         except Exception as e:
