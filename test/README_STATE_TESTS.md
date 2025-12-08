@@ -342,4 +342,4 @@ Después de ejecutar los tests:
 ---
 
 **Última actualización:** 2025-11-05
-**Autor:** CodeAgent Team
+**Autor:** DaveAgent Team

@@ -1,29 +1,29 @@
 """
-Herramientas de Wikipedia para AutoGen - Búsqueda y acceso a contenido de Wikipedia
+Wikipedia Tools for AutoGen - Wikipedia search and content access
 """
 import logging
 from importlib import util
 
 
 def _check_wikipedia():
-    """Verifica si wikipedia está instalado"""
+    """Checks if wikipedia is installed"""
     if util.find_spec("wikipedia") is None:
-        raise ImportError("wikipedia package no disponible. Instalar con: pip install wikipedia")
+        raise ImportError("wikipedia package not available. Install with: pip install wikipedia")
     import wikipedia
-    wikipedia.set_lang("es")  # Configurar idioma por defecto
+    wikipedia.set_lang("es")  # Set default language
     return wikipedia
 
 
 async def wiki_search(query: str, max_results: int = 10) -> str:
     """
-    Busca en Wikipedia y retorna títulos de páginas relacionadas.
+    Searches Wikipedia and returns related page titles.
 
     Args:
-        query: Consulta de búsqueda
-        max_results: Número máximo de resultados (default: 10)
+        query: Search query
+        max_results: Maximum number of results (default: 10)
 
     Returns:
-        str: Lista de títulos encontrados o mensaje de error
+        str: List of found titles or error message
     """
     try:
         wikipedia = _check_wikipedia()
@@ -31,34 +31,34 @@ async def wiki_search(query: str, max_results: int = 10) -> str:
 
         if isinstance(search_results, tuple):
             results, suggestion = search_results
-            output = f"Resultados de búsqueda para '{query}':\n\n"
+            output = f"Search results for '{query}':\n\n"
             for i, title in enumerate(results, 1):
                 output += f"{i}. {title}\n"
             if suggestion:
-                output += f"\n¿Quisiste decir?: {suggestion}"
+                output += f"\nDid you mean?: {suggestion}"
             return output
         else:
-            output = f"Resultados de búsqueda para '{query}':\n\n"
+            output = f"Search results for '{query}':\n\n"
             for i, title in enumerate(search_results, 1):
                 output += f"{i}. {title}\n"
             return output
 
     except Exception as e:
-        error_msg = f"Error buscando en Wikipedia '{query}': {str(e)}"
+        error_msg = f"Error searching Wikipedia '{query}': {str(e)}"
         logging.error(error_msg)
         return error_msg
 
 
 async def wiki_summary(title: str, sentences: int = 5) -> str:
     """
-    Obtiene un resumen de una página de Wikipedia.
+    Gets a summary of a Wikipedia page.
 
     Args:
-        title: Título de la página de Wikipedia
-        sentences: Número de oraciones del resumen (default: 5)
+        title: Wikipedia page title
+        sentences: Number of summary sentences (default: 5)
 
     Returns:
-        str: Resumen de la página o mensaje de error
+        str: Page summary or error message
     """
     try:
         wikipedia = _check_wikipedia()
@@ -66,31 +66,31 @@ async def wiki_summary(title: str, sentences: int = 5) -> str:
         return f"=== {title} ===\n\n{summary}"
 
     except wikipedia.exceptions.DisambiguationError as e:
-        options = e.options[:10]  # Limitar a 10 opciones
-        output = f"'{title}' es una página de desambiguación. Opciones:\n\n"
+        options = e.options[:10]  # Limit to 10 options
+        output = f"'{title}' is a disambiguation page. Options:\n\n"
         for i, option in enumerate(options, 1):
             output += f"{i}. {option}\n"
         return output
 
     except wikipedia.exceptions.PageError:
-        return f"ERROR: No se encontró la página '{title}' en Wikipedia"
+        return f"ERROR: Page '{title}' not found on Wikipedia"
 
     except Exception as e:
-        error_msg = f"Error obteniendo resumen de '{title}': {str(e)}"
+        error_msg = f"Error getting summary of '{title}': {str(e)}"
         logging.error(error_msg)
         return error_msg
 
 
 async def wiki_content(title: str, max_chars: int = 5000) -> str:
     """
-    Obtiene el contenido completo de una página de Wikipedia.
+    Gets the full content of a Wikipedia page.
 
     Args:
-        title: Título de la página de Wikipedia
-        max_chars: Máximo de caracteres a retornar (default: 5000)
+        title: Wikipedia page title
+        max_chars: Maximum characters to return (default: 5000)
 
     Returns:
-        str: Contenido de la página o mensaje de error
+        str: Page content or error message
     """
     try:
         wikipedia = _check_wikipedia()
@@ -100,119 +100,119 @@ async def wiki_content(title: str, max_chars: int = 5000) -> str:
         content += f"URL: {page.url}\n\n"
         content += page.content
 
-        # Limitar caracteres si es necesario
+        # Limit characters if necessary
         if len(content) > max_chars:
-            content = content[:max_chars] + "\n\n... (contenido truncado)"
+            content = content[:max_chars] + "\n\n... (content truncated)"
 
         return content
 
     except wikipedia.exceptions.DisambiguationError as e:
         options = e.options[:10]
-        output = f"'{title}' es una página de desambiguación. Opciones:\n\n"
+        output = f"'{title}' is a disambiguation page. Options:\n\n"
         for i, option in enumerate(options, 1):
             output += f"{i}. {option}\n"
         return output
 
     except wikipedia.exceptions.PageError:
-        return f"ERROR: No se encontró la página '{title}' en Wikipedia"
+        return f"ERROR: Page '{title}' not found on Wikipedia"
 
     except Exception as e:
-        error_msg = f"Error obteniendo contenido de '{title}': {str(e)}"
+        error_msg = f"Error getting content of '{title}': {str(e)}"
         logging.error(error_msg)
         return error_msg
 
 
 async def wiki_page_info(title: str) -> str:
     """
-    Obtiene información detallada sobre una página de Wikipedia.
+    Gets detailed information about a Wikipedia page.
 
     Args:
-        title: Título de la página de Wikipedia
+        title: Wikipedia page title
 
     Returns:
-        str: Información detallada de la página
+        str: Detailed page information
     """
     try:
         wikipedia = _check_wikipedia()
         page = wikipedia.page(title, auto_suggest=True)
 
-        output = f"=== Información de: {page.title} ===\n\n"
+        output = f"=== Information for: {page.title} ===\n\n"
         output += f"URL: {page.url}\n"
-        output += f"Resumen: {page.summary[:300]}...\n\n"
-        output += f"Categorías ({len(page.categories)}):\n"
+        output += f"Summary: {page.summary[:300]}...\n\n"
+        output += f"Categories ({len(page.categories)}):\n"
         for cat in page.categories[:10]:
             output += f"  - {cat}\n"
 
-        output += f"\nEnlaces relacionados ({len(page.links)}):\n"
+        output += f"\nRelated links ({len(page.links)}):\n"
         for link in page.links[:10]:
             output += f"  - {link}\n"
 
-        output += f"\nReferencias: {len(page.references)} enlaces\n"
-        output += f"Imágenes: {len(page.images)} imágenes\n"
+        output += f"\nReferences: {len(page.references)} links\n"
+        output += f"Images: {len(page.images)} images\n"
 
         return output
 
     except wikipedia.exceptions.DisambiguationError as e:
         options = e.options[:10]
-        output = f"'{title}' es una página de desambiguación. Opciones:\n\n"
+        output = f"'{title}' is a disambiguation page. Options:\n\n"
         for i, option in enumerate(options, 1):
             output += f"{i}. {option}\n"
         return output
 
     except wikipedia.exceptions.PageError:
-        return f"ERROR: No se encontró la página '{title}' en Wikipedia"
+        return f"ERROR: Page '{title}' not found on Wikipedia"
 
     except Exception as e:
-        error_msg = f"Error obteniendo información de '{title}': {str(e)}"
+        error_msg = f"Error getting information of '{title}': {str(e)}"
         logging.error(error_msg)
         return error_msg
 
 
 async def wiki_random(count: int = 1) -> str:
     """
-    Obtiene títulos de páginas aleatorias de Wikipedia.
+    Gets titles of random Wikipedia pages.
 
     Args:
-        count: Número de páginas aleatorias (default: 1)
+        count: Number of random pages (default: 1)
 
     Returns:
-        str: Títulos de páginas aleatorias
+        str: Random page titles
     """
     try:
         wikipedia = _check_wikipedia()
 
         if count == 1:
             random_title = wikipedia.random()
-            return f"Página aleatoria: {random_title}"
+            return f"Random page: {random_title}"
         else:
             random_titles = wikipedia.random(count)
-            output = f"Páginas aleatorias ({count}):\n\n"
+            output = f"Random pages ({count}):\n\n"
             for i, title in enumerate(random_titles, 1):
                 output += f"{i}. {title}\n"
             return output
 
     except Exception as e:
-        error_msg = f"Error obteniendo páginas aleatorias: {str(e)}"
+        error_msg = f"Error getting random pages: {str(e)}"
         logging.error(error_msg)
         return error_msg
 
 
 async def wiki_set_language(language: str) -> str:
     """
-    Cambia el idioma de Wikipedia.
+    Changes Wikipedia language.
 
     Args:
-        language: Código de idioma (ej: 'en', 'es', 'fr')
+        language: Language code (e.g.: 'en', 'es', 'fr')
 
     Returns:
-        str: Mensaje de confirmación o error
+        str: Confirmation or error message
     """
     try:
         wikipedia = _check_wikipedia()
         wikipedia.set_lang(language)
-        return f"✓ Idioma de Wikipedia cambiado a: {language}"
+        return f"✓ Wikipedia language changed to: {language}"
 
     except Exception as e:
-        error_msg = f"Error cambiando idioma a '{language}': {str(e)}"
+        error_msg = f"Error changing language to '{language}': {str(e)}"
         logging.error(error_msg)
         return error_msg

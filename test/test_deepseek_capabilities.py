@@ -22,7 +22,7 @@ if sys.platform == "win32":
 env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(env_path)
 
-DEEPSEEK_API_KEY = os.getenv('CODEAGENT_API_KEY')
+DEEPSEEK_API_KEY = os.getenv('DAVEAGENT_API_KEY') or os.getenv('CODEAGENT_API_KEY')  # Compatibility
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
 print("="*80)
@@ -309,7 +309,7 @@ Despues de usar la herramienta, recibiras el resultado y podras dar tu respuesta
 
 async def main():
     if not DEEPSEEK_API_KEY:
-        print("\nERROR: No se encontro CODEAGENT_API_KEY en .env")
+        print("\nERROR: No se encontro DAVEAGENT_API_KEY en .env")
         return
 
     results = {}

@@ -1,5 +1,5 @@
 """
-Script automatizado para publicar CodeAgent en PyPI
+Script automatizado para publicar DaveAgent en PyPI
 Ejecutar: python publish.py [test|prod]
 """
 import subprocess
@@ -33,7 +33,7 @@ def clean_build():
     """Limpia directorios de build anteriores"""
     print("\n🧹 Limpiando builds anteriores...")
 
-    dirs_to_remove = ['dist', 'build', 'src/codeagent_ai.egg-info']
+    dirs_to_remove = ['dist', 'build', 'src/daveagent_cli.egg-info', 'src/codeagent_ai.egg-info']  # Keep old name for cleanup
     for dir_name in dirs_to_remove:
         dir_path = Path(dir_name)
         if dir_path.exists():
@@ -140,16 +140,16 @@ def show_summary(target):
 
     if target == "test":
         print("\n📦 Paquete publicado en TestPyPI")
-        print("Ver en: https://test.pypi.org/project/codeagent-ai/")
+        print("Ver en: https://test.pypi.org/project/daveagent-ai/")
         print("\nPara probar la instalación:")
         print("  pip install --index-url https://test.pypi.org/simple/ \\")
         print("              --extra-index-url https://pypi.org/simple/ \\")
-        print("              codeagent-ai")
+        print("              daveagent-ai")
     else:
         print("\n🎉 Paquete publicado en PyPI!")
-        print("Ver en: https://pypi.org/project/codeagent-ai/")
+        print("Ver en: https://pypi.org/project/daveagent-ai/")
         print("\nCualquiera puede instalarlo con:")
-        print("  pip install codeagent-ai")
+        print("  pip install daveagent-ai")
 
     print("\n🎊 ¡Felicidades!")
 
@@ -157,7 +157,7 @@ def show_summary(target):
 def main():
     """Función principal"""
     print("="*70)
-    print("📦 CodeAgent - Script de Publicación en PyPI")
+    print("📦 DaveAgent - Script de Publicación en PyPI")
     print("="*70)
 
     # Verificar argumentos

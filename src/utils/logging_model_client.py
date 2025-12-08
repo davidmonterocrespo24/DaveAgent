@@ -44,6 +44,7 @@ class LoggingModelClientWrapper:
         self._json_logger = json_logger
         self._agent_name = agent_name
         self.logger = logging.getLogger(__name__)
+        self.logger.info(f"🔧 LoggingModelClientWrapper initialized for agent: {agent_name}")
 
     async def create(
         self,
@@ -76,7 +77,7 @@ class LoggingModelClientWrapper:
             input_messages.append(msg_dict)
 
         # Log: Llamada a LLM iniciada
-        self.logger.debug(f"🤖 LLM call started: {self._agent_name}, {len(processed_messages)} messages")
+        self.logger.info(f"🤖 LLM call started: {self._agent_name}, {len(processed_messages)} messages")
 
         start_time = datetime.now()
 
@@ -127,7 +128,7 @@ class LoggingModelClientWrapper:
                 # Agregar a eventos manualmente (más directo que usar log_llm_call)
                 self._json_logger.events.append(llm_call_data)
 
-                self.logger.debug(f"✅ LLM call logged: {self._agent_name}, {duration:.2f}s, {tokens_used}")
+                self.logger.info(f"✅ LLM call logged: {self._agent_name}, {duration:.2f}s, tokens={tokens_used.get('total_tokens', 0) if tokens_used else 0}")
 
             return result
 
@@ -193,9 +194,20 @@ class LoggingModelClientWrapper:
             # Log si encontramos reasoning_content
             if isinstance(msg, AssistantMessage) and hasattr(msg, 'reasoning_content'):
                 if msg.reasoning_content:
-                    self.logger.debug(f"✓ Preserving reasoning_content in assistant message: {len(msg.reasoning_content)} chars")
+                    self.logger.info(f"💭 Preserving reasoning_content in assistant message: {len(msg.reasoning_content)} chars")
 
         return processed
+
+    def set_agent_name(self, agent_name: str):
+        """
+        Actualiza el nombre del agente para logging
+
+        Args:
+            agent_name: Nuevo nombre del agente
+        """
+        old_name = self._agent_name
+        self._agent_name = agent_name
+        self.logger.info(f"🔄 Agent name updated: {old_name} → {agent_name}")
 
     # Delegar todos los demás atributos al cliente wrapped
     def __getattr__(self, name):

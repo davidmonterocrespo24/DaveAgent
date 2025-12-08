@@ -149,14 +149,14 @@ daveagent
 
 ---
 
-## 🔧 42 Herramientas Disponibles
+## 🔧 45+ Herramientas Disponibles
 
-DaveAgent tiene 42 herramientas organizadas en 6 categorías:
+DaveAgent tiene 45+ herramientas organizadas en 7 categorías:
 
-### 📁 Filesystem (6 tools)
+### 📁 Filesystem (7 tools)
 - Leer/escribir/editar archivos
 - Listar directorios
-- Buscar archivos
+- Buscar archivos (por nombre y glob patterns)
 
 ### 🔧 Git (8 tools)
 - status, add, commit, push, pull
@@ -165,23 +165,34 @@ DaveAgent tiene 42 herramientas organizadas en 6 categorías:
 ### 📊 JSON (8 tools)
 - Leer/escribir JSON
 - Validar, formatear, combinar
+- Obtener/establecer valores por path
 - Convertir a/desde texto
 
 ### 📈 CSV (7 tools)
 - Leer/escribir CSV
 - Filtrar, ordenar, combinar
+- Información/estadísticas
 - Convertir a JSON
 
-### 🌐 Web (6 tools)
+### 🌐 Web (7 tools)
 - Buscar en Wikipedia
-- Obtener contenido
+- Obtener contenido y resúmenes
 - Información de páginas
+- Búsqueda web general
 
-### 🔍 Analysis (7 tools)
+### 🔍 Analysis (5 tools)
 - Analizar código Python
-- Buscar funciones
-- Grep/search en código
-- Ejecutar comandos
+- Buscar definiciones de funciones
+- Listar todas las funciones
+- Grep/search en código con patrones
+- Ejecutar comandos en terminal
+
+### 🧠 Memory/RAG (8 tools)
+- Consultar memoria de conversaciones
+- Consultar código indexado
+- Consultar decisiones arquitectónicas
+- Consultar preferencias del usuario
+- Guardar información y preferencias
 
 ---
 

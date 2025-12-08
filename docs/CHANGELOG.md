@@ -11,7 +11,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - 🎉 Versión inicial de DaveAgent
 - 📦 Configuración como paquete instalable de Python
 - 🚀 Comando CLI global `daveagent`
-- 🔧 42 herramientas integradas (filesystem, git, JSON, CSV, web, analysis)
+- 🔧 45+ herramientas integradas (filesystem, git, JSON, CSV, web, analysis, memory/RAG)
 - 🤖 Sistema de agentes inteligentes con AutoGen 0.4
 - 📊 Sistema de logging completo con Rich
 - 🎨 Interfaz CLI rica con colores y formato

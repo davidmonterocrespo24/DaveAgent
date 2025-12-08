@@ -1,5 +1,5 @@
 """
-Herramientas para trabajar con archivos JSON - Formato AutoGen
+JSON File Tools - AutoGen Format
 """
 import json
 import logging
@@ -8,21 +8,21 @@ from typing import Dict, List, Any, Union
 
 async def read_json(filepath: str, encoding: str = 'utf-8') -> Union[Dict[str, Any], List[Any]]:
     """
-    Lee un archivo JSON y retorna su contenido.
+    Reads a JSON file and returns its contents.
 
     Args:
-        filepath: Ruta al archivo JSON
-        encoding: Codificación del archivo (default: utf-8)
+        filepath: Path to the JSON file
+        encoding: File encoding (default: utf-8)
 
     Returns:
-        Dict o List: Contenido del archivo JSON
+        Dict or List: Contents of the JSON file
     """
     try:
         with open(filepath, 'r', encoding=encoding) as f:
             data = json.load(f)
         return data
     except Exception as e:
-        error_msg = f"Error leyendo archivo JSON {filepath}: {str(e)}"
+        error_msg = f"Error reading JSON file {filepath}: {str(e)}"
         logging.error(error_msg)
         return {"error": error_msg}
 
@@ -35,17 +35,17 @@ async def write_json(
     ensure_ascii: bool = False
 ) -> str:
     """
-    Escribe datos en un archivo JSON.
+    Writes data to a JSON file.
 
     Args:
-        filepath: Ruta del archivo de salida
-        data: Datos a escribir (dict o list)
-        encoding: Codificación del archivo (default: utf-8)
-        indent: Espacios para indentación (default: 2)
-        ensure_ascii: Escapar caracteres no-ASCII (default: False)
+        filepath: Output file path
+        data: Data to write (dict or list)
+        encoding: File encoding (default: utf-8)
+        indent: Spaces for indentation (default: 2)
+        ensure_ascii: Escape non-ASCII characters (default: False)
 
     Returns:
-        str: Mensaje de éxito o error
+        str: Success or error message
     """
     try:
         with open(filepath, 'w', encoding=encoding) as f:
@@ -55,9 +55,9 @@ async def write_json(
                 indent=indent,
                 ensure_ascii=ensure_ascii
             )
-        return f"✓ Archivo JSON guardado exitosamente en {filepath}"
+        return f"✓ JSON file saved successfully to {filepath}"
     except Exception as e:
-        error_msg = f"Error escribiendo archivo JSON {filepath}: {str(e)}"
+        error_msg = f"Error writing JSON file {filepath}: {str(e)}"
         logging.error(error_msg)
         return error_msg
 
@@ -69,19 +69,19 @@ async def merge_json_files(
     overwrite_duplicates: bool = True
 ) -> str:
     """
-    Fusiona dos archivos JSON.
+    Merges two JSON files.
 
     Args:
-        file1: Primera archivo JSON
-        file2: Segundo archivo JSON
-        output_file: Archivo de salida
-        overwrite_duplicates: Sobrescribir claves duplicadas con valores de file2
+        file1: First JSON file
+        file2: Second JSON file
+        output_file: Output file
+        overwrite_duplicates: Overwrite duplicate keys with values from file2
 
     Returns:
-        str: Mensaje de éxito o error
+        str: Success or error message
     """
     try:
-        # Leer ambos archivos
+        # Read both files
         data1 = await read_json(file1)
         data2 = await read_json(file2)
 
@@ -90,7 +90,7 @@ async def merge_json_files(
         if isinstance(data2, dict) and "error" in data2:
             return str(data2["error"])
 
-        # Fusionar
+        # Merge
         if isinstance(data1, dict) and isinstance(data2, dict):
             if overwrite_duplicates:
                 result = {**data1, **data2}
@@ -102,80 +102,80 @@ async def merge_json_files(
         elif isinstance(data1, list) and isinstance(data2, list):
             result = data1 + data2
         else:
-            return f"ERROR: No se pueden fusionar tipos incompatibles: {type(data1).__name__} y {type(data2).__name__}"
+            return f"ERROR: Cannot merge incompatible types: {type(data1).__name__} and {type(data2).__name__}"
 
-        # Escribir resultado
+        # Write result
         return await write_json(output_file, result)
 
     except Exception as e:
-        error_msg = f"Error fusionando archivos JSON: {str(e)}"
+        error_msg = f"Error merging JSON files: {str(e)}"
         logging.error(error_msg)
         return error_msg
 
 
 async def validate_json(filepath: str) -> str:
     """
-    Valida que un archivo tenga formato JSON válido.
+    Validates that a file has valid JSON format.
 
     Args:
-        filepath: Ruta al archivo JSON
+        filepath: Path to the JSON file
 
     Returns:
-        str: Mensaje indicando si es válido o no
+        str: Message indicating whether it's valid or not
     """
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             json.load(f)
-        return f"✓ {filepath} es un JSON válido"
+        return f"✓ {filepath} is a valid JSON"
     except json.JSONDecodeError as e:
-        return f"ERROR: JSON inválido en {filepath}: {str(e)}"
+        return f"ERROR: Invalid JSON in {filepath}: {str(e)}"
     except Exception as e:
         return f"ERROR: {str(e)}"
 
 
 async def format_json(filepath: str, indent: int = 2) -> str:
     """
-    Formatea un archivo JSON con indentación consistente.
+    Formats a JSON file with consistent indentation.
 
     Args:
-        filepath: Ruta al archivo JSON
-        indent: Espacios para indentación
+        filepath: Path to the JSON file
+        indent: Spaces for indentation
 
     Returns:
-        str: Mensaje de éxito o error
+        str: Success or error message
     """
     try:
-        # Leer archivo
+        # Read file
         data = await read_json(filepath)
         if isinstance(data, dict) and "error" in data:
             return str(data["error"])
 
-        # Reescribir con formato
+        # Rewrite with format
         return await write_json(filepath, data, indent=indent)
 
     except Exception as e:
-        error_msg = f"Error formateando JSON: {str(e)}"
+        error_msg = f"Error formatting JSON: {str(e)}"
         logging.error(error_msg)
         return error_msg
 
 
 async def json_get_value(filepath: str, key_path: str) -> str:
     """
-    Obtiene un valor de un archivo JSON usando una ruta de claves.
+    Gets a value from a JSON file using a key path.
 
     Args:
-        filepath: Ruta al archivo JSON
-        key_path: Ruta de claves separadas por punto (ej: "user.name")
+        filepath: Path to the JSON file
+        key_path: Dot-separated key path (e.g.: "user.name")
 
     Returns:
-        str: Valor encontrado o mensaje de error
+        str: Found value or error message
     """
     try:
         data = await read_json(filepath)
         if isinstance(data, dict) and "error" in data:
             return str(data["error"])
 
-        # Navegar por las claves
+        # Navigate through keys
         keys = key_path.split('.')
         current = data
 
@@ -184,17 +184,17 @@ async def json_get_value(filepath: str, key_path: str) -> str:
                 if key in current:
                     current = current[key]
                 else:
-                    return f"ERROR: Clave '{key}' no encontrada"
+                    return f"ERROR: Key '{key}' not found"
             elif isinstance(current, list):
                 try:
                     index = int(key)
                     current = current[index]
                 except (ValueError, IndexError):
-                    return f"ERROR: Índice '{key}' inválido o fuera de rango"
+                    return f"ERROR: Index '{key}' invalid or out of range"
             else:
-                return f"ERROR: No se puede navegar en tipo {type(current).__name__}"
+                return f"ERROR: Cannot navigate in type {type(current).__name__}"
 
-        return f"Valor en '{key_path}': {json.dumps(current, indent=2, ensure_ascii=False)}"
+        return f"Value at '{key_path}': {json.dumps(current, indent=2, ensure_ascii=False)}"
 
     except Exception as e:
         return f"ERROR: {str(e)}"
@@ -202,29 +202,29 @@ async def json_get_value(filepath: str, key_path: str) -> str:
 
 async def json_set_value(filepath: str, key_path: str, value: str) -> str:
     """
-    Establece un valor en un archivo JSON usando una ruta de claves.
+    Sets a value in a JSON file using a key path.
 
     Args:
-        filepath: Ruta al archivo JSON
-        key_path: Ruta de claves separadas por punto (ej: "user.name")
-        value: Valor a establecer (como string JSON)
+        filepath: Path to the JSON file
+        key_path: Dot-separated key path (e.g.: "user.name")
+        value: Value to set (as JSON string)
 
     Returns:
-        str: Mensaje de éxito o error
+        str: Success or error message
     """
     try:
         data = await read_json(filepath)
         if isinstance(data, dict) and "error" in data:
             return str(data["error"])
 
-        # Parsear el valor
+        # Parse the value
         try:
             parsed_value = json.loads(value)
         except json.JSONDecodeError:
-            # Si no es JSON válido, usar como string
+            # If not valid JSON, use as string
             parsed_value = value
 
-        # Navegar y establecer valor
+        # Navigate and set value
         keys = key_path.split('.')
         current = data
 
@@ -234,16 +234,16 @@ async def json_set_value(filepath: str, key_path: str, value: str) -> str:
                     current[key] = {}
                 current = current[key]
             else:
-                return f"ERROR: No se puede navegar en tipo {type(current).__name__}"
+                return f"ERROR: Cannot navigate in type {type(current).__name__}"
 
-        # Establecer el valor final
+        # Set final value
         last_key = keys[-1]
         if isinstance(current, dict):
             current[last_key] = parsed_value
         else:
-            return f"ERROR: No se puede establecer valor en tipo {type(current).__name__}"
+            return f"ERROR: Cannot set value in type {type(current).__name__}"
 
-        # Guardar cambios
+        # Save changes
         return await write_json(filepath, data)
 
     except Exception as e:
@@ -252,14 +252,14 @@ async def json_set_value(filepath: str, key_path: str, value: str) -> str:
 
 async def json_to_text(filepath: str, pretty: bool = True) -> str:
     """
-    Convierte un archivo JSON a texto legible.
+    Converts a JSON file to readable text.
 
     Args:
-        filepath: Ruta al archivo JSON
-        pretty: Si True, formatea con indentación
+        filepath: Path to the JSON file
+        pretty: If True, formats with indentation
 
     Returns:
-        str: Contenido JSON como texto
+        str: JSON content as text
     """
     try:
         data = await read_json(filepath)

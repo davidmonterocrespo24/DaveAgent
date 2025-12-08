@@ -1,5 +1,5 @@
 """
-Interfaz CLI interactiva al estilo Claude Code
+Interactive CLI interface in the style of Claude Code
 """
 import asyncio
 from typing import Optional, List
@@ -23,7 +23,7 @@ import random
 import time
 
 class CLIInterface:
-    """Interfaz CLI rica e interactiva para el agente de código"""
+    """Rich and interactive CLI interface for DaveAgent"""
 
     def __init__(self):
         self.console = Console()
@@ -35,10 +35,10 @@ class CLIInterface:
         self.file_indexer = None  # Will be initialized on first use
         self.mentioned_files: List[str] = []  # Track files mentioned with @
         self.vibe_spinner: Optional[VibeSpinner] = None  # Spinner for thinking animation
-        self.current_mode = "agente"  # Track current mode for display
+        self.current_mode = "agent"  # Track current mode for display
 
     def print_banner(self):
-        """Muestra el banner de bienvenida con una animación de 'partículas'"""
+        """Shows the welcome banner with a 'particles' animation"""
         
         banner_lines = """
 ╔══════════════════════════════════════════════════════════════╗
@@ -57,66 +57,66 @@ class CLIInterface:
 ║   ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║                  ║
 ║   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝                  ║
 ║                                                              ║
-║              Agente Inteligente de Desarrollo                ║
-║                    Versión 1.2.1                             ║
+║              Intelligent Development Agent                   ║
+║                    Version 1.2.1                            ║
 ╚══════════════════════════════════════════════════════════════╝
         """.strip('\n').split('\n')
         
         height = len(banner_lines)
         width = max(len(line) for line in banner_lines)
         
-        # Caracteres a usar como "partículas"
+        # Characters to use as "particles"
         particles = ['.', ':', '*', '°', '·', ' '] 
         
-        # 1. Crear el estado inicial (campo de partículas)
-        # Usamos una lista de listas de caracteres para poder mutarla
+        # 1. Create initial state (particle field)
+        # Use a list of character lists so we can mutate it
         current_state = []
         for r in range(height):
             row = []
             for c in range(width):
-                # Si hay un caracter en el banner final, poner una partícula
+                # If there's a character in the final banner, place a particle
                 if c < len(banner_lines[r]) and banner_lines[r][c] != ' ':
                     row.append(random.choice(particles))
                 else:
-                    row.append(' ') # Mantener los espacios vacíos
+                    row.append(' ') # Keep empty spaces
             current_state.append(row)
 
-        # 2. Obtener todas las coordenadas (fila, col) de los caracteres reales
+        # 2. Get all coordinates (row, col) of the real characters
         coords = []
         for r in range(height):
             for c in range(width):
-                # Solo queremos "resolver" los caracteres que no son espacios
+                # We only want to "resolve" characters that are not spaces
                 if c < len(banner_lines[r]) and banner_lines[r][c] != ' ':
                     coords.append((r, c))
         
-        # 3. Barajar las coordenadas para un efecto de ensamblado aleatorio
+        # 3. Shuffle coordinates for random assembly effect
         random.shuffle(coords)
         
-        # 4. Configurar la animación con Rich Live
-        # Definimos cuántos caracteres revelar por cuadro (más bajo = más lento)
-        reveal_per_frame = max(1, len(coords) // 20) # Apunta a ~20 cuadros
+        # 4. Set up animation with Rich Live
+        # Define how many characters to reveal per frame (lower = slower)
+        reveal_per_frame = max(1, len(coords) // 20) # Aim for ~20 frames
         
         with Live(console=self.console, refresh_per_second=15, transient=True) as live:
-            # Mostrar el campo de partículas inicial por un momento
+            # Show initial particle field for a moment
             text = Text('\n'.join(''.join(row) for row in current_state), style="bold cyan")
             live.update(text)
-            time.sleep(0.3) # Pausa inicial
+            time.sleep(0.3) # Initial pause
 
-            # 5. Empezar a revelar los caracteres en lotes
+            # 5. Start revealing characters in batches
             for i in range(0, len(coords), reveal_per_frame):
                 batch = coords[i : i + reveal_per_frame]
                 
                 for r, c in batch:
-                    # Reemplazar la partícula con el caracter correcto
+                    # Replace particle with correct character
                     current_state[r][c] = banner_lines[r][c]
                 
-                # Actualizar el Live con el nuevo estado
+                # Update Live with new state
                 text = Text('\n'.join(''.join(row) for row in current_state), style="bold cyan")
                 live.update(text)
-                time.sleep(0.02) # Pequeña pausa entre cuadros
+                time.sleep(0.02) # Small pause between frames
 
-        # 6. Imprimir el banner final de forma permanente
-        # (El Live con transient=True desaparece, así que lo imprimimos de nuevo)
+        # 6. Print final banner permanently
+        # (Live with transient=True disappears, so we print it again)
         final_text = Text('\n'.join(banner_lines), style="bold cyan")
         self.console.print(final_text)
         self.console.print()
@@ -133,29 +133,29 @@ class CLIInterface:
 
     def set_mode(self, mode: str):
         """
-        Actualiza el modo actual para el display
+        Updates the current mode for display
 
         Args:
-            mode: "agente" o "chat"
+            mode: "agent" or "chat"
         """
         self.current_mode = mode
 
     async def get_user_input(self, prompt: str = "") -> str:
         """
-        Obtiene input del usuario de manera asíncrona
-        Detecta @ para selección de archivos
+        Gets user input asynchronously
+        Detects @ for file selection
 
         Args:
-            prompt: Texto del prompt
+            prompt: Prompt text
 
         Returns:
-            Input del usuario
+            User input
         """
         if not prompt:
-            # Crear prompt con indicador de modo
-            mode_indicator = "🔧" if self.current_mode == "agente" else "💬"
+            # Create prompt with mode indicator
+            mode_indicator = "🔧" if self.current_mode == "agent" else "💬"
             mode_text = self.current_mode.upper()
-            prompt = f"[{mode_indicator} {mode_text}] Tu: "
+            prompt = f"[{mode_indicator} {mode_text}] You: "
 
         try:
             # Ejecutar el prompt en un executor para no bloquear el loop
@@ -257,56 +257,56 @@ class CLIInterface:
         return result
 
     def print_user_message(self, message: str):
-        """Muestra un mensaje del usuario"""
+        """Shows a user message"""
         self.console.print()
-        self.console.print(f"[bold blue]Tu:[/bold blue] {message}")
+        self.console.print(f"[bold blue]You:[/bold blue] {message}")
         self.console.print()
 
-    def print_agent_message(self, message: str, agent_name: str = "Agente"):
-        """Muestra un mensaje del agente"""
+    def print_agent_message(self, message: str, agent_name: str = "Agent"):
+        """Shows an agent message"""
         self.console.print(f"[bold green]{agent_name}:[/bold green]")
         self.console.print(Panel(Markdown(message), border_style="green"))
         self.console.print()
 
     def print_plan(self, plan_summary: str):
-        """Muestra el plan de ejecución"""
+        """Shows the execution plan"""
         self.console.print()
         self.console.print(Panel(
             plan_summary,
-            title="[bold cyan]Plan de Ejecución[/bold cyan]",
+            title="[bold cyan]Execution Plan[/bold cyan]",
             border_style="cyan"
         ))
         self.console.print()
 
     def print_task_start(self, task_id: int, task_title: str, task_description: str):
-        """Muestra que una tarea está comenzando"""
+        """Shows that a task is starting"""
         self.console.print()
         self.console.print(
-            f"[bold yellow]⚡ Ejecutando Tarea {task_id}:[/bold yellow] {task_title}",
+            f"[bold yellow]⚡ Executing Task {task_id}:[/bold yellow] {task_title}",
             style="bold"
         )
         self.console.print(f"   {task_description}", style="dim")
         self.console.print()
 
     def print_task_complete(self, task_id: int, task_title: str, result_summary: str):
-        """Muestra que una tarea se completó"""
+        """Shows that a task was completed"""
         self.console.print()
         self.console.print(
-            f"[bold green]✓ Tarea {task_id} Completada:[/bold green] {task_title}"
+            f"[bold green]✓ Task {task_id} Completed:[/bold green] {task_title}"
         )
         if result_summary:
             self.console.print(Panel(
                 result_summary,
                 border_style="green",
-                title="Resultado"
+                title="Result"
             ))
         self.console.print()
 
     def print_task_failed(self, task_id: int, task_title: str, error: str):
-        """Muestra que una tarea falló"""
+        """Shows that a task failed"""
         self.console.print()
         self.console.print(
-            f"[bold red]✗ Tarea {task_id} Falló:[/bold red] {task_title}"
+            f"[bold red]✗ Task {task_id} Failed:[/bold red] {task_title}"
         )
         self.console.print(Panel(
             error,
@@ -316,11 +316,11 @@ class CLIInterface:
         self.console.print()
 
     def print_plan_update(self, reasoning: str, changes_summary: str):
-        """Muestra que el plan está siendo actualizado"""
+        """Shows that the plan is being updated"""
         self.console.print()
-        self.console.print("[bold yellow]🔄 Actualizando Plan de Ejecución[/bold yellow]")
+        self.console.print("[bold yellow]🔄 Updating Execution Plan[/bold yellow]")
         self.console.print(Panel(
-            f"**Razonamiento:**\n{reasoning}\n\n**Cambios:**\n{changes_summary}",
+            f"**Reasoning:**\n{reasoning}\n\n**Changes:**\n{changes_summary}",
             border_style="yellow"
         ))
         self.console.print()
@@ -364,15 +364,15 @@ class CLIInterface:
             self.vibe_spinner.stop(clear_line=clear)
             self.vibe_spinner = None
 
-    def print_thinking(self, message: str = "Pensando..."):
+    def print_thinking(self, message: str = "Thinking..."):
         """
-        Muestra un indicador de que el agente está pensando
+        Shows an indicator that the agent is thinking
         (Legacy method - consider using start_thinking/stop_thinking instead)
         """
         self.console.print(f"[dim]{message}[/dim]")
 
     def print_error(self, error: str):
-        """Muestra un mensaje de error"""
+        """Shows an error message"""
         self.console.print(Panel(
             error,
             title="[bold red]Error[/bold red]",
@@ -380,16 +380,16 @@ class CLIInterface:
         ))
 
     def print_warning(self, warning: str):
-        """Muestra un mensaje de advertencia""" 
+        """Shows a warning message""" 
         self.console.print(Panel(
             warning,
-            title="[bold yellow]Advertencia[/bold yellow]",
+            title="[bold yellow]Warning[/bold yellow]",
             border_style="yellow"
         ))
 
 
-    def print_info(self, info: str, title: str = "Información"):
-        """Muestra un mensaje informativo"""
+    def print_info(self, info: str, title: str = "Information"):
+        """Shows an informative message"""
         self.console.print(Panel(
             info,
             title=f"[bold cyan]{title}[/bold cyan]",
@@ -398,16 +398,16 @@ class CLIInterface:
 
 
     def print_success(self, message: str):
-        """Muestra un mensaje de éxito"""
+        """Shows a success message"""
         self.console.print(f"[bold green]✓ {message}[/bold green]")
 
 
     def print_diff(self, diff_text: str):
         """
-        Muestra un diff con colores: rojo para eliminaciones, verde para adiciones
+        Shows a diff with colors: red for deletions, green for additions
 
         Args:
-            diff_text: Texto del diff en formato unified diff
+            diff_text: Diff text in unified diff format
         """
         for line in diff_text.split('\n'):
             if line.startswith('---') or line.startswith('+++'):
@@ -428,10 +428,10 @@ class CLIInterface:
 
     def print_task_summary(self, summary: str):
         """
-        Muestra el resumen de tarea completada en un formato especial
+        Shows the completed task summary in a special format
 
         Args:
-            summary: Texto del resumen generado por el agente
+            summary: Summary text generated by the agent
         """
         self.console.print("─" * 60, style="dim cyan")
         # Render as markdown for nice formatting
@@ -441,18 +441,18 @@ class CLIInterface:
 
 
     def create_progress_table(self, tasks: List[dict]) -> Table:
-        """Crea una tabla con el progreso de las tareas"""
-        table = Table(title="Progreso de Tareas", show_header=True, header_style="bold")
+        """Creates a table with task progress"""
+        table = Table(title="Task Progress", show_header=True, header_style="bold")
         table.add_column("ID", style="cyan", width=4)
-        table.add_column("Estado", width=12)
-        table.add_column("Tarea", style="white")
+        table.add_column("Status", width=12)
+        table.add_column("Task", style="white")
 
         status_styles = {
-            "completed": "[green]✓ Completada[/green]",
-            "in_progress": "[yellow]⚡ En progreso[/yellow]",
-            "pending": "[dim]○ Pendiente[/dim]",
-            "failed": "[red]✗ Fallida[/red]",
-            "blocked": "[red]⊘ Bloqueada[/red]"
+            "completed": "[green]✓ Completed[/green]",
+            "in_progress": "[yellow]⚡ In progress[/yellow]",
+            "pending": "[dim]○ Pending[/dim]",
+            "failed": "[red]✗ Failed[/red]",
+            "blocked": "[red]⊟ Blocked[/red]"
         }
 
         for task in tasks:
@@ -465,82 +465,82 @@ class CLIInterface:
         return table
 
     def print_statistics(self, stats: dict):
-        """Muestra estadísticas de la sesión"""
+        """Shows session statistics"""
         stats_text = f"""
-**Estadísticas de la Sesión Actual:**
+**Current Session Statistics:**
 
-• Total de mensajes: {stats.get('total_messages', 0)}
-• Primer mensaje: {stats.get('first_message', 'N/A')}
-• Último mensaje: {stats.get('last_message', 'N/A')}
+• Total messages: {stats.get('total_messages', 0)}
+• First message: {stats.get('first_message', 'N/A')}
+• Last message: {stats.get('last_message', 'N/A')}
 
-**Nota:** Para ver el estado completo de los agentes, usa `/list-sessions`
-**Persistencia:** El estado se guarda automáticamente usando AutoGen save_state()
+**Note:** To see the complete agent state, use `/list-sessions`
+**Persistence:** State is automatically saved using AutoGen save_state()
         """
         self.console.print()
         self.console.print(Panel(
             Markdown(stats_text),
-            title="[bold cyan]Estadísticas[/bold cyan]",
+            title="[bold cyan]Statistics[/bold cyan]",
             border_style="cyan"
         ))
         self.console.print()
 
     def print_help(self):
-        """Muestra la ayuda"""
+        """Shows the help"""
         help_text = """
-**Comandos Disponibles:**
+**Available Commands:**
 
-• `/help` - Muestra este mensaje de ayuda
-• `/search <consulta>` - Busca y analiza código antes de modificarlo
+• `/help` - Shows this help message
+• `/search <query>` - Search and analyze code before modifying it
 
-**Configuración del Modelo:**
-• `/config` - Muestra la configuración actual (modelo, URL, API key)
-• `/set-model <modelo>` - Cambia el modelo LLM (ej: deepseek-chat, deepseek-reasoner, gpt-4)
-• `/set-url <url>` - Cambia la URL base del proveedor (ej: https://api.deepseek.com)
+**Model Configuration:**
+• `/config` - Shows current configuration (model, URL, API key)
+• `/set-model <model>` - Change LLM model (e.g.: deepseek-chat, deepseek-reasoner, gpt-4)
+• `/set-url <url>` - Change provider base URL (e.g.: https://api.deepseek.com)
 
-**Nota:** También puedes configurar el modelo en `.daveagent/.env`:
+**Note:** You can also configure the model in `.daveagent/.env`:
 ```
 DAVEAGENT_API_KEY=tu-api-key
 DAVEAGENT_BASE_URL=https://api.deepseek.com
 DAVEAGENT_MODEL=deepseek-reasoner
 ```
 
-**Modos de Operación:**
-• `/modo-agente` - Activa modo AGENTE (con herramientas de modificación)
-• `/modo-chat` - Activa modo CHAT (solo lectura, sin modificar archivos)
+**Operation Modes:**
+• `/agent-mode` - Activate AGENT mode (with modification tools)
+• `/chat-mode` - Activate CHAT mode (read-only, no file modifications)
 
-**Gestión de Sesiones:**
-• `/new-session <título>` - Crea nueva sesión con metadata
-• `/save-session [título]` - Guarda sesión actual (con título opcional)
-• `/load-session [id]` - Carga sesión guardada (más reciente si no se especifica)
-• `/sessions` - Lista todas las sesiones con tabla Rich
-• `/history` - Muestra historial de la sesión actual
-• `/history --all` - Muestra historial completo (sin límite)
-• `/history --thoughts` - Incluye razonamientos del agente
+**Session Management:**
+• `/new-session <title>` - Create new session with metadata
+• `/save-session [title]` - Save current session (with optional title)
+• `/load-session [id]` - Load saved session (most recent if not specified)
+• `/sessions` - List all sessions with Rich table
+• `/history` - Show current session history
+• `/history --all` - Show complete history (no limit)
+• `/history --thoughts` - Include agent reasoning
 
-**Memoria y Estado:**
-• `/index` - Indexa el proyecto en memoria vectorial (ChromaDB)
-• `/memory` - Muestra estadísticas de memoria vectorial
-• `/save-state` - Alias para /save-session
-• `/load-state` - Alias para /load-session
+**Memory and State:**
+• `/index` - Index project in vector memory (ChromaDB)
+• `/memory` - Show vector memory statistics
+• `/save-state` - Alias for /save-session
+• `/load-state` - Alias for /load-session
 
-**Conversación:**
-• `/new` - Inicia una nueva conversación sin historial
-• `/clear` - Limpia el historial de conversación en memoria
-• `/stats` - Muestra estadísticas de la sesión actual
+**Conversation:**
+• `/new` - Start a new conversation without history
+• `/clear` - Clear conversation history in memory
+• `/stats` - Show current session statistics
 
-**Sistema:**
-• `/debug` - Activa/desactiva el modo debug
-• `/logs` - Muestra la ubicación del archivo de logs
-• `/exit` o `/quit` - Salir del agente
+**System:**
+• `/debug` - Toggle debug mode
+• `/logs` - Show log file location
+• `/exit` or `/quit` - Exit the agent
 
-**Mencionar Archivos Específicos:**
+**Mention Specific Files:**
 
-• Escribe `@` seguido del nombre del archivo para incluirlo con alta prioridad
-• Usa las flechas ↑↓ para navegar por los archivos
-• Escribe para filtrar archivos en tiempo real
-• Presiona Enter para seleccionar, Esc para cancelar
+• Write `@` followed by the file name to include it with high priority
+• Use arrow keys ↑↓ to navigate through files
+• Type to filter files in real-time
+• Press Enter to select, Esc to cancel
 
-**Ejemplos con @:**
+**Examples with @:**
 
 `@main.py fix the authentication bug in this file`
 
@@ -548,80 +548,80 @@ DAVEAGENT_MODEL=deepseek-reasoner
 
 `explain how @src/agents/code_searcher.py works`
 
-**Modos de Operación (NUEVO):**
+**Operation Modes (NEW):**
 
-**Modo AGENTE (predeterminado):**
-- Todas las herramientas habilitadas (lectura + modificación)
-- Puede modificar archivos, ejecutar comandos, hacer commits, etc.
-- Usa el sistema de enrutamiento (simple/complejo)
-- Ideal para desarrollo activo y modificaciones de código
+**AGENT Mode (default):**
+- All tools enabled (read + modification)
+- Can modify files, run commands, make commits, etc.
+- Uses routing system (simple/complex)
+- Ideal for active development and code modifications
 
-**Modo CHAT:**
-- Solo herramientas de lectura habilitadas
-- Puede leer archivos, buscar código, analizar, consultar APIs
-- NO puede modificar archivos ni ejecutar comandos
-- Ideal para consultas, análisis y aprendizaje sin riesgo
+**CHAT Mode:**
+- Only read tools enabled
+- Can read files, search code, analyze, query APIs
+- CANNOT modify files or run commands
+- Ideal for queries, analysis, and risk-free learning
 
-Para cambiar de modo:
-- `/modo-agente` - Activa todas las herramientas
-- `/modo-chat` - Desactiva herramientas de modificación
+To change modes:
+- `/agent-mode` - Enable all tools
+- `/chat-mode` - Disable modification tools
 
-**Flujo de Trabajo con Sesiones:**
+**Workflow with Sessions:**
 
-1. **Crear nueva sesión:** `/new-session "Mi Proyecto API"`
-2. **Trabajar normalmente:** El estado se guarda automáticamente
-3. **Guardar manualmente:** `/save-session` (actualiza la sesión actual)
-4. **Listar sesiones:** `/sessions` para ver todas las sesiones guardadas
-5. **Cargar sesión:** `/load-session 20250105_143000` restaura contexto completo
-6. **Ver historial:** `/history` muestra conversación completa formateada
+1. **Create new session:** `/new-session "My API Project"`
+2. **Work normally:** State is saved automatically
+3. **Save manually:** `/save-session` (updates current session)
+4. **List sessions:** `/sessions` to see all saved sessions
+5. **Load session:** `/load-session 20250105_143000` restores complete context
+6. **View history:** `/history` shows formatted complete conversation
 
-**Persistencia de Estado:**
+**State Persistence:**
 
-El sistema usa **AutoGen save_state/load_state** para guardar el contexto completo:
-- Se guarda automáticamente cada 5 minutos
-- Se guarda al cerrar la aplicación
-- Incluye todo el historial de conversación de todos los agentes
-- Las sesiones incluyen metadata: título, tags, descripción, timestamps
+The system uses **AutoGen save_state/load_state** to save the complete context:
+- Automatically saved every 5 minutes
+- Saved when closing the application
+- Includes all conversation history from all agents
+- Sessions include metadata: title, tags, description, timestamps
 
-**Uso:**
+**Usage:**
 
-Simplemente escribe lo que necesitas que el agente haga. El agente:
-1. Creará un plan de ejecución con tareas
-2. Ejecutará cada tarea llamando al agente de código
-3. Ajustará el plan si encuentra errores o nueva información
-4. Continuará hasta completar el objetivo
+Simply write what you need the agent to do. The agent will:
+1. Create an execution plan with tasks
+2. Execute each task by calling the code agent
+3. Adjust the plan if it encounters errors or new information
+4. Continue until the objective is completed
 
-**Ejemplos de tareas:**
+**Task Examples:**
 
-"Crea una API REST con FastAPI que tenga endpoints para usuarios"
+"Create a REST API with FastAPI that has endpoints for users"
 
-"Encuentra todos los archivos Python con bugs y corrígelos"
+"Find all Python files with bugs and fix them"
 
-"Refactoriza el código en src/utils para usar async/await"
+"Refactor the code in src/utils to use async/await"
 
-**Ejemplos de búsqueda:**
+**Search Examples:**
 
-"/search función de autenticación"
+"/search authentication function"
 
-"/search dónde se usa la clase User"
+"/search where the User class is used"
 
-"/search métodos que modifican la base de datos"
+"/search methods that modify the database"
         """
         self.console.print()
         self.console.print(Panel(
             Markdown(help_text),
-            title="[bold cyan]Ayuda[/bold cyan]",
+            title="[bold cyan]Help[/bold cyan]",
             border_style="cyan"
         ))
         self.console.print()
 
     def print_goodbye(self):
-        """Muestra el mensaje de despedida"""
+        """Shows the goodbye message"""
         goodbye = """
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║              Gracias por usar Dave Agent                    ║
-║                   ¡Hasta pronto!                            ║
+║              Thank you for using Dave Agent                ║
+║                   See you soon!                             ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
         """
@@ -630,7 +630,7 @@ Simplemente escribe lo que necesitas que el agente haga. El agente:
         self.console.print()
 
     def clear_screen(self):
-        """Limpia la pantalla"""
+        """Clears the screen"""
         self.console.clear()
 
     def get_mentioned_files(self) -> List[str]:

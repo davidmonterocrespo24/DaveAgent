@@ -39,17 +39,17 @@ class HistoryViewer:
 
         # Create table
         table = Table(
-            title="📋 Sesiones Guardadas",
+            title="📋 Saved Sessions",
             box=box.ROUNDED,
             show_header=True,
             header_style="bold cyan"
         )
 
         table.add_column("#", style="dim", width=4)
-        table.add_column("Título", style="bold")
+        table.add_column("Title", style="bold")
         table.add_column("ID", style="dim")
-        table.add_column("Mensajes", justify="right", style="green")
-        table.add_column("Última interacción", style="yellow")
+        table.add_column("Messages", justify="right", style="green")
+        table.add_column("Last interaction", style="yellow")
         table.add_column("Tags", style="magenta")
 
         # Add rows

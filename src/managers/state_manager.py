@@ -1,8 +1,8 @@
 """
-State Manager - Gestión de estado usando save_state/load_state de AutoGen
+State Manager - State management using AutoGen's save_state/load_state
 
-Integra el sistema oficial de AutoGen para persistir estado de agentes y teams
-con el sistema de memoria vectorial de ChromaDB.
+Integrates the official AutoGen system to persist agent and team state
+with the ChromaDB vector memory system.
 """
 import json
 import asyncio
@@ -14,15 +14,15 @@ import logging
 
 class StateManager:
     """
-    Gestor de estado que combina:
-    1. save_state/load_state de AutoGen (oficial)
-    2. Memoria vectorial de ChromaDB
-    3. Auto-save periódico
+    State manager that combines:
+    1. AutoGen's save_state/load_state (official)
+    2. ChromaDB vector memory
+    3. Periodic auto-save
 
-    Esto permite:
-    - Recuperar conversaciones completas entre sesiones
-    - Mantener el contexto de los agentes intacto
-    - Búsqueda semántica en conversaciones pasadas
+    This allows:
+    - Recovering complete conversations between sessions
+    - Keeping agent context intact
+    - Semantic search in past conversations
     """
 
     def __init__(

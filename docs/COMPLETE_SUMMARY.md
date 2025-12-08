@@ -377,6 +377,6 @@ python -c "from dotenv import load_dotenv; import os; load_dotenv(); print(os.ge
 ---
 
 **Creado:** 2025-11-05  
-**Autor:** CodeAgent Migration Team  
+**Autor:** DaveAgent Migration Team  
 **Versión:** 2.0 (AutoGen State Management)  
 **Total de archivos:** 15 (4 migración + 11 tests/docs)

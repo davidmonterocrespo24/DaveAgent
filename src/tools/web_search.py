@@ -1,5 +1,5 @@
 """
-Web Search Tool - Búsqueda web en tiempo real usando DuckDuckGo
+Web Search Tool - Real-time web search using DuckDuckGo
 """
 import logging
 from typing import Dict, List
