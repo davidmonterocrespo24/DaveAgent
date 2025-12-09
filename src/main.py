@@ -34,6 +34,7 @@ class DaveAgentCLI:
 
     def __init__(
         self,
+        *,
         debug: bool = False,
         api_key: str = None,
         base_url: str = None,
@@ -1150,7 +1151,9 @@ TITLE:"""
             # Display session info
             if self.history_viewer:
                 self.history_viewer.display_session_loaded(
-                    session_id=session_id, total_messages=len(messages), agents_restored=agents_loaded
+                    session_id=session_id,
+                    total_messages=len(messages),
+                    agents_restored=agents_loaded,
                 )
 
                 # Display session metadata
@@ -1161,7 +1164,9 @@ TITLE:"""
                 self.cli.print_info("📜 Displaying conversation history:\n")
                 if self.history_viewer:
                     self.history_viewer.display_conversation_history(
-                        messages=messages, max_messages=20, show_thoughts=False  # Show last 20 messages
+                        messages=messages,
+                        max_messages=20,
+                        show_thoughts=False,  # Show last 20 messages
                     )
 
                 if len(messages) > 20:

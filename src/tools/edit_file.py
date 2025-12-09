@@ -219,11 +219,15 @@ async def edit_file(
                 )
 
         # --- GUARDRAILS ---
-        # 1. No changes check
+        # 1. Ensure we have content (should never be None at this point due to earlier checks)
+        if new_content is None:
+            return "Error: Failed to generate replacement content."
+
+        # 2. No changes check
         if new_content == current_content:
             return "Error: The 'new_string' is identical to the found 'old_string'. No changes applied."
 
-        # 2. Syntax Check (Modular Linter)
+        # 3. Syntax Check (Modular Linter)
         lint_error = lint_code_check(str(target), new_content)
         if lint_error:
             return f"Error: Your edit caused a syntax error. Edit rejected.\n{lint_error}"

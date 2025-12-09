@@ -53,6 +53,7 @@ class CodebaseMemory:
         file_path: str,
         content: str,
         language: str,
+        *,
         functions: Optional[List[str]] = None,
         classes: Optional[List[str]] = None,
         **kwargs,

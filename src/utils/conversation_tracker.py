@@ -49,6 +49,7 @@ class ConversationTracker:
         agent_response: str,
         model: str,
         provider: str,
+        *,
         agent_name: str = "DaveAgent",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> str:

@@ -196,6 +196,7 @@ class JSONLogger:
         self,
         agent_name: str,
         messages: List[Dict[str, Any]],
+        *,
         response: Optional[str] = None,
         model: Optional[str] = None,
         tokens_used: Optional[Dict[str, int]] = None,

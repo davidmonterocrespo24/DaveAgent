@@ -116,6 +116,7 @@ class VibeSpinner:
     def __init__(
         self,
         messages: Optional[List[str]] = None,
+        *,
         spinner_style: str = "dots",
         color: str = "cyan",
         language: str = "es",
