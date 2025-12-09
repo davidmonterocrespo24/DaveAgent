@@ -1,0 +1,18 @@
+[bandit]
+# Bandit configuration for security scanning
+
+# Exclude test files and evaluation scripts
+exclude_dirs = /test,/tests,/eval,/.venv,/venv,/.daveagent,/build,/dist
+
+# Tests to skip (comma-separated list of test IDs)
+# B101: assert used - common in tests
+# B601: paramiko calls - we don't use paramiko
+skips = B101,B601
+
+# Severity level filter (LOW, MEDIUM, HIGH)
+# Only report MEDIUM and HIGH severity issues
+severity = MEDIUM
+
+# Confidence level filter (LOW, MEDIUM, HIGH)  
+# Only report HIGH confidence issues
+confidence = HIGH

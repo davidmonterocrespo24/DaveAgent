@@ -47,7 +47,8 @@ async def run_terminal_cmd(
 
     try:
         workspace = get_workspace()
-        result = subprocess.run(
+        # shell=True is required for terminal command execution tool
+        result = subprocess.run(  # nosec B602
             command, shell=True, capture_output=True, text=True, timeout=60, cwd=workspace
         )
 
