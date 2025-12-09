@@ -19,7 +19,6 @@ disable=
     # Code structure
     too-many-instance-attributes,
     too-many-arguments,
-    too-many-positional-arguments,
     too-many-locals,
     too-many-branches,
     too-many-statements,
@@ -71,6 +70,7 @@ disable=
     used-before-assignment,
     unexpected-keyword-arg,
     no-name-in-module,
+    unsubscriptable-object,
     # Others
     unnecessary-pass,
     unreachable,

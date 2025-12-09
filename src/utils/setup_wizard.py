@@ -46,7 +46,8 @@ def get_api_key_interactive() -> str:
             print("❌ API key seems too short. Verify it's correct.")
             retry = input("Do you want to try again? (y/n): ").strip().lower()
             if retry != "y":
-                break
+                # User doesn't want to retry, return what they entered
+                return api_key
             continue
 
         # Basic format validation

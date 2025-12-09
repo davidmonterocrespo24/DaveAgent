@@ -152,19 +152,19 @@ class ConversationTracker:
             }
 
         # Count by model
-        models = {}
+        models: Dict[str, int] = {}
         for conv in conversations:
             model = conv.get("model", "unknown")
             models[model] = models.get(model, 0) + 1
 
         # Count by provider
-        providers = {}
+        providers: Dict[str, int] = {}
         for conv in conversations:
             provider = conv.get("provider", "unknown")
             providers[provider] = providers.get(provider, 0) + 1
 
         # Count by date
-        by_date = {}
+        by_date: Dict[str, int] = {}
         for conv in conversations:
             date = conv.get("date", "unknown")
             by_date[date] = by_date.get(date, 0) + 1

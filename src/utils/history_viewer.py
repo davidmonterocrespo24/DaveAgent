@@ -99,8 +99,9 @@ class HistoryViewer:
         if metadata.get("description"):
             info_table.add_row("Description", metadata.get("description"))
 
-        if metadata.get("tags"):
-            tags_str = ", ".join(metadata.get("tags"))
+        tags = metadata.get("tags")
+        if tags:
+            tags_str = ", ".join(tags)
             info_table.add_row("Tags", tags_str)
 
         created_at = metadata.get("created_at", "")
@@ -264,8 +265,9 @@ class HistoryViewer:
             agents_str = ", ".join(agents_used)
             summary_parts.append(f"  • Agents: {agents_str}")
 
-        if metadata.get("tags"):
-            tags_str = ", ".join(metadata.get("tags"))
+        tags = metadata.get("tags")
+        if tags:
+            tags_str = ", ".join(tags)
             summary_parts.append(f"\n[bold magenta]🏷️  Tags:[/bold magenta] {tags_str}")
 
         summary_text = "\n".join(summary_parts)

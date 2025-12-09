@@ -229,7 +229,11 @@ class JSONLogger:
             return
 
         session_end = datetime.now()
-        duration = (session_end - self.session_start).total_seconds()
+        # Handle case where session_start might be None
+        if self.session_start is not None:
+            duration = (session_end - self.session_start).total_seconds()
+        else:
+            duration = 0.0
 
         # Build final JSON structure
         log_data = {

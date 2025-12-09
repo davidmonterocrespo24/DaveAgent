@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from rich.console import Console
 from rich.logging import RichHandler
-from typing import Optional
+from typing import Optional, Any
 
 
 class DaveAgentLogger:
@@ -95,7 +95,7 @@ class DaveAgentLogger:
         self.debug(f"🌐 API Call: {endpoint}")
         self.debug(f"   Params: {params}")
 
-    def log_api_response(self, endpoint: str, status: str, data: any = None):
+    def log_api_response(self, endpoint: str, status: str, data: Any = None):
         """Log API response"""
         self.debug(f"✅ API Response: {endpoint} - {status}")
         if data:
