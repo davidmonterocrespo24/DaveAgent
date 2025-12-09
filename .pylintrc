@@ -77,7 +77,9 @@ disable=
     redefined-outer-name,
     no-else-return,
     fixme,
-    duplicate-code
+    duplicate-code,
+    line-too-long,
+    trailing-whitespace
 
 [FORMAT]
 # Maximum line length
