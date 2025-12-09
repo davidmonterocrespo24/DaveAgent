@@ -24,6 +24,7 @@ from src.interfaces import CLIInterface
 from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
 from src.memory import MemoryManager, DocumentIndexer
 from src.observability import init_langfuse_tracing, is_langfuse_enabled
+from src.skills import SkillManager
 
 
 class DaveAgentCLI:
@@ -161,6 +162,14 @@ class DaveAgentCLI:
             auto_save_interval=300  # Auto-save every 5 minutes
         )
 
+        # Agent Skills system (Claude-compatible)
+        self.skill_manager = SkillManager(logger=self.logger)
+        skill_count = self.skill_manager.discover_skills()
+        if skill_count > 0:
+            self.logger.info(f"✓ Loaded {skill_count} agent skills")
+        else:
+            self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
+
         # Observability system with Langfuse (simple method with OpenLit)
         self.langfuse_enabled = False
         try:
@@ -293,6 +302,17 @@ class DaveAgentCLI:
             coder_tools = self.all_tools["read_only"]
             system_prompt = CHAT_SYSTEM_PROMPT
             self.logger.info("💬 Initializing in CHAT mode (read-only)")
+
+        # =====================================================================
+        # INJECT SKILL METADATA INTO SYSTEM PROMPT
+        # =====================================================================
+        # Add available skills metadata so the agent knows what skills exist
+        # and can identify when to use them based on user requests
+        # =====================================================================
+        skill_metadata = self.skill_manager.get_skills_metadata()
+        if skill_metadata:
+            system_prompt = system_prompt + f"\n\n<available_skills>\n{skill_metadata}\n</available_skills>"
+            self.logger.debug(f"Injected {len(self.skill_manager)} skill(s) metadata into prompt")
 
         # =====================================================================
         # IMPORTANT: DO NOT use parameter 'memory' - CAUSES ERROR WITH DEEPSEEK
@@ -647,6 +667,18 @@ class DaveAgentCLI:
                     self.cli.print_error(f"Unknown subcommand: {subcommand}")
                     self.cli.print_info("Usage: /memory [clear|query]")
 
+        elif cmd == "/skills":
+            # List available agent skills
+            await self._list_skills_command()
+
+        elif cmd == "/skill-info":
+            # Show skill details
+            if len(parts) < 2:
+                self.cli.print_error("Usage: /skill-info <skill-name>")
+                self.cli.print_info("Use /skills to see available skills")
+            else:
+                await self._show_skill_info_command(parts[1])
+
         else:
             self.cli.print_error(f"Unknown command: {cmd}")
             self.cli.print_info("Use /help to see available commands")
@@ -748,6 +780,101 @@ class DaveAgentCLI:
         except Exception as e:
             self.logger.log_error_with_context(e, "_clear_memory")
             self.cli.print_error(f"Error clearing memory: {str(e)}")
+
+    # =========================================================================
+    # SKILLS MANAGEMENT - Agent Skills (Claude-compatible)
+    # =========================================================================
+
+    async def _list_skills_command(self):
+        """List all available agent skills"""
+        try:
+            skills = self.skill_manager.get_all_skills()
+            
+            if not skills:
+                self.cli.print_info("\n🎯 No agent skills loaded")
+                self.cli.print_info("\nTo add skills, create directories with SKILL.md files in:")
+                self.cli.print_info(f"  • Personal: {self.skill_manager.personal_skills_dir}")
+                self.cli.print_info(f"  • Project: {self.skill_manager.project_skills_dir}")
+                return
+            
+            self.cli.print_info(f"\n🎯 Available Agent Skills ({len(skills)} loaded)\n")
+            
+            # Group by source
+            personal_skills = [s for s in skills if s.source == "personal"]
+            project_skills = [s for s in skills if s.source == "project"]
+            plugin_skills = [s for s in skills if s.source == "plugin"]
+            
+            if personal_skills:
+                self.cli.print_info("📁 Personal Skills:")
+                for skill in personal_skills:
+                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    self.cli.print_info(f"  • {skill.name}: {desc}")
+            
+            if project_skills:
+                self.cli.print_info("\n📂 Project Skills:")
+                for skill in project_skills:
+                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    self.cli.print_info(f"  • {skill.name}: {desc}")
+            
+            if plugin_skills:
+                self.cli.print_info("\n🔌 Plugin Skills:")
+                for skill in plugin_skills:
+                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    self.cli.print_info(f"  • {skill.name}: {desc}")
+            
+            self.cli.print_info("\n💡 Use /skill-info <name> for details")
+            
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_list_skills_command")
+            self.cli.print_error(f"Error listing skills: {str(e)}")
+
+    async def _show_skill_info_command(self, skill_name: str):
+        """Show detailed information about a skill"""
+        try:
+            skill = self.skill_manager.get_skill(skill_name)
+            
+            if not skill:
+                self.cli.print_error(f"Skill not found: {skill_name}")
+                self.cli.print_info("Use /skills to see available skills")
+                return
+            
+            self.cli.print_info(f"\n🎯 Skill: {skill.name}\n")
+            self.cli.print_info(f"📝 Description: {skill.description}")
+            self.cli.print_info(f"📁 Source: {skill.source}")
+            self.cli.print_info(f"📂 Path: {skill.path}")
+            
+            if skill.allowed_tools:
+                self.cli.print_info(f"🔧 Allowed Tools: {', '.join(skill.allowed_tools)}")
+            
+            if skill.license:
+                self.cli.print_info(f"📜 License: {skill.license}")
+            
+            # Show available resources
+            resources = []
+            if skill.has_scripts:
+                scripts = [s.name for s in skill.get_scripts()]
+                resources.append(f"Scripts: {', '.join(scripts)}")
+            if skill.has_references:
+                refs = [r.name for r in skill.get_references()]
+                resources.append(f"References: {', '.join(refs)}")
+            if skill.has_assets:
+                resources.append("Assets: available")
+            
+            if resources:
+                self.cli.print_info("\n📦 Resources:")
+                for res in resources:
+                    self.cli.print_info(f"  • {res}")
+            
+            # Show first part of instructions
+            if skill.instructions:
+                preview = skill.instructions[:500]
+                if len(skill.instructions) > 500:
+                    preview += "..."
+                self.cli.print_info(f"\n📋 Instructions Preview:\n{preview}")
+            
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_show_skill_info_command")
+            self.cli.print_error(f"Error showing skill info: {str(e)}")
 
     # =========================================================================
     # STATE MANAGEMENT - State management with AutoGen save_state/load_state
