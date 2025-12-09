@@ -82,7 +82,8 @@ def _calculate_flexible_replacement(current_content: str, old_string: str, new_s
         if potential_match and search_idx == len(search_lines_stripped):
             flexible_occurrences += 1
             first_line_match = source_lines[i]
-            indentation = re.match(r"^(\s*)", first_line_match).group(1)
+            match = re.match(r"^(\s*)", first_line_match)
+            indentation = match.group(1) if match else ""
             for r_line in replace_lines:
                 new_source_lines.append(f"{indentation}{r_line}\n")
             i = temp_idx
@@ -223,7 +224,7 @@ async def edit_file(
             return "Error: The 'new_string' is identical to the found 'old_string'. No changes applied."
 
         # 2. Syntax Check (Modular Linter)
-        lint_error = lint_code_check(target, new_content)
+        lint_error = lint_code_check(str(target), new_content)
         if lint_error:
             return f"Error: Your edit caused a syntax error. Edit rejected.\n{lint_error}"
 

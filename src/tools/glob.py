@@ -113,7 +113,7 @@ async def glob_search(
 
         # Execute glob
         # recursive=True allows '**' logic
-        files = glob.glob(full_pattern, recursive=True, include_hidden=True)
+        files = glob.glob(full_pattern, recursive=True)
 
         # Filter files and ignores
         path_entries = []

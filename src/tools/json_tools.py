@@ -84,6 +84,7 @@ async def merge_json_files(
             return str(data2["error"])
 
         # Merge
+        result: Union[Dict[str, Any], List[Any]]
         if isinstance(data1, dict) and isinstance(data2, dict):
             if overwrite_duplicates:
                 result = {**data1, **data2}

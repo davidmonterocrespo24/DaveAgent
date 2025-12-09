@@ -639,7 +639,9 @@ class DaveAgentCLI:
                 new_model = parts[1]
                 old_model = self.settings.model
                 self.settings.model = new_model
-                self.model_client._model = new_model  # Update client
+                # Update wrapped client's model (access through _wrapped)
+                if hasattr(self.model_client, "_wrapped"):
+                    self.model_client._wrapped._model = new_model
                 self.cli.print_success(f"✓ Model changed: {old_model} → {new_model}")
                 self.logger.info(f"Model changed from {old_model} to {new_model}")
 
@@ -654,7 +656,9 @@ class DaveAgentCLI:
                 new_url = parts[1]
                 old_url = self.settings.base_url
                 self.settings.base_url = new_url
-                self.model_client._base_url = new_url  # Update client
+                # Update wrapped client's base URL (access through _wrapped)
+                if hasattr(self.model_client, "_wrapped"):
+                    self.model_client._wrapped._base_url = new_url
                 self.cli.print_success(f"✓ URL changed: {old_url} → {new_url}")
                 self.logger.info(f"Base URL changed from {old_url} to {new_url}")
 
@@ -685,12 +689,10 @@ class DaveAgentCLI:
 
                 http_client = httpx.AsyncClient(verify=new_ssl)
 
-                # Update model client
-                if hasattr(self.model_client, "_wrapped_client"):
+                # Update model client (access through _wrapped)
+                if hasattr(self.model_client, "_wrapped"):
                     # It's LoggingModelClientWrapper, update wrapped client
-                    self.model_client._wrapped_client._http_client = http_client
-                else:
-                    self.model_client._http_client = http_client
+                    self.model_client._wrapped._http_client = http_client
 
                 self.cli.print_success(f"✓ SSL Verify changed: {old_ssl} → {new_ssl}")
                 if not new_ssl:
@@ -1108,12 +1110,14 @@ TITLE:"""
                 sessions = self.state_manager.list_sessions()
                 if not sessions:
                     self.cli.stop_thinking()
-                    self.history_viewer.display_no_sessions()
+                    if self.history_viewer:
+                        self.history_viewer.display_no_sessions()
                     return
 
                 session_id = sessions[0]["session_id"]
                 title = sessions[0].get("title", "Most recent session")
-                self.history_viewer.display_loading_session(session_id, title)
+                if self.history_viewer:
+                    self.history_viewer.display_loading_session(session_id, title)
 
             # Load from disk
             loaded = await self.state_manager.load_from_disk(session_id)
@@ -1144,19 +1148,21 @@ TITLE:"""
             messages = self.state_manager.get_session_history()
 
             # Display session info
-            self.history_viewer.display_session_loaded(
-                session_id=session_id, total_messages=len(messages), agents_restored=agents_loaded
-            )
+            if self.history_viewer:
+                self.history_viewer.display_session_loaded(
+                    session_id=session_id, total_messages=len(messages), agents_restored=agents_loaded
+                )
 
-            # Display session metadata
-            self.history_viewer.display_session_metadata(metadata, session_id)
+                # Display session metadata
+                self.history_viewer.display_session_metadata(metadata, session_id)
 
             # Display conversation history
             if messages:
                 self.cli.print_info("📜 Displaying conversation history:\n")
-                self.history_viewer.display_conversation_history(
-                    messages=messages, max_messages=20, show_thoughts=False  # Show last 20 messages
-                )
+                if self.history_viewer:
+                    self.history_viewer.display_conversation_history(
+                        messages=messages, max_messages=20, show_thoughts=False  # Show last 20 messages
+                    )
 
                 if len(messages) > 20:
                     self.cli.print_info(f"💡 Showing last 20 of {len(messages)} messages")
@@ -1180,11 +1186,13 @@ TITLE:"""
             sessions = self.state_manager.list_sessions()
 
             if not sessions:
-                self.history_viewer.display_no_sessions()
+                if self.history_viewer:
+                    self.history_viewer.display_no_sessions()
                 return
 
             # Display sessions using Rich table
-            self.history_viewer.display_sessions_list(sessions)
+            if self.history_viewer:
+                self.history_viewer.display_sessions_list(sessions)
 
             self.cli.print_info("💡 Use /load-session <session_id> to load a session")
             self.cli.print_info("💡 Use /history to view current session history")
@@ -1237,13 +1245,14 @@ TITLE:"""
                 return
 
             # Display metadata
-            self.history_viewer.display_session_metadata(metadata, session_id)
+            if self.history_viewer:
+                self.history_viewer.display_session_metadata(metadata, session_id)
 
-            # Display history
-            max_messages = None if show_all else 20
-            self.history_viewer.display_conversation_history(
-                messages=messages, max_messages=max_messages, show_thoughts=show_thoughts
-            )
+                # Display history
+                max_messages = None if show_all else 20
+                self.history_viewer.display_conversation_history(
+                    messages=messages, max_messages=max_messages, show_thoughts=show_thoughts
+                )
 
             # Show info about truncation
             if not show_all and len(messages) > 20:
@@ -2113,11 +2122,12 @@ TITLE:"""
                     # Show last few messages
                     if messages:
                         self.cli.print_info("\n📜 Recent messages:")
-                        self.history_viewer.display_conversation_history(
-                            messages=messages,
-                            max_messages=5,  # Show last 5 messages
-                            show_thoughts=False,
-                        )
+                        if self.history_viewer:
+                            self.history_viewer.display_conversation_history(
+                                messages=messages,
+                                max_messages=5,  # Show last 5 messages
+                                show_thoughts=False,
+                            )
 
                         if len(messages) > 5:
                             self.cli.print_info(
