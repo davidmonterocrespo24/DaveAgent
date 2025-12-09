@@ -19,6 +19,6 @@ from .langfuse_simple import init_langfuse_tracing, is_langfuse_enabled
 
 # Only export the simple method with OpenLit (recommended)
 __all__ = [
-    "init_langfuse_tracing",      # Simple method with OpenLit (recommended)
-    "is_langfuse_enabled",         # Verify configuration
+    "init_langfuse_tracing",  # Simple method with OpenLit (recommended)
+    "is_langfuse_enabled",  # Verify configuration
 ]

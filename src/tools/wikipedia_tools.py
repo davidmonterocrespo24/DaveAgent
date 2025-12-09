@@ -1,6 +1,7 @@
 """
 Wikipedia Tools for AutoGen - Wikipedia search and content access
 """
+
 import logging
 from importlib import util
 
@@ -10,6 +11,7 @@ def _check_wikipedia():
     if util.find_spec("wikipedia") is None:
         raise ImportError("wikipedia package not available. Install with: pip install wikipedia")
     import wikipedia
+
     wikipedia.set_lang("es")  # Set default language
     return wikipedia
 

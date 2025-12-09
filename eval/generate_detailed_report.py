@@ -2,7 +2,7 @@
 """
 Script para generar un reporte detallado de la evaluación SWE-bench.
 Analiza predictions.jsonl, el reporte de evaluación, y genera un informe completo
-con las interacciones del agente, código generado vs esperado, y análisis de fallos.
+con las interacciones del agent, código generado vs esperado, y análisis de fallos.
 """
 
 import json
@@ -12,8 +12,9 @@ from datetime import datetime
 from collections import defaultdict
 import difflib
 
+
 def load_predictions(predictions_path):
-    """Carga las predicciones del agente"""
+    """Carga las predicciones del agent"""
     predictions = []
     if not os.path.exists(predictions_path):
         print(f"Warning: {predictions_path} not found")
@@ -25,6 +26,7 @@ def load_predictions(predictions_path):
                 predictions.append(json.loads(line))
     return predictions
 
+
 def load_evaluation_report(report_path):
     """Carga el reporte de evaluación de SWE-bench"""
     if not os.path.exists(report_path):
@@ -34,10 +36,12 @@ def load_evaluation_report(report_path):
     with open(report_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
+
 def load_dataset_instances(dataset_path=None):
     """Carga las instancias del dataset para obtener info adicional"""
     # Por ahora retornamos dict vacío, se puede extender para cargar el dataset completo
     return {}
+
 
 def analyze_patch(patch_text):
     """Analiza un patch y extrae estadísticas"""
@@ -75,12 +79,13 @@ def analyze_patch(patch_text):
         'total_changes': lines_added + lines_removed
     }
 
+
 def categorize_failure(instance_id, prediction, eval_result):
     """Categoriza el tipo de fallo"""
     patch = prediction.get('model_patch', '')
 
     if not patch or not patch.strip():
-        return 'NO_PATCH', 'El agente no generó ningún patch'
+        return 'NO_PATCH', 'El agent no generó ningún patch'
 
     if eval_result is None:
         return 'NOT_EVALUATED', 'No se evaluó (posiblemente error de infraestructura)'
@@ -90,6 +95,7 @@ def categorize_failure(instance_id, prediction, eval_result):
         return 'SUCCESS', 'Tarea resuelta correctamente'
 
     return 'PATCH_INCORRECT', 'Patch generado pero no pasó los tests'
+
 
 def generate_html_report(predictions, eval_report, output_path):
     """Genera un reporte HTML detallado"""
@@ -301,19 +307,19 @@ def generate_html_report(predictions, eval_report, output_path):
             <div class="stat-label">Patches Generados</div>
             <div class="stat-number">{tasks_with_patches}</div>
             <div class="metric-bar">
-                <div class="metric-fill" style="width: {tasks_with_patches/total_tasks*100:.1f}%"></div>
+                <div class="metric-fill" style="width: {tasks_with_patches / total_tasks * 100:.1f}%"></div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Resueltas Correctamente</div>
             <div class="stat-number" style="color: #28a745;">{len(categorized['SUCCESS'])}</div>
             <div class="metric-bar">
-                <div class="metric-fill" style="width: {len(categorized['SUCCESS'])/total_tasks*100:.1f}%; background: #28a745;"></div>
+                <div class="metric-fill" style="width: {len(categorized['SUCCESS']) / total_tasks * 100:.1f}%; background: #28a745;"></div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Tasa de Éxito</div>
-            <div class="stat-number">{len(categorized['SUCCESS'])/total_tasks*100:.1f}%</div>
+            <div class="stat-number">{len(categorized['SUCCESS']) / total_tasks * 100:.1f}%</div>
         </div>
     </div>
 """
@@ -374,6 +380,7 @@ def generate_html_report(predictions, eval_report, output_path):
         f.write(html)
 
     print(f"✓ Reporte HTML generado: {output_path}")
+
 
 def generate_task_html(pred, status, patch_analysis):
     """Genera el HTML para una tarea individual"""
@@ -438,6 +445,7 @@ def generate_task_html(pred, status, patch_analysis):
     html += "        </div>\n"
     return html
 
+
 def generate_markdown_report(predictions, eval_report, output_path):
     """Genera un reporte en formato Markdown"""
 
@@ -456,10 +464,10 @@ def generate_markdown_report(predictions, eval_report, output_path):
 | Métrica | Valor | Porcentaje |
 |---------|-------|------------|
 | Total de Tareas | {total_tasks} | 100% |
-| Patches Generados | {tasks_with_patches} | {tasks_with_patches/total_tasks*100:.1f}% |
-| Resueltas Correctamente | {len(resolved_ids)} | {len(resolved_ids)/total_tasks*100:.1f}% |
-| Con Patch Incorrecto | {tasks_with_patches - len(resolved_ids)} | {(tasks_with_patches - len(resolved_ids))/total_tasks*100:.1f}% |
-| Sin Patch | {total_tasks - tasks_with_patches} | {(total_tasks - tasks_with_patches)/total_tasks*100:.1f}% |
+| Patches Generados | {tasks_with_patches} | {tasks_with_patches / total_tasks * 100:.1f}% |
+| Resueltas Correctamente | {len(resolved_ids)} | {len(resolved_ids) / total_tasks * 100:.1f}% |
+| Con Patch Incorrecto | {tasks_with_patches - len(resolved_ids)} | {(tasks_with_patches - len(resolved_ids)) / total_tasks * 100:.1f}% |
+| Sin Patch | {total_tasks - tasks_with_patches} | {(total_tasks - tasks_with_patches) / total_tasks * 100:.1f}% |
 
 ---
 
@@ -510,11 +518,12 @@ def generate_markdown_report(predictions, eval_report, output_path):
 
     print(f"✓ Reporte Markdown generado: {output_path}")
 
+
 def main():
     """Función principal"""
-    print("="*70)
+    print("=" * 70)
     print("  Generador de Reporte Detallado SWE-bench")
-    print("="*70)
+    print("=" * 70)
     print()
 
     # Rutas
@@ -543,12 +552,13 @@ def main():
     generate_markdown_report(predictions, eval_report, md_output)
 
     print()
-    print("="*70)
+    print("=" * 70)
     print("✅ Reportes generados exitosamente!")
-    print("="*70)
+    print("=" * 70)
     print(f"\n📄 HTML: {html_output}")
     print(f"📄 Markdown: {md_output}")
     print()
+
 
 if __name__ == '__main__':
     main()

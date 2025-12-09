@@ -5,9 +5,9 @@ These tools allow agents to query different memory stores without using
 the AutoGen memory parameter (which causes issues with DeepSeek and other
 LLMs that don't support multiple system messages).
 """
-from typing import Annotated
-from autogen_core.tools import FunctionTool
 
+from autogen_core.tools import FunctionTool
+from typing import Annotated
 
 # Global memory manager instance (set by main.py)
 _memory_manager = None
@@ -20,7 +20,7 @@ def set_memory_manager(manager):
 
 
 async def query_conversation_memory(
-    query: Annotated[str, "The search query to find relevant past conversations"]
+    query: Annotated[str, "The search query to find relevant past conversations"],
 ) -> str:
     """
     Query conversation memory to find relevant past conversations.
@@ -43,7 +43,7 @@ async def query_conversation_memory(
         results = await _memory_manager.query_conversations(query)
 
         # Handle MemoryQueryResult if returned instead of list
-        if hasattr(results, 'results'):
+        if hasattr(results, "results"):
             results = results.results
 
         if not results:
@@ -70,7 +70,7 @@ async def query_conversation_memory(
 
 
 async def query_codebase_memory(
-    query: Annotated[str, "The search query to find relevant code"]
+    query: Annotated[str, "The search query to find relevant code"],
 ) -> str:
     """
     Query codebase memory to find relevant indexed code.
@@ -93,7 +93,7 @@ async def query_codebase_memory(
         results = await _memory_manager.query_codebase(query)
 
         # Handle MemoryQueryResult if returned instead of list
-        if hasattr(results, 'results'):
+        if hasattr(results, "results"):
             results = results.results
 
         if not results:
@@ -119,7 +119,7 @@ async def query_codebase_memory(
 
 
 async def query_decision_memory(
-    query: Annotated[str, "The search query to find relevant architectural decisions"]
+    query: Annotated[str, "The search query to find relevant architectural decisions"],
 ) -> str:
     """
     Query decision memory to find relevant architectural decisions and patterns.
@@ -142,7 +142,7 @@ async def query_decision_memory(
         results = await _memory_manager.query_decisions(query)
 
         # Handle MemoryQueryResult if returned instead of list
-        if hasattr(results, 'results'):
+        if hasattr(results, "results"):
             results = results.results
 
         if not results:
@@ -165,7 +165,7 @@ async def query_decision_memory(
 
 
 async def query_preferences_memory(
-    query: Annotated[str, "The search query to find relevant user preferences"]
+    query: Annotated[str, "The search query to find relevant user preferences"],
 ) -> str:
     """
     Query user preferences memory to find relevant preferences and coding styles.
@@ -188,7 +188,7 @@ async def query_preferences_memory(
         results = await _memory_manager.query_preferences(query)
 
         # Handle MemoryQueryResult if returned instead of list
-        if hasattr(results, 'results'):
+        if hasattr(results, "results"):
             results = results.results
 
         if not results:
@@ -212,7 +212,7 @@ async def query_preferences_memory(
 
 
 async def query_user_memory(
-    query: Annotated[str, "The search query to find relevant user information"]
+    query: Annotated[str, "The search query to find relevant user information"],
 ) -> str:
     """
     Query user memory to find relevant information about the user.
@@ -235,7 +235,7 @@ async def query_user_memory(
         results = await _memory_manager.query_user_info(query)
 
         # Handle MemoryQueryResult if returned instead of list
-        if hasattr(results, 'results'):
+        if hasattr(results, "results"):
             results = results.results
 
         if not results:
@@ -259,7 +259,9 @@ async def query_user_memory(
 
 async def save_user_info(
     info: Annotated[str, "User information to save (name, role, preferences, expertise, etc.)"],
-    category: Annotated[str, "Category of information (personal, expertise, project, goal, etc.)"] = "general"
+    category: Annotated[
+        str, "Category of information (personal, expertise, project, goal, etc.)"
+    ] = "general",
 ) -> str:
     """
     Save important information about the user to memory.
@@ -281,10 +283,7 @@ async def save_user_info(
         return "❌ Memory system not initialized"
 
     try:
-        await _memory_manager.add_user_info(
-            info=info,
-            category=category
-        )
+        await _memory_manager.add_user_info(info=info, category=category)
 
         return f"✅ User information saved to memory (category: {category})"
 
@@ -294,7 +293,7 @@ async def save_user_info(
 
 async def save_decision(
     decision: Annotated[str, "The architectural decision or pattern to save"],
-    context: Annotated[str, "Context and reasoning for this decision"]
+    context: Annotated[str, "Context and reasoning for this decision"],
 ) -> str:
     """
     Save an important architectural decision or pattern to memory.
@@ -315,10 +314,7 @@ async def save_decision(
         return "❌ Memory system not initialized"
 
     try:
-        await _memory_manager.add_decision(
-            decision=decision,
-            context=context
-        )
+        await _memory_manager.add_decision(decision=decision, context=context)
 
         return f"✅ Decision saved to memory"
 
@@ -328,7 +324,7 @@ async def save_decision(
 
 async def save_preference(
     preference: Annotated[str, "The user preference to save"],
-    category: Annotated[str, "Category (code_style, framework, tool, workflow, etc.)"] = "general"
+    category: Annotated[str, "Category (code_style, framework, tool, workflow, etc.)"] = "general",
 ) -> str:
     """
     Save a user preference or coding style to memory.
@@ -349,10 +345,7 @@ async def save_preference(
         return "❌ Memory system not initialized"
 
     try:
-        await _memory_manager.add_preference(
-            preference=preference,
-            category=category
-        )
+        await _memory_manager.add_preference(preference=preference, category=category)
 
         return f"✅ Preference saved to memory (category: {category})"
 
@@ -363,40 +356,35 @@ async def save_preference(
 # Export as FunctionTool instances
 query_conversation_memory_tool = FunctionTool(
     query_conversation_memory,
-    description="Query past conversations to find relevant context and history"
+    description="Query past conversations to find relevant context and history",
 )
 
 query_codebase_memory_tool = FunctionTool(
     query_codebase_memory,
-    description="Query indexed codebase to find relevant code and implementations"
+    description="Query indexed codebase to find relevant code and implementations",
 )
 
 query_decision_memory_tool = FunctionTool(
-    query_decision_memory,
-    description="Query architectural decisions and patterns from past work"
+    query_decision_memory, description="Query architectural decisions and patterns from past work"
 )
 
 query_preferences_memory_tool = FunctionTool(
-    query_preferences_memory,
-    description="Query user's coding preferences and styles"
+    query_preferences_memory, description="Query user's coding preferences and styles"
 )
 
 query_user_memory_tool = FunctionTool(
     query_user_memory,
-    description="Query information about the user (name, expertise, projects, etc.)"
+    description="Query information about the user (name, expertise, projects, etc.)",
 )
 
 save_user_info_tool = FunctionTool(
-    save_user_info,
-    description="Save important information about the user to memory"
+    save_user_info, description="Save important information about the user to memory"
 )
 
 save_decision_tool = FunctionTool(
-    save_decision,
-    description="Save architectural decisions or patterns to memory"
+    save_decision, description="Save architectural decisions or patterns to memory"
 )
 
 save_preference_tool = FunctionTool(
-    save_preference,
-    description="Save user preferences or coding styles to memory"
+    save_preference, description="Save user preferences or coding styles to memory"
 )

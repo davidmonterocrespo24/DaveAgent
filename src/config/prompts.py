@@ -143,9 +143,6 @@ Answer the user's request using the relevant tool(s), if they are available. Che
 Reply with TASK_COMPLETED when the task has been completed.
 """
 
-
-
-
 CHAT_SYSTEM_PROMPT = """
 You are a an AI coding assistant, powered by GPT-4o. You operate in Cursor
 
@@ -256,7 +253,6 @@ The query MUST be a valid regex, so special characters must be escaped.
 e.g. to search for a method call 'foo.bar(', you could use the query '\\bfoo\\.bar\\('.","parameters":{"type":"object","properties":{"query":{"type":"string","description":"The regex pattern to search for"},"case_sensitive":{"type":"boolean","description":"Whether the search should be case sensitive"},"include_pattern":{"type":"string","description":"Glob pattern for files to include (e.g. '*.ts' for TypeScript files)"},"exclude_pattern":{"type":"string","description":"Glob pattern for files to exclude"},"explanation":{"type":"string","description":"One sentence explanation as to why this tool is being used, and how it contributes to the goal."}},"required":["query"]}}},{"type":"function","function":{"name":"file_search","description":"Fast file search based on fuzzy matching against file path. Use if you know part of the file path but don't know where it's located exactly. Response will be capped to 10 results. Make your query more specific if need to filter results further.","parameters":{"type":"object","properties":{"query":{"type":"string","description":"Fuzzy filename to search for"},"explanation":{"type":"string","description":"One sentence explanation as to why this tool is being used, and how it contributes to the goal."}},"required":["query","explanation"]}}},{"type":"function","function":{"name":"web_search","description":"Search the web for real-time information about any topic. Use this tool when you need up-to-date information that might not be available in your training data, or when you need to verify current facts. The search results will include relevant snippets and URLs from web pages. This is particularly useful for questions about current events, technology updates, or any topic that requires recent information.","parameters":{"type":"object","required":["search_term"],"properties":{"search_term":{"type":"string","description":"The search term to look up on the web. Be specific and include relevant keywords for better results. For technical queries, include version numbers or dates if relevant."},"explanation":{"type":"string","description":"One sentence explanation as to why this tool is being used, and how it contributes to the goal."}}}}}],"tool_choice":"auto","stream":true}
 """
 
-
 CODER_AGENT_DESCRIPTION = """Specialist in SIMPLE and DIRECT coding tasks.
 
 Use it for:
@@ -273,8 +269,6 @@ DO NOT use it for:
 - Complex projects requiring multiple files
 - Tasks needing detailed planning
 - Complete system implementations"""
-
-
 
 # =============================================================================
 # CODE SEARCHER AGENT
@@ -604,7 +598,6 @@ IMPORTANT:
 - End with "TASK_COMPLETED" on its own line to signal completion
 
 Respond in English."""
-
 
 TASK_PLANNER_DESCRIPTION = """Strategic planner for COMPLEX development tasks.
 

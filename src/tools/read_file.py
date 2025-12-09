@@ -1,11 +1,16 @@
 import os
 from pathlib import Path
+
 from src.tools.common import get_workspace
 from src.utils.file_utils import process_single_file_content
 
-async def read_file(target_file: str, should_read_entire_file: bool = True,
-                   start_line_one_indexed: int = 1,
-                   end_line_one_indexed_inclusive: int = -1) -> str:
+
+async def read_file(
+    target_file: str,
+    should_read_entire_file: bool = True,
+    start_line_one_indexed: int = 1,
+    end_line_one_indexed_inclusive: int = -1,
+) -> str:
     """
     Read the contents of a file with line range support.
     Uses advanced file processing to handle large files, binary files, and different encodings.
@@ -21,20 +26,20 @@ async def read_file(target_file: str, should_read_entire_file: bool = True,
     """
     try:
         workspace = get_workspace()
-        
+
         # Resolve path
         if Path(target_file).is_absolute():
             resolved_path = Path(target_file)
         else:
             resolved_path = workspace / target_file
-            
+
         str_path = str(resolved_path)
         str_workspace = str(workspace)
 
         # Calculate offset and limit
         offset = 0
         limit = None
-        
+
         if not should_read_entire_file:
             offset = max(0, start_line_one_indexed - 1)
             if end_line_one_indexed_inclusive != -1:
@@ -44,10 +49,7 @@ async def read_file(target_file: str, should_read_entire_file: bool = True,
 
         # Call process_single_file_content
         result = await process_single_file_content(
-            str_path,
-            str_workspace,
-            offset=offset,
-            limit=limit
+            str_path, str_workspace, offset=offset, limit=limit
         )
 
         # Handle Error
@@ -66,9 +68,9 @@ async def read_file(target_file: str, should_read_entire_file: bool = True,
             start_shown = lines_shown[0]
             end_shown = lines_shown[1]
             total_lines = result.get("originalLineCount", 0)
-            
+
             next_start_line = end_shown + 1
-            
+
             header = (
                 f"IMPORTANT: The file content has been truncated.\n"
                 f"Status: Showing lines {start_shown}-{end_shown} of {total_lines} total lines.\n"
@@ -81,11 +83,13 @@ async def read_file(target_file: str, should_read_entire_file: bool = True,
         # Normal Text Content
         header = f"File: {target_file}"
         if not should_read_entire_file:
-            end_desc = end_line_one_indexed_inclusive if end_line_one_indexed_inclusive != -1 else 'end'
+            end_desc = (
+                end_line_one_indexed_inclusive if end_line_one_indexed_inclusive != -1 else "end"
+            )
             header += f" (lines {start_line_one_indexed}-{end_desc})"
         header += "\n"
-        
+
         return header + llm_content
-        
+
     except Exception as e:
         return f"Error reading file: {str(e)}"

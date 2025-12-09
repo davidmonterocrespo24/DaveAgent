@@ -1,6 +1,7 @@
 """
 File Indexer - Indexes all files in the directory for @ mentions
 """
+
 import os
 from pathlib import Path
 from typing import List, Set
@@ -20,9 +21,19 @@ class FileIndexer:
         self.indexed_files: List[str] = []
         self.excluded_patterns: Set[str] = {
             # Directories to exclude
-            '.git', '.venv', 'venv', '__pycache__', 'node_modules',
-            '.pytest_cache', '.mypy_cache', 'dist', 'build', 'egg-info',
-            '.idea', '.vscode', 'logs',
+            ".git",
+            ".venv",
+            "venv",
+            "__pycache__",
+            "node_modules",
+            ".pytest_cache",
+            ".mypy_cache",
+            "dist",
+            "build",
+            "egg-info",
+            ".idea",
+            ".vscode",
+            "logs",
             # File patterns to exclude (handled by hidden file check)
         }
 
@@ -37,7 +48,7 @@ class FileIndexer:
             True if path should be excluded
         """
         # Exclude hidden files/directories (starting with .)
-        if any(part.startswith('.') for part in path.parts):
+        if any(part.startswith(".") for part in path.parts):
             return True
 
         # Exclude specific directory names
@@ -48,10 +59,26 @@ class FileIndexer:
         if path.is_file():
             # Check file extension
             excluded_extensions = {
-                '.pyc', '.pyo', '.so', '.dll', '.dylib',
-                '.exe', '.bin', '.jpg', '.jpeg', '.png', '.gif',
-                '.pdf', '.zip', '.tar', '.gz', '.rar',
-                '.mp3', '.mp4', '.avi', '.mov'
+                ".pyc",
+                ".pyo",
+                ".so",
+                ".dll",
+                ".dylib",
+                ".exe",
+                ".bin",
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".gif",
+                ".pdf",
+                ".zip",
+                ".tar",
+                ".gz",
+                ".rar",
+                ".mp3",
+                ".mp4",
+                ".avi",
+                ".mov",
             }
             if path.suffix.lower() in excluded_extensions:
                 return True
@@ -72,10 +99,7 @@ class FileIndexer:
                 root_path = Path(root)
 
                 # Filter out excluded directories (modifies dirs in-place)
-                dirs[:] = [
-                    d for d in dirs
-                    if not self.should_exclude_path(root_path / d)
-                ]
+                dirs[:] = [d for d in dirs if not self.should_exclude_path(root_path / d)]
 
                 # Add files to index
                 for file in files:
@@ -88,7 +112,7 @@ class FileIndexer:
                     try:
                         relative_path = file_path.relative_to(self.root_dir)
                         # Convert to forward slashes for consistency
-                        path_str = str(relative_path).replace('\\', '/')
+                        path_str = str(relative_path).replace("\\", "/")
                         self.indexed_files.append(path_str)
                     except ValueError:
                         # Path is not relative to root_dir

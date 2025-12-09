@@ -1,10 +1,11 @@
-import json
 import httpx
+import json
 from autogen_core.models import UserMessage, SystemMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
+
 from src.config import get_settings
 from src.utils.deepseek_fix import should_use_reasoning_client
+from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
 
 # --- Prompt Configuration ---
 EDIT_SYS_PROMPT = """
@@ -60,37 +61,41 @@ Based on the error and the file content, provide a corrected `search` string tha
 Return valid JSON.
 """
 
+
 # --- Implementation ---
 
-async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, error_msg: str, file_content: str) -> tuple[str, str] | None:
+
+async def _llm_fix_edit(
+    instruction: str, old_string: str, new_string: str, error_msg: str, file_content: str
+) -> tuple[str, str] | None:
     """
     Attempts to correct old_string and new_string using an LLM when search fails.
     Replicating the logic of Google's FixLLMEditWithInstruction.
     """
-    
+
     user_prompt = EDIT_USER_PROMPT_TEMPLATE.format(
         instruction=instruction,
         old_string=old_string,
         new_string=new_string,
         error=error_msg,
-        current_content=file_content
+        current_content=file_content,
     )
 
     settings = get_settings()
-    
+
     # Create http client
     http_client = httpx.AsyncClient(verify=settings.ssl_verify)
-    
+
     try:
         if should_use_reasoning_client(settings):
-             client = DeepSeekReasoningClient(
+            client = DeepSeekReasoningClient(
                 model=settings.model,
                 base_url=settings.base_url,
                 api_key=settings.api_key,
                 model_capabilities=settings.get_model_capabilities(),
                 http_client=http_client,
                 enable_thinking=None,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
         else:
             client = OpenAIChatCompletionClient(
@@ -99,32 +104,32 @@ async def _llm_fix_edit(instruction: str, old_string: str, new_string: str, erro
                 api_key=settings.api_key,
                 model_capabilities=settings.get_model_capabilities(),
                 http_client=http_client,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
 
         messages = [
             SystemMessage(content=EDIT_SYS_PROMPT),
-            UserMessage(content=user_prompt, source="user")
+            UserMessage(content=user_prompt, source="user"),
         ]
 
         result = await client.create(messages)
         response_content = result.content
         if response_content.strip().startswith("```"):
             response_content = response_content.split("```json")[-1].split("```")[0].strip()
-                
+
         data = json.loads(response_content)
-        
+
         if data.get("noChangesRequired", False):
-            # El LLM dice que ya está hecho. 
-            # Podríamos lanzar una excepción específica o retornar los valores originales 
+            # El LLM dice que ya está hecho.
+            # Podríamos lanzar una excepción específica o retornar los valores originales
             # para que el validador de "no changes" lo capture arriba.
-            return old_string, old_string # Esto disparará 'new == old' error
+            return old_string, old_string  # Esto disparará 'new == old' error
 
         corrected_search = data.get("search", old_string)
         corrected_replace = data.get("replace", new_string)
-        
+
         return corrected_search, corrected_replace
-        
+
     except Exception as e:
         print(f"Error en _llm_fix_edit: {e}")
         return None

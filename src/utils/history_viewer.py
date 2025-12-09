@@ -4,14 +4,15 @@ History Viewer - Rich visualization of conversation history
 Displays session history in a formatted and user-friendly way
 using Rich for tables, panels, and syntax highlighting.
 """
-from typing import List, Dict, Any, Optional
+
+from datetime import datetime
+from rich import box
 from rich.console import Console
-from rich.table import Table
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.syntax import Syntax
-from rich.markdown import Markdown
-from rich import box
-from datetime import datetime
+from rich.table import Table
+from typing import List, Dict, Any, Optional
 
 
 class HistoryViewer:
@@ -39,10 +40,7 @@ class HistoryViewer:
 
         # Create table
         table = Table(
-            title="📋 Saved Sessions",
-            box=box.ROUNDED,
-            show_header=True,
-            header_style="bold cyan"
+            title="📋 Saved Sessions", box=box.ROUNDED, show_header=True, header_style="bold cyan"
         )
 
         table.add_column("#", style="dim", width=4)
@@ -74,7 +72,7 @@ class HistoryViewer:
                 session_id[:16] + "..." if len(session_id) > 16 else session_id,
                 str(total_messages),
                 formatted_date,
-                tags or "-"
+                tags or "-",
             )
 
         self.console.print("\n")
@@ -100,11 +98,12 @@ class HistoryViewer:
 
         if metadata.get("description"):
             info_table.add_row("Description", metadata.get("description"))
-        
-        if metadata.get("tags"):
-            tags_str = ", ".join(metadata.get("tags"))
+
+        tags = metadata.get("tags")
+        if tags:
+            tags_str = ", ".join(tags)
             info_table.add_row("Tags", tags_str)
-        
+
         created_at = metadata.get("created_at", "")
         if created_at:
             try:
@@ -125,21 +124,18 @@ class HistoryViewer:
 
         # Display in panel
         panel = Panel(
-            info_table,
-            title="📊 Session Information",
-            border_style="cyan",
-            box=box.ROUNDED
+            info_table, title="📊 Session Information", border_style="cyan", box=box.ROUNDED
         )
-        
+
         self.console.print("\n")
         self.console.print(panel)
         self.console.print("\n")
 
     def display_conversation_history(
-        self, 
+        self,
         messages: List[Dict[str, Any]],
         max_messages: Optional[int] = None,
-        show_thoughts: bool = False
+        show_thoughts: bool = False,
     ):
         """
         Display conversation history with formatted messages
@@ -158,11 +154,13 @@ class HistoryViewer:
             messages = messages[-max_messages:]
 
         self.console.print("\n")
-        self.console.print(Panel(
-            f"[bold cyan]📜 Conversation History[/bold cyan]\n"
-            f"[dim]Showing {len(messages)} message(s)[/dim]",
-            box=box.ROUNDED
-        ))
+        self.console.print(
+            Panel(
+                f"[bold cyan]📜 Conversation History[/bold cyan]\n"
+                f"[dim]Showing {len(messages)} message(s)[/dim]",
+                box=box.ROUNDED,
+            )
+        )
         self.console.print("\n")
 
         # Display each message
@@ -200,7 +198,7 @@ class HistoryViewer:
 
         # Check if content is code
         content_str = str(content)
-        
+
         # Try to detect code blocks
         if "```" in content_str:
             # Render as markdown
@@ -220,7 +218,7 @@ class HistoryViewer:
             title=title,
             title_align="left",
             border_style=border_style,
-            box=box.ROUNDED
+            box=box.ROUNDED,
         )
 
         self.console.print(panel)
@@ -233,17 +231,13 @@ class HistoryViewer:
                 title="💭 Reasoning",
                 title_align="left",
                 border_style="yellow",
-                box=box.SIMPLE
+                box=box.SIMPLE,
             )
             self.console.print(thought_panel)
             self.console.print("")
 
     def display_session_summary(
-        self,
-        session_id: str,
-        metadata: Dict[str, Any],
-        total_messages: int,
-        agents_used: List[str]
+        self, session_id: str, metadata: Dict[str, Any], total_messages: int, agents_used: List[str]
     ):
         """
         Display comprehensive session summary
@@ -270,20 +264,16 @@ class HistoryViewer:
         if agents_used:
             agents_str = ", ".join(agents_used)
             summary_parts.append(f"  • Agents: {agents_str}")
-        
-        if metadata.get("tags"):
-            tags_str = ", ".join(metadata.get("tags"))
+
+        tags = metadata.get("tags")
+        if tags:
+            tags_str = ", ".join(tags)
             summary_parts.append(f"\n[bold magenta]🏷️  Tags:[/bold magenta] {tags_str}")
 
         summary_text = "\n".join(summary_parts)
 
         # Display in panel
-        panel = Panel(
-            summary_text,
-            title="📋 Session Summary",
-            border_style="cyan",
-            box=box.DOUBLE
-        )
+        panel = Panel(summary_text, title="📋 Session Summary", border_style="cyan", box=box.DOUBLE)
 
         self.console.print("\n")
         self.console.print(panel)
@@ -325,12 +315,7 @@ class HistoryViewer:
         self.console.print(f"\n[cyan]📂 Loading session:[/cyan] [bold]{title}[/bold]")
         self.console.print(f"[dim]ID: {session_id}[/dim]\n")
 
-    def display_session_loaded(
-        self,
-        session_id: str,
-        total_messages: int,
-        agents_restored: int
-    ):
+    def display_session_loaded(self, session_id: str, total_messages: int, agents_restored: int):
         """
         Display success message after loading session
 
@@ -352,7 +337,7 @@ class HistoryViewer:
             "or start chatting to create an automatic session.[/dim]",
             title="📭 No Sessions",
             border_style="yellow",
-            box=box.ROUNDED
+            box=box.ROUNDED,
         )
         self.console.print("\n")
         self.console.print(panel)

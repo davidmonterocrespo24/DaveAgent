@@ -2,18 +2,19 @@
 DaveAgent Configuration - API keys and URLs management
 Environment variables are loaded from .daveagent/.env
 """
+
 import os
+from dotenv import load_dotenv
 from pathlib import Path
 from typing import Optional
-from dotenv import load_dotenv
 
 # Load environment variables from .daveagent/.env if it exists
 # Priority: .daveagent/.env > .env (for compatibility)
 # Search from project root (where src/ is), not from cwd
 # This ensures it works even when executed from subdirectories (e.g. eval/)
 project_root = Path(__file__).resolve().parent.parent.parent
-daveagent_env = project_root / '.daveagent' / '.env'
-legacy_env = project_root / '.env'
+daveagent_env = project_root / ".daveagent" / ".env"
+legacy_env = project_root / ".env"
 
 if daveagent_env.exists():
     load_dotenv(daveagent_env)
@@ -34,7 +35,7 @@ class DaveAgentSettings:
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         model: Optional[str] = None,
-        ssl_verify: Optional[bool] = None
+        ssl_verify: Optional[bool] = None,
     ):
         """
         Initializes the configuration with priority:
@@ -80,10 +81,7 @@ class DaveAgentSettings:
             self.ssl_verify = ssl_verify
         else:
             # Read from environment variable (can be "true", "false", "1", "0")
-            env_ssl = (
-                os.getenv("DAVEAGENT_SSL_VERIFY") 
-                or os.getenv("SSL_VERIFY")
-            )
+            env_ssl = os.getenv("DAVEAGENT_SSL_VERIFY") or os.getenv("SSL_VERIFY")
             if env_ssl:
                 self.ssl_verify = env_ssl.lower() in ("true", "1", "yes", "on")
             else:
@@ -108,9 +106,11 @@ class DaveAgentSettings:
                     print()
                     print("[WARNING] No API key found.")
                     print()
-                    response = input("Do you want to configure DaveAgent now? (Y/n): ").strip().lower()
+                    response = (
+                        input("Do you want to configure DaveAgent now? (Y/n): ").strip().lower()
+                    )
 
-                    if response == 'n' or response == 'no':
+                    if response == "n" or response == "no":
                         return False, (
                             "[ERROR] API key not configured.\n\n"
                             "Options to configure it:\n"
@@ -192,7 +192,9 @@ class DaveAgentSettings:
 
     def __repr__(self) -> str:
         """String representation (hiding API key)"""
-        masked_key = f"{self.api_key[:8]}...{self.api_key[-4:]}" if self.api_key else "Not configured"
+        masked_key = (
+            f"{self.api_key[:8]}...{self.api_key[-4:]}" if self.api_key else "Not configured"
+        )
         return (
             f"DaveAgentSettings(\n"
             f"  api_key={masked_key},\n"
@@ -207,7 +209,7 @@ def get_settings(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     model: Optional[str] = None,
-    ssl_verify: Optional[bool] = None
+    ssl_verify: Optional[bool] = None,
 ) -> DaveAgentSettings:
     """
     Factory function to get configuration

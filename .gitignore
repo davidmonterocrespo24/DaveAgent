@@ -19,6 +19,13 @@ build/
 *.egg-info/
 __pycache__/
 
+# Testing and coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+
 # IDEs
 .vscode/
 .idea/
@@ -27,4 +34,4 @@ __pycache__/
 
 .daveagent/*
 .agent_history
-coverage.xml
+.claude/settings.local.json

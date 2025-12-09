@@ -2,6 +2,7 @@
 Code Analysis Tools - AutoGen Format
 Analyzes Python file structure to extract functions, classes, and imports
 """
+
 import ast
 from pathlib import Path
 from typing import Dict, List, Any
@@ -22,10 +23,10 @@ async def analyze_python_file(filepath: str) -> str:
         if not file_path.exists():
             return f"ERROR: File not found: {filepath}"
 
-        if not filepath.endswith('.py'):
+        if not filepath.endswith(".py"):
             return f"ERROR: {filepath} is not a Python file (.py)"
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         tree = ast.parse(content, filename=filepath)
@@ -42,7 +43,7 @@ async def analyze_python_file(filepath: str) -> str:
         if imports:
             output += f"IMPORTS ({len(imports)}):\n"
             for imp in imports:
-                if imp['type'] == 'import':
+                if imp["type"] == "import":
                     output += f"  import {imp['module']}\n"
                 else:
                     output += f"  from {imp['module']} import {imp['name']}\n"
@@ -53,21 +54,21 @@ async def analyze_python_file(filepath: str) -> str:
             for cls in classes:
                 output += f"  class {cls['name']}:\n"
                 output += f"    Lines: {cls['line_start']}-{cls['line_end']}\n"
-                if cls['bases']:
+                if cls["bases"]:
                     output += f"    Inherits from: {', '.join(cls['bases'])}\n"
                 output += f"    Methods: {len(cls['methods'])}\n"
-                for method in cls['methods']:
+                for method in cls["methods"]:
                     output += f"      - {method['name']}()\n"
                 output += "\n"
 
         if functions:
             output += f"FUNCTIONS ({len(functions)}):\n"
             for func in functions:
-                if not func['is_method']:  # Only top-level functions
+                if not func["is_method"]:  # Only top-level functions
                     output += f"  {func['signature']}\n"
                     output += f"    Lines: {func['line_start']}-{func['line_end']}\n"
-                    if func.get('docstring'):
-                        doc = func['docstring'].split('\n')[0][:60]
+                    if func.get("docstring"):
+                        doc = func["docstring"].split("\n")[0][:60]
                         output += f"    Doc: {doc}...\n"
                     output += "\n"
 
@@ -95,7 +96,7 @@ async def find_function_definition(filepath: str, function_name: str) -> str:
         if not file_path.exists():
             return f"ERROR: File not found: {filepath}"
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
             lines = content.splitlines()
 
@@ -104,11 +105,11 @@ async def find_function_definition(filepath: str, function_name: str) -> str:
 
         # Search for function
         for func in functions:
-            if func['name'] == function_name:
-                start = func['line_start'] - 1
-                end = func['line_end']
+            if func["name"] == function_name:
+                start = func["line_start"] - 1
+                end = func["line_end"]
 
-                func_code = '\n'.join(lines[start:end])
+                func_code = "\n".join(lines[start:end])
 
                 output = f"Function '{function_name}' in {file_path.name}:\n"
                 output += f"Lines: {func['line_start']}-{func['line_end']}\n"
@@ -139,7 +140,7 @@ async def list_all_functions(filepath: str) -> str:
         if not file_path.exists():
             return f"ERROR: File not found: {filepath}"
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         tree = ast.parse(content, filename=filepath)
@@ -150,11 +151,11 @@ async def list_all_functions(filepath: str) -> str:
 
         output = f"=== Functions in {file_path.name} ===\n\n"
         for func in functions:
-            prefix = "  Method" if func['is_method'] else "Function"
+            prefix = "  Method" if func["is_method"] else "Function"
             output += f"{prefix}: {func['signature']}\n"
             output += f"  Lines: {func['line_start']}-{func['line_end']}\n"
-            if func.get('docstring'):
-                doc = func['docstring'].split('\n')[0][:70]
+            if func.get("docstring"):
+                doc = func["docstring"].split("\n")[0][:70]
                 output += f"  {doc}\n"
             output += "\n"
 
@@ -171,22 +172,26 @@ def _extract_imports(tree: ast.AST) -> List[Dict[str, Any]]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                imports.append({
-                    'type': 'import',
-                    'module': alias.name,
-                    'alias': alias.asname,
-                    'line': node.lineno
-                })
+                imports.append(
+                    {
+                        "type": "import",
+                        "module": alias.name,
+                        "alias": alias.asname,
+                        "line": node.lineno,
+                    }
+                )
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
             for alias in node.names:
-                imports.append({
-                    'type': 'from',
-                    'module': module,
-                    'name': alias.name,
-                    'alias': alias.asname,
-                    'line': node.lineno
-                })
+                imports.append(
+                    {
+                        "type": "from",
+                        "module": module,
+                        "name": alias.name,
+                        "alias": alias.asname,
+                        "line": node.lineno,
+                    }
+                )
 
     return imports
 
@@ -198,23 +203,25 @@ def _extract_classes(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
     class ClassVisitor(ast.NodeVisitor):
         def visit_ClassDef(self, node):
             class_info = {
-                'name': node.name,
-                'line_start': node.lineno,
-                'line_end': node.end_lineno,
-                'docstring': ast.get_docstring(node),
-                'bases': [ast.unparse(base) for base in node.bases],
-                'decorators': [ast.unparse(d) for d in node.decorator_list],
-                'methods': []
+                "name": node.name,
+                "line_start": node.lineno,
+                "line_end": node.end_lineno,
+                "docstring": ast.get_docstring(node),
+                "bases": [ast.unparse(base) for base in node.bases],
+                "decorators": [ast.unparse(d) for d in node.decorator_list],
+                "methods": [],
             }
 
             # Get methods
             for item in node.body:
                 if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    class_info['methods'].append({
-                        'name': item.name,
-                        'line': item.lineno,
-                        'is_async': isinstance(item, ast.AsyncFunctionDef)
-                    })
+                    class_info["methods"].append(
+                        {
+                            "name": item.name,
+                            "line": item.lineno,
+                            "is_async": isinstance(item, ast.AsyncFunctionDef),
+                        }
+                    )
 
             classes.append(class_info)
             self.generic_visit(node)
@@ -241,20 +248,20 @@ def _extract_functions(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
 
         def visit_FunctionDef(self, node):
             func_info = {
-                'name': node.name,
-                'line_start': node.lineno,
-                'line_end': node.end_lineno,
-                'signature': _get_function_signature(node),
-                'docstring': ast.get_docstring(node),
-                'decorators': [ast.unparse(d) for d in node.decorator_list],
-                'is_method': self.current_class is not None,
-                'class_name': self.current_class,
-                'is_async': isinstance(node, ast.AsyncFunctionDef)
+                "name": node.name,
+                "line_start": node.lineno,
+                "line_end": node.end_lineno,
+                "signature": _get_function_signature(node),
+                "docstring": ast.get_docstring(node),
+                "decorators": [ast.unparse(d) for d in node.decorator_list],
+                "is_method": self.current_class is not None,
+                "class_name": self.current_class,
+                "is_async": isinstance(node, ast.AsyncFunctionDef),
             }
 
             # Return type si existe
             if node.returns:
-                func_info['return_type'] = ast.unparse(node.returns)
+                func_info["return_type"] = ast.unparse(node.returns)
 
             functions.append(func_info)
             self.generic_visit(node)

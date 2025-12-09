@@ -18,20 +18,21 @@ SOLUTION:
 We intercept the OpenAI client BEFORE AutoGen processes messages,
 inject reasoning_content from a cache, and extract it from responses.
 """
+
 import logging
-from typing import Any, Dict, Sequence, Mapping, Literal, AsyncGenerator
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_core import CancellationToken
 from autogen_core.models import (
     LLMMessage,
     CreateResult,
     AssistantMessage,
     SystemMessage,
     UserMessage,
-    FunctionExecutionResultMessage
+    FunctionExecutionResultMessage,
 )
 from autogen_core.tools import Tool, ToolSchema
-from autogen_core import CancellationToken
+from autogen_ext.models.openai import OpenAIChatCompletionClient
 from pydantic import BaseModel
+from typing import Any, Dict, Sequence, Mapping, Literal, AsyncGenerator
 
 
 class DeepSeekReasoningClient(OpenAIChatCompletionClient):
@@ -55,12 +56,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         )
     """
 
-    def __init__(
-        self,
-        *args,
-        enable_thinking: bool = None,
-        **kwargs
-    ):
+    def __init__(self, *args, enable_thinking: bool = None, **kwargs):
         """
         Args:
             enable_thinking: If True, enables thinking mode with extra_body.
@@ -68,11 +64,11 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             *args, **kwargs: Passed to OpenAIChatCompletionClient
         """
         # Detect if we should enable thinking mode automatically
-        model = kwargs.get('model', args[0] if args else None)
+        model = kwargs.get("model", args[0] if args else None)
 
         if enable_thinking is None:
             # Enable automatically for deepseek-reasoner
-            enable_thinking = (model == "deepseek-reasoner")
+            enable_thinking = model == "deepseek-reasoner"
 
         self.enable_thinking = enable_thinking
         self.logger = logging.getLogger(__name__)
@@ -97,7 +93,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         tool_choice: Tool | Literal["auto", "required", "none"] = "auto",
         json_output: bool | type[BaseModel] | None = None,
         extra_create_args: Mapping[str, Any] = {},
-        cancellation_token: CancellationToken | None = None
+        cancellation_token: CancellationToken | None = None,
     ) -> CreateResult:
         """
         Override create() to handle reasoning_content.
@@ -140,7 +136,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                 tool_choice=tool_choice,
                 json_output=json_output,
                 extra_create_args=modified_extra_args,
-                cancellation_token=cancellation_token
+                cancellation_token=cancellation_token,
             )
 
             # STEP 4: Extract reasoning_content from response
@@ -148,7 +144,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             # but AutoGen converts it to CreateResult, we need to access the original
 
             # Attempt to access reasoning_content if it exists
-            reasoning_content = getattr(result, 'reasoning_content', None)
+            reasoning_content = getattr(result, "reasoning_content", None)
 
             if reasoning_content:
                 self.logger.info(f"💭 Reasoning content received: {len(reasoning_content)} chars")
@@ -174,7 +170,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         extra_create_args: Mapping[str, Any] = {},
         cancellation_token: CancellationToken | None = None,
         max_consecutive_empty_chunk_tolerance: int = 0,
-        include_usage: bool | None = None
+        include_usage: bool | None = None,
     ) -> AsyncGenerator[str | CreateResult, None]:
         """
         Override create_stream() to handle reasoning_content in streaming.
@@ -199,13 +195,15 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             extra_create_args=modified_extra_args,
             cancellation_token=cancellation_token,
             max_consecutive_empty_chunk_tolerance=max_consecutive_empty_chunk_tolerance,
-            include_usage=include_usage
+            include_usage=include_usage,
         ):
             # Last chunk is a CreateResult with reasoning_content
             if isinstance(chunk, CreateResult):
-                reasoning_content = getattr(chunk, 'reasoning_content', None)
+                reasoning_content = getattr(chunk, "reasoning_content", None)
                 if reasoning_content:
-                    self.logger.info(f"💭 Reasoning content in stream: {len(reasoning_content)} chars")
+                    self.logger.info(
+                        f"💭 Reasoning content in stream: {len(reasoning_content)} chars"
+                    )
                     content_key = self._make_cache_key(chunk.content)
                     self._reasoning_cache[content_key] = reasoning_content
 
@@ -228,7 +226,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         elif isinstance(content, list):
             # For tool calls, use the IDs
             try:
-                ids = [getattr(item, 'id', str(item)) for item in content]
+                ids = [getattr(item, "id", str(item)) for item in content]
                 return f"tool_calls:{','.join(ids)}"
             except:
                 return str(content)[:200]
@@ -255,5 +253,5 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         return {
             "cached_entries": len(self._reasoning_cache),
             "total_reasoning_chars": sum(len(r) for r in self._reasoning_cache.values()),
-            "cache_keys": list(self._reasoning_cache.keys())[:5]  # First 5 keys
+            "cache_keys": list(self._reasoning_cache.keys())[:5],  # First 5 keys
         }

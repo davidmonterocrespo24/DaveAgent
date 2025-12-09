@@ -1,0 +1,136 @@
+[MASTER]
+# Python version to target
+py-version=3.10
+
+# Files or directories to skip
+ignore=CVS,.git,__pycache__,build,dist,*.egg-info,.venv,venv,.daveagent,logs,test/site_dump
+
+# Pickle collected data for later comparisons
+persistent=yes
+
+[MESSAGES CONTROL]
+# Disable specific warnings that are too strict or not relevant
+disable=
+    # Import-related (external dependencies not available during linting)
+    import-error,
+    wrong-import-order,
+    wrong-import-position,
+    import-outside-toplevel,
+    # Code structure
+    too-many-instance-attributes,
+    too-many-arguments,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    too-many-public-methods,
+    too-many-lines,
+    too-many-nested-blocks,
+    too-few-public-methods,
+    too-many-return-statements,
+    # Docstrings (we'll add them gradually)
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    # Exception handling
+    broad-exception-caught,
+    broad-exception-raised,
+    raise-missing-from,
+    bare-except,
+    # Naming
+    invalid-name,
+    # Code complexity
+    consider-using-generator,
+    consider-using-in,
+    consider-using-max-builtin,
+    # Protected access (needed for some framework interactions)
+    protected-access,
+    # F-strings
+    f-string-without-interpolation,
+    # Subprocess
+    subprocess-run-check,
+    # Logging
+    logging-fstring-interpolation,
+    # Variables
+    unused-variable,
+    unused-argument,
+    unused-import,
+    # Code style
+    pointless-string-statement,
+    global-statement,
+    inconsistent-return-statements,
+    reimported,
+    # File operations
+    unspecified-encoding,
+    # Function defaults
+    dangerous-default-value,
+    # Type checking
+    no-member,
+    undefined-all-variable,
+    possibly-used-before-assignment,
+    used-before-assignment,
+    unexpected-keyword-arg,
+    no-name-in-module,
+    unsubscriptable-object,
+    # Others
+    unnecessary-pass,
+    unreachable,
+    redefined-outer-name,
+    no-else-return,
+    fixme,
+    duplicate-code,
+    line-too-long,
+    trailing-whitespace
+
+[FORMAT]
+# Maximum line length
+max-line-length=100
+
+# Number of spaces per indentation level
+indent-string='    '
+
+[DESIGN]
+# Maximum number of arguments (relaxed from default 5)
+max-args=10
+
+# Maximum number of attributes (relaxed from default 7)
+max-attributes=15
+
+# Maximum number of locals (relaxed from default 15)
+max-locals=25
+
+# Maximum number of return/yield statements (relaxed from default 6)
+max-returns=10
+
+# Maximum number of branches (relaxed from default 12)
+max-branches=20
+
+# Maximum number of statements (relaxed from default 50)
+max-statements=100
+
+# Maximum number of public methods (relaxed from default 20)
+max-public-methods=30
+
+[BASIC]
+# Good variable names
+good-names=i,j,k,ex,Run,_,fd,f,e,db,id
+
+# Include a hint for the correct naming format with invalid-name
+include-naming-hint=yes
+
+[SIMILARITIES]
+# Minimum lines of similar code to trigger duplication warning
+min-similarity-lines=10
+
+[TYPECHECK]
+# List of members which are set dynamically and missed by pylint
+generated-members=
+
+[REPORTS]
+# Output format
+output-format=colorized
+
+# Reports or only messages
+reports=no
+
+# Score threshold
+evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10)

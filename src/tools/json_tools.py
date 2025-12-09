@@ -1,12 +1,13 @@
 """
 JSON File Tools - AutoGen Format
 """
+
 import json
 import logging
 from typing import Dict, List, Any, Union
 
 
-async def read_json(filepath: str, encoding: str = 'utf-8') -> Union[Dict[str, Any], List[Any]]:
+async def read_json(filepath: str, encoding: str = "utf-8") -> Union[Dict[str, Any], List[Any]]:
     """
     Reads a JSON file and returns its contents.
 
@@ -18,7 +19,7 @@ async def read_json(filepath: str, encoding: str = 'utf-8') -> Union[Dict[str, A
         Dict or List: Contents of the JSON file
     """
     try:
-        with open(filepath, 'r', encoding=encoding) as f:
+        with open(filepath, "r", encoding=encoding) as f:
             data = json.load(f)
         return data
     except Exception as e:
@@ -30,9 +31,9 @@ async def read_json(filepath: str, encoding: str = 'utf-8') -> Union[Dict[str, A
 async def write_json(
     filepath: str,
     data: Union[Dict[str, Any], List[Any]],
-    encoding: str = 'utf-8',
+    encoding: str = "utf-8",
     indent: int = 2,
-    ensure_ascii: bool = False
+    ensure_ascii: bool = False,
 ) -> str:
     """
     Writes data to a JSON file.
@@ -48,13 +49,8 @@ async def write_json(
         str: Success or error message
     """
     try:
-        with open(filepath, 'w', encoding=encoding) as f:
-            json.dump(
-                data,
-                f,
-                indent=indent,
-                ensure_ascii=ensure_ascii
-            )
+        with open(filepath, "w", encoding=encoding) as f:
+            json.dump(data, f, indent=indent, ensure_ascii=ensure_ascii)
         return f"✓ JSON file saved successfully to {filepath}"
     except Exception as e:
         error_msg = f"Error writing JSON file {filepath}: {str(e)}"
@@ -63,10 +59,7 @@ async def write_json(
 
 
 async def merge_json_files(
-    file1: str,
-    file2: str,
-    output_file: str,
-    overwrite_duplicates: bool = True
+    file1: str, file2: str, output_file: str, overwrite_duplicates: bool = True
 ) -> str:
     """
     Merges two JSON files.
@@ -91,6 +84,7 @@ async def merge_json_files(
             return str(data2["error"])
 
         # Merge
+        result: Union[Dict[str, Any], List[Any]]
         if isinstance(data1, dict) and isinstance(data2, dict):
             if overwrite_duplicates:
                 result = {**data1, **data2}
@@ -124,7 +118,7 @@ async def validate_json(filepath: str) -> str:
         str: Message indicating whether it's valid or not
     """
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             json.load(f)
         return f"✓ {filepath} is a valid JSON"
     except json.JSONDecodeError as e:
@@ -176,7 +170,7 @@ async def json_get_value(filepath: str, key_path: str) -> str:
             return str(data["error"])
 
         # Navigate through keys
-        keys = key_path.split('.')
+        keys = key_path.split(".")
         current = data
 
         for key in keys:
@@ -225,7 +219,7 @@ async def json_set_value(filepath: str, key_path: str, value: str) -> str:
             parsed_value = value
 
         # Navigate and set value
-        keys = key_path.split('.')
+        keys = key_path.split(".")
         current = data
 
         for key in keys[:-1]:

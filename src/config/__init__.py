@@ -2,7 +2,6 @@
 System configuration
 """
 
-from src.config.settings import DaveAgentSettings, get_settings
 from src.config.prompts import (
     AGENT_SYSTEM_PROMPT,
     CHAT_SYSTEM_PROMPT,
@@ -16,6 +15,7 @@ from src.config.prompts import (
     PLANNING_AGENT_DESCRIPTION,
     PLANNING_AGENT_SYSTEM_MESSAGE,
 )
+from src.config.settings import DaveAgentSettings, get_settings
 
 __all__ = [
     "AGENT_SYSTEM_PROMPT",

@@ -2,67 +2,57 @@
 CLI Entry point for DaveAgent
 Este archivo se ejecuta cuando el usuario escribe 'daveagent' en la terminal
 """
-import asyncio
-import sys
-import os
+
 import argparse
+import asyncio
+import os
+import sys
 from pathlib import Path
 
 
 def parse_arguments():
     """Parses command line arguments"""
     parser = argparse.ArgumentParser(
-        prog='daveagent',
-        description='DaveAgent - AI-powered coding assistant',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        prog="daveagent",
+        description="DaveAgent - AI-powered coding assistant",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     # Configuration arguments
     parser.add_argument(
-        '--api-key',
+        "--api-key",
         type=str,
-        help='API key for LLM model (or use DAVEAGENT_API_KEY in .daveagent/.env)'
+        help="API key for LLM model (or use DAVEAGENT_API_KEY in .daveagent/.env)",
     )
 
     parser.add_argument(
-        '--base-url',
-        type=str,
-        default=None,
-        help='API base URL (default: https://api.deepseek.com)'
-    )
-
-    parser.add_argument(
-        '--model',
+        "--base-url",
         type=str,
         default=None,
-        help='Model name to use (default: deepseek-reasoner)'
+        help="API base URL (default: https://api.deepseek.com)",
     )
 
     parser.add_argument(
-        '--no-ssl-verify',
-        action='store_true',
-        help='Disables SSL certificate verification'
+        "--model", type=str, default=None, help="Model name to use (default: deepseek-reasoner)"
     )
 
     parser.add_argument(
-        '--ssl-verify',
+        "--no-ssl-verify", action="store_true", help="Disables SSL certificate verification"
+    )
+
+    parser.add_argument(
+        "--ssl-verify",
         type=str,
-        choices=['true', 'false'],
-        help='Explicitly enables/disables SSL verification (true/false)'
+        choices=["true", "false"],
+        help="Explicitly enables/disables SSL verification (true/false)",
     )
 
     # Mode arguments
     parser.add_argument(
-        '-d', '--debug',
-        action='store_true',
-        help='Enables debug mode with detailed logs'
+        "-d", "--debug", action="store_true", help="Enables debug mode with detailed logs"
     )
 
-    parser.add_argument(
-        '-v', '--version',
-        action='store_true',
-        help='Shows DaveAgent version'
-    )
+    parser.add_argument("-v", "--version", action="store_true", help="Shows DaveAgent version")
 
     return parser.parse_args()
 
@@ -106,15 +96,17 @@ def main():
         if args.no_ssl_verify:
             ssl_verify = False
         elif args.ssl_verify:
-            ssl_verify = args.ssl_verify.lower() == 'true'
+            ssl_verify = args.ssl_verify.lower() == "true"
 
-        asyncio.run(run_daveagent(
-            debug=args.debug,
-            api_key=args.api_key,
-            base_url=args.base_url,
-            model=args.model,
-            ssl_verify=ssl_verify
-        ))
+        asyncio.run(
+            run_daveagent(
+                debug=args.debug,
+                api_key=args.api_key,
+                base_url=args.base_url,
+                model=args.model,
+                ssl_verify=ssl_verify,
+            )
+        )
         return 0
     except KeyboardInterrupt:
         print("\n\n👋 DaveAgent terminated by user")
@@ -122,6 +114,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Fatal error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

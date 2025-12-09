@@ -2,10 +2,11 @@
 Vibe Spinner - Animated spinner with rotating vibe messages
 Shows creative messages while the agent is thinking/working
 """
+
+import random
+import sys
 import threading
 import time
-import sys
-import random
 from typing import Optional, List
 
 
@@ -48,7 +49,7 @@ class VibeSpinner:
         "crafting code",
         "pushing limits",
         "feeling the flow",
-        "embracing change"
+        "embracing change",
     ]
 
     VIBE_MESSAGES_ES = [
@@ -86,7 +87,7 @@ class VibeSpinner:
         "crafting code",
         "pushing limits",
         "feeling the flow",
-        "embracing change"
+        "embracing change",
     ]
 
     # Spinner characters (different styles)
@@ -115,11 +116,12 @@ class VibeSpinner:
     def __init__(
         self,
         messages: Optional[List[str]] = None,
+        *,
         spinner_style: str = "dots",
         color: str = "cyan",
         language: str = "es",
         update_interval: float = 0.1,
-        message_interval: float = 2.0
+        message_interval: float = 2.0,
     ):
         """
         Initialize the vibe spinner
@@ -136,10 +138,7 @@ class VibeSpinner:
         if messages:
             self.messages = messages
         else:
-            self.messages = (
-                self.VIBE_MESSAGES_ES if language == "es"
-                else self.VIBE_MESSAGES_EN
-            )
+            self.messages = self.VIBE_MESSAGES_ES if language == "es" else self.VIBE_MESSAGES_EN
 
         self.spinner_chars = self.SPINNERS.get(spinner_style, self.SPINNERS["dots"])
         self.color = self.COLORS.get(color, self.COLORS["cyan"])
@@ -178,9 +177,7 @@ class VibeSpinner:
             # Check if it's time to change the message
             current_time = time.time()
             if current_time - self._last_message_change >= self.message_interval:
-                self._current_message_index = (
-                    self._current_message_index + 1
-                ) % len(self.messages)
+                self._current_message_index = (self._current_message_index + 1) % len(self.messages)
                 self._last_message_change = current_time
 
             # Sleep
@@ -251,10 +248,7 @@ class VibeSpinner:
 
 # Convenience function
 def show_vibe_spinner(
-    message: Optional[str] = None,
-    style: str = "dots",
-    color: str = "cyan",
-    language: str = "es"
+    message: Optional[str] = None, style: str = "dots", color: str = "cyan", language: str = "es"
 ) -> VibeSpinner:
     """
     Create and start a vibe spinner
@@ -269,11 +263,6 @@ def show_vibe_spinner(
         Running VibeSpinner instance
     """
     messages = [message] if message else None
-    spinner = VibeSpinner(
-        messages=messages,
-        spinner_style=style,
-        color=color,
-        language=language
-    )
+    spinner = VibeSpinner(messages=messages, spinner_style=style, color=color, language=language)
     spinner.start()
     return spinner

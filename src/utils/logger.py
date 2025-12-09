@@ -3,19 +3,22 @@ Logging system for DaveAgent
 Provides detailed logging with levels and colors
 Logs are saved in .daveagent/logs/
 """
+
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 from rich.console import Console
 from rich.logging import RichHandler
-from typing import Optional
+from typing import Optional, Any
 
 
 class DaveAgentLogger:
     """Custom logger for DaveAgent with color and file support"""
 
-    def __init__(self, name: str = "DaveAgent", log_file: Optional[str] = None, level: int = logging.DEBUG):
+    def __init__(
+        self, name: str = "DaveAgent", log_file: Optional[str] = None, level: int = logging.DEBUG
+    ):
         """
         Initialize the logger
 
@@ -39,10 +42,7 @@ class DaveAgentLogger:
             tracebacks_show_locals=True,
         )
         console_handler.setLevel(level)
-        console_formatter = logging.Formatter(
-            "%(message)s",
-            datefmt="[%X]"
-        )
+        console_formatter = logging.Formatter("%(message)s", datefmt="[%X]")
         console_handler.setFormatter(console_formatter)
         self.logger.addHandler(console_handler)
 
@@ -57,11 +57,11 @@ class DaveAgentLogger:
             log_path = Path(log_file)
             log_path.parent.mkdir(parents=True, exist_ok=True)
 
-            file_handler = logging.FileHandler(log_file, encoding='utf-8')
+            file_handler = logging.FileHandler(log_file, encoding="utf-8")
             file_handler.setLevel(logging.DEBUG)  # Always DEBUG in file
             file_formatter = logging.Formatter(
-                '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S'
+                "%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
             )
             file_handler.setFormatter(file_formatter)
             self.logger.addHandler(file_handler)
@@ -95,7 +95,7 @@ class DaveAgentLogger:
         self.debug(f"🌐 API Call: {endpoint}")
         self.debug(f"   Params: {params}")
 
-    def log_api_response(self, endpoint: str, status: str, data: any = None):
+    def log_api_response(self, endpoint: str, status: str, data: Any = None):
         """Log API response"""
         self.debug(f"✅ API Response: {endpoint} - {status}")
         if data:
@@ -149,11 +149,7 @@ def get_logger(log_file: Optional[str] = None, level: int = logging.DEBUG) -> Da
     global _global_logger
 
     if _global_logger is None:
-        _global_logger = DaveAgentLogger(
-            name="DaveAgent",
-            log_file=log_file,
-            level=level
-        )
+        _global_logger = DaveAgentLogger(name="DaveAgent", log_file=log_file, level=level)
 
     return _global_logger
 

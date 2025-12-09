@@ -2,11 +2,13 @@
 Code Searcher Agent - Agent specialized in code search and analysis
 This agent searches and collects relevant information about code before making modifications
 """
-from typing import Dict, List, Optional, Any, AsyncGenerator
+
 import re
 from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_core.memory import Memory
+from autogen_ext.models.openai import OpenAIChatCompletionClient
+from typing import Dict, List, Optional, Any, AsyncGenerator
+
 from src.config import CODE_SEARCHER_DESCRIPTION, CODE_SEARCHER_SYSTEM_MESSAGE
 
 
@@ -19,7 +21,7 @@ class CodeSearcher:
         self,
         model_client: OpenAIChatCompletionClient,
         tools: List,
-        memory: Optional[List[Memory]] = None
+        memory: Optional[List[Memory]] = None,
     ):
         """
         Initializes the CodeSearcher agent
@@ -41,7 +43,7 @@ class CodeSearcher:
             tools=tools,
             max_tool_iterations=10,  # Allow more iterations for exhaustive search
             reflect_on_tool_use=True,  # Reflect on tool results
-            memory=memory or []  # Indexed codebase memory
+            memory=memory or [],  # Indexed codebase memory
         )
 
     async def search_code_context(self, query: str) -> Dict[str, Any]:
@@ -70,13 +72,13 @@ class CodeSearcher:
             "recommendations": [],
             "locations": [],
             "timestamp": datetime.now().isoformat(),
-            "raw_result": result
+            "raw_result": result,
         }
 
         # Process messages to extract the analysis
         analysis_text = ""
         for msg in result.messages:
-            if hasattr(msg, 'content') and hasattr(msg, 'source'):
+            if hasattr(msg, "content") and hasattr(msg, "source"):
                 if msg.source == "CodeSearcher" and type(msg).__name__ == "TextMessage":
                     analysis_text = msg.content
                     analysis["analysis"] = analysis_text
@@ -85,17 +87,17 @@ class CodeSearcher:
         # Extract structured information from the analysis
         if analysis_text:
             # Extract mentioned files
-            file_pattern = r'`([^`]+\.(py|js|ts|json|md|txt|csv))`'
+            file_pattern = r"`([^`]+\.(py|js|ts|json|md|txt|csv))`"
             files = re.findall(file_pattern, analysis_text)
             analysis["files"] = [f[0] for f in files]
 
             # Extract function names
-            function_pattern = r'`([a-zA-Z_][a-zA-Z0-9_]*)\(`'
+            function_pattern = r"`([a-zA-Z_][a-zA-Z0-9_]*)\(`"
             functions = re.findall(function_pattern, analysis_text)
             analysis["functions"] = list(set(functions))
 
             # Extract location references (file:line)
-            location_pattern = r'`([^`]+\.(py|js|ts)):(\d+)`'
+            location_pattern = r"`([^`]+\.(py|js|ts)):(\d+)`"
             locations = re.findall(location_pattern, analysis_text)
             analysis["locations"] = [f"{loc[0]}:{loc[2]}" for loc in locations]
 

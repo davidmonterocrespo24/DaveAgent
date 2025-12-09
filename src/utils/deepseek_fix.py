@@ -15,6 +15,7 @@ Based on:
 - https://docs.ag2.ai/docs/api/autogen_ext.models.openai
 """
 
+
 def should_use_reasoning_client(settings):
     """
     Determines if we should use DeepSeekReasoningClient for this model.

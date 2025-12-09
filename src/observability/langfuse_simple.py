@@ -9,10 +9,7 @@ import os
 from typing import Optional
 
 
-def init_langfuse_tracing(
-    enabled: bool = True,
-    debug: bool = False
-) -> bool:
+def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
     """
     Initialize Langfuse tracing using OpenLit (official method)
 
@@ -38,11 +35,7 @@ def init_langfuse_tracing(
 
     try:
         # Check that environment variables are configured
-        required_vars = [
-            "LANGFUSE_SECRET_KEY",
-            "LANGFUSE_PUBLIC_KEY",
-            "LANGFUSE_HOST"
-        ]
+        required_vars = ["LANGFUSE_SECRET_KEY", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_HOST"]
 
         missing_vars = [var for var in required_vars if not os.getenv(var)]
 
@@ -79,13 +72,19 @@ def init_langfuse_tracing(
         import sys
 
         # Silenciar todos los loggers relacionados con telemetría
-        for logger_name in ["openlit", "opentelemetry", "opentelemetry.sdk",
-                           "opentelemetry.exporter", "opentelemetry.metrics"]:
+        for logger_name in [
+            "openlit",
+            "opentelemetry",
+            "opentelemetry.sdk",
+            "opentelemetry.exporter",
+            "opentelemetry.metrics",
+        ]:
             logging.getLogger(logger_name).setLevel(logging.CRITICAL)
             logging.getLogger(logger_name).propagate = False
 
         # Suppress OpenTelemetry stdout
         import os
+
         os.environ["OTEL_LOG_LEVEL"] = "CRITICAL"
         os.environ["OTEL_PYTHON_LOG_LEVEL"] = "CRITICAL"
 
@@ -120,11 +119,7 @@ def is_langfuse_enabled() -> bool:
     Returns:
         True if environment variables are configured
     """
-    required_vars = [
-        "LANGFUSE_SECRET_KEY",
-        "LANGFUSE_PUBLIC_KEY",
-        "LANGFUSE_HOST"
-    ]
+    required_vars = ["LANGFUSE_SECRET_KEY", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_HOST"]
 
     return all(os.getenv(var) for var in required_vars)
 

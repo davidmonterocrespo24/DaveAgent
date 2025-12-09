@@ -16,12 +16,13 @@ except ImportError:
     print("Error importing DaveAgentCLI. Make sure 'src' is in pythonpath.")
     sys.exit(1)
 
+
 class SWESolver:
     def __init__(self, model_override=None):
         # Initialize in headless mode (no interactive CLI) for evaluation
         self.app = DaveAgentCLI(debug=False, model=model_override, headless=True)
         # Ensure we are in agent mode
-        self.app.current_mode = "agente"
+        self.app.current_mode = "agent"
 
         # INCREASE tool iteration limit for complex debugging tasks
         # Default is 5, but SWE-bench tasks may need more exploration
@@ -84,11 +85,11 @@ PROBLEM TO SOLVE:
 START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix it, etc etc."""
 
             print(f"Solving problem: {problem_statement[:100]}...")
-            print("\n" + "="*50)
+            print("\n" + "=" * 50)
             print("PROBLEM STATEMENT")
-            print("="*50)
+            print("=" * 50)
             print(problem_statement)
-            print("="*50 + "\n")
+            print("=" * 50 + "\n")
 
             task = TextMessage(content=focused_task, source="user")
 
@@ -98,7 +99,8 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
                 print("[DEBUG] Creating task message...")
                 print(f"[DEBUG] Task content length: {len(focused_task)} chars")
                 print(f"[DEBUG] main_team type: {type(self.app.main_team)}")
-                print(f"[DEBUG] main_team participants: {len(self.app.main_team._participants) if hasattr(self.app.main_team, '_participants') else 'unknown'}")
+                print(
+                    f"[DEBUG] main_team participants: {len(self.app.main_team._participants) if hasattr(self.app.main_team, '_participants') else 'unknown'}")
 
                 print("\n[EVAL] Starting agent with 10-minute timeout...")
                 print("[DEBUG] Calling main_team.run()...")
@@ -123,7 +125,7 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
                     content = getattr(msg, 'content', '')
                     msg_type = type(msg).__name__
 
-                    print(f"[DEBUG] Message {i+1}:")
+                    print(f"[DEBUG] Message {i + 1}:")
                     print(f"  - Source: {source}")
                     print(f"  - Type: {msg_type}")
                     print(f"  - Content length: {len(str(content))} chars")
@@ -149,7 +151,7 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
                 traceback.print_exc()
 
             print("Task execution finished.")
-            
+
         except Exception as e:
             print(f"Error solving task: {e}")
             import traceback
@@ -164,6 +166,6 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
             if hasattr(self.app, 'memory_manager'):
                 await self.app.memory_manager.close()
             if hasattr(self.app, 'state_manager'):
-                 await self.app.state_manager.close()
+                await self.app.state_manager.close()
         except Exception as e:
-             print(f"Error closing resources: {e}")
+            print(f"Error closing resources: {e}")

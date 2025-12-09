@@ -1,13 +1,13 @@
 """
 Document Indexer - Index codebase files into memory
 """
-import re
+
 import asyncio
+import logging
+import re
+from autogen_core.memory import Memory, MemoryContent, MemoryMimeType
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-import logging
-
-from autogen_core.memory import Memory, MemoryContent, MemoryMimeType
 
 
 class DocumentIndexer:
@@ -19,10 +19,7 @@ class DocumentIndexer:
     """
 
     def __init__(
-        self,
-        memory: Memory,
-        chunk_size: int = 1500,
-        ignore_patterns: Optional[List[str]] = None
+        self, memory: Memory, chunk_size: int = 1500, ignore_patterns: Optional[List[str]] = None
     ):
         """
         Initialize the document indexer
@@ -56,12 +53,33 @@ class DocumentIndexer:
 
         # Supported file extensions
         self.supported_extensions = {
-            ".py", ".js", ".ts", ".jsx", ".tsx",
-            ".java", ".cpp", ".c", ".cs", ".go",
-            ".rs", ".rb", ".php", ".swift", ".kt",
-            ".scala", ".html", ".css", ".scss",
-            ".json", ".yaml", ".yml", ".toml",
-            ".md", ".txt", ".sh", ".bash"
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".java",
+            ".cpp",
+            ".c",
+            ".cs",
+            ".go",
+            ".rs",
+            ".rb",
+            ".php",
+            ".swift",
+            ".kt",
+            ".scala",
+            ".html",
+            ".css",
+            ".scss",
+            ".json",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".md",
+            ".txt",
+            ".sh",
+            ".bash",
         }
 
     def _should_ignore(self, path: Path) -> bool:
@@ -95,10 +113,7 @@ class DocumentIndexer:
         Returns:
             Dictionary with extracted metadata
         """
-        metadata = {
-            "functions": [],
-            "classes": []
-        }
+        metadata = {"functions": [], "classes": []}
 
         try:
             if language == "python":
@@ -164,12 +179,14 @@ class DocumentIndexer:
             else:
                 # Save current chunk if not empty
                 if current_chunk.strip():
-                    chunks.append({
-                        "content": current_chunk.strip(),
-                        "chunk_index": chunk_index,
-                        "file_path": file_path,
-                        "language": language
-                    })
+                    chunks.append(
+                        {
+                            "content": current_chunk.strip(),
+                            "chunk_index": chunk_index,
+                            "file_path": file_path,
+                            "language": language,
+                        }
+                    )
                     chunk_index += 1
 
                 # Start new chunk with current section
@@ -177,12 +194,14 @@ class DocumentIndexer:
 
         # Add remaining chunk
         if current_chunk.strip():
-            chunks.append({
-                "content": current_chunk.strip(),
-                "chunk_index": chunk_index,
-                "file_path": file_path,
-                "language": language
-            })
+            chunks.append(
+                {
+                    "content": current_chunk.strip(),
+                    "chunk_index": chunk_index,
+                    "file_path": file_path,
+                    "language": language,
+                }
+            )
 
         return chunks
 
@@ -270,14 +289,14 @@ class DocumentIndexer:
                             flat_metadata[key] = ", ".join(str(v) for v in value)
                         else:
                             flat_metadata[key] = value
-                    
+
                     chunk_metadata.update(flat_metadata)
 
                 await self.memory.add(
                     MemoryContent(
                         content=chunk_data["content"],
                         mime_type=MemoryMimeType.TEXT,
-                        metadata=chunk_metadata
+                        metadata=chunk_metadata,
                     )
                 )
 
@@ -289,10 +308,7 @@ class DocumentIndexer:
             return 0
 
     async def index_directory(
-        self,
-        directory: Path,
-        recursive: bool = True,
-        max_files: Optional[int] = None
+        self, directory: Path, recursive: bool = True, max_files: Optional[int] = None
     ) -> Dict[str, int]:
         """
         Index all supported files in a directory
@@ -305,12 +321,7 @@ class DocumentIndexer:
         Returns:
             Dictionary with indexing statistics
         """
-        stats = {
-            "files_indexed": 0,
-            "files_skipped": 0,
-            "chunks_created": 0,
-            "errors": 0
-        }
+        stats = {"files_indexed": 0, "files_skipped": 0, "chunks_created": 0, "errors": 0}
 
         try:
             # Get list of files to index
@@ -321,10 +332,9 @@ class DocumentIndexer:
 
             # Filter to supported files and respect ignore patterns
             files_to_index = [
-                f for f in files
-                if f.is_file()
-                and self._is_supported_file(f)
-                and not self._should_ignore(f)
+                f
+                for f in files
+                if f.is_file() and self._is_supported_file(f) and not self._should_ignore(f)
             ]
 
             # Limit number of files if specified
@@ -359,9 +369,7 @@ class DocumentIndexer:
         return stats
 
     async def index_project(
-        self,
-        project_dir: Optional[Path] = None,
-        max_files: Optional[int] = None
+        self, project_dir: Optional[Path] = None, max_files: Optional[int] = None
     ) -> Dict[str, int]:
         """
         Index the entire project directory
@@ -379,9 +387,7 @@ class DocumentIndexer:
         self.logger.info(f"🚀 Starting project indexing: {project_dir}")
 
         stats = await self.index_directory(
-            directory=project_dir,
-            recursive=True,
-            max_files=max_files
+            directory=project_dir, recursive=True, max_files=max_files
         )
 
         return stats

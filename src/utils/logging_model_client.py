@@ -9,8 +9,8 @@ This wrapper is placed around the real model_client and captures:
 
 Records everything in the JSONLogger for complete traceability.
 """
+
 import logging
-from typing import Any, Dict, List, Optional, Sequence, Union
 from autogen_core.models import ChatCompletionClient, RequestUsage
 from autogen_core.models import (
     LLMMessage,
@@ -18,9 +18,10 @@ from autogen_core.models import (
     SystemMessage,
     UserMessage,
     AssistantMessage,
-    FunctionExecutionResultMessage
+    FunctionExecutionResultMessage,
 )
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 
 class LoggingModelClientWrapper:
@@ -33,7 +34,9 @@ class LoggingModelClientWrapper:
         agent = AssistantAgent(model_client=wrapped_client, ...)
     """
 
-    def __init__(self, wrapped_client: ChatCompletionClient, json_logger, agent_name: str = "Unknown"):
+    def __init__(
+        self, wrapped_client: ChatCompletionClient, json_logger, agent_name: str = "Unknown"
+    ):
         """
         Args:
             wrapped_client: The real client (OpenAIChatCompletionClient)
@@ -46,11 +49,7 @@ class LoggingModelClientWrapper:
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"🔧 LoggingModelClientWrapper initialized for agent: {agent_name}")
 
-    async def create(
-        self,
-        messages: Sequence[LLMMessage],
-        **kwargs
-    ) -> CreateResult:
+    async def create(self, messages: Sequence[LLMMessage], **kwargs) -> CreateResult:
         """
         Intercepts the create() method and records input/output
 
@@ -67,46 +66,52 @@ class LoggingModelClientWrapper:
         # Extract message content for logging
         input_messages = []
         for msg in processed_messages:
-            msg_dict = {
-                "role": self._get_role(msg),
-                "content": self._get_content(msg)
-            }
+            msg_dict = {"role": self._get_role(msg), "content": self._get_content(msg)}
             # Include reasoning_content if it exists (for DeepSeek Reasoner)
-            if hasattr(msg, 'reasoning_content') and msg.reasoning_content:
+            if hasattr(msg, "reasoning_content") and msg.reasoning_content:
                 msg_dict["reasoning_content"] = msg.reasoning_content
             input_messages.append(msg_dict)
 
         # Log: LLM call started
-        self.logger.info(f"🤖 LLM call started: {self._agent_name}, {len(processed_messages)} messages")
+        self.logger.info(
+            f"🤖 LLM call started: {self._agent_name}, {len(processed_messages)} messages"
+        )
 
         start_time = datetime.now()
 
         try:
             # Call the real client with processed messages + all kwargs
-            result = await self._wrapped.create(
-                messages=processed_messages,
-                **kwargs
-            )
+            result = await self._wrapped.create(messages=processed_messages, **kwargs)
 
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
             # Extract response and reasoning_content (for DeepSeek Reasoner)
-            response_content = result.content if hasattr(result, 'content') else str(result)
-            reasoning_content = getattr(result, 'reasoning_content', None)
+            response_content = result.content if hasattr(result, "content") else str(result)
+            reasoning_content = getattr(result, "reasoning_content", None)
 
             # Extract token usage
             tokens_used = None
-            if hasattr(result, 'usage') and result.usage:
+            if hasattr(result, "usage") and result.usage:
                 tokens_used = {
-                    "prompt_tokens": result.usage.prompt_tokens if hasattr(result.usage, 'prompt_tokens') else 0,
-                    "completion_tokens": result.usage.completion_tokens if hasattr(result.usage, 'completion_tokens') else 0,
-                    "total_tokens": (result.usage.prompt_tokens + result.usage.completion_tokens) if hasattr(result.usage, 'prompt_tokens') else 0
+                    "prompt_tokens": (
+                        result.usage.prompt_tokens if hasattr(result.usage, "prompt_tokens") else 0
+                    ),
+                    "completion_tokens": (
+                        result.usage.completion_tokens
+                        if hasattr(result.usage, "completion_tokens")
+                        else 0
+                    ),
+                    "total_tokens": (
+                        (result.usage.prompt_tokens + result.usage.completion_tokens)
+                        if hasattr(result.usage, "prompt_tokens")
+                        else 0
+                    ),
                 }
 
             # Record in JSONLogger
             if self._json_logger:
-                model_name = self._wrapped.model if hasattr(self._wrapped, 'model') else "unknown"
+                model_name = self._wrapped.model if hasattr(self._wrapped, "model") else "unknown"
 
                 # Add timing and model information
                 llm_call_data = {
@@ -117,18 +122,22 @@ class LoggingModelClientWrapper:
                     "duration_seconds": duration,
                     "input_messages": input_messages,
                     "response": response_content,
-                    "tokens_used": tokens_used or {}
+                    "tokens_used": tokens_used or {},
                 }
 
                 # Add reasoning_content if it exists (DeepSeek Reasoner)
                 if reasoning_content:
                     llm_call_data["reasoning_content"] = reasoning_content
-                    self.logger.debug(f"💭 Reasoning content captured: {len(reasoning_content)} chars")
+                    self.logger.debug(
+                        f"💭 Reasoning content captured: {len(reasoning_content)} chars"
+                    )
 
                 # Add to events manually (more direct than using log_llm_call)
                 self._json_logger.events.append(llm_call_data)
 
-                self.logger.info(f"✅ LLM call logged: {self._agent_name}, {duration:.2f}s, tokens={tokens_used.get('total_tokens', 0) if tokens_used else 0}")
+                self.logger.info(
+                    f"✅ LLM call logged: {self._agent_name}, {duration:.2f}s, tokens={tokens_used.get('total_tokens', 0) if tokens_used else 0}"
+                )
 
             return result
 
@@ -140,7 +149,9 @@ class LoggingModelClientWrapper:
             if self._json_logger:
                 self._json_logger.log_error(e, context=f"LLM call failed for {self._agent_name}")
 
-            self.logger.error(f"❌ LLM call failed: {self._agent_name}, {duration:.2f}s, error: {e}")
+            self.logger.error(
+                f"❌ LLM call failed: {self._agent_name}, {duration:.2f}s, error: {e}"
+            )
             raise
 
     def _get_role(self, message: LLMMessage) -> str:
@@ -158,7 +169,7 @@ class LoggingModelClientWrapper:
 
     def _get_content(self, message: LLMMessage) -> str:
         """Extracts the message content"""
-        if hasattr(message, 'content'):
+        if hasattr(message, "content"):
             content = message.content
             # If it's a list (FunctionCall), convert to string
             if isinstance(content, list):
@@ -192,9 +203,11 @@ class LoggingModelClientWrapper:
             processed.append(msg)
 
             # Log if we find reasoning_content
-            if isinstance(msg, AssistantMessage) and hasattr(msg, 'reasoning_content'):
+            if isinstance(msg, AssistantMessage) and hasattr(msg, "reasoning_content"):
                 if msg.reasoning_content:
-                    self.logger.info(f"💭 Preserving reasoning_content in assistant message: {len(msg.reasoning_content)} chars")
+                    self.logger.info(
+                        f"💭 Preserving reasoning_content in assistant message: {len(msg.reasoning_content)} chars"
+                    )
 
         return processed
 

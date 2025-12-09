@@ -1,24 +1,23 @@
 """
 CSV File Tools - AutoGen Format
 """
+
 import logging
-from typing import List, Dict, Any
 from importlib import util
+from typing import List, Dict, Any
 
 
 def _check_pandas():
     """Checks if pandas is installed"""
-    if util.find_spec('pandas') is None:
+    if util.find_spec("pandas") is None:
         raise ImportError("pandas package not available. Install with: pip install pandas")
     import pandas as pd
+
     return pd
 
 
 async def read_csv(
-    filepath: str,
-    delimiter: str = ',',
-    encoding: str = 'utf-8',
-    max_rows: int = None
+    filepath: str, delimiter: str = ",", encoding: str = "utf-8", max_rows: int = None
 ) -> str:
     """
     Reads a CSV file and returns its contents.
@@ -35,12 +34,7 @@ async def read_csv(
     try:
         pd = _check_pandas()
 
-        df = pd.read_csv(
-            filepath,
-            delimiter=delimiter,
-            encoding=encoding,
-            nrows=max_rows
-        )
+        df = pd.read_csv(filepath, delimiter=delimiter, encoding=encoding, nrows=max_rows)
 
         output = f"CSV: {filepath}\n"
         output += f"Rows: {len(df)}, Columns: {len(df.columns)}\n\n"
@@ -60,11 +54,7 @@ async def read_csv(
 
 
 async def write_csv(
-    filepath: str,
-    data: str,
-    delimiter: str = ',',
-    mode: str = 'w',
-    encoding: str = 'utf-8'
+    filepath: str, data: str, delimiter: str = ",", mode: str = "w", encoding: str = "utf-8"
 ) -> str:
     """
     Writes data to a CSV file.
@@ -81,10 +71,10 @@ async def write_csv(
     """
     try:
         # Write string directly as CSV
-        with open(filepath, mode, encoding=encoding, newline='') as f:
+        with open(filepath, mode, encoding=encoding, newline="") as f:
             f.write(data)
-            if not data.endswith('\n'):
-                f.write('\n')
+            if not data.endswith("\n"):
+                f.write("\n")
 
         return f"✓ Data written to {filepath}"
 
@@ -94,7 +84,7 @@ async def write_csv(
         return error_msg
 
 
-async def csv_info(filepath: str, delimiter: str = ',', encoding: str = 'utf-8') -> str:
+async def csv_info(filepath: str, delimiter: str = ",", encoding: str = "utf-8") -> str:
     """
     Gets statistical information about a CSV file.
 
@@ -127,7 +117,7 @@ async def csv_info(filepath: str, delimiter: str = ',', encoding: str = 'utf-8')
                 output += f"  - {col}: {nulls[col]} nulls\n"
 
         output += "\nNumeric statistics:\n"
-        numeric_df = df.select_dtypes(include=['number'])
+        numeric_df = df.select_dtypes(include=["number"])
         if not numeric_df.empty:
             output += numeric_df.describe().to_string()
         else:
@@ -142,11 +132,7 @@ async def csv_info(filepath: str, delimiter: str = ',', encoding: str = 'utf-8')
 
 
 async def filter_csv(
-    filepath: str,
-    column: str,
-    value: str,
-    output_file: str = None,
-    delimiter: str = ','
+    filepath: str, column: str, value: str, output_file: str = None, delimiter: str = ","
 ) -> str:
     """
     Filters a CSV by a column value.
@@ -190,11 +176,7 @@ async def filter_csv(
 
 
 async def merge_csv_files(
-    file1: str,
-    file2: str,
-    output_file: str,
-    on_column: str = None,
-    how: str = 'inner'
+    file1: str, file2: str, output_file: str, on_column: str = None, how: str = "inner"
 ) -> str:
     """
     Merges two CSV files.
@@ -239,11 +221,7 @@ async def merge_csv_files(
         return error_msg
 
 
-async def csv_to_json(
-    csv_file: str,
-    json_file: str,
-    orient: str = 'records'
-) -> str:
+async def csv_to_json(csv_file: str, json_file: str, orient: str = "records") -> str:
     """
     Converts a CSV file to JSON.
 
@@ -270,10 +248,7 @@ async def csv_to_json(
 
 
 async def sort_csv(
-    filepath: str,
-    column: str,
-    output_file: str = None,
-    ascending: bool = True
+    filepath: str, column: str, output_file: str = None, ascending: bool = True
 ) -> str:
     """
     Sorts a CSV file by a column.

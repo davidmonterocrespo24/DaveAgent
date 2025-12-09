@@ -8,7 +8,7 @@ from src.memory.memory_types import (
     ConversationMemory,
     CodebaseMemory,
     DecisionMemory,
-    UserPreferencesMemory
+    UserPreferencesMemory,
 )
 
 __all__ = [

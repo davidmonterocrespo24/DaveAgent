@@ -1,8 +1,8 @@
 import difflib
-from src.tools.common import get_workspace
-from src.utils.llm_edit_fixer import _llm_fix_edit
-from src.utils.linter import lint_code_check
 
+from src.tools.common import get_workspace
+from src.utils.linter import lint_code_check
+from src.utils.llm_edit_fixer import _llm_fix_edit
 
 """
 File System Operations - Smart Edit v2 (With Auto-Correction)
@@ -13,26 +13,34 @@ import ast
 import hashlib
 from pathlib import Path
 
+
 # --- Helper Functions ---
 
+
 def _normalize_line_endings(text: str) -> str:
-    return text.replace('\r\n', '\n')
+    return text.replace("\r\n", "\n")
+
 
 def _detect_line_ending(content: str) -> str:
-    return '\r\n' if '\r\n' in content else '\n'
+    return "\r\n" if "\r\n" in content else "\n"
+
 
 def _restore_line_endings(content: str, original_ending: str) -> str:
-    if original_ending == '\n':
+    if original_ending == "\n":
         return content
-    return content.replace('\n', '\r\n')
+    return content.replace("\n", "\r\n")
+
 
 def _escape_regex(s: str) -> str:
     return re.escape(s)
 
+
 def _hash_content(content: str) -> str:
-    return hashlib.sha256(content.encode('utf-8')).hexdigest()
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
 
 # --- Replacement Strategies ---
+
 
 def _calculate_exact_replacement(current_content: str, old_string: str, new_string: str):
     occurrences = current_content.count(old_string)
@@ -41,24 +49,25 @@ def _calculate_exact_replacement(current_content: str, old_string: str, new_stri
         return new_content, occurrences
     return None, 0
 
+
 def _calculate_flexible_replacement(current_content: str, old_string: str, new_string: str):
     source_lines = current_content.splitlines(keepends=True)
     search_lines = old_string.splitlines()
     replace_lines = new_string.splitlines()
     search_lines_stripped = [line.strip() for line in search_lines if line.strip()]
-    
+
     if not search_lines_stripped:
         return None, 0
 
     flexible_occurrences = 0
     new_source_lines = []
     i = 0
-    
+
     while i < len(source_lines):
         potential_match = True
         search_idx = 0
         temp_idx = i
-        
+
         while search_idx < len(search_lines_stripped) and temp_idx < len(source_lines):
             src_line = source_lines[temp_idx].strip()
             if not src_line:
@@ -69,11 +78,12 @@ def _calculate_flexible_replacement(current_content: str, old_string: str, new_s
                 break
             search_idx += 1
             temp_idx += 1
-        
+
         if potential_match and search_idx == len(search_lines_stripped):
             flexible_occurrences += 1
             first_line_match = source_lines[i]
-            indentation = re.match(r"^(\s*)", first_line_match).group(1)
+            match = re.match(r"^(\s*)", first_line_match)
+            indentation = match.group(1) if match else ""
             for r_line in replace_lines:
                 new_source_lines.append(f"{indentation}{r_line}\n")
             i = temp_idx
@@ -85,37 +95,44 @@ def _calculate_flexible_replacement(current_content: str, old_string: str, new_s
         return "".join(new_source_lines), flexible_occurrences
     return None, 0
 
+
 def _calculate_regex_replacement(current_content: str, old_string: str, new_string: str):
-    delimiters = [r'\(', r'\)', r':', r'\[', r'\]', r'\{', r'\}', r'>', r'<', r'=']
+    delimiters = [r"\(", r"\)", r":", r"\[", r"\]", r"\{", r"\}", r">", r"<", r"="]
     processed = old_string
     for d in delimiters:
         processed = re.sub(f"({d})", r" \1 ", processed)
     tokens = [t for t in processed.split() if t.strip()]
-    
-    if not tokens: return None, 0
+
+    if not tokens:
+        return None, 0
 
     escaped_tokens = [re.escape(t) for t in tokens]
-    pattern_str = r'\s*'.join(escaped_tokens)
-    final_pattern = f"(?m)^(\\s*){pattern_str}" 
-    
+    pattern_str = r"\s*".join(escaped_tokens)
+    final_pattern = f"(?m)^(\\s*){pattern_str}"
+
     try:
         regex = re.compile(final_pattern, re.DOTALL)
     except re.error:
         return None, 0
 
     match = regex.search(current_content)
-    if not match: return None, 0
+    if not match:
+        return None, 0
 
     indentation = match.group(1) or ""
     new_lines = new_string.splitlines()
     new_block = "\n".join([f"{indentation}{line}" for line in new_lines])
-    
-    new_content = current_content[:match.start()] + new_block + current_content[match.end():]
+
+    new_content = current_content[: match.start()] + new_block + current_content[match.end() :]
     return new_content, 1
+
 
 # --- Main Tool Function ---
 
-async def edit_file(target_file: str, old_string: str, new_string: str, instructions: str = "") -> str:
+
+async def edit_file(
+    target_file: str, old_string: str, new_string: str, instructions: str = ""
+) -> str:
     """
     Replaces a specific string in a file with a new string using smart matching strategies.
 
@@ -136,17 +153,19 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
     """
     try:
         workspace = Path(os.getcwd()).resolve()
-        target = workspace / target_file if not Path(target_file).is_absolute() else Path(target_file)
+        target = (
+            workspace / target_file if not Path(target_file).is_absolute() else Path(target_file)
+        )
 
         if not target.exists():
             # Support creating new file if old_string is empty
             if not old_string:
-                with open(target, 'w', encoding='utf-8') as f:
+                with open(target, "w", encoding="utf-8") as f:
                     f.write(new_string)
                 return f"Successfully created new file: {target_file}"
             return f"Error: File '{target_file}' not found."
 
-        with open(target, 'r', encoding='utf-8') as f:
+        with open(target, "r", encoding="utf-8") as f:
             raw_content = f.read()
 
         original_line_ending = _detect_line_ending(raw_content)
@@ -158,7 +177,7 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
         strategies = [
             ("Exact Match", _calculate_exact_replacement),
             ("Flexible Match", _calculate_flexible_replacement),
-            ("Token-based Fuzzy Match", _calculate_regex_replacement)
+            ("Token-based Fuzzy Match", _calculate_regex_replacement),
         ]
 
         new_content = None
@@ -176,10 +195,12 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
         # --- AUTO-CORRECTION ATTEMPT ---
         if count == 0:
             error_msg = "Could not find the 'old_string' using exact, flexible, or regex matching."
-            
+
             # Intentar arreglar con LLM
-            correction = await _llm_fix_edit(instructions, norm_old, norm_new, error_msg, current_content)
-            
+            correction = await _llm_fix_edit(
+                instructions, norm_old, norm_new, error_msg, current_content
+            )
+
             if correction:
                 fixed_old, fixed_new = correction
                 # Reintentar solo Exact Match con los strings corregidos
@@ -188,26 +209,32 @@ async def edit_file(target_file: str, old_string: str, new_string: str, instruct
                     new_content = res
                     count = cnt
                     strategy_used = "LLM Auto-Correction"
-            
-            if count == 0: # Si aún falla
-                return (f"Error: {error_msg}\n"
-                        f"1. Check exact indentation and whitespace.\n"
-                        f"2. Use read_file to verify current content.\n"
-                        f"3. Do NOT escape characters manually.")
+
+            if count == 0:  # Si aún falla
+                return (
+                    f"Error: {error_msg}\n"
+                    f"1. Check exact indentation and whitespace.\n"
+                    f"2. Use read_file to verify current content.\n"
+                    f"3. Do NOT escape characters manually."
+                )
 
         # --- GUARDRAILS ---
-        # 1. No changes check
-        if new_content == current_content:
-             return "Error: The 'new_string' is identical to the found 'old_string'. No changes applied."
+        # 1. Ensure we have content (should never be None at this point due to earlier checks)
+        if new_content is None:
+            return "Error: Failed to generate replacement content."
 
-        # 2. Syntax Check (Modular Linter)
-        lint_error = lint_code_check(target, new_content)
+        # 2. No changes check
+        if new_content == current_content:
+            return "Error: The 'new_string' is identical to the found 'old_string'. No changes applied."
+
+        # 3. Syntax Check (Modular Linter)
+        lint_error = lint_code_check(str(target), new_content)
         if lint_error:
             return f"Error: Your edit caused a syntax error. Edit rejected.\n{lint_error}"
 
         # Save
         final_content = _restore_line_endings(new_content, original_line_ending)
-        with open(target, 'w', encoding='utf-8') as f:
+        with open(target, "w", encoding="utf-8") as f:
             f.write(final_content)
 
         return f"Successfully edited {target_file} using {strategy_used} strategy. ({count} replacements)"

@@ -2,6 +2,7 @@
 Conversation Tracker - Tracks all LLM interactions in JSON format
 Stores in .daveagent/conversations.json with newest first
 """
+
 import json
 import os
 from datetime import datetime
@@ -32,14 +33,14 @@ class ConversationTracker:
     def _load_conversations(self) -> List[Dict[str, Any]]:
         """Load conversations from JSON file"""
         try:
-            with open(self.conversations_file, 'r', encoding='utf-8') as f:
+            with open(self.conversations_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 
     def _save_conversations(self, conversations: List[Dict[str, Any]]):
         """Save conversations to JSON file"""
-        with open(self.conversations_file, 'w', encoding='utf-8') as f:
+        with open(self.conversations_file, "w", encoding="utf-8") as f:
             json.dump(conversations, f, indent=2, ensure_ascii=False)
 
     def log_interaction(
@@ -48,8 +49,9 @@ class ConversationTracker:
         agent_response: str,
         model: str,
         provider: str,
+        *,
         agent_name: str = "DaveAgent",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Log an LLM interaction
@@ -80,7 +82,7 @@ class ConversationTracker:
             "provider": provider,
             "user_request": user_request,
             "agent_response": agent_response,
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
 
         # Add to beginning (newest first)
@@ -147,23 +149,23 @@ class ConversationTracker:
                 "total_conversations": 0,
                 "models_used": {},
                 "providers_used": {},
-                "conversations_by_date": {}
+                "conversations_by_date": {},
             }
 
         # Count by model
-        models = {}
+        models: Dict[str, int] = {}
         for conv in conversations:
             model = conv.get("model", "unknown")
             models[model] = models.get(model, 0) + 1
 
         # Count by provider
-        providers = {}
+        providers: Dict[str, int] = {}
         for conv in conversations:
             provider = conv.get("provider", "unknown")
             providers[provider] = providers.get(provider, 0) + 1
 
         # Count by date
-        by_date = {}
+        by_date: Dict[str, int] = {}
         for conv in conversations:
             date = conv.get("date", "unknown")
             by_date[date] = by_date.get(date, 0) + 1
@@ -174,7 +176,7 @@ class ConversationTracker:
             "providers_used": providers,
             "conversations_by_date": by_date,
             "oldest_conversation": conversations[-1].get("timestamp") if conversations else None,
-            "newest_conversation": conversations[0].get("timestamp") if conversations else None
+            "newest_conversation": conversations[0].get("timestamp") if conversations else None,
         }
 
     def clear_old_conversations(self, days: int = 30):
@@ -191,7 +193,8 @@ class ConversationTracker:
 
         # Filter conversations
         filtered = [
-            conv for conv in conversations
+            conv
+            for conv in conversations
             if datetime.fromisoformat(conv.get("timestamp", "")) > cutoff_date
         ]
 
