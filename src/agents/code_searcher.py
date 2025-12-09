@@ -5,7 +5,6 @@ This agent searches and collects relevant information about code before making m
 
 import re
 from autogen_agentchat.agents import AssistantAgent
-from autogen_core.memory import Memory
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from typing import Dict, List, Optional, Any, AsyncGenerator
 
@@ -21,7 +20,6 @@ class CodeSearcher:
         self,
         model_client: OpenAIChatCompletionClient,
         tools: List,
-        memory: Optional[List[Memory]] = None,
     ):
         """
         Initializes the CodeSearcher agent
@@ -29,7 +27,6 @@ class CodeSearcher:
         Args:
             model_client: LLM model client
             tools: List of tools available to the agent
-            memory: List of vector memories (optional)
         """
         self.model_client = model_client
         self._search_history: List[Dict[str, Any]] = []  # Search history
@@ -43,7 +40,6 @@ class CodeSearcher:
             tools=tools,
             max_tool_iterations=10,  # Allow more iterations for exhaustive search
             reflect_on_tool_use=True,  # Reflect on tool results
-            memory=memory or [],  # Indexed codebase memory
         )
 
     async def search_code_context(self, query: str) -> Dict[str, Any]:
