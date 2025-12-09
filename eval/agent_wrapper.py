@@ -22,7 +22,7 @@ class SWESolver:
         # Initialize in headless mode (no interactive CLI) for evaluation
         self.app = DaveAgentCLI(debug=False, model=model_override, headless=True)
         # Ensure we are in agent mode
-        self.app.current_mode = "agente"
+        self.app.current_mode = "agent"
 
         # INCREASE tool iteration limit for complex debugging tasks
         # Default is 5, but SWE-bench tasks may need more exploration

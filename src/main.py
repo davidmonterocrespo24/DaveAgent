@@ -60,8 +60,8 @@ class DaveAgentCLI:
         # Configure conversation tracker (logs to .daveagent/conversations.json)
         self.conversation_tracker = get_conversation_tracker()
 
-        # Mode system: "agente" (with tools) or "chat" (without modification tools)
-        self.current_mode = "agente"  # Default mode
+        # Mode system: "agent" (with tools) or "chat" (without modification tools)
+        self.current_mode = "agent"  # Default mode
 
         # Load configuration (API key, URL, model)
         from src.config import get_settings
@@ -364,7 +364,7 @@ class DaveAgentCLI:
         errors with "multiple system messages" in models like DeepSeek.
         Instead, they use RAG tools (query_*_memory, save_*).
         """
-        if self.current_mode == "agente":
+        if self.current_mode == "agent":
             # AGENT mode: all tools + technical prompt
             coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
             system_prompt = AGENT_SYSTEM_PROMPT
@@ -582,13 +582,13 @@ class DaveAgentCLI:
             else:
                 self.cli.print_info("No log files configured")
 
-        elif cmd == "/modo-agente":
+        elif cmd == "/modo-agent":
             # Switch to agent mode (with all tools)
-            if self.current_mode == "agente":
+            if self.current_mode == "agent":
                 self.cli.print_info("Already in AGENT mode")
             else:
-                self.current_mode = "agente"
-                self.cli.set_mode("agente")  # Update CLI display
+                self.current_mode = "agent"
+                self.cli.set_mode("agent")  # Update CLI display
                 await self._update_agent_tools_for_mode()
                 self.cli.print_success("🔧 AGENT mode enabled")
                 self.cli.print_info("✓ All tools enabled (read + modification)")
@@ -606,7 +606,7 @@ class DaveAgentCLI:
                 self.cli.print_success("💬 CHAT mode enabled")
                 self.cli.print_info("✓ Only read tools enabled")
                 self.cli.print_info("✗ The agent CANNOT modify files or execute commands")
-                self.cli.print_info("ℹ️  Use /modo-agente to return to full mode")
+                self.cli.print_info("ℹ️  Use /modo-agent to return to full mode")
                 self.logger.info("Mode changed to: CHAT")
 
         elif cmd == "/config" or cmd == "/configuracion":

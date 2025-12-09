@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Script para analizar las interacciones detalladas del agente.
-Lee los logs JSON generados por el agente para cada tarea y genera
+Script para analizar las interacciones detalladas del agent.
+Lee los logs JSON generados por el agent para cada tarea y genera
 análisis de qué herramientas usó, qué archivos leyó, qué errores tuvo, etc.
 """
 
@@ -13,7 +13,7 @@ from collections import Counter, defaultdict
 
 
 def find_json_logs(base_dir):
-    """Busca todos los archivos JSON de logging del agente"""
+    """Busca todos los archivos JSON de logging del agent"""
     json_files = []
 
     # Buscar en .daveagent/logs/ o en el directorio base
@@ -31,7 +31,7 @@ def find_json_logs(base_dir):
 
 
 def analyze_log_file(log_path):
-    """Analiza un archivo de log JSON del agente"""
+    """Analiza un archivo de log JSON del agent"""
     try:
         with open(log_path, 'r', encoding='utf-8') as f:
             logs = [json.loads(line) for line in f if line.strip()]
@@ -127,7 +127,7 @@ def analyze_log_file(log_path):
 
 
 def generate_interaction_report(analyses, output_path):
-    """Genera un reporte HTML de las interacciones del agente"""
+    """Genera un reporte HTML de las interacciones del agent"""
 
     total_tasks = len(analyses)
 
@@ -151,7 +151,7 @@ def generate_interaction_report(analyses, output_path):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis de Interacciones del Agente - {datetime.now().strftime('%Y-%m-%d %H:%M')}</title>
+    <title>Análisis de Interacciones del agent - {datetime.now().strftime('%Y-%m-%d %H:%M')}</title>
     <style>
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -282,7 +282,7 @@ def generate_interaction_report(analyses, output_path):
 </head>
 <body>
     <div class="header">
-        <h1>🔍 Análisis de Interacciones del Agente</h1>
+        <h1>🔍 Análisis de Interacciones del agent</h1>
         <p>Reporte generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
     </div>
 
@@ -432,18 +432,18 @@ def generate_interaction_report(analyses, output_path):
 def main():
     """Función principal"""
     print("=" * 70)
-    print("  Analizador de Interacciones del Agente")
+    print("  Analizador de Interacciones del agent")
     print("=" * 70)
     print()
 
     base_dir = Path(__file__).parent.parent
 
-    print("🔍 Buscando archivos de log del agente...")
+    print("🔍 Buscando archivos de log del agent...")
     log_files = find_json_logs(base_dir)
 
     if not log_files:
         print("⚠️  No se encontraron archivos de log JSON")
-        print("   Verifica que el agente esté configurado para generar logs JSON")
+        print("   Verifica que el agent esté configurado para generar logs JSON")
         return
 
     print(f"   Encontrados {len(log_files)} archivo(s) de log")
@@ -467,7 +467,7 @@ def main():
 
     # Generar reporte
     print("📝 Generando reporte HTML...")
-    output_path = base_dir / 'eval' / f'interacciones_agente_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
+    output_path = base_dir / 'eval' / f'interacciones_agent_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
     generate_interaction_report(analyses, output_path)
 
     print()

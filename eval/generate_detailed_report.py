@@ -2,7 +2,7 @@
 """
 Script para generar un reporte detallado de la evaluación SWE-bench.
 Analiza predictions.jsonl, el reporte de evaluación, y genera un informe completo
-con las interacciones del agente, código generado vs esperado, y análisis de fallos.
+con las interacciones del agent, código generado vs esperado, y análisis de fallos.
 """
 
 import json
@@ -14,7 +14,7 @@ import difflib
 
 
 def load_predictions(predictions_path):
-    """Carga las predicciones del agente"""
+    """Carga las predicciones del agent"""
     predictions = []
     if not os.path.exists(predictions_path):
         print(f"Warning: {predictions_path} not found")
@@ -85,7 +85,7 @@ def categorize_failure(instance_id, prediction, eval_result):
     patch = prediction.get('model_patch', '')
 
     if not patch or not patch.strip():
-        return 'NO_PATCH', 'El agente no generó ningún patch'
+        return 'NO_PATCH', 'El agent no generó ningún patch'
 
     if eval_result is None:
         return 'NOT_EVALUATED', 'No se evaluó (posiblemente error de infraestructura)'
