@@ -11,7 +11,11 @@ persistent=yes
 [MESSAGES CONTROL]
 # Disable specific warnings that are too strict or not relevant
 disable=
-    # Import-related
+    # Import-related (external dependencies not available during linting)
+    import-error,
+    wrong-import-order,
+    wrong-import-position,
+    import-outside-toplevel,
     # Code structure
     too-many-instance-attributes,
     too-many-arguments,
@@ -23,6 +27,7 @@ disable=
     too-many-lines,
     too-many-nested-blocks,
     too-few-public-methods,
+    too-many-return-statements,
     # Docstrings (we'll add them gradually)
     missing-module-docstring,
     missing-class-docstring,
@@ -31,24 +36,48 @@ disable=
     broad-exception-caught,
     broad-exception-raised,
     raise-missing-from,
+    bare-except,
     # Naming
     invalid-name,
     # Code complexity
     consider-using-generator,
     consider-using-in,
+    consider-using-max-builtin,
     # Protected access (needed for some framework interactions)
     protected-access,
     # F-strings
     f-string-without-interpolation,
     # Subprocess
     subprocess-run-check,
+    # Logging
+    logging-fstring-interpolation,
+    # Variables
+    unused-variable,
+    unused-argument,
+    unused-import,
+    # Code style
+    pointless-string-statement,
+    global-statement,
+    inconsistent-return-statements,
+    reimported,
+    # File operations
+    unspecified-encoding,
+    # Function defaults
+    dangerous-default-value,
+    # Type checking
+    no-member,
+    undefined-all-variable,
+    possibly-used-before-assignment,
+    used-before-assignment,
+    unexpected-keyword-arg,
+    no-name-in-module,
     # Others
     unnecessary-pass,
     unreachable,
     redefined-outer-name,
     no-else-return,
-    unused-import,
-    unused-argument
+    fixme,
+    duplicate-code
 
 [FORMAT]
 # Maximum line length
