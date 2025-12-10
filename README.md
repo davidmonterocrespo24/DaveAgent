@@ -39,26 +39,6 @@ You: refactor the code in services/ to use async/await
 You: find all TODOs in the project
 ```
 
-### Data Analysis
-```bash
-cd data-project
-daveagent
-
-You: read the sales.csv file and show a summary
-You: combine all CSVs in the data/ folder into one
-You: convert the configuration JSON to CSV
-```
-
-### Git Operations
-```bash
-cd my-repo
-daveagent
-
-You: commit the changes with a descriptive message
-You: show the diff of the last 3 commits
-You: create a branch feature/new-functionality
-```
-
 ## 📦 Installation
 
 ### Installation from PyPI (Coming Soon)
@@ -169,117 +149,6 @@ You: @config.py @.env update the database connection settings
 You: @src/agents/code_searcher.py add docstrings to all methods
 ```
 
-**Features:**
-- ✅ Interactive selector with keyboard navigation (↑↓)
-- ✅ Real-time search and filtering
-- ✅ Mentioned files have **maximum priority** in context
-- ✅ Supports multiple files in a single query
-- ✅ Automatically excludes hidden and binary files
-
-See [docs/FILE_MENTIONS.md](docs/FILE_MENTIONS.md) and [examples/file_mentions_demo.md](examples/file_mentions_demo.md) for detailed examples.
-
-#### 🧠 Vector Memory System
-
-DaveAgent uses **ChromaDB** to maintain persistent memory between sessions:
-
-```bash
-# Index your project once
-You: /index
-📚 Indexing project in vector memory...
-✅ Indexing completed!
-  • Indexed files: 45
-  • Chunks created: 234
-
-# View memory statistics
-You: /memory
-🧠 Vector Memory Statistics
-
-📚 Active memory system with 4 collections:
-  • Conversations: Conversation history
-  • Codebase: Indexed source code
-  • Decisions: Architectural decisions
-  • Preferences: User preferences
-```
-
-**Memory Benefits:**
-- 💬 **Conversations**: Remembers previous interactions and maintains context
-- 📝 **Code Base**: Semantic searches in your code without grep
-- 🎯 **Decisions**: Maintains consistency in architectural decisions
-- ⚙️ **Preferences**: Learns your preferred coding style
-
-**Agents use memory automatically:**
-- **CodeSearcher**: Queries indexed code for faster searches
-- **Coder**: Remembers previous solutions and style preferences
-- **PlanningAgent**: Maintains consistency with past decisions
-
-See [docs/MEMORY_SYSTEM.md](docs/MEMORY_SYSTEM.md) for complete documentation and [examples/memory_usage_example.py](examples/memory_usage_example.py) for usage examples.
-
-## 🛠️ Available Tools
-
-### Filesystem (7 tools)
-- `read_file` - Read files with line range support
-- `write_file` - Write/create files
-- `edit_file` - Edit files with search & replace
-- `list_dir` - List directory contents
-- `delete_file` - Delete files safely
-- `file_search` - Search for files by name
-- `glob_search` - Search files using glob patterns
-
-### Git (8 tools)
-- `git_status` - Repository status
-- `git_add` - Stage files
-- `git_commit` - Create commits
-- `git_push` - Push changes to remote
-- `git_pull` - Pull changes from remote
-- `git_log` - View commit history
-- `git_branch` - Manage branches
-- `git_diff` - View differences
-
-### JSON (8 tools)
-- `read_json` - Read and parse JSON
-- `write_json` - Write JSON files
-- `merge_json_files` - Combine multiple JSONs
-- `validate_json` - Validate JSON syntax
-- `format_json` - Format/prettify JSON
-- `json_get_value` - Extract values by path
-- `json_set_value` - Set values by path
-- `json_to_text` - Convert to readable text
-
-### CSV (7 tools)
-- `read_csv` - Read CSV files
-- `write_csv` - Write CSV files
-- `csv_info` - Get CSV information/statistics
-- `filter_csv` - Filter rows by conditions
-- `merge_csv_files` - Combine multiple CSVs
-- `csv_to_json` - Convert CSV to JSON
-- `sort_csv` - Sort rows by column
-
-### Web (7 tools)
-- `wiki_search` - Search Wikipedia articles
-- `wiki_summary` - Get article summary
-- `wiki_content` - Get full article content
-- `wiki_page_info` - Get page metadata
-- `wiki_random` - Get random article
-- `wiki_set_language` - Change Wikipedia language
-- `web_search` - General web search
-
-### Analysis (5 tools)
-- `analyze_python_file` - Analyze Python code structure
-- `find_function_definition` - Find function/class definitions
-- `list_all_functions` - List all functions in file
-- `grep_search` - Search text with patterns
-- `run_terminal_cmd` - Execute shell commands
-
-### Memory (RAG) (8 tools)
-- `query_conversation_memory` - Search conversation history
-- `query_codebase_memory` - Search indexed code
-- `query_decision_memory` - Search architectural decisions
-- `query_preferences_memory` - Search user preferences
-- `query_user_memory` - Search user information
-- `save_user_info` - Store user information
-- `save_decision` - Record architectural decision
-- `save_preference` - Save user preference
-
 ## 📖 Examples
 
 ### Example 1: Use CodeSearcher before modifying
@@ -350,8 +219,6 @@ Each file contains detailed logs with format:
 2025-01-31 15:40:22 | DaveAgent | INFO | process_user_request:257 | 📝 New request...
 ```
 
-See [LOGGING_GUIDE.md](LOGGING_GUIDE.md) for more details.
-
 ## 🏗️ Architecture
 
 ```
@@ -399,28 +266,6 @@ DAVEAGENT_MODEL=gpt-4
 DAVEAGENT_BASE_URL=https://api.openai.com/v1
 ```
 
-### SSL Issues (Corporate Networks)
-
-If you experience SSL certificate errors:
-
-1. **Method 1:** Environment variable in `.daveagent/.env`:
-```bash
-DAVEAGENT_SSL_VERIFY=false
-```
-
-2. **Method 2:** Command line argument:
-```bash
-daveagent --no-ssl-verify
-# or
-daveagent --ssl-verify=false
-```
-
-3. **Method 3:** System environment variable:
-```bash
-export DAVEAGENT_SSL_VERIFY=false  # Linux/macOS
-set DAVEAGENT_SSL_VERIFY=false     # Windows
-```
-
 ## 🤝 Contributing
 
 Contributions are welcome! To contribute:
@@ -453,17 +298,7 @@ mypy src/
 - [Installation Guide](INSTALACION.md) - Detailed installation
 - [CodeSearcher Guide](docs/CODESEARCHER_GUIDE.md) - 🔍 Code search and analysis
 - [File Mentions Guide](docs/FILE_MENTIONS.md) - 📎 Mention files with @
-- [File Mentions Demo](examples/file_mentions_demo.md) - Interactive examples
 - [Logging Guide](LOGGING_GUIDE.md) - Logging system
-- [Real-time Visualization](VISUALIZACION_TIEMPO_REAL.md) - See agent thoughts
-- [Changes Made](CAMBIOS_REALIZADOS.md) - Change history
-- [Implemented Improvements](MEJORAS_IMPLEMENTACION.md) - Technical analysis
-
-### For Developers
-- [Publish to PyPI](PUBLICAR_PYPI.md) - Complete guide to publish to PyPI
-- [PyPI Quick Start](INICIO_RAPIDO_PYPI.md) - Publish in 10 minutes
-- [Agent Integration](docs/TEAM_INTEGRATION.md) - Agent team architecture
-
 
 ## 🧪 Evaluation with SWE-bench (Linux)
 
@@ -491,25 +326,11 @@ chmod +x setup_and_run_linux.sh
 
 **Note:** The complete evaluation may take time depending on your connection speed and CPU.
 
-## 🐛 Known Issues
-
-See [CAMBIOS_REALIZADOS.md](CAMBIOS_REALIZADOS.md) for resolved issues.
-
-If you encounter an issue:
-1. Check [existing issues](https://github.com/davidmonterocrespo24/DaveAgent/issues)
-2. Create a new issue with details
-
 ## 📝 License
 
 This project is under the MIT License. See [LICENSE](LICENSE) for more details.
 
-## 🙏 Acknowledgments
-
-- [AutoGen](https://microsoft.github.io/autogen/) - Agent framework
-- [Rich](https://rich.readthedocs.io/) - Terminal formatting
-- [Prompt Toolkit](https://python-prompt-toolkit.readthedocs.io/) - Interactive CLI
-
-## 📞 Contact & Community
+##  Contact & Community
 
 - **Discord Community**: [Join our Discord server](https://discord.gg/2dRTd4Cv) - Get help, report bugs, suggest improvements, and collaborate with other users
 - **GitHub**: https://github.com/davidmonterocrespo24/DaveAgent
@@ -527,6 +348,3 @@ We encourage you to join our Discord server to:
 
 **[Click here to join: https://discord.gg/2dRTd4Cv](https://discord.gg/2dRTd4Cv)**
 
----
-
-Made with ❤️ using [AutoGen 0.4](https://microsoft.github.io/autogen/)
