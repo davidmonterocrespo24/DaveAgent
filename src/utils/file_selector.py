@@ -9,12 +9,26 @@ from typing import List, Optional
 from .file_indexer import FileIndexer
 
 # Try to import readchar for better cross-platform support
-try:
-    import readchar
+import readchar
 
-    HAS_READCHAR = True
-except ImportError:
-    HAS_READCHAR = False
+# Configure UTF-8 output for Windows
+def _setup_utf8_output():
+    """Setup UTF-8 encoding for stdout on Windows"""
+    if os.name == "nt":
+        import io
+        # Use UTF-8 encoding with replace errors for compatibility
+        if hasattr(sys.stdout, 'buffer'):
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+        # Enable ANSI color codes on Windows
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+        except:
+            pass
+
+# Setup output on module import
+_setup_utf8_output()
 
 
 class FileSelector:
@@ -35,47 +49,47 @@ class FileSelector:
 
     def _get_key(self) -> str:
         """Get a single keypress from user"""
-        if HAS_READCHAR:
-            try:
-                key = readchar.readkey()
-                if key == readchar.key.UP:
-                    return "up"
-                elif key == readchar.key.DOWN:
-                    return "down"
-                elif key == readchar.key.ENTER or key == "\r" or key == "\n":
-                    return "enter"
-                elif key == readchar.key.ESC:
-                    return "esc"
-                elif key == readchar.key.BACKSPACE or key == "\x7f" or key == "\x08":
-                    return "backspace"
-                else:
-                    return key
-            except:
-                return ""
-        else:
+        try:
+            key = readchar.readkey()
+            if key == readchar.key.UP:
+                return "up"
+            elif key == readchar.key.DOWN:
+                return "down"
+            elif key == readchar.key.ENTER or key == "\r" or key == "\n":
+                return "enter"
+            elif key == readchar.key.ESC:
+                return "esc"
+            elif key == readchar.key.BACKSPACE or key == "\x7f" or key == "\x08":
+                return "backspace"
+            else:
+                return key
+        except Exception:
             # Windows fallback
             if os.name == "nt":
                 import msvcrt
 
-                if msvcrt.kbhit():
+                while msvcrt.kbhit():
                     key = msvcrt.getch()
-                    if key == b"\xe0":  # Arrow keys
-                        key = msvcrt.getch()
-                        if key == b"H":
-                            return "up"
-                        elif key == b"P":
-                            return "down"
-                    elif key == b"\r":
+                    if key == b"\xe0" or key == b"\x00":  # Arrow/special keys
+                        if msvcrt.kbhit():
+                            key = msvcrt.getch()
+                            if key == b"H":
+                                return "up"
+                            elif key == b"P":
+                                return "down"
+                    elif key == b"\r" or key == b"\n":
                         return "enter"
                     elif key == b"\x1b":
                         return "esc"
-                    elif key == b"\x08":
+                    elif key == b"\x08" or key == b"\x7f":
                         return "backspace"
                     else:
                         try:
-                            return key.decode("utf-8", errors="ignore")
+                            decoded = key.decode("utf-8", errors="ignore")
+                            if decoded and decoded.isprintable():
+                                return decoded
                         except:
-                            return ""
+                            pass
         return ""
 
     def _draw_scrollbar(self, position: int, total: int, height: int) -> str:
@@ -102,6 +116,15 @@ class FileSelector:
         if lines > 0:
             sys.stdout.write(f"\033[{lines}A")
 
+    def _clear_screen(self):
+        """Clear the screen and reset state"""
+        if self.lines_drawn > 0:
+            self._move_cursor_up(self.lines_drawn)
+            # Clear from cursor to end of screen
+            sys.stdout.write("\033[J")
+            sys.stdout.flush()
+        self.lines_drawn = 0
+
     def _render_file_list(self, files: List[str], query: str):
         """
         Render the file list with scrollbar
@@ -116,15 +139,28 @@ class FileSelector:
 
         lines = []
 
-        # Header
-        lines.append(
-            "\033[1m\033[96m📁 File Selector\033[0m \033[2m(↑↓ navigate | Enter select | Esc cancel)\033[0m"
-        )
+        # Header (with emoji fallback for Windows)
+        try:
+            header = "\033[1m\033[96m📁 File Selector\033[0m \033[2m(↑↓ navigate | Enter select | Esc cancel)\033[0m"
+            # Test if emoji can be encoded
+            header.encode(sys.stdout.encoding or 'utf-8')
+            lines.append(header)
+        except (UnicodeEncodeError, LookupError):
+            # Fallback without emoji
+            lines.append(
+                "\033[1m\033[96mFile Selector\033[0m \033[2m(up/down navigate | Enter select | Esc cancel)\033[0m"
+            )
+
         lines.append(f"\033[2mSearch:\033[0m @{query}\033[K")  # Clear to end of line
-        lines.append("\033[2m" + "─" * 70 + "\033[0m")
+        lines.append("\033[2m" + "-" * 70 + "\033[0m")
 
         if not files:
-            lines.append("\033[93m⚠ No files found\033[0m\033[K")
+            try:
+                no_files_msg = "\033[93m⚠ No files found\033[0m\033[K"
+                no_files_msg.encode(sys.stdout.encoding or 'utf-8')
+                lines.append(no_files_msg)
+            except (UnicodeEncodeError, LookupError):
+                lines.append("\033[93m! No files found\033[0m\033[K")
             for _ in range(self.max_display_items - 1):
                 lines.append("\033[K")  # Empty line with clear
         else:
@@ -173,12 +209,12 @@ class FileSelector:
         if files:
             total = len(files)
             current = self.selected_index + 1
-            lines.append("\033[2m" + "─" * 70 + "\033[0m")
+            lines.append("\033[2m" + "-" * 70 + "\033[0m")
             lines.append(
                 f"\033[2mFile {current}/{total} | Showing {start_idx + 1}-{min(end_idx, total)}\033[0m\033[K"
             )
         else:
-            lines.append("\033[2m" + "─" * 70 + "\033[0m")
+            lines.append("\033[2m" + "-" * 70 + "\033[0m")
             lines.append("\033[2mNo files to display\033[0m\033[K")
 
         # Clear any remaining lines from previous render if new render is shorter
@@ -284,7 +320,12 @@ def select_file_interactive(root_dir: str = ".", initial_query: str = "") -> Opt
     indexer = FileIndexer(root_dir)
 
     # Show indexing message
-    print("\033[2m📁 Indexing files...\033[0m", end="", flush=True)
+    try:
+        print("\033[2m📁 Indexing files...\033[0m", end="", flush=True)
+    except UnicodeEncodeError:
+        # Fallback for limited encoding support
+        print("\033[2mIndexing files...\033[0m", end="", flush=True)
+
     indexer.index_directory()
 
     # Clear indexing message
@@ -292,7 +333,10 @@ def select_file_interactive(root_dir: str = ".", initial_query: str = "") -> Opt
     sys.stdout.flush()
 
     if indexer.get_file_count() == 0:
-        print("\033[93m⚠ No files found in directory\033[0m")
+        try:
+            print("\033[93m⚠ No files found in directory\033[0m")
+        except UnicodeEncodeError:
+            print("\033[93m! No files found in directory\033[0m")
         return None
 
     selector = FileSelector(indexer)

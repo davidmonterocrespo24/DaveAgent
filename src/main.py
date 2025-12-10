@@ -24,9 +24,9 @@ from src.config import (
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
 from src.managers import StateManager
-from src.memory import MemoryManager, DocumentIndexer
 from src.observability import init_langfuse_tracing, is_langfuse_enabled
 from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
+from src.skills import SkillManager
 
 
 class DaveAgentCLI:
@@ -156,15 +156,18 @@ class DaveAgentCLI:
         )
         self.logger.info(f"✅ Router client created with model: {router_model}")
 
-        # Memory system with ChromaDB (initialize BEFORE creating agents)
-        self.memory_manager = MemoryManager(
-            k=5, score_threshold=0.3  # Top 5 most relevant results  # Similarity threshold
-        )
-
         # State management system (AutoGen save_state/load_state)
         self.state_manager = StateManager(
             auto_save_enabled=True, auto_save_interval=300  # Auto-save every 5 minutes
         )
+
+        # Agent Skills system (Claude-compatible)
+        self.skill_manager = SkillManager(logger=self.logger)
+        skill_count = self.skill_manager.discover_skills()
+        if skill_count > 0:
+            self.logger.info(f"✓ Loaded {skill_count} agent skills")
+        else:
+            self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
 
         # Observability system with Langfuse (simple method with OpenLit)
         self.langfuse_enabled = False
@@ -231,20 +234,7 @@ class DaveAgentCLI:
             list_all_functions,
             grep_search,
             run_terminal_cmd,
-            # Memory (RAG)
-            query_conversation_memory,
-            query_codebase_memory,
-            query_decision_memory,
-            query_preferences_memory,
-            query_user_memory,
-            save_user_info,
-            save_decision,
-            save_preference,
-            set_memory_manager,
         )
-
-        # Configure memory manager for memory tools
-        set_memory_manager(self.memory_manager)
 
         # Store all tools to filter them according to mode
         self.all_tools = {
@@ -276,12 +266,6 @@ class DaveAgentCLI:
                 find_function_definition,
                 list_all_functions,
                 grep_search,
-                # Memory query tools (read-only, available in both modes)
-                query_conversation_memory,
-                query_codebase_memory,
-                query_decision_memory,
-                query_preferences_memory,
-                query_user_memory,
             ],
             # MODIFICATION tools (only in agent mode)
             "modification": [
@@ -301,10 +285,6 @@ class DaveAgentCLI:
                 csv_to_json,
                 sort_csv,
                 run_terminal_cmd,
-                # Memory save tools (modification mode only)
-                save_user_info,
-                save_decision,
-                save_preference,
             ],
             # Specific tools for CodeSearcher (always available)
             "search": [
@@ -316,9 +296,6 @@ class DaveAgentCLI:
                 analyze_python_file,
                 find_function_definition,
                 list_all_functions,
-                # Memory query tools for CodeSearcher
-                query_codebase_memory,
-                query_conversation_memory,
             ],
         }
 
@@ -374,6 +351,17 @@ class DaveAgentCLI:
             coder_tools = self.all_tools["read_only"]
             system_prompt = CHAT_SYSTEM_PROMPT
             self.logger.info("💬 Initializing in CHAT mode (read-only)")
+
+        # =====================================================================
+        # INJECT SKILL METADATA INTO SYSTEM PROMPT
+        # =====================================================================
+        # Add available skills metadata so the agent knows what skills exist
+        # and can identify when to use them based on user requests
+        # =====================================================================
+        skill_metadata = self.skill_manager.get_skills_metadata()
+        if skill_metadata:
+            system_prompt = system_prompt + f"\n\n<available_skills>\n{skill_metadata}\n</available_skills>"
+            self.logger.debug(f"Injected {len(self.skill_manager)} skill(s) metadata into prompt")
 
         # =====================================================================
         # IMPORTANT: DO NOT use parameter 'memory' - CAUSES ERROR WITH DEEPSEEK
@@ -475,9 +463,6 @@ class DaveAgentCLI:
 
         This creates new instances of all agents with the correct
         configuration for the mode (tools + system prompt).
-
-        IMPORTANT: Also cleans conversation history and RECREATES the MemoryManager
-        to avoid conflicts with multiple system messages in models like DeepSeek.
         """
         self.logger.info(f"🔄 Reinitializing complete system for mode: {self.current_mode.upper()}")
 
@@ -486,31 +471,7 @@ class DaveAgentCLI:
             self.logger.debug("🧹 Cleaning StateManager session...")
             self.state_manager.clear_current_session()
 
-        # STEP 2: RECREATE MemoryManager completely to get clean memories
-        # This is CRITICAL because even without conversation_memory, AutoGen maintains
-        # internal history in ChromaDB collections
-        self.logger.debug("🧹 Reinitializing complete MemoryManager...")
-        old_memory = self.memory_manager
-
-        # Close the previous one (async) BEFORE creating new one to release locks
-        if old_memory:
-            try:
-                await old_memory.close()
-                self.logger.debug("✅ Previous MemoryManager closed")
-            except Exception as e:
-                self.logger.warning(f"⚠️  Error closing previous MemoryManager: {e}")
-
-        # Create NEW MemoryManager with completely clean collections
-        self.memory_manager = MemoryManager(k=5, score_threshold=0.3)
-
-        # Close the previous one (async) - ALREADY CLOSED ABOVE
-        # try:
-        #     await old_memory.close()
-        #     self.logger.debug("✅ Previous MemoryManager closed")
-        # except Exception as e:
-        #     self.logger.warning(f"⚠️  Error closing previous MemoryManager: {e}")
-
-        # STEP 3: Reinitialize agents with RAG tools (without memory parameter)
+        # STEP 2: Reinitialize agents
         # Agents will use RAG tools instead of memory parameter
         self.logger.debug("🔧 Creating new agents...")
         self._initialize_agents_for_mode()
@@ -712,24 +673,17 @@ class DaveAgentCLI:
                 self.cli.print_thinking(f"🔍 Searching in code: {query}")
                 await self._run_code_searcher(query)
 
-        elif cmd == "/index":
-            # Index project in memory
-            self.cli.print_info("📚 Indexing project in vector memory...")
-            await self._index_project()
+        elif cmd == "/skills":
+            # List available agent skills
+            await self._list_skills_command()
 
-        elif cmd == "/memory":
-            # Show memory statistics
+        elif cmd == "/skill-info":
+            # Show skill details
             if len(parts) < 2:
-                await self._show_memory_stats()
+                self.cli.print_error("Usage: /skill-info <skill-name>")
+                self.cli.print_info("Use /skills to see available skills")
             else:
-                subcommand = parts[1].lower()
-                if subcommand == "clear":
-                    await self._clear_memory()
-                elif subcommand == "query":
-                    self.cli.print_info("Usage: /memory query <text>")
-                else:
-                    self.cli.print_error(f"Unknown subcommand: {subcommand}")
-                    self.cli.print_info("Usage: /memory [clear|query]")
+                await self._show_skill_info_command(parts[1])
 
         else:
             self.cli.print_error(f"Unknown command: {cmd}")
@@ -738,99 +692,99 @@ class DaveAgentCLI:
         return True
 
     # =========================================================================
-    # MEMORY MANAGEMENT - Vector memory management
+    # SKILLS MANAGEMENT - Agent Skills (Claude-compatible)
     # =========================================================================
 
-    async def _index_project(self):
-        """Index current project in vector memory"""
+    async def _list_skills_command(self):
+        """List all available agent skills"""
         try:
-            from pathlib import Path
+            skills = self.skill_manager.get_all_skills()
 
-            self.cli.start_thinking()
-            self.logger.info("📚 Starting project indexing...")
+            if not skills:
+                self.cli.print_info("\n🎯 No agent skills loaded")
+                self.cli.print_info("\nTo add skills, create directories with SKILL.md files in:")
+                self.cli.print_info(f"  • Personal: {self.skill_manager.personal_skills_dir}")
+                self.cli.print_info(f"  • Project: {self.skill_manager.project_skills_dir}")
+                return
 
-            # Create indexer
-            indexer = DocumentIndexer(memory=self.memory_manager.codebase_memory, chunk_size=1500)
+            self.cli.print_info(f"\n🎯 Available Agent Skills ({len(skills)} loaded)\n")
 
-            # Index current directory
-            project_dir = Path.cwd()
-            stats = await indexer.index_project(
-                project_dir=project_dir, max_files=500  # Limit to 500 files to avoid overload
-            )
+            # Group by source
+            personal_skills = [s for s in skills if s.source == "personal"]
+            project_skills = [s for s in skills if s.source == "project"]
+            plugin_skills = [s for s in skills if s.source == "plugin"]
 
-            self.cli.stop_thinking()
+            if personal_skills:
+                self.cli.print_info("📁 Personal Skills:")
+                for skill in personal_skills:
+                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    self.cli.print_info(f"  • {skill.name}: {desc}")
 
-            # Show statistics
-            self.cli.print_success(f"✅ Indexing completed!")
-            self.cli.print_info(f"  • Files indexed: {stats['files_indexed']}")
-            self.cli.print_info(f"  • Chunks created: {stats['chunks_created']}")
-            self.cli.print_info(f"  • Files skipped: {stats['files_skipped']}")
-            if stats["errors"] > 0:
-                self.cli.print_warning(f"  • Errors: {stats['errors']}")
+            if project_skills:
+                self.cli.print_info("\n📂 Project Skills:")
+                for skill in project_skills:
+                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    self.cli.print_info(f"  • {skill.name}: {desc}")
 
-            self.logger.info(f"✅ Project indexed: {stats}")
+            if plugin_skills:
+                self.cli.print_info("\n🔌 Plugin Skills:")
+                for skill in plugin_skills:
+                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    self.cli.print_info(f"  • {skill.name}: {desc}")
+
+            self.cli.print_info("\n💡 Use /skill-info <name> for details")
 
         except Exception as e:
-            self.cli.stop_thinking()
-            self.logger.log_error_with_context(e, "_index_project")
-            self.cli.print_error(f"Error indexing project: {str(e)}")
+            self.logger.log_error_with_context(e, "_list_skills_command")
+            self.cli.print_error(f"Error listing skills: {str(e)}")
 
-    async def _show_memory_stats(self):
-        """Show memory statistics"""
+    async def _show_skill_info_command(self, skill_name: str):
+        """Show detailed information about a skill"""
         try:
-            self.cli.print_info("\n🧠 Vector Memory Statistics\n")
+            skill = self.skill_manager.get_skill(skill_name)
 
-            # Note: ChromaDB doesn't easily expose item counts
-            # We could do dummy queries or maintain counters
-            # For now, show general information
+            if not skill:
+                self.cli.print_error(f"Skill not found: {skill_name}")
+                self.cli.print_info("Use /skills to see available skills")
+                return
 
-            self.cli.print_info("📚 Active memory system with 5 collections:")
-            self.cli.print_info("  • Conversations: Conversation history")
-            self.cli.print_info("  • Codebase: Indexed source code")
-            self.cli.print_info("  • Decisions: Architectural decisions")
-            self.cli.print_info("  • Preferences: User preferences")
-            self.cli.print_info("  • User Info: User information (name, experience, projects)")
+            self.cli.print_info(f"\n🎯 Skill: {skill.name}\n")
+            self.cli.print_info(f"📝 Description: {skill.description}")
+            self.cli.print_info(f"📁 Source: {skill.source}")
+            self.cli.print_info(f"📂 Path: {skill.path}")
 
-            memory_path = self.memory_manager.persistence_path
-            self.cli.print_info(f"\n💾 Location: {memory_path}")
+            if skill.allowed_tools:
+                self.cli.print_info(f"🔧 Allowed Tools: {', '.join(skill.allowed_tools)}")
 
-            # Calculate memory directory size
-            try:
-                from pathlib import Path
+            if skill.license:
+                self.cli.print_info(f"📜 License: {skill.license}")
 
-                total_size = sum(
-                    f.stat().st_size for f in Path(memory_path).rglob("*") if f.is_file()
-                )
-                size_mb = total_size / (1024 * 1024)
-                self.cli.print_info(f"📊 Total size: {size_mb:.2f} MB")
-            except Exception as e:
-                self.logger.warning(f"Could not calculate size: {e}")
+            # Show available resources
+            resources = []
+            if skill.has_scripts:
+                scripts = [s.name for s in skill.get_scripts()]
+                resources.append(f"Scripts: {', '.join(scripts)}")
+            if skill.has_references:
+                refs = [r.name for r in skill.get_references()]
+                resources.append(f"References: {', '.join(refs)}")
+            if skill.has_assets:
+                resources.append("Assets: available")
 
-            self.cli.print_info("\n💡 Available commands:")
-            self.cli.print_info("  • /index - Index current project")
-            self.cli.print_info("  • /memory clear - Clear all memory")
+            if resources:
+                self.cli.print_info("\n📦 Resources:")
+                for res in resources:
+                    self.cli.print_info(f"  • {res}")
+
+            # Show first part of instructions
+            if skill.instructions:
+                preview = skill.instructions[:500]
+                if len(skill.instructions) > 500:
+                    preview += "..."
+                self.cli.print_info(f"\n📋 Instructions Preview:\n{preview}")
 
         except Exception as e:
-            self.logger.log_error_with_context(e, "_show_memory_stats")
-            self.cli.print_error(f"Error showing statistics: {str(e)}")
-
-    async def _clear_memory(self):
-        """Clear all vector memory"""
-        try:
-            self.cli.print_warning("⚠️  Are you sure you want to delete ALL memory?")
-            self.cli.print_info("This will remove:")
-            self.cli.print_info("  • Conversation history")
-            self.cli.print_info("  • Indexed codebase")
-            self.cli.print_info("  • Architectural decisions")
-            self.cli.print_info("  • User preferences")
-
-            # In CLI we don't have easy interactive confirmation
-            # For safety, require a second command
-            self.cli.print_warning("\n⚠️  To confirm, execute: /memory clear confirm")
-
-        except Exception as e:
-            self.logger.log_error_with_context(e, "_clear_memory")
-            self.cli.print_error(f"Error clearing memory: {str(e)}")
+            self.logger.log_error_with_context(e, "_show_skill_info_command")
+            self.cli.print_error(f"Error showing skill info: {str(e)}")
 
     # =========================================================================
     # STATE MANAGEMENT - State management with AutoGen save_state/load_state
@@ -2001,25 +1955,6 @@ TITLE:"""
 
             self.logger.debug(f"📝 Interaction logged to JSON with ID: {interaction_id}")
 
-            # NEW: Also save to vector memory (async)
-            # This allows future agents to find relevant conversations
-            # ChromaDB only accepts str, int, float, bool in metadata - convert lists to strings
-            import asyncio
-
-            asyncio.create_task(
-                self.memory_manager.add_conversation(
-                    user_input=user_input,
-                    agent_response=combined_response,
-                    metadata={
-                        "agents_used": ", ".join(agents_used) if agents_used else "",
-                        "tools_called": ", ".join(tools_called) if tools_called else "",
-                        "interaction_id": interaction_id,
-                        "model": self.settings.model,
-                        "provider": provider,
-                    },
-                )
-            )
-
         except Exception as e:
             self.logger.error(f"Error logging interaction to JSON: {str(e)}")
             # Don't fail the whole request if logging fails
@@ -2193,12 +2128,6 @@ TITLE:"""
                 await self.state_manager.close()
             except Exception as e:
                 self.logger.error(f"Error closing state: {e}")
-
-            # Close memory system
-            try:
-                await self.memory_manager.close()
-            except Exception as e:
-                self.logger.error(f"Error closing memory: {e}")
 
             # Langfuse: OpenLit does automatic flush on exit
             if self.langfuse_enabled:
