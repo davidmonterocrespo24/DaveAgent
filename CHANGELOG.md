@@ -5,6 +5,35 @@ All notable changes to DaveAgent will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2025-12-09
+
+### Added
+- Added keyword-only arguments to several functions for improved clarity and usability
+- Added a history viewer, logger, setup wizard, and conversation tracker utilities
+- Added a GitHub Actions workflow for comprehensive code quality checks (linting, formatting, type checking, security)
+- Added a terminal execution tool with safety checks and a Bandit security linter configuration
+- Added AI model provider configuration and selection utility
+- Added a web search tool
+- Added `tiktoken` dependency to the project
+- Added comprehensive GitHub Actions workflows for testing, documentation, and PyPI publishing
+- Added a release guide and notes, and renamed the package to `daveagent-cli`
+
+### Changed
+- Updated Python version matrix in workflows to include Python 3.12
+- Updated Mypy import discovery to use `files` and disabled `namespace_packages`
+- Expanded disabled Pylint checks for import, error, variable, and type-related issues
+- Updated project dependencies
+- Relocated documentation files to a dedicated `docs` directory
+
+### Fixed
+- Corrected the spelling of "agent" in multiple files
+- Updated model client access for wrapped instances and enhanced history viewer checks
+- Improved error message formatting for JavaScript linting
+- Removed an unnecessary uninstall step from `reinstall_agent.sh`
+
+### Performance
+- Optimized the DeepSeek Reasoning Client for improved `reasoning_content` handling
+
 ## [1.0.3] - 2025-01-10
 
 ### Added
@@ -63,3 +92,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.0.2]: https://github.com/davidmonterocrespo24/DaveAgent/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/davidmonterocrespo24/DaveAgent/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.0
+
+[1.0.4]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.4

@@ -36,3 +36,6 @@ htmlcov/
 .agent_history
 .claude/settings.local.json
 src/.daveagent/*
+.publicar/*
+publish_to_test.bat
+.publicar_discord/*
