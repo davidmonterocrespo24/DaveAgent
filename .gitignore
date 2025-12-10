@@ -35,3 +35,4 @@ htmlcov/
 .daveagent/*
 .agent_history
 .claude/settings.local.json
+src/.daveagent/*
