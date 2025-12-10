@@ -10,7 +10,7 @@ long_description = (this_directory / "README.md").read_text(encoding='utf-8') if
 
 setup(
     name="daveagent-cli",
-    version="1.0.0",
+    version="1.0.4",
     author="DaveAgent Team",
     author_email="davidmonterocrespo24@gmail.com",
     description="AI-powered coding assistant with intelligent agent orchestration - search, plan, and code with AI",
