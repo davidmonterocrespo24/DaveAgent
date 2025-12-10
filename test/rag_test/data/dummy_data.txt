@@ -1,0 +1,22 @@
+Agente Inteligente con RAG
+Un sistema de Generación Aumentada por Recuperación (RAG) combina la potencia de los modelos de lenguaje (LLMs) con una base de conocimientos externa.
+Esto permite al modelo responder preguntas con información actualizada y específica que no estaba en sus datos de entrenamiento original.
+
+Componentes del RAG:
+1. Retrieval (Recuperación): Busca fragmentos relevantes en una base de datos vectorial.
+2. Augmentation (Aumento): Agrega estos fragmentos al prompt del usuario.
+3. Generation (Generación): El LLM genera una respuesta basada en el contexto enriquecido.
+
+DeepSeek Coder
+DeepSeek Coder es un modelo de lenguaje especializado en programación.
+Soporta múltiples lenguajes y tiene una ventana de contexto amplia.
+Es capaz de razonar sobre código complejo y sugerir refactorizaciones.
+
+DaveAgent
+DaveAgent es un asistente de codificación autónomo que utiliza DeepSeek.
+Puede leer archivos, escribir código, y ejecutar comandos.
+Tiene un sistema de plugins y habilidades para extender sus capacidades.
+Configuración:
+- API Key: Se carga desde .daveagent/.env
+- Modelo: Configurable (default: deepseek-reasoner)
+- Base URL: https://api.deepseek.com

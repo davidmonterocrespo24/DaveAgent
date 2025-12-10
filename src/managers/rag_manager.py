@@ -1,656 +1,440 @@
-"""
-RAG Manager - Advanced vector database operations with LangChain integration.
-
-This manager provides methods to:
-- Create and manage collections
-- Add documents/text with Parent Document Retrieval strategy
-- Advanced search with RAG Fusion & Multi-Query
-- Reciprocal Rank Fusion for better results
-- Manage embeddings
-"""
-import chromadb
-from chromadb.config import Settings
-from typing import List, Dict, Any, Optional, Tuple
+import os
 import uuid
 import logging
+import sqlite3
+import json
+import math
 from pathlib import Path
-import os
+from typing import List, Dict, Any, Optional, Tuple, Union
 from collections import defaultdict
-from langchain.storage._lc_store import create_kv_docstore
-from langchain.storage import LocalFileStore
-# LangChain imports
-from langchain_chroma import Chroma
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate
+import re
 
-# Try new HuggingFaceEmbeddings first, fall back to deprecated version
-try:
-    from langchain_huggingface import HuggingFaceEmbeddings
-except ImportError:
-    from langchain_community.embeddings import HuggingFaceBgeEmbeddings as HuggingFaceEmbeddings
+# Librerías Core
+import chromadb
+from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+from chromadb.config import Settings
+import openai
+from sentence_transformers import SentenceTransformer
+import httpx
 
-# Local imports
+# Configuration
+from src.config.settings import DaveAgentSettings
 
-_logger = logging.getLogger(__name__)
+# Configuración de Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-
-class RAGManager:
+# -----------------------------------------------------------------------------
+# 1. Custom Text Splitter (Reemplazo de LangChain RecursiveCharacterTextSplitter)
+# -----------------------------------------------------------------------------
+class TextSplitter:
     """
-    Advanced RAG Manager with Parent Document Retrieval and RAG Fusion.
-
-    Features:
-    1. Parent Document Retrieval: Splits documents into small chunks for embeddings
-       but returns full parent documents for context
-    2. RAG Fusion: Generates multiple query variations and uses RRF to rank results
-    3. Multi-Query: Improves search by generating multiple perspectives of the query
+    Implementación nativa de split recursivo para dividir texto inteligentemente
+    respetando estructuras gramaticales.
     """
+    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        # Orden de separadores: Párrafos -> Líneas -> Oraciones -> Palabras -> Caracteres
+        self.separators = ["\n\n", "\n", ". ", " ", ""]
 
-    def __init__(self, persist_directory: str = "./chroma_db"):
-        """
-        Initialize RAG Manager with advanced retrieval capabilities.
+    def split_text(self, text: str) -> List[str]:
+        final_chunks = []
+        if self._length_function(text) <= self.chunk_size:
+            return [text]
+        
+        # Estrategia recursiva
+        self._split_text_recursive(text, self.separators, final_chunks)
+        return final_chunks
 
-        Args:
-            persist_directory: Directory where ChromaDB will store data
-        """
+    def _split_text_recursive(self, text: str, separators: List[str], final_chunks: List[str]):
+        """Función recursiva interna."""
+        final_separator = separators[-1]
+        separator = separators[0]
+        
+        # Encontrar el separador adecuado
+        for s in separators:
+            if s == "":
+                separator = s
+                break
+            if s in text:
+                separator = s
+                break
+        
+        # Dividir
+        splits = list(text) if separator == "" else text.split(separator)
+        new_separators = separators[1:] if len(separators) > 1 else separators
 
-        self.persist_directory = Path(persist_directory)
-        self.persist_directory.mkdir(parents=True, exist_ok=True)
+        good_splits = []
+        _separator_len = len(separator)
 
-        # Create docstore directory for parent documents
-        self.docstore_directory = self.persist_directory / "docstore"
-        self.docstore_directory.mkdir(parents=True, exist_ok=True)
+        for s in splits:
+            if self._length_function(s) < self.chunk_size:
+                good_splits.append(s)
+            else:
+                # Si el fragmento es muy grande, procesar lo acumulado y recursar en el grande
+                if good_splits:
+                    merged = self._merge_splits(good_splits, separator)
+                    final_chunks.extend(merged)
+                    good_splits = []
+                if not new_separators:
+                    final_chunks.append(s) # Caso base extremo
+                else:
+                    self._split_text_recursive(s, new_separators, final_chunks)
+        
+        if good_splits:
+            merged = self._merge_splits(good_splits, separator)
+            final_chunks.extend(merged)
 
-        # Get OpenAI API key from environment (for LLM query generation)
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+    def _merge_splits(self, splits: List[str], separator: str) -> List[str]:
+        """Une splits pequeños hasta alcanzar el chunk_size con overlap."""
+        docs = []
+        current_doc = []
+        total_len = 0
+        
+        for d in splits:
+            _len = self._length_function(d)
+            if total_len + _len + (len(current_doc) * len(separator)) > self.chunk_size:
+                if total_len > 0:
+                    doc_text = separator.join(current_doc)
+                    docs.append(doc_text)
+                    
+                    # Lógica de Overlap: Mantener los últimos chunks que quepan
+                    while total_len > self.chunk_overlap or (total_len + _len > self.chunk_size and total_len > 0):
+                        total_len -= (self._length_function(current_doc[0]) + len(separator))
+                        current_doc.pop(0)
+            
+            current_doc.append(d)
+            total_len += _len
+            
+        if current_doc:
+            docs.append(separator.join(current_doc))
+        return docs
 
-        # Initialize embeddings with BGE-M3 (multilingual model)
+    def _length_function(self, text: str) -> int:
+        return len(text)
+
+# -----------------------------------------------------------------------------
+# 2. SQLite DocStore (Almacenamiento rápido de documentos padres)
+# -----------------------------------------------------------------------------
+class SQLiteDocStore:
+    """Almacena los documentos 'Padre' completos para recuperación por ID."""
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self._init_db()
+
+    def _init_db(self):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS documents (
+                id TEXT PRIMARY KEY,
+                content TEXT,
+                metadata TEXT
+            )
+        ''')
+        conn.commit()
+        conn.close()
+
+    def add_documents(self, doc_ids: List[str], contents: List[str], metadatas: List[Dict]):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        data = []
+        for i, doc_id in enumerate(doc_ids):
+            meta_json = json.dumps(metadatas[i]) if metadatas[i] else "{}"
+            data.append((doc_id, contents[i], meta_json))
+        
+        cursor.executemany('INSERT OR REPLACE INTO documents VALUES (?, ?, ?)', data)
+        conn.commit()
+        conn.close()
+
+    def get_document(self, doc_id: str) -> Optional[Dict[str, Any]]:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT content, metadata FROM documents WHERE id = ?', (doc_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                "content": row[0],
+                "metadata": json.loads(row[1])
+            }
+        return None
+
+# -----------------------------------------------------------------------------
+# 3. Hybrid Embedding Function (Compatible con ChromaDB)
+# -----------------------------------------------------------------------------
+class AdvancedEmbeddingFunction(EmbeddingFunction):
+    """
+    Maneja embeddings automáticamente.
+    Intenta cargar BGE-M3 (local/huggingface), si falla usa OpenAI.
+    """
+    def __init__(self, settings: DaveAgentSettings, use_gpu: bool = False):
+        self.model = None
+        self.openai_client = None
+        
+        # Intenta cargar SentenceTransformer (Local - Gratis y Potente)
         try:
             model_name = "BAAI/bge-m3"
-            model_kwargs = {'device': 'cpu'}
-            encode_kwargs = {'normalize_embeddings': True}
-
-            self.embeddings = HuggingFaceEmbeddings(
-                model_name=model_name,
-                model_kwargs=model_kwargs,
-                encode_kwargs=encode_kwargs
-            )
-            _logger.info(f"[RAG] Using BGE-M3 embeddings model: {model_name}")
+            device = "cuda" if use_gpu else "cpu"
+            logger.info(f"[RAG] Cargando modelo local: {model_name} en {device}...")
+            self.model = SentenceTransformer(model_name, device=device)
+            logger.info("[RAG] Modelo BGE-M3 cargado exitosamente.")
         except Exception as e:
-            _logger.error(f"[RAG] Error loading BGE-M3 model: {e}")
-            _logger.warning("[RAG] No embeddings configured!")
-
-        # Initialize ChromaDB client
-        self.client = chromadb.PersistentClient(
-            path=str(self.persist_directory),
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=True
-            )
-        )
-
-        # Storage for collections and their configurations
-        self.collections = {}
-        self.vectorstores = {}  # LangChain Chroma instances
-        self.docstores = {}     # FileDocstore for parent documents (persisted to disk as JSON)
-
-        # Text splitters for Parent Document Retrieval
-        self.parent_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=2000,
-            chunk_overlap=200,
-            add_start_index=True
-        )
-
-        self.child_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=400,
-            chunk_overlap=50,
-            add_start_index=True
-        )
-
-        # LLM for query generation (RAG Fusion)
-        self.llm = ChatOpenAI(
-            temperature=0,
-            model="gpt-3.5-turbo",
-            api_key=self.openai_api_key
-        ) if self.openai_api_key else None
-
-        _logger.info(f"[RAG] Initialized Advanced RAG Manager at: {self.persist_directory}")
-
-    def get_or_create_collection(
-        self,
-        collection_name: str,
-        use_langchain: bool = True,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Any:
-        """
-        Get existing collection or create a new one.
-
-        Args:
-            collection_name: Name of the collection
-            use_langchain: Whether to use LangChain Chroma wrapper
-            metadata: Optional metadata for the collection
-
-        Returns:
-            ChromaDB collection or LangChain Chroma vectorstore
-        """
-        try:
-            if use_langchain and self.embeddings:
-                # Use LangChain Chroma wrapper for advanced features
-                if collection_name not in self.vectorstores:
-                    vectorstore = Chroma(
-                        collection_name=collection_name,
-                        embedding_function=self.embeddings,
-                        persist_directory=str(self.persist_directory),
-                        client=self.client  # Reuse existing client
-                    )
-                    self.vectorstores[collection_name] = vectorstore
-
-                    # Create persistent docstore for parent documents
-                    if collection_name not in self.docstores:
-                        # Create a FileDocstore for this collection
-                        collection_docstore_path = self.docstore_directory / collection_name
-                        collection_docstore_path.mkdir(parents=True, exist_ok=True)
-
-                        fs = LocalFileStore(str(collection_docstore_path))
-                        docstore = create_kv_docstore(fs)
-                        self.docstores[collection_name] = docstore
-
-                        _logger.info(f"[RAG] Created persistent docstore for '{collection_name}' at {collection_docstore_path}")
-
-                    _logger.info(f"[RAG] LangChain collection '{collection_name}' ready")
-
-                return self.vectorstores[collection_name]
-            else:
-                # Use standard ChromaDB
-                if collection_name in self.collections:
-                    return self.collections[collection_name]
-
-                collection = self.client.get_or_create_collection(
-                    name=collection_name,
-                    metadata=metadata or {"description": "RAG collection"}
-                )
-                self.collections[collection_name] = collection
-                _logger.info(f"[RAG] Standard collection '{collection_name}' ready")
-
-                return collection
-
-        except Exception as e:
-            _logger.error(f"[RAG] Error creating collection: {e}")
-            raise
-
-    def add_text_with_parent_retrieval(
-        self,
-        collection_name: str,
-        text: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        doc_id: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Add text using Parent Document Retrieval strategy.
-
-        Process:
-        1. Split text into parent chunks (2000 chars)
-        2. Split parent chunks into child chunks (400 chars)
-        3. Store child chunks in vectorstore with embeddings
-        4. Store parent chunks in docstore for retrieval
-
-        Args:
-            collection_name: Name of the collection
-            text: Text content to add
-            metadata: Optional metadata for the document
-            doc_id: Optional parent document ID
-
-        Returns:
-            Dictionary with parent and child IDs
-        """
-        try:
-            if not self.embeddings:
-                _logger.warning("[RAG] No embeddings configured, falling back to simple add")
-                return {"error": "Embeddings not configured"}
-
-            vectorstore = self.get_or_create_collection(collection_name, use_langchain=True)
-            docstore = self.docstores[collection_name]
-
-            # Create parent document
-            parent_doc = Document(
-                page_content=text,
-                metadata=metadata or {}
-            )
-
-            # Generate parent ID
-            if doc_id is None:
-                doc_id = str(uuid.uuid4())
-
-            # Split into parent chunks
-            parent_chunks = self.parent_splitter.split_documents([parent_doc])
-
-            all_child_ids = []
-            parent_ids = []
-
-            for i, parent_chunk in enumerate(parent_chunks):
-                # Generate parent chunk ID
-                parent_chunk_id = f"{doc_id}_parent_{i}"
-                parent_ids.append(parent_chunk_id)
-
-                # Store parent chunk in docstore
-                docstore.mset([(parent_chunk_id, parent_chunk)])
-
-                # Split parent into children
-                child_chunks = self.child_splitter.split_documents([parent_chunk])
-
-                # Add parent ID to child metadata
-                for child in child_chunks:
-                    child.metadata["parent_id"] = parent_chunk_id
-                    child.metadata["source"] = metadata.get("source", "manual") if metadata else "manual"
-
-                # Add children to vectorstore
-                child_ids = vectorstore.add_documents(child_chunks)
-                all_child_ids.extend(child_ids)
-
-            _logger.info(
-                f"[RAG] Added to '{collection_name}': "
-                f"{len(parent_ids)} parent chunks, {len(all_child_ids)} child chunks"
-            )
-
-            return {
-                "parent_id": doc_id,
-                "parent_chunk_ids": parent_ids,
-                "child_chunk_ids": all_child_ids,
-                "num_parents": len(parent_ids),
-                "num_children": len(all_child_ids)
-            }
-
-        except Exception as e:
-            _logger.error(f"[RAG] Error in parent retrieval add: {e}")
-            raise
-
-    def generate_multi_queries(self, query: str, num_queries: int = 3) -> List[str]:
-        """
-        Generate multiple variations of a query using LLM.
-
-        This is the Multi-Query technique for RAG Fusion.
-
-        Args:
-            query: Original user query
-            num_queries: Number of query variations to generate
-
-        Returns:
-            List of query variations (including original)
-        """
-        if not self.llm:
-            _logger.warning("[RAG] LLM not configured, returning original query only")
-            return [query]
-
-        try:
-            prompt = ChatPromptTemplate.from_template(
-                """You are an AI assistant helping to improve search queries.
-                Given the original query, generate {num_queries} different variations that ask the same thing
-                but from different perspectives or using different phrasings.
-
-                Original query: {query}
-
-                Generate {num_queries} variations (one per line):"""
-            )
-
-            response = self.llm.invoke(
-                prompt.format(query=query, num_queries=num_queries)
-            )
-
-            # Parse response
-            variations = [line.strip() for line in response.content.strip().split('\n') if line.strip()]
-
-            # Ensure we have the original query
-            all_queries = [query] + variations[:num_queries]
-
-            _logger.info(f"[RAG] Generated {len(all_queries)} query variations")
-            return all_queries
-
-        except Exception as e:
-            _logger.error(f"[RAG] Error generating queries: {e}")
-            return [query]
-
-    def reciprocal_rank_fusion(
-        self,
-        search_results_list: List[List[Tuple[Document, float]]],
-        k: int = 60
-    ) -> List[Tuple[Document, float]]:
-        """
-        Apply Reciprocal Rank Fusion (RRF) to combine multiple search results.
-
-        RRF formula: score(doc) = sum(1 / (k + rank(doc, query_i)))
-
-        Args:
-            search_results_list: List of search results from different queries
-            k: Constant for RRF (default: 60)
-
-        Returns:
-            Fused and re-ranked results
-        """
-        # Track scores for each unique document
-        doc_scores = defaultdict(float)
-        doc_objects = {}  # Store document objects
-
-        for search_results in search_results_list:
-            for rank, (doc, _score) in enumerate(search_results, start=1):
-                # Use page_content as unique identifier
-                doc_id = doc.page_content
-
-                # RRF score (only rank matters, not the original score)
-                rrf_score = 1.0 / (k + rank)
-                doc_scores[doc_id] += rrf_score
-
-                # Store document object
-                if doc_id not in doc_objects:
-                    doc_objects[doc_id] = doc
-
-        # Sort by RRF score
-        sorted_docs = sorted(
-            doc_scores.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
-
-        # Return as list of (Document, score) tuples
-        results = [
-            (doc_objects[doc_id], score)
-            for doc_id, score in sorted_docs
-        ]
-
-        _logger.info(f"[RAG] RRF fused {len(search_results_list)} result sets into {len(results)} unique docs")
-        return results
-
-    def search_with_rag_fusion(
-        self,
-        collection_name: str,
-        query: str,
-        n_results: int = 5,
-        num_query_variations: int = 3,
-        return_parent: bool = True,
-        filter: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Advanced search using RAG Fusion and Parent Document Retrieval.
-        
-        Process:
-        1. Generate multiple query variations (Multi-Query)
-        2. Search with each variation
-        3. Apply Reciprocal Rank Fusion to combine results
-        4. Return parent documents if enabled
-        
-        Args:
-            collection_name: Name of the collection to search
-            query: Search query
-            n_results: Number of final results to return
-            num_query_variations: Number of query variations to generate
-            return_parent: Whether to return parent documents instead of child chunks
-            filter: Metadata filter for the search
+            logger.warning(f"[RAG] No se pudo cargar modelo local ({e}). Usando OpenAI.")
             
-        Returns:
-            Dictionary with search results and metadata
-        """
-        try:
-            if collection_name not in self.vectorstores:
-                _logger.warning(f"[RAG] Collection '{collection_name}' not found in vectorstores")
-                # Fall back to simple search
-                return self.search(collection_name, query, n_results)
+            if not settings.api_key:
+                raise ValueError("Se requiere API Key configurada si falla el modelo local.")
+            
+            # Configure HTTP client for Custom SSL if needed
+            http_client = httpx.Client(verify=settings.ssl_verify)
 
-            vectorstore = self.vectorstores[collection_name]
-            docstore = self.docstores.get(collection_name)
-
-            # Step 1: Generate query variations
-            queries = self.generate_multi_queries(query, num_query_variations)
-            _logger.info(f"[RAG] Searching with {len(queries)} query variations")
-
-            # Step 2: Search with each query variation
-            all_search_results = []
-            for q in queries:
-                results = vectorstore.similarity_search_with_score(q, k=n_results * 2, filter=filter)
-                all_search_results.append(results)
-
-            # Step 3: Apply Reciprocal Rank Fusion
-            fused_results = self.reciprocal_rank_fusion(all_search_results)
-
-            # Step 4: Get parent documents if requested
-            final_results = []
-            seen_parents = set()
-
-            for doc, score in fused_results[:n_results * 3]:  # Get more to account for duplicates
-                if return_parent and docstore:
-                    # Try to get parent document
-                    parent_id = doc.metadata.get("parent_id")
-                    if parent_id and parent_id not in seen_parents:
-                        parent_doc = docstore.mget([parent_id])[0] if parent_id else None
-                        if parent_doc:
-                            # Parent document found
-                            final_results.append({
-                                "document": parent_doc.page_content,
-                                "metadata": parent_doc.metadata,
-                                "score": float(score),
-                                "parent_id": parent_id,
-                                "retrieval_type": "parent"
-                            })
-                            seen_parents.add(parent_id)
-                        else:
-                            # Parent not found in docstore, fall back to child chunk
-                            final_results.append({
-                                "document": doc.page_content,
-                                "metadata": doc.metadata,
-                                "score": float(score),
-                                "retrieval_type": "child (parent unavailable)"
-                            })
-                    elif not parent_id:
-                        # No parent_id in metadata, return child chunk
-                        final_results.append({
-                            "document": doc.page_content,
-                            "metadata": doc.metadata,
-                            "score": float(score),
-                            "retrieval_type": "child"
-                        })
-                else:
-                    # Return child chunk
-                    final_results.append({
-                        "document": doc.page_content,
-                        "metadata": doc.metadata,
-                        "score": float(score),
-                        "retrieval_type": "child"
-                    })
-
-                # Stop when we have enough results
-                if len(final_results) >= n_results:
-                    break
-
-            _logger.info(
-                f"[RAG] RAG Fusion search returned {len(final_results)} results "
-                f"(type: {'parent' if return_parent else 'child'})"
+            self.openai_client = openai.Client(
+                api_key=settings.api_key,
+                base_url=settings.base_url,
+                http_client=http_client
             )
 
-            return {
-                "query": query,
-                "query_variations": queries,
-                "results": final_results,
-                "count": len(final_results),
-                "fusion_method": "reciprocal_rank_fusion",
-                "retrieval_strategy": "parent_document" if return_parent else "child_chunk"
-            }
+    def __call__(self, input: Documents) -> Embeddings:
+        if self.model:
+            # Normalizar embeddings es crucial para similitud coseno
+            embeddings = self.model.encode(input, normalize_embeddings=True)
+            return embeddings.tolist()
+        elif self.openai_client:
+            # OpenAI text-embedding-3-small es barato y bueno
+            # Check if using local LLM (like LM Studio) which might not have this specific model
+            # For now default to standard openai model or text-embedding-ada-002
+            model_to_use = "text-embedding-3-small"
+            
+            response = self.openai_client.embeddings.create(
+                input=input,
+                model=model_to_use
+            )
+            return [data.embedding for data in response.data]
+        return []
 
-        except Exception as e:
-            _logger.error(f"[RAG] Error in RAG Fusion search: {e}")
-            raise
-
-    # Keep existing simple methods for backward compatibility
-    def add_text(
-        self,
-        collection_name: str,
-        text: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        doc_id: Optional[str] = None
-    ) -> str:
-        """
-        Simple text addition (backward compatible).
-        Uses parent retrieval if embeddings are available.
-        """
-        result = self.add_text_with_parent_retrieval(
-            collection_name, text, metadata, doc_id
-        )
-        if isinstance(result, dict) and "parent_id" in result:
-            return result["parent_id"]
-        return str(uuid.uuid4())
-
-    def search(
-        self,
-        collection_name: str,
-        query: str,
-        n_results: int = 5,
-        where: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Simple search (backward compatible).
-        Always tries to use RAG Fusion with LangChain if embeddings are available.
-        """
-        # Try to load collection with LangChain (this will reuse existing collection)
-        if self.embeddings:
-            try:
-                # Load with LangChain to use the correct embeddings
-                vectorstore = self.get_or_create_collection(collection_name, use_langchain=True)
-
-                # Now use RAG Fusion
-                return self.search_with_rag_fusion(
-                    collection_name,
-                    query,
-                    n_results=n_results,
-                    return_parent=True,
-                    filter=where
-                )
-            except Exception as e:
-                _logger.warning(f"[RAG] Failed to use LangChain search: {e}, falling back to standard")
-
-        # Fallback to standard ChromaDB search (without embeddings)
-        collection = self.get_or_create_collection(collection_name, use_langchain=False)
-        results = collection.query(
-            query_texts=[query],
-            n_results=n_results,
-            where=where
+# -----------------------------------------------------------------------------
+# 4. RAG Manager (Core Class)
+# -----------------------------------------------------------------------------
+class RAGManager:
+    def __init__(self, settings: DaveAgentSettings, persist_dir: str = "./rag_data"):
+        self.settings = settings
+        self.persist_dir = Path(persist_dir)
+        self.persist_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Inicializar ChromaDB
+        self.client = chromadb.PersistentClient(path=str(self.persist_dir / "vector_db"))
+        self.embedding_fn = AdvancedEmbeddingFunction(settings=self.settings)
+        
+        # Inicializar DocStore (SQLite)
+        self.docstore = SQLiteDocStore(str(self.persist_dir / "docstore.db"))
+        
+        # Splitters para Parent Document Retrieval
+        self.parent_splitter = TextSplitter(chunk_size=2000, chunk_overlap=200)
+        self.child_splitter = TextSplitter(chunk_size=400, chunk_overlap=50)
+        
+        # Cliente OpenAI para RAG Fusion (Generación de queries)
+        http_client = httpx.Client(verify=self.settings.ssl_verify)
+        self.llm_client = openai.Client(
+            api_key=self.settings.api_key,
+            base_url=self.settings.base_url,
+            http_client=http_client
         )
 
-        formatted_results = {
-            "query": query,
-            "documents": results.get("documents", [[]])[0],
-            "metadatas": results.get("metadatas", [[]])[0],
-            "distances": results.get("distances", [[]])[0],
-            "ids": results.get("ids", [[]])[0],
-            "count": len(results.get("documents", [[]])[0])
-        }
+    def _get_collection(self, name: str):
+        return self.client.get_or_create_collection(
+            name=name,
+            embedding_function=self.embedding_fn,
+            metadata={"hnsw:space": "cosine"} # Optimizado para similitud semántica
+        )
 
-        return formatted_results
+    # ---------------------------------------------------------
+    # Ingesta: Parent Document Retrieval Strategy
+    # ---------------------------------------------------------
+    def add_document(self, collection_name: str, text: str, metadata: Dict[str, Any] = None, source_id: str = None):
+        """
+        Divide el documento en 'Padres' grandes y luego en 'Hijos' pequeños.
+        Los hijos van al VectorDB, los padres al DocStore.
+        """
+        metadata = metadata or {}
+        if not source_id:
+            source_id = str(uuid.uuid4())
 
-    def add_texts(
-        self,
-        collection_name: str,
-        texts: List[str],
-        metadatas: Optional[List[Dict[str, Any]]] = None,
-        ids: Optional[List[str]] = None
-    ) -> List[str]:
-        """Add multiple texts to a collection."""
-        result_ids = []
-        for i, text in enumerate(texts):
-            metadata = metadatas[i] if metadatas else None
-            doc_id = ids[i] if ids else None
-            result_id = self.add_text(collection_name, text, metadata, doc_id)
-            result_ids.append(result_id)
-        return result_ids
+        collection = self._get_collection(collection_name)
+        
+        # 1. Crear chunks PADRES
+        parent_chunks = self.parent_splitter.split_text(text)
+        
+        parent_ids = []
+        parent_contents = []
+        parent_metas = []
+        
+        child_ids = []
+        child_contents = []
+        child_metas = []
 
-    def delete_document(self, collection_name: str, doc_id: str) -> bool:
-        """Delete a document from a collection."""
+        for i, p_text in enumerate(parent_chunks):
+            p_id = f"{source_id}_p_{i}"
+            parent_ids.append(p_id)
+            parent_contents.append(p_text)
+            
+            # Metadata del padre
+            p_meta = metadata.copy()
+            p_meta.update({"type": "parent", "original_source_id": source_id})
+            parent_metas.append(p_meta)
+
+            # 2. Crear chunks HIJOS a partir del padre
+            child_chunks = self.child_splitter.split_text(p_text)
+            
+            for j, c_text in enumerate(child_chunks):
+                c_id = f"{p_id}_c_{j}"
+                child_ids.append(c_id)
+                child_contents.append(c_text)
+                
+                # Metadata del hijo DEBE apuntar al ID del padre
+                c_meta = metadata.copy()
+                # Chroma requiere tipos primitivos en metadata
+                flat_meta = {k: str(v) if isinstance(v, (list, dict)) else v for k,v in c_meta.items()}
+                flat_meta.update({
+                    "parent_id": p_id, 
+                    "type": "child",
+                    "original_source_id": source_id
+                })
+                child_metas.append(flat_meta)
+
+        # 3. Guardar Padres en SQLite
+        if parent_ids:
+            self.docstore.add_documents(parent_ids, parent_contents, parent_metas)
+            logger.info(f"[Ingest] Guardados {len(parent_ids)} chunks padres en DocStore.")
+
+        # 4. Guardar Hijos en ChromaDB (Vectores)
+        if child_ids:
+            collection.add(
+                ids=child_ids,
+                documents=child_contents,
+                metadatas=child_metas
+            )
+            logger.info(f"[Ingest] Guardados {len(child_ids)} chunks hijos en VectorDB.")
+
+        return source_id
+
+    # ---------------------------------------------------------
+    # Búsqueda Avanzada: Multi-Query + RRF + Parent Retrieval
+    # ---------------------------------------------------------
+    def _generate_multi_queries(self, query: str, n=3) -> List[str]:
+        """Usa el Modelo Configurado para generar variaciones de la pregunta."""
         try:
-            collection = self.get_or_create_collection(collection_name, use_langchain=False)
-            collection.delete(ids=[doc_id])
-            _logger.info(f"[RAG] Deleted document from '{collection_name}': {doc_id}")
-            return True
+            prompt = f"""Eres un experto en búsqueda semántica. Genera {n} versiones diferentes de la siguiente pregunta de usuario para mejorar la recuperación de documentos desde diversas perspectivas.
+            Pregunta original: "{query}"
+            Responde SOLO con las variaciones, una por línea. No enumeres."""
+            
+            # Usar el modelo configurado
+            model_to_use = self.settings.model
+            
+            response = self.llm_client.chat.completions.create(
+                model=model_to_use, 
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7
+            )
+            content = response.choices[0].message.content
+            variations = [line.strip() for line in content.split('\n') if line.strip()]
+            return [query] + variations[:n] # Incluir siempre la original
         except Exception as e:
-            _logger.error(f"[RAG] Error deleting document: {e}")
-            raise
+            logger.error(f"Error generando multi-queries: {e}")
+            return [query]
 
-    def get_collection_stats(self, collection_name: str) -> Dict[str, Any]:
-        """Get statistics about a collection."""
-        try:
-            collection = self.client.get_collection(name=collection_name)
-            count = collection.count()
+    def _reciprocal_rank_fusion(self, results_list: List[Dict], k=60):
+        """
+        Algoritmo RRF para fusionar resultados de múltiples queries.
+        Score = 1 / (k + rank)
+        """
+        fused_scores = defaultdict(float)
+        doc_map = {} # Para guardar metadata y contenido y no perderlo
 
-            # Check if vectorstore exists (load it if not in memory)
-            has_vectorstore = False
-            if collection_name not in self.vectorstores and self.embeddings:
-                # Try to load existing vectorstore
-                try:
-                    self.get_or_create_collection(collection_name, use_langchain=True)
-                    has_vectorstore = True
-                except:
-                    pass
-            else:
-                has_vectorstore = collection_name in self.vectorstores
+        for results in results_list:
+            # Chroma devuelve listas de listas, aplanamos
+            if results['ids']:
+                ids = results['ids'][0]
+                # distances = results['distances'][0] (no lo usamos para RRF puro, usamos el rango)
+                
+                for rank, doc_id in enumerate(ids):
+                    # RRF Formula
+                    fused_scores[doc_id] += 1 / (k + rank)
+                    
+                    # Guardar referencia del documento si no existe
+                    if doc_id not in doc_map:
+                        idx = ids.index(doc_id)
+                        doc_map[doc_id] = {
+                            "content": results['documents'][0][idx],
+                            "metadata": results['metadatas'][0][idx]
+                        }
 
-            # Check if docstore exists (check filesystem)
-            has_docstore = False
-            parent_doc_count = 0
+        # Ordenar por score RRF descendente
+        sorted_ids = sorted(fused_scores.keys(), key=lambda x: fused_scores[x], reverse=True)
+        
+        final_results = []
+        for doc_id in sorted_ids:
+            item = doc_map[doc_id]
+            item['id'] = doc_id
+            item['score'] = fused_scores[doc_id]
+            final_results.append(item)
+            
+        return final_results
 
-            # Check if docstore directory exists
-            collection_docstore_path = self.docstore_directory / collection_name
-            if collection_docstore_path.exists():
-                has_docstore = True
+    def search(self, collection_name: str, query: str, top_k: int = 5):
+        """
+        Flujo RAG Avanzado:
+        1. Multi-Query Generation
+        2. Vector Search en paralelo
+        3. Reciprocal Rank Fusion
+        4. Parent Document Lookup (recuperar el contexto completo)
+        """
+        collection = self._get_collection(collection_name)
+        
+        # 1. Generar variaciones de la query
+        queries = self._generate_multi_queries(query)
+        logger.info(f"[Search] Queries generadas: {queries}")
 
-                # Load docstore if not in memory
-                if collection_name not in self.docstores:
-                    try:
-                        docstore = FileDocstore(str(collection_docstore_path))
-                        self.docstores[collection_name] = docstore
-                    except:
-                        pass
+        # 2. Ejecutar búsquedas
+        results_list = []
+        for q in queries:
+            res = collection.query(
+                query_texts=[q],
+                n_results=top_k * 2 # Traemos más candidatos para fusionar
+            )
+            results_list.append(res)
 
-                # Count parent documents
-                if collection_name in self.docstores:
-                    try:
-                        parent_doc_count = len(list(self.docstores[collection_name].yield_keys()))
-                    except:
-                        parent_doc_count = 0
+        # 3. Fusionar resultados (RRF)
+        fused_results = self._reciprocal_rank_fusion(results_list)
+        
+        # 4. Resolver a Documentos Padres (Parent Retrieval)
+        final_output = []
+        seen_parents = set()
+        
+        for item in fused_results:
+            if len(final_output) >= top_k:
+                break
+                
+            parent_id = item['metadata'].get('parent_id')
+            
+            if parent_id and parent_id not in seen_parents:
+                # Recuperar el texto completo del padre desde SQLite
+                parent_doc = self.docstore.get_document(parent_id)
+                if parent_doc:
+                    final_output.append({
+                        "content": parent_doc['content'], # Contexto rico
+                        "metadata": parent_doc['metadata'],
+                        "score": item['score'],
+                        "retrieval_source": "parent_doc"
+                    })
+                    seen_parents.add(parent_id)
+            elif not parent_id:
+                # Si no tiene padre (chunk huerfano), devolvemos el hijo
+                final_output.append(item)
+                
+            # If item has parent but parent doc not found (edge case), ignore or add child. 
+            # Current logic ignores if parent_id exists but not found in docstore.
 
-            stats = {
-                "name": collection_name,
-                "count": count,
-                "metadata": collection.metadata,
-                "has_langchain_vectorstore": has_vectorstore,
-                "has_docstore": has_docstore
-            }
+        return final_output
 
-            if has_docstore and parent_doc_count > 0:
-                stats["parent_documents"] = parent_doc_count
-
-            return stats
-        except Exception as e:
-            _logger.error(f"[RAG] Error getting collection stats: {e}")
-            raise
-
-    def list_collections(self) -> List[str]:
-        """List all available collections."""
-        try:
-            collections = self.client.list_collections()
-            return [col.name for col in collections]
-        except Exception as e:
-            _logger.error(f"[RAG] Error listing collections: {e}")
-            raise
-
-    def delete_collection(self, collection_name: str) -> bool:
-        """Delete an entire collection."""
-        try:
-            self.client.delete_collection(name=collection_name)
-
-            if collection_name in self.collections:
-                del self.collections[collection_name]
-            if collection_name in self.vectorstores:
-                del self.vectorstores[collection_name]
-            if collection_name in self.docstores:
-                del self.docstores[collection_name]
-
-            _logger.info(f"[RAG] Deleted collection: {collection_name}")
-            return True
-        except Exception as e:
-            _logger.error(f"[RAG] Error deleting collection: {e}")
-            raise

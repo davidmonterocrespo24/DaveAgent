@@ -23,7 +23,7 @@ from src.config import (
 )
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
-from src.managers import StateManager
+from src.managers import StateManager, ContextManager
 from src.observability import init_langfuse_tracing, is_langfuse_enabled
 from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
 from src.skills import SkillManager
@@ -168,6 +168,14 @@ class DaveAgentCLI:
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
         else:
             self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
+
+        # Context Manager (DAVEAGENT.md)
+        self.context_manager = ContextManager(logger=self.logger)
+        context_files = self.context_manager.discover_context_files()
+        if context_files:
+            self.logger.info(f"✓ Found {len(context_files)} DAVEAGENT.md context file(s)")
+        else:
+            self.logger.debug("No DAVEAGENT.md context files found")
 
         # Observability system with Langfuse (simple method with OpenLit)
         self.langfuse_enabled = False
@@ -364,6 +372,16 @@ class DaveAgentCLI:
             self.logger.debug(f"Injected {len(self.skill_manager)} skill(s) metadata into prompt")
 
         # =====================================================================
+        # INJECT PROJECT CONTEXT (DAVEAGENT.md)
+        # =====================================================================
+        # Load specific instructions, commands, and guidelines from DAVEAGENT.md
+        # =====================================================================
+        project_context = self.context_manager.get_combined_context()
+        if project_context:
+            system_prompt = system_prompt + project_context
+            self.logger.info("✓ Injected project context from DAVEAGENT.md")
+
+        # =====================================================================
         # IMPORTANT: DO NOT use parameter 'memory' - CAUSES ERROR WITH DEEPSEEK
         # =====================================================================
         # DeepSeek and other LLMs do not support multiple system messages.
@@ -517,7 +535,18 @@ class DaveAgentCLI:
 
         elif cmd == "/history":
             # Show current session history
+        elif cmd == "/history":
+            # Show current session history
             await self._show_history_command(parts)
+
+        elif cmd == "/init":
+            # Create DAVEAGENT.md template
+            try:
+                path = self.context_manager.create_template()
+                self.cli.print_success(f"✓ Created configuration file: {path}")
+                self.cli.print_info("Edit this file to add project-specific commands and guidelines.")
+            except Exception as e:
+                self.cli.print_error(f"Error creating DAVEAGENT.md: {e}")
 
         # REMOVED: /load command - Use /load-state instead (AutoGen official)
 
