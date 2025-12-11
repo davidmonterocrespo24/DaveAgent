@@ -23,6 +23,7 @@ from src.config import (
 )
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
+from src.interfaces.vscode_interface import VSCodeInterface
 from src.managers import StateManager, ContextManager, IssueReporter
 from src.managers.rag_manager import RAGManager
 from src.observability import init_langfuse_tracing, is_langfuse_enabled
@@ -42,6 +43,7 @@ class DaveAgentCLI:
         model: str = None,
         ssl_verify: bool = None,
         headless: bool = False,
+        vscode_mode: bool = False,
     ):
         """
         Initialize all agent components
@@ -312,7 +314,12 @@ class DaveAgentCLI:
         self._initialize_agents_for_mode()
 
         # System components
-        if headless:
+        if vscode_mode:
+            # VS Code mode: JSON output
+            self.cli = VSCodeInterface()
+            self.history_viewer = None
+            self.logger.info("🔧 Initialized VSCodeInterface")
+        elif headless:
             # Headless mode: without interactive CLI (for evaluations)
             self.cli = type(
                 "DummyCLI",
@@ -358,7 +365,6 @@ class DaveAgentCLI:
             # CHAT mode: read-only + conversational prompt
             coder_tools = self.all_tools["read_only"]
             system_prompt = CHAT_SYSTEM_PROMPT
-            self.logger.info("💬 Initializing in CHAT mode (read-only)")
 
         # =====================================================================
         # SKILL METADATA IS NOW INJECTED DYNAMICALLY VIA RAG
@@ -478,8 +484,7 @@ class DaveAgentCLI:
         This creates new instances of all agents with the correct
         configuration for the mode (tools + system prompt).
         """
-        self.logger.info(f"🔄 Reinitializing complete system for mode: {self.current_mode.upper()}")
-
+        
         # STEP 1: Clean current StateManager session
         if self.state_manager.session_id:
             self.logger.debug("🧹 Cleaning StateManager session...")
@@ -487,10 +492,7 @@ class DaveAgentCLI:
 
         # STEP 2: Reinitialize agents
         # Agents will use RAG tools instead of memory parameter
-        self.logger.debug("🔧 Creating new agents...")
         self._initialize_agents_for_mode()
-
-        self.logger.info(f"✅ System completely reinitialized in mode: {self.current_mode.upper()}")
 
     async def handle_command(self, command: str) -> bool:
         """Handles special user commands"""
@@ -575,10 +577,8 @@ class DaveAgentCLI:
                 self.cli.set_mode("agent")  # Update CLI display
                 await self._update_agent_tools_for_mode()
                 self.cli.print_success("🔧 AGENT mode enabled")
-                self.cli.print_info("✓ All tools enabled (read + modification)")
                 self.cli.print_info("✓ The agent can modify files and execute commands")
-                self.logger.info("Mode changed to: AGENT")
-
+                
         elif cmd == "/modo-chat":
             # Switch to chat mode (read-only tools)
             if self.current_mode == "chat":
@@ -588,10 +588,8 @@ class DaveAgentCLI:
                 self.cli.set_mode("chat")  # Update CLI display
                 await self._update_agent_tools_for_mode()
                 self.cli.print_success("💬 CHAT mode enabled")
-                self.cli.print_info("✓ Only read tools enabled")
                 self.cli.print_info("✗ The agent CANNOT modify files or execute commands")
                 self.cli.print_info("ℹ️  Use /modo-agent to return to full mode")
-                self.logger.info("Mode changed to: CHAT")
 
         elif cmd == "/config" or cmd == "/configuracion":
             # Show current configuration
@@ -2194,6 +2192,7 @@ async def main(
     base_url: str = None,
     model: str = None,
     ssl_verify: bool = None,
+    vscode_mode: bool = False,
 ):
     """
     Main entry point
@@ -2206,7 +2205,12 @@ async def main(
         ssl_verify: Whether to verify SSL certificates (default True)
     """
     app = DaveAgentCLI(
-        debug=debug, api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify
+        debug=debug,
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        ssl_verify=ssl_verify,
+        vscode_mode=vscode_mode,
     )
     await app.run()
 

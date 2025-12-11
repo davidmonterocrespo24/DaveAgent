@@ -31,6 +31,14 @@ class DaveAgentLogger:
         self.logger.setLevel(level)
         self.logger.handlers.clear()  # Clear existing handlers
 
+        # Silenciar loggers de terceros para evitar spam
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("autogen_core").setLevel(logging.WARNING)
+        logging.getLogger("autogen_core.events").setLevel(logging.WARNING)
+        logging.getLogger("chromadb").setLevel(logging.WARNING)
+        logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
+        logging.getLogger("huggingface_hub").setLevel(logging.WARNING)
+        
         self.console = Console(stderr=True)
 
         # Console handler with colors (using Rich)
