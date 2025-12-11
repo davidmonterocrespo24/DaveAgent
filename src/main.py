@@ -1685,12 +1685,10 @@ TITLE:"""
             self.logger.debug(f"Input context prepared with {len(skills_context)} chars of skills")
 
             # ============= USE SINGLE ROUTER TEAM =============
-            self.logger.info("🎯 Using ROUTER TEAM (automatic SelectorGroupChat)")
-
+            
             # Start spinner
             self.cli.start_thinking()
-            self.logger.debug("Starting SelectorGroupChat (automatic router)")
-
+           
             agent_messages_shown = set()
             message_count = 0
             spinner_active = True

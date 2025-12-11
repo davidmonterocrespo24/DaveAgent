@@ -94,6 +94,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                     oai_messages.append(oai_msg)
 
             # Inject reasoning_content from previous responses
+            oai_messages = self._normalize_messages(oai_messages)
             oai_messages = self._inject_reasoning_content(oai_messages)
 
             # Prepare API request parameters
@@ -224,3 +225,52 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                 1 for r in self._raw_responses if r.get("reasoning_content")
             ),
         }
+
+    def _normalize_messages(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Merge consecutive assistant messages to satisfy API requirements.
+        DeepSeek (and OpenAI) do not allow consecutive assistant messages.
+        """
+        if not messages:
+            return messages
+
+        normalized = []
+        last_msg = None
+
+        for msg in messages:
+            if not last_msg:
+                normalized.append(msg)
+                last_msg = msg
+                continue
+
+            if msg.get("role") == "assistant" and last_msg.get("role") == "assistant":
+                # Merge content
+                content1 = last_msg.get("content") or ""
+                content2 = msg.get("content") or ""
+                if content1 and content2:
+                    last_msg["content"] = str(content1) + "\n\n" + str(content2)
+                else:
+                    last_msg["content"] = str(content1) or str(content2)
+
+                # Merge tool calls
+                tc1 = last_msg.get("tool_calls", [])
+                tc2 = msg.get("tool_calls", [])
+                if tc2:
+                    if not tc1:
+                        last_msg["tool_calls"] = tc2
+                    else:
+                        last_msg["tool_calls"].extend(tc2)
+                
+                # Merge reasoning_content if present
+                rc1 = last_msg.get("reasoning_content")
+                rc2 = msg.get("reasoning_content")
+                if rc2:
+                    if rc1:
+                         last_msg["reasoning_content"] = str(rc1) + "\n\n" + str(rc2)
+                    else:
+                         last_msg["reasoning_content"] = rc2
+            else:
+                normalized.append(msg)
+                last_msg = msg
+
+        return normalized
