@@ -46,8 +46,7 @@ class LoggingModelClientWrapper:
         self._wrapped = wrapped_client
         self._json_logger = json_logger
         self._agent_name = agent_name
-        self.logger = logging.getLogger(__name__)
-        self.logger.info(f"🔧 LoggingModelClientWrapper initialized for agent: {agent_name}")
+        self.logger = logging.getLogger(__name__)        
 
     async def create(self, messages: Sequence[LLMMessage], **kwargs) -> CreateResult:
         """

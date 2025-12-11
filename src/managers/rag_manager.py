@@ -200,9 +200,7 @@ class AdvancedEmbeddingFunction(EmbeddingFunction):
         try:
             model_name = "BAAI/bge-m3"
             device = "cuda" if use_gpu else "cpu"
-            logger.info(f"[RAG] Cargando modelo local: {model_name} en {device}...")
             self.model = SentenceTransformer(model_name, device=device)
-            logger.info("[RAG] Modelo BGE-M3 cargado exitosamente.")
         except Exception as e:
             logger.error(f"[RAG] Error FATAL: No se pudo cargar modelo local ({e}).")
             raise ValueError(f"Se requieren embeddings locales (BGE-M3). Error: {e}")
@@ -338,7 +336,6 @@ class RAGManager:
                 documents=child_contents,
                 metadatas=child_metas
             )
-            logger.info(f"[Ingest] Guardados {len(child_ids)} chunks hijos en VectorDB.")
 
         return source_id
 

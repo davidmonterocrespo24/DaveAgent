@@ -62,7 +62,7 @@ class JSONLogger:
             "errors": 0,
         }
 
-        self.logger.info(f"📝 JSONLogger initialized: {self.log_dir}")
+       
 
     def start_session(self, session_id: Optional[str] = None, mode: str = "agent", **kwargs):
         """

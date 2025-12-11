@@ -2,7 +2,7 @@
 Main file - Complete CLI interface for the code agent
 NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 """
-
+import os
 import asyncio
 import logging
 from autogen_agentchat.agents import AssistantAgent
@@ -78,11 +78,9 @@ class DaveAgentCLI:
             print(error_msg)
             raise ValueError("Invalid configuration")
 
-        self.logger.info(f"✓ Configuration loaded: {self.settings}")
-
         # DEEPSEEK REASONER SUPPORT
         # Use DeepSeekReasoningClient for models with thinking mode
-        from src.utils.deepseek_fix import should_use_reasoning_client, DEEPSEEK_REASONER_INFO
+        from src.utils.deepseek_fix import should_use_reasoning_client
 
         # Create model client
         self.logger.debug(f"Configuring model client: {self.settings.model}")
@@ -98,8 +96,7 @@ class DaveAgentCLI:
         from src.utils.json_logger import JSONLogger
 
         self.json_logger = JSONLogger()
-        self.logger.info("✅ JSONLogger initialized - capturing all interactions")
-
+        
         # Create base model client (with DeepSeek Reasoner support)
         if should_use_reasoning_client(self.settings):
             # Use DeepSeekReasoningClient to preserve reasoning_content
@@ -114,12 +111,7 @@ class DaveAgentCLI:
                 enable_thinking=None,  # Auto-detect based on model name
             )
 
-            # Print info safely (avoid encoding errors in Windows)
-            try:
-                print(DEEPSEEK_REASONER_INFO)
-            except UnicodeEncodeError:
-                print("[DeepSeek Reasoner Info - encoding issue]")
-            self.logger.info(f"DeepSeek Reasoner enabled for {self.settings.model}")
+            
         else:
             # Use standard client for other models
             base_model_client = OpenAIChatCompletionClient(
@@ -137,14 +129,13 @@ class DaveAgentCLI:
             json_logger=self.json_logger,
             agent_name="SystemRouter",  # Will be updated per agent
         )
-        self.logger.info("✅ Model client wrapped with logging interceptor")
+        
 
         # ROUTER CLIENT: Create separate client WITHOUT thinking for SelectorGroupChat
         # The router does not support extra_body parameters like {"thinking": ...}
         if self.settings.model == "deepseek-reasoner":
             # For deepseek-reasoner, use deepseek-chat in the router
             router_model = "deepseek-chat"
-            self.logger.info(f"🔀 Router will use {router_model} (without thinking mode)")
         else:
             router_model = self.settings.model
 
@@ -164,7 +155,10 @@ class DaveAgentCLI:
 
         # RAG Manager (Advanced retrieval system)
         # Used for ContextManager search and SkillManager indexing
-        self.rag_manager = RAGManager(settings=self.settings, persist_dir=f"{self.settings.work_dir}/rag_data")
+        # Initialize RAG Manager first
+        # Use current working directory for rag_data persistence
+        work_dir = os.getcwd()
+        self.rag_manager = RAGManager(settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data")
         
         # Agent Skills system (Claude-compatible and RAG-enhanced)
         self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger)
@@ -190,7 +184,6 @@ class DaveAgentCLI:
 
             if self.langfuse_enabled:
                 self.logger.info("✅ Langfuse + OpenLit enabled - automatic tracking active")
-                self.logger.info("   All AutoGen operations will be tracked automatically")
             else:
                 self.logger.info("ℹ️ Langfuse not available - continuing without tracking")
         except Exception as e:
@@ -357,8 +350,7 @@ class DaveAgentCLI:
         if self.current_mode == "agent":
             # AGENT mode: all tools + technical prompt
             coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
-            system_prompt = AGENT_SYSTEM_PROMPT
-            self.logger.info("🔧 Initializing in AGENT mode (all tools)")
+            system_prompt = AGENT_SYSTEM_PROMPT            
         else:
             # CHAT mode: read-only + conversational prompt
             coder_tools = self.all_tools["read_only"]
@@ -534,8 +526,6 @@ class DaveAgentCLI:
             # List saved sessions with Rich table
             await self._list_sessions_command()
 
-        elif cmd == "/history":
-            # Show current session history
         elif cmd == "/history":
             # Show current session history
             await self._show_history_command(parts)

@@ -62,8 +62,6 @@ class StateManager:
         self._agent_states: Dict[str, Dict] = {}
         self._team_states: Dict[str, Dict] = {}
 
-        self.logger.info(f"💾 StateManager initialized: {self.state_dir}")
-
     # =========================================================================
     # Session Management
     # =========================================================================

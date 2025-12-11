@@ -58,8 +58,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
         super().__init__(*args, **kwargs)
 
-        if self.enable_thinking:
-            self.logger.info(f"🧠 DeepSeek Reasoning Mode ENABLED for model: {model}")
+       
 
     async def create(
         self,
