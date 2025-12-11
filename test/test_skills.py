@@ -245,6 +245,51 @@ class TestSkillModel:
         assert "Test skill" in context
         assert "Read, Write" in context
         assert "# Instructions" in context
+        assert "**Path**: " in context
+        assert str(Path("/tmp/test")) in context
+
+    def test_skill_resources_detection(self):
+        """Test detection of scripts and mixed references (root + subdir)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            skill_dir = Path(tmpdir)
+            
+            # Create root reference
+            (skill_dir / "forms.md").write_text("Form info")
+            (skill_dir / "random.txt").write_text("Info")
+            (skill_dir / "SKILL.md").write_text("---") # Should be ignored in refs
+            
+            # Create subdir reference
+            (skill_dir / "references").mkdir()
+            (skill_dir / "references" / "deep.md").write_text("Deep info")
+            
+            # Create scripts
+            (skill_dir / "scripts").mkdir()
+            (skill_dir / "scripts" / "run.py").write_text("print('hi')")
+            
+            skill = Skill(
+                name="resource-test",
+                description="Test",
+                path=skill_dir,
+                instructions="Instructions",
+                source="test"
+            )
+            
+            assert skill.has_references
+            assert skill.has_scripts
+            
+            refs = [p.name for p in skill.get_references()]
+            assert "forms.md" in refs
+            assert "random.txt" in refs
+            assert "deep.md" in refs
+            assert "SKILL.md" not in refs
+            
+            scripts = [p.name for p in skill.get_scripts()]
+            assert "run.py" in scripts
+            
+            # Check context string mentions them
+            ctx = skill.to_context_string()
+            assert "forms.md" in ctx
+            assert "run.py" in ctx
 
 
 # =============================================================================

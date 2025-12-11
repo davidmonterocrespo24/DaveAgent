@@ -195,7 +195,7 @@ class SkillManager:
         except Exception as e:
             self.logger.error(f"Error indexing skills: {e}")
 
-    def find_relevant_skills(self, user_query: str, max_results: int = 3) -> List[Skill]:
+    def find_relevant_skills(self, user_query: str, max_results: int = 10) -> List[Skill]:
         """
         Find skills relevant to a user query using RAG semantic search.
         Falls back to keyword matching if RAG is not available.
