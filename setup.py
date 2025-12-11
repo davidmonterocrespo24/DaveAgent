@@ -33,6 +33,7 @@ setup(
         # CLI and UI
         "prompt-toolkit>=3.0.0",
         "rich>=13.0.0",
+        "readchar>=4.0.0",
 
         # Data processing
         "pandas>=2.0.0",
