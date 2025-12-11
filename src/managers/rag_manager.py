@@ -22,7 +22,8 @@ import httpx
 from src.config.settings import DaveAgentSettings
 
 # Configuración de Logging
-logging.basicConfig(level=logging.INFO)
+# No usar basicConfig para evitar duplicación de logs
+# El logger principal de DaveAgent ya está configurado
 logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
