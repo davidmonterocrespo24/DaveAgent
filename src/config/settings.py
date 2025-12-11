@@ -171,6 +171,7 @@ class DaveAgentSettings:
                 "function_calling": True,
                 "json_output": True,
                 "structured_output": False,
+                "family": "unknown",
             }
 
         # Capabilities for OpenAI
@@ -180,6 +181,7 @@ class DaveAgentSettings:
                 "function_calling": True,
                 "json_output": True,
                 "structured_output": True,
+                "family": "openai",
             }
 
         # Generic capabilities by default
@@ -188,6 +190,7 @@ class DaveAgentSettings:
             "function_calling": True,
             "json_output": True,
             "structured_output": False,
+            "family": "unknown",
         }
 
     def __repr__(self) -> str:
