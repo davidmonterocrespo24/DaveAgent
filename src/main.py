@@ -108,8 +108,8 @@ class DaveAgentCLI:
                 model=self.settings.model,
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
-                model_capabilities=self.settings.get_model_capabilities(),
-                http_client=http_client,
+                model_info=self.settings.get_model_capabilities(),
+                custom_http_client=http_client,
                 enable_thinking=None,  # Auto-detect based on model name
             )
 
@@ -120,8 +120,8 @@ class DaveAgentCLI:
                 model=self.settings.model,
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
-                model_capabilities=self.settings.get_model_capabilities(),
-                http_client=http_client,
+                model_info=self.settings.get_model_capabilities(),
+                custom_http_client=http_client,
             )
             self.logger.info(f"🤖 Standard client for {self.settings.model}")
 
