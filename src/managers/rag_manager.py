@@ -4,6 +4,7 @@ import logging
 import sqlite3
 import json
 import math
+import shutil
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple, Union
 from collections import defaultdict
@@ -66,7 +67,7 @@ class TextSplitter:
         new_separators = separators[1:] if len(separators) > 1 else separators
 
         good_splits = []
-        _separator_len = len(separator)
+        # _separator_len = len(separator)
 
         for s in splits:
             if self._length_function(s) < self.chunk_size:
@@ -124,43 +125,65 @@ class SQLiteDocStore:
         self._init_db()
 
     def _init_db(self):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS documents (
-                id TEXT PRIMARY KEY,
-                content TEXT,
-                metadata TEXT
-            )
-        ''')
-        conn.commit()
-        conn.close()
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS documents (
+                    id TEXT PRIMARY KEY,
+                    content TEXT,
+                    metadata TEXT
+                )
+            ''')
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error initializing DocStore DB: {e}")
+            raise
 
     def add_documents(self, doc_ids: List[str], contents: List[str], metadatas: List[Dict]):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        data = []
-        for i, doc_id in enumerate(doc_ids):
-            meta_json = json.dumps(metadatas[i]) if metadatas[i] else "{}"
-            data.append((doc_id, contents[i], meta_json))
-        
-        cursor.executemany('INSERT OR REPLACE INTO documents VALUES (?, ?, ?)', data)
-        conn.commit()
-        conn.close()
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            data = []
+            for i, doc_id in enumerate(doc_ids):
+                meta_json = json.dumps(metadatas[i]) if metadatas[i] else "{}"
+                data.append((doc_id, contents[i], meta_json))
+            
+            cursor.executemany('INSERT OR REPLACE INTO documents VALUES (?, ?, ?)', data)
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error adding documents to DocStore: {e}")
 
     def get_document(self, doc_id: str) -> Optional[Dict[str, Any]]:
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute('SELECT content, metadata FROM documents WHERE id = ?', (doc_id,))
-        row = cursor.fetchone()
-        conn.close()
-        
-        if row:
-            return {
-                "content": row[0],
-                "metadata": json.loads(row[1])
-            }
-        return None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('SELECT content, metadata FROM documents WHERE id = ?', (doc_id,))
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                return {
+                    "content": row[0],
+                    "metadata": json.loads(row[1])
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Error getting document from DocStore: {e}")
+            return None
+            
+    def clear(self):
+        """Limpia todos los documentos."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM documents')
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error clearing DocStore: {e}")
 
 # -----------------------------------------------------------------------------
 # 3. Hybrid Embedding Function (Compatible con ChromaDB)
@@ -172,7 +195,6 @@ class AdvancedEmbeddingFunction(EmbeddingFunction):
     """
     def __init__(self, settings: DaveAgentSettings, use_gpu: bool = False):
         self.model = None
-        self.openai_client = None
         
         # Intenta cargar SentenceTransformer (Local - Gratis y Potente)
         try:
@@ -182,45 +204,23 @@ class AdvancedEmbeddingFunction(EmbeddingFunction):
             self.model = SentenceTransformer(model_name, device=device)
             logger.info("[RAG] Modelo BGE-M3 cargado exitosamente.")
         except Exception as e:
-            logger.warning(f"[RAG] No se pudo cargar modelo local ({e}). Usando OpenAI.")
-            
-            if not settings.api_key:
-                raise ValueError("Se requiere API Key configurada si falla el modelo local.")
-            
-            # Configure HTTP client for Custom SSL if needed
-            http_client = httpx.Client(verify=settings.ssl_verify)
-
-            self.openai_client = openai.Client(
-                api_key=settings.api_key,
-                base_url=settings.base_url,
-                http_client=http_client
-            )
+            logger.error(f"[RAG] Error FATAL: No se pudo cargar modelo local ({e}).")
+            raise ValueError(f"Se requieren embeddings locales (BGE-M3). Error: {e}")
 
     def __call__(self, input: Documents) -> Embeddings:
         if self.model:
             # Normalizar embeddings es crucial para similitud coseno
             embeddings = self.model.encode(input, normalize_embeddings=True)
             return embeddings.tolist()
-        elif self.openai_client:
-            # OpenAI text-embedding-3-small es barato y bueno
-            # Check if using local LLM (like LM Studio) which might not have this specific model
-            # For now default to standard openai model or text-embedding-ada-002
-            model_to_use = "text-embedding-3-small"
-            
-            response = self.openai_client.embeddings.create(
-                input=input,
-                model=model_to_use
-            )
-            return [data.embedding for data in response.data]
         return []
 
 # -----------------------------------------------------------------------------
 # 4. RAG Manager (Core Class)
 # -----------------------------------------------------------------------------
 class RAGManager:
-    def __init__(self, settings: DaveAgentSettings, persist_dir: str = "./rag_data"):
+    def __init__(self, settings: DaveAgentSettings, persist_dir: Optional[str] = None):
         self.settings = settings
-        self.persist_dir = Path(persist_dir)
+        self.persist_dir = Path(persist_dir) if persist_dir else Path("./rag_data")
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         
         # Inicializar ChromaDB
@@ -248,6 +248,29 @@ class RAGManager:
             embedding_function=self.embedding_fn,
             metadata={"hnsw:space": "cosine"} # Optimizado para similitud semántica
         )
+
+    def reset_db(self):
+        """
+        DANGER: Elimina y recrea la base de datos de vectores y docstore.
+        Útil para tests.
+        """
+        try:
+            self.client.reset() 
+            # Note: chromadb.PersistentClient.reset() might not be enabled by default in new versions 
+            # or requires ALLOW_RESET=TRUE env var.
+            # If it fails, we might need to manually delete collections.
+        except Exception as e:
+            logger.warning(f"Could not reset ChromaDB via API: {e}")
+            # Manual cleanup if needed, but risky while process is running
+            # For collections:
+            for collection in self.client.list_collections():
+                try:
+                    self.client.delete_collection(collection.name)
+                except:
+                    pass
+
+        self.docstore.clear()
+        logger.info("[RAG] Database reset completed.")
 
     # ---------------------------------------------------------
     # Ingesta: Parent Document Retrieval Strategy

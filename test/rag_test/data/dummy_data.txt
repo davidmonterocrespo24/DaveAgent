@@ -1,22 +1,7 @@
-Agente Inteligente con RAG
-Un sistema de Generación Aumentada por Recuperación (RAG) combina la potencia de los modelos de lenguaje (LLMs) con una base de conocimientos externa.
-Esto permite al modelo responder preguntas con información actualizada y específica que no estaba en sus datos de entrenamiento original.
+The history of artificial intelligence (AI) begins in antiquity, with myths, stories and rumors of artificial beings endowed with intelligence or consciousness by master craftsmen. The seeds of modern AI were planted by classical philosophers who attempted to describe human thinking as a symbolic system. But the field of AI was not formally founded until 1956, at a conference at Dartmouth College, in Hanover, New Hampshire, where the term "artificial intelligence" was coined.
 
-Componentes del RAG:
-1. Retrieval (Recuperación): Busca fragmentos relevantes en una base de datos vectorial.
-2. Augmentation (Aumento): Agrega estos fragmentos al prompt del usuario.
-3. Generation (Generación): El LLM genera una respuesta basada en el contexto enriquecido.
+The 2010s marked a period of rapid progress in AI, driven by the availability of large amounts of data, improvements in algorithms, and increases in computing power. Deep learning, a subset of machine learning involving neural networks with many layers, became the dominant approach for many AI tasks, such as image recognition, natural language processing, and game playing. Notable achievements in this decade include the development of AlphaGo, which defeated a world champion Go player in 2016, and the emergence of advanced language models like GPT-3.
 
-DeepSeek Coder
-DeepSeek Coder es un modelo de lenguaje especializado en programación.
-Soporta múltiples lenguajes y tiene una ventana de contexto amplia.
-Es capaz de razonar sobre código complejo y sugerir refactorizaciones.
+Retrieval-Augmented Generation (RAG) is a technique that enhances the accuracy and reliability of generative AI models with facts fetched from external sources. It bridges the gap between the huge amount of data the model was trained on and the specific, up-to-date data that users need. By retrieving relevant information from a knowledge base and providing it as context to the LLM, RAG reduces hallucinations and improves the relevance of the generated responses.
 
-DaveAgent
-DaveAgent es un asistente de codificación autónomo que utiliza DeepSeek.
-Puede leer archivos, escribir código, y ejecutar comandos.
-Tiene un sistema de plugins y habilidades para extender sus capacidades.
-Configuración:
-- API Key: Se carga desde .daveagent/.env
-- Modelo: Configurable (default: deepseek-reasoner)
-- Base URL: https://api.deepseek.com
+The future of AI holds both promise and challenges. As AI systems become more capable, they are expected to transform various industries, including healthcare, transportation, and finance. However, concerns about job displacement, bias, and the potential for misuse of AI technologies remain. Ethical guidelines and regulations are being developed to ensure that AI is developed and used responsibly.
