@@ -41,3 +41,5 @@ publish_to_test.bat
 .publicar_discord/*
 
 test_rag_output/
+rag_data_test/*
+rag_data_test_components/*

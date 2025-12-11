@@ -24,6 +24,7 @@ from src.config import (
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
 from src.managers import StateManager, ContextManager, IssueReporter
+from src.managers.rag_manager import RAGManager
 from src.observability import init_langfuse_tracing, is_langfuse_enabled
 from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
 from src.skills import SkillManager
@@ -161,8 +162,12 @@ class DaveAgentCLI:
             auto_save_enabled=True, auto_save_interval=300  # Auto-save every 5 minutes
         )
 
-        # Agent Skills system (Claude-compatible)
-        self.skill_manager = SkillManager(logger=self.logger)
+        # RAG Manager (Advanced retrieval system)
+        # Used for ContextManager search and SkillManager indexing
+        self.rag_manager = RAGManager(settings=self.settings, persist_dir=f"{self.settings.work_dir}/rag_data")
+        
+        # Agent Skills system (Claude-compatible and RAG-enhanced)
+        self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger)
         skill_count = self.skill_manager.discover_skills()
         if skill_count > 0:
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
@@ -364,15 +369,11 @@ class DaveAgentCLI:
             self.logger.info("💬 Initializing in CHAT mode (read-only)")
 
         # =====================================================================
-        # INJECT SKILL METADATA INTO SYSTEM PROMPT
+        # SKILL METADATA IS NOW INJECTED DYNAMICALLY VIA RAG
         # =====================================================================
-        # Add available skills metadata so the agent knows what skills exist
-        # and can identify when to use them based on user requests
+        # See process_user_request() where finding_relevant_skills is called
         # =====================================================================
-        skill_metadata = self.skill_manager.get_skills_metadata()
-        if skill_metadata:
-            system_prompt = system_prompt + f"\n\n<available_skills>\n{skill_metadata}\n</available_skills>"
-            self.logger.debug(f"Injected {len(self.skill_manager)} skill(s) metadata into prompt")
+
 
         # =====================================================================
         # INJECT PROJECT CONTEXT (DAVEAGENT.md)
@@ -1677,10 +1678,24 @@ TITLE:"""
                     f"📎 Including {len(self.cli.mentioned_files)} mentioned file(s) in context"
                 )
 
-                # Prepend file content to user input
-                full_input = f"{mentioned_files_content}\n\nUSER REQUEST:\n{user_input}"
+            # =================================================================
+            # DYNAMIC SKILL RAG INJECTION
+            # =================================================================
+            # Find relevant skills using RAG based on the user query
+            relevant_skills = self.skill_manager.find_relevant_skills(user_input)
+            skills_context = ""
+            if relevant_skills:
+                skills_list = "\n".join([s.to_context_string() for s in relevant_skills])
+                skills_context = f"\n\n<active_skills>\nThe following skills are relevant to your request and available for use:\n\n{skills_list}\n</active_skills>"
+                self.logger.info(f"🧠 RAG found {len(relevant_skills)} relevant skill(s): {[s.name for s in relevant_skills]}")
             else:
-                full_input = user_input
+                self.logger.debug("🧠 No specific skills found relevant to this request")
+
+            # Prepare final input with context
+            # Combine: User Request + Mentioned Files + Skills Context
+            full_input = f"{user_input}\n{mentioned_files_content}{skills_context}"
+
+            self.logger.debug(f"Input context prepared with {len(skills_context)} chars of skills")
 
             # ============= USE SINGLE ROUTER TEAM =============
             self.logger.info("🎯 Using ROUTER TEAM (automatic SelectorGroupChat)")

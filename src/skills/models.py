@@ -49,8 +49,18 @@ class Skill:
     
     @property
     def has_references(self) -> bool:
-        """Check if skill has a references directory."""
-        return (self.path / "references").is_dir()
+        """Check if skill has reference files (in root or references/ subdir)."""
+        if not self.path.is_dir():
+            return False
+            
+        if (self.path / "references").is_dir():
+            return True
+        # Check for root level md/txt files (excluding SKILL.md, LICENSE)
+        for item in self.path.iterdir():
+            if item.is_file() and item.suffix.lower() in ['.md', '.txt']:
+                if item.name.lower() not in ['skill.md', 'license.txt', 'license']:
+                    return True
+        return False
     
     @property
     def has_assets(self) -> bool:
@@ -66,10 +76,23 @@ class Skill:
     
     def get_references(self) -> List[Path]:
         """Get list of reference files in the skill."""
+        if not self.path.is_dir():
+            return []
+            
+        refs = []
+        
+        # 1. references/ subdirectory
         refs_dir = self.path / "references"
         if refs_dir.is_dir():
-            return list(refs_dir.iterdir())
-        return []
+            refs.extend(list(refs_dir.iterdir()))
+            
+        # 2. Root level documentation
+        for item in self.path.iterdir():
+            if item.is_file() and item.suffix.lower() in ['.md', '.txt']:
+                if item.name.lower() not in ['skill.md', 'license.txt', 'license']:
+                    refs.append(item)
+                    
+        return sorted(list(set(refs)), key=lambda p: p.name)
     
     def get_reference_content(self, filename: str) -> Optional[str]:
         """
@@ -107,7 +130,8 @@ class Skill:
             Formatted string with skill name, description, and instructions
         """
         context = f"# Skill: {self.name}\n\n"
-        context += f"**Description**: {self.description}\n\n"
+        context += f"**Description**: {self.description}\n"
+        context += f"**Path**: {self.path}\n\n"
         
         if self.allowed_tools:
             context += f"**Allowed Tools**: {', '.join(self.allowed_tools)}\n\n"
