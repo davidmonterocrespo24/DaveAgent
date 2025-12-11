@@ -11,3 +11,6 @@ try:
     __all__ = ["StateManager", "ContextManager", "RAGManager"]
 except ImportError:
     __all__ = ["StateManager", "ContextManager"]
+
+from src.managers.issue_reporter import IssueReporter
+__all__.append("IssueReporter")
