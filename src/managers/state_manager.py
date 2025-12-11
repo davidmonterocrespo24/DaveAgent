@@ -100,8 +100,6 @@ class StateManager:
             "last_interaction": datetime.now().isoformat(),
         }
 
-        self.logger.info(f"📝 Session started: {session_id} - {title or 'Untitled'}")
-
         # Start auto-save if enabled
         if self.auto_save_enabled and self._auto_save_task is None:
             self._auto_save_task = asyncio.create_task(self._auto_save_loop())
@@ -381,8 +379,7 @@ class StateManager:
 
     async def _auto_save_loop(self):
         """Background task that auto-saves state periodically"""
-        self.logger.info(f"🔄 Auto-save enabled: every {self.auto_save_interval}s")
-
+        
         while self.auto_save_enabled:
             try:
                 await asyncio.sleep(self.auto_save_interval)
@@ -415,7 +412,6 @@ class StateManager:
         if self._auto_save_task is None or self._auto_save_task.done():
             self._auto_save_task = asyncio.create_task(self._auto_save_loop())
 
-        self.logger.info(f"🔄 Auto-save enabled: {self.auto_save_interval}s")
 
     def disable_auto_save(self):
         """Disable auto-save"""

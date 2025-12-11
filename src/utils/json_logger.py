@@ -254,7 +254,13 @@ class JSONLogger:
 
         try:
             with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(log_data, f, indent=2, ensure_ascii=False)
+                json.dump(
+                    log_data, 
+                    f, 
+                    indent=2, 
+                    ensure_ascii=False,
+                    default=lambda o: o.model_dump() if hasattr(o, "model_dump") else (o.__dict__ if hasattr(o, "__dict__") else str(o))
+                )
 
             self.logger.info(f"📝 JSON log saved: {filepath}")
             self.logger.info(f"   Events: {len(self.events)}, Duration: {duration:.1f}s")

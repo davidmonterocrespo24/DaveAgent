@@ -961,7 +961,6 @@ TITLE:"""
                 title = await self._generate_session_title()
 
                 self.state_manager.start_session(session_id=session_id, title=title)
-                self.logger.info(f"🎯 New session created with title: {title}")
 
             # Save state of each agent
             await self.state_manager.save_agent_state(
@@ -1921,14 +1920,6 @@ TITLE:"""
             # ============= END JSON LOGGING SESSION =============
             # Save all captured events to timestamped JSON file
             self.json_logger.end_session(summary="Request completed successfully")
-            self.logger.debug("📝 JSON logging session ended and saved")
-
-            # Compress history if necessary (DISABLED - we no longer use TaskExecutor)
-            # if self.conversation_manager.needs_compression():
-            #     self.logger.warning("⚠️ History needs compression")
-            #     # TODO: Implement direct compression without TaskExecutor
-
-            self.logger.info("✅ Request processed successfully")
 
         except Exception as e:
             # Stop spinner on error
