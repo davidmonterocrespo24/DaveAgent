@@ -23,7 +23,7 @@ from src.config import (
 )
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
-from src.managers import StateManager, ContextManager
+from src.managers import StateManager, ContextManager, IssueReporter
 from src.observability import init_langfuse_tracing, is_langfuse_enabled
 from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
 from src.skills import SkillManager
@@ -176,6 +176,9 @@ class DaveAgentCLI:
             self.logger.info(f"✓ Found {len(context_files)} DAVEAGENT.md context file(s)")
         else:
             self.logger.debug("No DAVEAGENT.md context files found")
+
+        # Automatic Issue Reporter
+        self.issue_reporter = IssueReporter(logger=self.logger)
 
         # Observability system with Langfuse (simple method with OpenLit)
         self.langfuse_enabled = False
@@ -1936,7 +1939,21 @@ TITLE:"""
 
             error_traceback = traceback.format_exc()
             self.logger.error(f"Full traceback:\n{error_traceback}")
+            self.logger.error(f"Full traceback:\n{error_traceback}")
             self.cli.print_error(f"Details:\n{error_traceback}")
+
+            # AUTOMATIC ISSUE REPORTING
+            self.cli.print_thinking("🚨 Automatically reporting error to GitHub...")
+            try:
+                # We need the base model client (not the wrapped one, or rely on wrapped)
+                # report_error takes model_client to generate title
+                await self.issue_reporter.report_error(
+                    exception=e, 
+                    context="process_user_request", 
+                    model_client=self.model_client
+                )
+            except Exception as report_err:
+                self.logger.error(f"Failed to auto-report issue: {report_err}")
 
     # =========================================================================
     # CONVERSATION TRACKING - Log to JSON
@@ -2162,8 +2179,22 @@ TITLE:"""
             if self.langfuse_enabled:
                 self.logger.info("📊 Langfuse: data sent automatically by OpenLit")
 
-            # Close model client
-            await self.model_client.close()
+        except Exception as e:
+            self.logger.log_error_with_context(e, "main loop")
+            self.cli.print_error(f"Fatal error: {str(e)}")
+            
+            # AUTOMATIC ISSUE REPORTING FOR FATAL ERRORS
+            try:
+                await self.issue_reporter.report_error(
+                    exception=e, 
+                    context="main_loop_fatal_error", 
+                    model_client=self.model_client if hasattr(self, 'model_client') else None
+                )
+            except Exception as report_err:
+                self.logger.error(f"Failed to auto-report fatal issue: {report_err}")
+
+        finally:
+            self.logger.info("🔚 Closing DaveAgent CLI")
 
 
 async def main(
