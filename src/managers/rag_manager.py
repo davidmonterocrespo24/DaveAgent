@@ -200,7 +200,14 @@ class AdvancedEmbeddingFunction(EmbeddingFunction):
         try:
             model_name = "BAAI/bge-m3"
             device = "cuda" if use_gpu else "cpu"
-            self.model = SentenceTransformer(model_name, device=device)
+            # Usar backend="torch" para evitar descargar múltiples formatos del modelo
+            # y preferir safetensors si está disponible
+            self.model = SentenceTransformer(
+                model_name, 
+                device=device,
+                backend="torch",
+                model_kwargs={"use_safetensors": True}
+            )
         except Exception as e:
             logger.error(f"[RAG] Error FATAL: No se pudo cargar modelo local ({e}).")
             raise ValueError(f"Se requieren embeddings locales (BGE-M3). Error: {e}")

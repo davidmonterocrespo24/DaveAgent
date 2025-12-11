@@ -2160,24 +2160,6 @@ TITLE:"""
         except Exception as e:
             self.logger.log_error_with_context(e, "main loop")
             self.cli.print_error(f"Fatal error: {str(e)}")
-
-        finally:
-            self.logger.info("🔚 Closing DaveAgent CLI")
-            self.cli.print_goodbye()
-
-            # Close state system (saves final state automatically)
-            try:
-                await self.state_manager.close()
-            except Exception as e:
-                self.logger.error(f"Error closing state: {e}")
-
-            # Langfuse: OpenLit does automatic flush on exit
-            if self.langfuse_enabled:
-                self.logger.info("📊 Langfuse: data sent automatically by OpenLit")
-
-        except Exception as e:
-            self.logger.log_error_with_context(e, "main loop")
-            self.cli.print_error(f"Fatal error: {str(e)}")
             
             # AUTOMATIC ISSUE REPORTING FOR FATAL ERRORS
             try:
@@ -2191,6 +2173,19 @@ TITLE:"""
 
         finally:
             self.logger.info("🔚 Closing DaveAgent CLI")
+            self.cli.print_goodbye()
+
+            # Close state system (saves final state automatically)
+            try:
+                await self.state_manager.close()
+            except Exception as e:
+                self.logger.error(f"Error closing state: {e}")
+
+            # Langfuse: OpenLit does automatic flush on exit
+            if self.langfuse_enabled:
+                self.logger.info("� Langfuse: data sent automatically by OpenLit")
+
+
 
 
 async def main(
