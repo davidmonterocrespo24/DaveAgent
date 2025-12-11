@@ -11,6 +11,8 @@ import pytest
 from pathlib import Path
 import tempfile
 import shutil
+from unittest.mock import MagicMock, ANY
+
 
 from src.skills.parser import (
     parse_skill_frontmatter,
@@ -253,6 +255,14 @@ class TestSkillManager:
     """Tests for the SkillManager class."""
     
     @pytest.fixture
+    def mock_rag(self):
+        """Create a mock RAGManager."""
+        mock = MagicMock()
+        # Setup search return for RAG
+        mock.search.return_value = []
+        return mock
+
+    @pytest.fixture
     def temp_skills_dir(self):
         """Create a temporary skills directory with test skills."""
         temp_dir = Path(tempfile.mkdtemp())
@@ -300,9 +310,33 @@ More instructions.
         
         count = manager.discover_skills()
         
+        
         assert count == 2
         assert "test-skill" in manager
         assert "another-skill" in manager
+        assert "test-skill" in manager.get_skill_names()
+
+    def test_discover_skills_with_rag(self, temp_skills_dir, mock_rag):
+        """Test discovering and indexing skills with RAG."""
+        manager = SkillManager(
+            rag_manager=mock_rag,
+            personal_skills_dir=temp_skills_dir,
+            project_skills_dir=Path("/nonexistent")
+        )
+        
+        count = manager.discover_skills()
+        
+        assert count == 2
+        # Verify indexing was called 2 times (once per skill)
+        assert mock_rag.add_document.call_count == 2
+        # Check call args for one of them
+        mock_rag.add_document.assert_any_call(
+            collection_name="agent_skills",
+            text=ANY,
+            metadata=ANY,
+            source_id="skill-test-skill"
+        )
+
     
     def test_get_skill(self, temp_skills_dir):
         """Test getting a skill by name."""
@@ -360,6 +394,28 @@ More instructions.
         
         assert len(relevant) > 0
         assert any(s.name == "test-skill" for s in relevant)
+
+    def test_find_relevant_skills_rag(self, temp_skills_dir, mock_rag):
+        """Test finding skills using RAG."""
+        manager = SkillManager(
+            rag_manager=mock_rag,
+            personal_skills_dir=temp_skills_dir,
+            project_skills_dir=Path("/nonexistent")
+        )
+        manager.discover_skills()
+        
+        # Mock RAG returning a result
+        mock_rag.search.return_value = [{
+            "metadata": {"skill_name": "test-skill"},
+            "score": 0.9
+        }]
+        
+        relevant = manager.find_relevant_skills("some difficult query", max_results=1)
+        
+        assert len(relevant) == 1
+        assert relevant[0].name == "test-skill"
+        mock_rag.search.assert_called_once()
+
     
     def test_skill_not_found(self, temp_skills_dir):
         """Test getting a non-existent skill returns None."""
