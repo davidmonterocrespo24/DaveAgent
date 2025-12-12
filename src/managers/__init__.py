@@ -5,10 +5,11 @@ System managers - State, Context, and RAG
 from src.managers.state_manager import StateManager
 from src.managers.context_manager import ContextManager
 
-# Attempt to import RAGManager if available (might not be in this branch yet based on previous errors)
+# Avoid importing RAGManager here to prevent heavy dependencies (chromadb, sentence-transformers)
+# from loading when only StateManager or ContextManager are needed.
+# RAGManager should be imported directly from src.managers.rag_manager when needed.
 try:
-    from src.managers.rag_manager import RAGManager
-    __all__ = ["StateManager", "ContextManager", "RAGManager"]
+    __all__ = ["StateManager", "ContextManager"]
 except ImportError:
     __all__ = ["StateManager", "ContextManager"]
 

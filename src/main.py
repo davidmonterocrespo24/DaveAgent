@@ -12,7 +12,7 @@ from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermi
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from src.agents import CodeSearcher
+# from src.agents import CodeSearcher (Moved to __init__)
 
 # Import from new structure
 from src.config import (
@@ -24,11 +24,8 @@ from src.config import (
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
 from src.interfaces.vscode_interface import VSCodeInterface
-from src.managers import StateManager, ContextManager, IssueReporter
-from src.managers.rag_manager import RAGManager
-from src.observability import init_langfuse_tracing, is_langfuse_enabled
+# Managers moved to __init__
 from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
-from src.skills import SkillManager
 
 
 class DaveAgentCLI:
@@ -47,25 +44,24 @@ class DaveAgentCLI:
     ):
         """
         Initialize all agent components
-
-        Args:
-            debug: Debug mode enabled
-            api_key: API key for the LLM model
-            base_url: Base URL of the API
-            model: Name of the model to use
-            ssl_verify: Whether to verify SSL certificates (default True)
-            headless: Headless mode without interactive CLI (for evaluations/tests)
         """
+        import time
+        t_start = time.time()
+
         # Configure logging (now in .daveagent/logs/)
         log_level = logging.DEBUG if debug else logging.INFO
         self.logger = get_logger(log_file=None, level=log_level)  # Use default path
+        print(f"[Startup] Logger initialized in {time.time() - t_start:.4f}s")
 
+        t0 = time.time()
         # Configure conversation tracker (logs to .daveagent/conversations.json)
         self.conversation_tracker = get_conversation_tracker()
+        print(f"[Startup] Conversation tracker initialized in {time.time() - t0:.4f}s")
 
         # Mode system: "agent" (with tools) or "chat" (without modification tools)
         self.current_mode = "agent"  # Default mode
 
+        t0 = time.time()
         # Load configuration (API key, URL, model)
         from src.config import get_settings
 
@@ -79,6 +75,7 @@ class DaveAgentCLI:
             self.logger.error(f"[ERROR] Invalid configuration: {error_msg}")
             print(error_msg)
             raise ValueError("Invalid configuration")
+        print(f"[Startup] Config loaded in {time.time() - t0:.4f}s")
 
         # DEEPSEEK REASONER SUPPORT
         # Use DeepSeekReasoningClient for models with thinking mode
@@ -88,6 +85,7 @@ class DaveAgentCLI:
         self.logger.debug(f"Configuring model client: {self.settings.model}")
         self.logger.debug(f"SSL verify: {self.settings.ssl_verify}")
 
+        t0 = time.time()
         # Create custom HTTP client with SSL configuration
         import httpx
 
@@ -110,7 +108,7 @@ class DaveAgentCLI:
                 api_key=self.settings.api_key,
                 model_info=self.settings.get_model_capabilities(),
                 custom_http_client=http_client,
-                enable_thinking=None,  # Auto-detect based on model name
+                enable_thinking=None,  # Auto detect based on model name
             )
 
             
@@ -148,42 +146,61 @@ class DaveAgentCLI:
             model_capabilities=self.settings.get_model_capabilities(),
             http_client=http_client,
         )
+        print(f"[Startup] Model clients initialized in {time.time() - t0:.4f}s")
         
+        t0 = time.time()
         # State management system (AutoGen save_state/load_state)
+        from src.managers import StateManager
         self.state_manager = StateManager(
             auto_save_enabled=True, auto_save_interval=300  # Auto-save every 5 minutes
         )
+        print(f"[Startup] StateManager initialized in {time.time() - t0:.4f}s")
 
+        t0 = time.time()
         # RAG Manager (Advanced retrieval system)
+        print(f"[Startup] Importing RAGManager...")
+        t_rag_import = time.time()
+        from src.managers.rag_manager import RAGManager
+        print(f"[Startup] RAGManager imported in {time.time() - t_rag_import:.4f}s")
+
         # Used for ContextManager search and SkillManager indexing
         # Initialize RAG Manager first
         # Use current working directory for rag_data persistence
         work_dir = os.getcwd()
         self.rag_manager = RAGManager(settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data")
+        print(f"[Startup] RAGManager initialized in {time.time() - t0:.4f}s")
         
+        t0 = time.time()
         # Agent Skills system (Claude-compatible and RAG-enhanced)
+        from src.skills import SkillManager
         self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger)
         skill_count = self.skill_manager.discover_skills()
         if skill_count > 0:
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
         else:
             self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
+        print(f"[Startup] SkillManager initialized in {time.time() - t0:.4f}s")
 
+        t0 = time.time()
         # Context Manager (DAVEAGENT.md)
+        from src.managers import ContextManager
         self.context_manager = ContextManager(logger=self.logger)
         context_files = self.context_manager.discover_context_files()
         if context_files:
             self.logger.info(f"✓ Found {len(context_files)} DAVEAGENT.md context file(s)")
         else:
             self.logger.debug("No DAVEAGENT.md context files found")
+        print(f"[Startup] ContextManager initialized in {time.time() - t0:.4f}s")
 
         # Automatic Issue Reporter
+        from src.managers import IssueReporter
         self.issue_reporter = IssueReporter(logger=self.logger)
 
         # Observability system with Langfuse (simple method with OpenLit)
         self.langfuse_enabled = False
         try:
             # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
+            from src.observability import init_langfuse_tracing
             self.langfuse_enabled = init_langfuse_tracing(enabled=True, debug=debug)
 
             if self.langfuse_enabled:
@@ -194,6 +211,8 @@ class DaveAgentCLI:
             self.logger.warning(f"X Error initializing Langfuse: {e}")
             self.langfuse_enabled = False
 
+
+        t0 = time.time()
         # Import all tools from the new structure
         from src.tools import (
             # Filesystem
@@ -245,6 +264,7 @@ class DaveAgentCLI:
             grep_search,
             run_terminal_cmd,
         )
+        self.logger.info(f"[Startup] Tools imported in {time.time() - t0:.4f}s")
 
         # Store all tools to filter them according to mode
         self.all_tools = {
@@ -309,8 +329,7 @@ class DaveAgentCLI:
             ],
         }
 
-        # Initialize agents according to current mode
-        self._initialize_agents_for_mode()
+        self.logger.info(f"✨ DaveAgent initialized in {time.time() - t_start:.2f}s")
 
         # System components
         if vscode_mode:
