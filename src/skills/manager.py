@@ -167,8 +167,12 @@ class SkillManager:
     def _index_skills(self):
         """Index loaded skills into RAG system for semantic retrieval."""
         try:
-            self.logger.info(f"Indexing {len(self._skills)} skills in RAG...")
-            
+            # Load existing hashes to check for changes
+            hashes = self._load_hashes()
+            new_hashes = {}
+            skills_to_index = []
+            skipped_count = 0
+
             for skill in self._skills.values():
                 # Content includes description and full instructions for matching
                 search_content = f"Skill: {skill.name}\nDescription: {skill.description}\n\n{skill.instructions}"
@@ -176,24 +180,75 @@ class SkillManager:
                 # Deterministic ID based on skill name
                 source_id = f"skill-{skill.name}"
                 
+                # Compute hash of the content
+                import hashlib
+                content_hash = hashlib.md5(search_content.encode("utf-8")).hexdigest()
+                new_hashes[source_id] = content_hash
+
+                # Check if changed
+                if source_id in hashes and hashes[source_id] == content_hash:
+                    skipped_count += 1
+                    self.logger.debug(f"Skipping indexing for unchanging skill: {skill.name}")
+                    continue
+
                 metadata = {
                     "skill_name": skill.name,
                     "source": skill.source,
                     "type": "agent_skill"
                 }
-                
-                # Index in dedicated collection
-                self.rag_manager.add_document(
-                    collection_name=self.RAG_COLLECTION,
-                    text=search_content,
-                    metadata=metadata,
-                    source_id=source_id
-                )
-                
+
+                skills_to_index.append({
+                    "collection_name": self.RAG_COLLECTION,
+                    "text": search_content,
+                    "metadata": metadata,
+                    "source_id": source_id
+                })
+            
+            # Perform indexing only for new/changed skills
+            if skills_to_index:
+                self.logger.info(f"Indexing {len(skills_to_index)} new/modified skills in RAG...")
+                for item in skills_to_index:
+                    self.rag_manager.add_document(**item)
+            
+            if skipped_count > 0:
+                self.logger.info(f"Skipped {skipped_count} unchanged skills")
+
+            # Save new hashes if we successfully processed everything
+            self._save_hashes(new_hashes)
+            
             self.logger.info("✓ Skills indexing completed")
             
         except Exception as e:
             self.logger.error(f"Error indexing skills: {e}")
+
+    def _get_hashes_file(self) -> Path:
+        """Get path to skills hash file."""
+        return self.personal_skills_dir.parent / "skills_hashes.json"
+
+    def _load_hashes(self) -> Dict[str, str]:
+        """Load stored skill hashes."""
+        hash_file = self._get_hashes_file()
+        if not hash_file.exists():
+            return {}
+        try:
+            import json
+            return json.loads(hash_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            self.logger.warning(f"Failed to load skill hashes: {e}")
+            return {}
+
+    def _save_hashes(self, hashes: Dict[str, str]):
+        """Save skill hashes."""
+        try:
+            import json
+            hash_file = self._get_hashes_file()
+            # Ensure directory exists (it should, but just in case)
+            hash_file.parent.mkdir(parents=True, exist_ok=True)
+            text = json.dumps(hashes, indent=2)
+            hash_file.write_text(text, encoding="utf-8")
+        except Exception as e:
+            self.logger.error(f"Failed to save skill hashes: {e}")
+
 
     def find_relevant_skills(self, user_query: str, max_results: int = 10, min_score: float = 0.5) -> List[Skill]:
         """

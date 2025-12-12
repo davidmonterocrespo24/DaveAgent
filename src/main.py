@@ -148,8 +148,7 @@ class DaveAgentCLI:
             model_capabilities=self.settings.get_model_capabilities(),
             http_client=http_client,
         )
-        self.logger.info(f"✅ Router client created with model: {router_model}")
-
+        
         # State management system (AutoGen save_state/load_state)
         self.state_manager = StateManager(
             auto_save_enabled=True, auto_save_interval=300  # Auto-save every 5 minutes
@@ -188,11 +187,11 @@ class DaveAgentCLI:
             self.langfuse_enabled = init_langfuse_tracing(enabled=True, debug=debug)
 
             if self.langfuse_enabled:
-                self.logger.info("✅ Langfuse + OpenLit enabled - automatic tracking active")
+                self.logger.info("✓ Langfuse + OpenLit enabled - automatic tracking active")
             else:
-                self.logger.info("ℹ️ Langfuse not available - continuing without tracking")
+                self.logger.info("X Langfuse not available - continuing without tracking")
         except Exception as e:
-            self.logger.warning(f"⚠️ Error initializing Langfuse: {e}")
+            self.logger.warning(f"X Error initializing Langfuse: {e}")
             self.langfuse_enabled = False
 
         # Import all tools from the new structure
@@ -2070,10 +2069,7 @@ TITLE:"""
                 formatted_date = "Unknown"
 
             # Display session info
-            self.cli.print_info("\n📋 Previous session found:")
-            self.cli.print_info(f"  • Title: {title}")
-            self.cli.print_info(f"  • Last interaction: {formatted_date}")
-            self.cli.print_info(f"  • Messages: {total_messages}")
+            self.cli.print_info(f"\n Previous session found: Messages: {total_messages}")
 
             # Prompt user (use async prompt)
             from prompt_toolkit import PromptSession

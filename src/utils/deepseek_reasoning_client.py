@@ -110,7 +110,15 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                 request_params["tool_choice"] = convert_tool_choice(tool_choice)
 
             # Call OpenAI API directly
-            completion = await self._client.chat.completions.create(**request_params)
+            try:
+                completion = await self._client.chat.completions.create(**request_params)
+            except Exception as e:
+                # Log detailed message dump on BadRequestError to help debug
+                if "BadRequestError" in str(type(e)) or "400" in str(e):
+                    import json
+                    self.logger.error("❌ BadRequestError detected! Dumping messages for debugging:")
+                    self.logger.error(json.dumps(request_params.get("messages", []), indent=2, default=str))
+                raise e
 
             # Extract and store the response
             raw_message = completion.choices[0].message
@@ -300,3 +308,4 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             final_messages.append(msg)
 
         return final_messages
+

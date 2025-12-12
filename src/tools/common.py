@@ -27,6 +27,7 @@ EXCLUDED_DIRS = {
     ".idea",            # JetBrains IDE settings
     ".vscode",          # VS Code settings
     ".history",         # Local history (VS Code extension)
+    ".agent_history",   # Agent history (VS Code extension)
 }
 
 # Directories to HIDE from directory listings (list_dir)
@@ -34,6 +35,8 @@ EXCLUDED_DIRS = {
 HIDDEN_DIRS = {
     ".daveagent",       # Internal agent configuration
     ".git",             # Git repository metadata
+    ".agent_history",   # Agent history (VS Code extension)
+    ".bandit",          # Bandit security scanner
 }
 
 
