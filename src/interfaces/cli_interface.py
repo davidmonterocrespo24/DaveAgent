@@ -61,7 +61,7 @@ class CLIInterface:
 ║   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝                  ║
 ║                                                              ║
 ║              Intelligent Development Agent                   ║
-║                    Version 1.2.1                            ║
+║                    Version 1.2.1                             ║
 ╚══════════════════════════════════════════════════════════════╝
         """.strip(
             "\n"
@@ -583,8 +583,8 @@ Simply write what you need the agent to do. The agent will:
         goodbye = """
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║              Thank you for using Dave Agent                ║
-║                   See you soon!                             ║
+║              Thank you for using Dave Agent                  ║
+║                   See you soon!                              ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
         """

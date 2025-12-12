@@ -35,9 +35,9 @@ class DaveAgentLogger:
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("autogen_core").setLevel(logging.WARNING)
         logging.getLogger("autogen_core.events").setLevel(logging.WARNING)
-        #logging.getLogger("chromadb").setLevel(logging.WARNING)
-        #logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
-        #logging.getLogger("huggingface_hub").setLevel(logging.WARNING)
+        logging.getLogger("chromadb").setLevel(logging.WARNING)
+        logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
+        logging.getLogger("huggingface_hub").setLevel(logging.WARNING)
         
         self.console = Console(stderr=True)
 

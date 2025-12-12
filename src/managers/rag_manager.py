@@ -198,13 +198,17 @@ class AdvancedEmbeddingFunction(EmbeddingFunction):
         
         # Intenta cargar SentenceTransformer (Local - Gratis y Potente)
         try:
-            model_name = "BAAI/bge-m3"
+            model_name = "sentence-transformers/all-MiniLM-L6-v2"
             device = "cuda" if use_gpu else "cpu"
-            logger.info(f"[RAG] Cargando modelo local: {model_name} en {device}...")
+            import time
+            start_time = time.time()
+            logger.info(f"Loading skills and components: {model_name} en {device}...")
             self.model = SentenceTransformer(model_name, device=device)
+            load_time = time.time() - start_time
+            logger.info(f"Skills and components loaded successfully in {load_time:.2f} seconds.")
         except Exception as e:
-            logger.error(f"[RAG] Error FATAL: No se pudo cargar modelo local ({e}).")
-            raise ValueError(f"Se requieren embeddings locales (BGE-M3). Error: {e}")
+            logger.error(f"Error loading skills and components ({e}).")
+            raise ValueError(f"Error loading skills and components ({e}).")
 
     def __call__(self, input: Documents) -> Embeddings:
         if self.model:
