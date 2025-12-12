@@ -88,14 +88,20 @@ class IssueReporter:
             self.logger.info(f"Creating issue in {self.repo}: {title}")
             
             # Checks if gh is installed/authenticated
-            try:
-                check = subprocess.run(["gh", "--version"], capture_output=True, text=True)
-                if check.returncode != 0:
-                    self.logger.error("GitHub CLI (gh) not found or not working.")
-                    return False
-            except FileNotFoundError:
+            import shutil
+            if not shutil.which("gh"):
                 self.logger.warning("GitHub CLI (gh) not installed. Skipping issue creation.")
                 return False
+
+            try:
+                # Verify it runs (sometimes found but broken)
+                check = subprocess.run(["gh", "--version"], capture_output=True, text=True)
+                if check.returncode != 0:
+                    self.logger.error("GitHub CLI (gh) found but not working.")
+                    return False
+            except Exception as e:
+                 self.logger.warning(f"Error checking GitHub CLI: {e}")
+                 return False
 
             cmd = [
                 "gh", "issue", "create",
