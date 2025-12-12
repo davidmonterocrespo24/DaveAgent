@@ -238,6 +238,10 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         last_msg = None
 
         for msg in messages:
+            # Skip messages with None role or valid
+            if not msg.get("role"):
+                continue
+
             if not last_msg:
                 normalized.append(msg)
                 last_msg = msg
@@ -247,20 +251,30 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                 # Merge content
                 content1 = last_msg.get("content") or ""
                 content2 = msg.get("content") or ""
+                
+                # Careful merging: if both exist, join with newline.
                 if content1 and content2:
-                    last_msg["content"] = str(content1) + "\n\n" + str(content2)
+                    new_content = str(content1) + "\n\n" + str(content2)
                 else:
-                    last_msg["content"] = str(content1) or str(content2)
+                    new_content = str(content1) or str(content2)
+                
+                last_msg["content"] = new_content
 
                 # Merge tool calls
                 tc1 = last_msg.get("tool_calls", [])
                 tc2 = msg.get("tool_calls", [])
+                
                 if tc2:
                     if not tc1:
                         last_msg["tool_calls"] = tc2
                     else:
+                        # Append new tool calls
                         last_msg["tool_calls"].extend(tc2)
                 
+                # If tool_calls ended up empty, ensure key is removed
+                if "tool_calls" in last_msg and not last_msg["tool_calls"]:
+                    del last_msg["tool_calls"]
+
                 # Merge reasoning_content if present
                 rc1 = last_msg.get("reasoning_content")
                 rc2 = msg.get("reasoning_content")
@@ -272,5 +286,23 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             else:
                 normalized.append(msg)
                 last_msg = msg
+        
+        # Cleanup pass: Ensure valid structure for all messages
+        final_messages = []
+        for msg in normalized:
+            # 1. Ensure content is string if present (some clients send None)
+            if "content" in msg and msg["content"] is None:
+                msg["content"] = ""
+            
+            # 2. If tool_calls is empty list, remove it
+            if "tool_calls" in msg and not msg["tool_calls"]:
+                del msg["tool_calls"]
+                
+            # 3. If message has NO content and NO tool_calls, it is invalid.
+            # Convert to empty content string (which might still be rejected if strictly validated, but better than nothing)
+            if not msg.get("content") and "tool_calls" not in msg:
+                 msg["content"] = "" 
+            
+            final_messages.append(msg)
 
-        return normalized
+        return final_messages

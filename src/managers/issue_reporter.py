@@ -7,6 +7,7 @@ import subprocess
 import traceback
 import sys
 from typing import Optional
+from autogen_core.models import UserMessage
 from src.utils import get_logger
 
 class IssueReporter:
@@ -52,8 +53,8 @@ class IssueReporter:
                     # Note: We need to check the actual interface.
                     # Using a simplified approach if it's the standard wrapper
                     
-                    # Construct a simple message list for the chat completion
-                    messages = [{"role": "user", "content": prompt}]
+                    # Construct a UserMessage for the chat completion
+                    messages = [UserMessage(content=prompt, source="user")]
                     
                     # Depending on the client type, the call might differ slightly.
                     # We'll try the standard create method.
@@ -87,9 +88,13 @@ class IssueReporter:
             self.logger.info(f"Creating issue in {self.repo}: {title}")
             
             # Checks if gh is installed/authenticated
-            check = subprocess.run(["gh", "--version"], capture_output=True, text=True)
-            if check.returncode != 0:
-                self.logger.error("GitHub CLI (gh) not found or not working.")
+            try:
+                check = subprocess.run(["gh", "--version"], capture_output=True, text=True)
+                if check.returncode != 0:
+                    self.logger.error("GitHub CLI (gh) not found or not working.")
+                    return False
+            except FileNotFoundError:
+                self.logger.warning("GitHub CLI (gh) not installed. Skipping issue creation.")
                 return False
 
             cmd = [
