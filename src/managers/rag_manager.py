@@ -403,16 +403,28 @@ class RAGManager:
             
         return final_results
 
-    def search(self, collection_name: str, query: str, top_k: int = 5):
+    def search(self, collection_name: str, query: str, top_k: int = 5, min_score: float = 0.3):
         """
         Flujo RAG Avanzado:
         1. Multi-Query Generation
         2. Vector Search en paralelo
         3. Reciprocal Rank Fusion
         4. Parent Document Lookup (recuperar el contexto completo)
+        5. Filtrado por umbral de score mínimo
+
+        Args:
+            collection_name: Nombre de la colección a buscar
+            query: Query del usuario
+            top_k: Número máximo de resultados
+            min_score: Score mínimo para considerar un resultado relevante (0.0-1.0)
+                      Valores recomendados:
+                      - 0.0: Sin filtro (devuelve todo)
+                      - 0.1-0.3: Muy permisivo (devuelve resultados débilmente relacionados)
+                      - 0.4-0.6: Moderado (solo resultados medianamente relevantes)
+                      - 0.7+: Estricto (solo resultados muy relevantes)
         """
         collection = self._get_collection(collection_name)
-        
+
         # 1. Generar variaciones de la query
         queries = self._generate_multi_queries(query)
         logger.info(f"[Search] Queries generadas: {queries}")
@@ -428,17 +440,21 @@ class RAGManager:
 
         # 3. Fusionar resultados (RRF)
         fused_results = self._reciprocal_rank_fusion(results_list)
-        
+
         # 4. Resolver a Documentos Padres (Parent Retrieval)
         final_output = []
         seen_parents = set()
-        
+
         for item in fused_results:
+            # FILTRO POR UMBRAL DE SCORE
+            if item['score'] < min_score:                
+                continue
+
             if len(final_output) >= top_k:
                 break
-                
+
             parent_id = item['metadata'].get('parent_id')
-            
+
             if parent_id and parent_id not in seen_parents:
                 # Recuperar el texto completo del padre desde SQLite
                 parent_doc = self.docstore.get_document(parent_id)
@@ -453,8 +469,8 @@ class RAGManager:
             elif not parent_id:
                 # Si no tiene padre (chunk huerfano), devolvemos el hijo
                 final_output.append(item)
-                
-            # If item has parent but parent doc not found (edge case), ignore or add child. 
+
+            # If item has parent but parent doc not found (edge case), ignore or add child.
             # Current logic ignores if parent_id exists but not found in docstore.
 
         return final_output

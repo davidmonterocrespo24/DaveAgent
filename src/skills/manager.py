@@ -195,17 +195,20 @@ class SkillManager:
         except Exception as e:
             self.logger.error(f"Error indexing skills: {e}")
 
-    def find_relevant_skills(self, user_query: str, max_results: int = 10) -> List[Skill]:
+    def find_relevant_skills(self, user_query: str, max_results: int = 10, min_score: float = 0.5) -> List[Skill]:
         """
         Find skills relevant to a user query using RAG semantic search.
         Falls back to keyword matching if RAG is not available.
-        
+
         Args:
             user_query: User's input/question
             max_results: Maximum number of skills to return
-            
+            min_score: Minimum relevance score (0.0-1.0). Recommended: 0.5 for skills
+                      to avoid false positives. Only skills with score >= min_score
+                      will be returned.
+
         Returns:
-            List of relevant Skill objects
+            List of relevant Skill objects, sorted by relevance
         """
         if not self._skills:
             return []
@@ -216,31 +219,37 @@ class SkillManager:
                 results = self.rag_manager.search(
                     collection_name=self.RAG_COLLECTION,
                     query=user_query,
-                    top_k=max_results
+                    top_k=max_results,
+                    min_score=min_score  # Umbral de relevancia
                 )
-                
+
                 found_skills = []
                 seen_names = set()
-                
+
                 for res in results:
                     # Get skill name from metadata if available, or infer from id
                     meta = res.get('metadata', {})
                     skill_name = meta.get('skill_name')
-                    
+                    score = res.get('score', 0.0)
+
                     # If not in metadata (e.g. child chunk), parsed from content or fallback
                     if not skill_name and 'skill-' in str(res.get('id', '')):
                         # Try to extract from ID logic (skill-name-...)
                         # But simpler: just look up in our loaded skills which one matches
                         pass
-                    
+
                     if skill_name and skill_name in self._skills and skill_name not in seen_names:
                         found_skills.append(self._skills[skill_name])
                         seen_names.add(skill_name)
-                        
+                        self.logger.debug(f"  - Skill '{skill_name}' matched with score {score:.4f}")
+
                 if found_skills:
-                    self.logger.debug(f"RAG found relevant skills: {[s.name for s in found_skills]}")
+                    self.logger.info(f"RAG found {len(found_skills)} relevant skill(s) with score >= {min_score}")
                     return found_skills
-                    
+                else:
+                    self.logger.debug(f"RAG found no skills with score >= {min_score}")
+                    return []
+
             except Exception as e:
                 self.logger.warning(f"RAG skill search failed: {e}. Falling back to keywords.")
         

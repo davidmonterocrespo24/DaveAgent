@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import glob
-from src.tools.common import get_workspace
+from src.tools.common import get_workspace, EXCLUDED_DIRS
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -31,17 +31,12 @@ def _load_gitignore_patterns(root_path: Path) -> Optional["pathspec.PathSpec"]:
 
 
 def _is_ignored(path: Path, spec: Optional["pathspec.PathSpec"]) -> bool:
-    # Exclusiones hardcoded de seguridad
+    # Check hardcoded exclusions from common configuration
     parts = path.parts
-    if ".git" in parts:
-        return True
-    if "node_modules" in parts:
-        return True
-    if "__pycache__" in parts:
-        return True
-    if ".venv" in parts:
+    if any(excluded_dir in parts for excluded_dir in EXCLUDED_DIRS):
         return True
 
+    # Check gitignore patterns if available
     if spec:
         try:
             rel_path = path.relative_to(WORKSPACE)

@@ -9,29 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from src.tools.common import get_workspace
-
-# --- Exclusion Configuration (Fallback) ---
-# Used only if git grep is not available
-EXCLUDED_DIRS = {
-    "node_modules",
-    "__pycache__",
-    ".git",
-    ".venv",
-    "venv",
-    "env",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".tox",
-    "dist",
-    "build",
-    "site-packages",
-    ".next",
-    ".nuxt",
-    "coverage",
-    ".idea",
-    ".vscode",
-}
+from src.tools.common import get_workspace, EXCLUDED_DIRS
 
 EXCLUDED_EXTS = {
     ".pyc",

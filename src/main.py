@@ -1666,17 +1666,34 @@ TITLE:"""
                 )
 
             # =================================================================
-            # DYNAMIC SKILL RAG INJECTION
+            # DYNAMIC SKILL RAG INJECTION (SEMANTIC THRESHOLD-BASED)
             # =================================================================
-            # Find relevant skills using RAG based on the user query
-            relevant_skills = self.skill_manager.find_relevant_skills(user_input)
+            # Skills are automatically injected ONLY if their semantic similarity
+            # score with the query exceeds the threshold (default: 0.6).
+            #
+            # This prevents false positives where irrelevant skills activate
+            # (e.g., xlsx/pptx skills activating on "summarize the project").
+            #
+            # The RAGManager uses:
+            # - Multi-Query Generation (query variations)
+            # - Reciprocal Rank Fusion (combines multiple results)
+            # - Score threshold filtering (min_score parameter)
+            # =================================================================
+            relevant_skills = self.skill_manager.find_relevant_skills(
+                user_input,
+                max_results=3,      # Maximum skills to activate
+                min_score=0.6       # Minimum semantic similarity (0.0-1.0)
+                                    # 0.6 = moderately relevant (strict enough to avoid false positives)
+                                    # Lower = more permissive, higher = stricter matching
+            )
             skills_context = ""
+
             if relevant_skills:
                 skills_list = "\n".join([s.to_context_string() for s in relevant_skills])
                 skills_context = f"\n\n<active_skills>\nThe following skills are relevant to your request and available for use:\n\n{skills_list}\n</active_skills>"
-                self.logger.info(f"🧠 RAG found {len(relevant_skills)} relevant skill(s): {[s.name for s in relevant_skills]}")
+                self.logger.info(f"🧠 RAG activated {len(relevant_skills)} relevant skill(s): {[s.name for s in relevant_skills]}")
             else:
-                self.logger.debug("🧠 No specific skills found relevant to this request")
+                self.logger.debug("🧠 No skills met the relevance threshold for this request")
 
             # Prepare final input with context
             # Combine: User Request + Mentioned Files + Skills Context
