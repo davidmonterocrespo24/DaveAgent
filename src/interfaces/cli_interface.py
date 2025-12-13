@@ -586,6 +586,9 @@ DAVEAGENT_MODEL=deepseek-reasoner
 
 **System:**
 • `/init` - Create a DAVEAGENT.md template for project-specific context
+• `/telemetry` - Show telemetry status
+• `/telemetry-off` - Disable telemetry (anonymous usage data)
+• `/telemetry-on` - Enable telemetry
 • `/debug` - Toggle debug mode
 • `/logs` - Show log file location
 • `/exit` or `/quit` - Exit the agent

@@ -199,16 +199,24 @@ class DaveAgentCLI:
         # Observability system with Langfuse (simple method with OpenLit)
         self.langfuse_enabled = False
         try:
-            # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
-            from src.observability import init_langfuse_tracing
-            self.langfuse_enabled = init_langfuse_tracing(enabled=True, debug=debug)
+            # Setup Langfuse environment from obfuscated credentials
+            from src.config import setup_langfuse_environment, is_telemetry_enabled
+            
+            if is_telemetry_enabled():
+                setup_langfuse_environment()
+                
+                # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
+                from src.observability import init_langfuse_tracing
+                self.langfuse_enabled = init_langfuse_tracing(enabled=True, debug=debug)
 
-            if self.langfuse_enabled:
-                self.logger.info("✓ Langfuse + OpenLit enabled - automatic tracking active")
+                if self.langfuse_enabled:
+                    self.logger.info("✓ Telemetry enabled - Langfuse + OpenLit active")
+                else:
+                    self.logger.info("✗ Langfuse not available - continuing without tracking")
             else:
-                self.logger.info("X Langfuse not available - continuing without tracking")
+                self.logger.info("📊 Telemetry disabled by user preference")
         except Exception as e:
-            self.logger.warning(f"X Error initializing Langfuse: {e}")
+            self.logger.warning(f"✗ Error initializing Langfuse: {e}")
             self.langfuse_enabled = False
 
 
@@ -702,6 +710,38 @@ class DaveAgentCLI:
                 self.cli.print_info("Use /skills to see available skills")
             else:
                 await self._show_skill_info_command(parts[1])
+
+        elif cmd == "/telemetry-off":
+            # Disable telemetry
+            from src.config import set_telemetry_enabled, is_telemetry_enabled
+            if not is_telemetry_enabled():
+                self.cli.print_info("📊 Telemetry is already disabled")
+            else:
+                set_telemetry_enabled(False)
+                self.cli.print_success("📊 Telemetry disabled")
+                self.cli.print_info("ℹ️  Changes will take effect on next restart")
+
+        elif cmd == "/telemetry-on":
+            # Enable telemetry
+            from src.config import set_telemetry_enabled, is_telemetry_enabled
+            if is_telemetry_enabled():
+                self.cli.print_info("📊 Telemetry is already enabled")
+            else:
+                set_telemetry_enabled(True)
+                self.cli.print_success("📊 Telemetry enabled")
+                self.cli.print_info("ℹ️  Changes will take effect on next restart")
+
+        elif cmd == "/telemetry":
+            # Show telemetry status
+            from src.config import is_telemetry_enabled
+            status = "enabled" if is_telemetry_enabled() else "disabled"
+            runtime = "active" if self.langfuse_enabled else "inactive"
+            self.cli.print_info(f"📊 Telemetry status: {status}")
+            self.cli.print_info(f"📊 Runtime status: {runtime}")
+            if not is_telemetry_enabled():
+                self.cli.print_info("ℹ️  Use /telemetry-on to enable telemetry")
+            else:
+                self.cli.print_info("ℹ️  Use /telemetry-off to disable telemetry")
 
         else:
             self.cli.print_error(f"Unknown command: {cmd}")

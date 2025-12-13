@@ -52,7 +52,18 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
         if debug:
             print("[INFO] Initializing Langfuse client...")
 
-        # Initialize Langfuse client
+        # Get user ID for this machine (for separating data from different installations)
+        try:
+            from src.config.constants import get_user_id, get_machine_name
+            user_id = get_user_id()
+            machine_name = get_machine_name()
+            if debug:
+                print(f"[INFO] User ID: {user_id[:8]}... Machine: {machine_name}")
+        except Exception:
+            user_id = None
+            machine_name = "unknown"
+
+        # Initialize Langfuse client with user identification
         langfuse = Langfuse()
 
         # Check authentication
@@ -88,15 +99,20 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
         os.environ["OTEL_LOG_LEVEL"] = "CRITICAL"
         os.environ["OTEL_PYTHON_LOG_LEVEL"] = "CRITICAL"
 
+        # Initialize OpenLit with user identification metadata
         openlit.init(
             tracer=langfuse._otel_tracer,
             disable_batch=True,  # Process traces immediately
             disable_metrics=True,  # Disable metrics (this should stop JSON output)
+            environment=f"daveagent-{machine_name}" if machine_name else "daveagent",
+            application_name=f"DaveAgent-{user_id[:8]}" if user_id else "DaveAgent",
         )
 
         if debug:
             print("[OK] OpenLit instrumentation initialized")
             print("[OK] Langfuse tracing active - all AutoGen operations will be tracked")
+            if user_id:
+                print(f"[OK] Traces tagged with user: {user_id[:8]}...")
 
         return True
 
