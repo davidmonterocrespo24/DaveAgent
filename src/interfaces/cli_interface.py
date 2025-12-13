@@ -18,6 +18,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.spinner import Spinner
+from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 from typing import Optional, List
@@ -393,6 +394,97 @@ class CLIInterface:
             else:
                 # Context lines in dim white
                 self.console.print(f"[dim]{line}[/dim]")
+
+    def print_code(self, code: str, filename: str, max_lines: int = 50):
+        """
+        Display code with syntax highlighting based on file extension
+
+        Args:
+            code: The code content to display
+            filename: The filename (used to determine language)
+            max_lines: Maximum lines to display (truncates if longer)
+        """
+        # Map file extensions to language names for syntax highlighting
+        extension_map = {
+            ".py": "python",
+            ".js": "javascript",
+            ".ts": "typescript",
+            ".jsx": "jsx",
+            ".tsx": "tsx",
+            ".html": "html",
+            ".css": "css",
+            ".scss": "scss",
+            ".json": "json",
+            ".xml": "xml",
+            ".yaml": "yaml",
+            ".yml": "yaml",
+            ".md": "markdown",
+            ".sql": "sql",
+            ".sh": "bash",
+            ".bash": "bash",
+            ".zsh": "zsh",
+            ".ps1": "powershell",
+            ".java": "java",
+            ".c": "c",
+            ".cpp": "cpp",
+            ".h": "c",
+            ".hpp": "cpp",
+            ".cs": "csharp",
+            ".go": "go",
+            ".rs": "rust",
+            ".rb": "ruby",
+            ".php": "php",
+            ".swift": "swift",
+            ".kt": "kotlin",
+            ".scala": "scala",
+            ".r": "r",
+            ".lua": "lua",
+            ".pl": "perl",
+            ".toml": "toml",
+            ".ini": "ini",
+            ".cfg": "ini",
+            ".conf": "ini",
+            ".dockerfile": "dockerfile",
+            ".tf": "terraform",
+            ".vue": "vue",
+            ".svelte": "svelte",
+        }
+
+        # Get file extension and determine language
+        ext = Path(filename).suffix.lower()
+        language = extension_map.get(ext, "text")
+
+        # Truncate if too long
+        lines = code.split("\n")
+        truncated = False
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+            truncated = True
+            code = "\n".join(lines)
+
+        try:
+            syntax = Syntax(
+                code,
+                language,
+                theme="monokai",
+                line_numbers=True,
+                word_wrap=False,
+            )
+            self.console.print(
+                Panel(
+                    syntax,
+                    title=f"[bold cyan]{filename}[/bold cyan]",
+                    border_style="dim",
+                    subtitle=f"[dim]{language}[/dim]" if language != "text" else None,
+                )
+            )
+            if truncated:
+                self.console.print(
+                    f"[dim]... (showing first {max_lines} lines, file has {len(lines) + (len(code.split(chr(10))) - max_lines)} total)[/dim]"
+                )
+        except Exception:
+            # Fallback to plain text if syntax highlighting fails
+            self.console.print(Panel(code, title=f"[bold cyan]{filename}[/bold cyan]", border_style="dim"))
 
     def print_task_summary(self, summary: str):
         """

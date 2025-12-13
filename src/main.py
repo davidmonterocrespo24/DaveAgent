@@ -363,6 +363,9 @@ class DaveAgentCLI:
             self.history_viewer = HistoryViewer(console=self.cli.console)
 
         self.running = True
+        
+        # Initialize agents and main_team for the current mode
+        self._initialize_agents_for_mode()
 
     def _initialize_agents_for_mode(self):
         """
@@ -375,6 +378,8 @@ class DaveAgentCLI:
         errors with "multiple system messages" in models like DeepSeek.
         Instead, they use RAG tools (query_*_memory, save_*).
         """
+        from src.agents import CodeSearcher
+        
         if self.current_mode == "agent":
             # AGENT mode: all tools + technical prompt
             coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
@@ -1798,11 +1803,57 @@ TITLE:"""
                                             if hasattr(tool_call, "arguments")
                                             else {}
                                         )
-                                        self.cli.print_info(
-                                            f"🔧 Calling tool: {tool_name} with parameters {tool_args}",
-                                            agent_name,
-                                        )
-                                        self.logger.debug(f"🔧 Tool call: {tool_name}({tool_args})")
+                                        
+                                        # Parse tool_args if it's a JSON string
+                                        if isinstance(tool_args, str):
+                                            try:
+                                                import json
+                                                tool_args = json.loads(tool_args)
+                                            except (json.JSONDecodeError, TypeError):
+                                                pass  # Keep as string if parsing fails
+                                        
+                                        # Special formatting for file tools with code content
+                                        if tool_name == "write_file" and isinstance(tool_args, dict) and "file_content" in tool_args:
+                                            # Show write_file with syntax highlighting
+                                            target_file = tool_args.get("target_file", "unknown")
+                                            file_content = tool_args.get("file_content", "")
+                                            self.cli.print_thinking(f"🔧 {agent_name} > {tool_name}: Writing to {target_file}")
+                                            self.cli.print_code(file_content, target_file, max_lines=50)
+                                        elif tool_name == "edit_file" and isinstance(tool_args, dict):
+                                            # Show edit_file with unified diff
+                                            import difflib
+                                            target_file = tool_args.get("target_file", "unknown")
+                                            old_string = tool_args.get("old_string", "")
+                                            new_string = tool_args.get("new_string", "")
+                                            instructions = tool_args.get("instructions", "")
+                                            self.cli.print_thinking(f"🔧 {agent_name} > {tool_name}: Editing {target_file}")
+                                            if instructions:
+                                                self.cli.print_thinking(f"   📝 {instructions}")
+                                            # Generate unified diff
+                                            old_lines = old_string.splitlines(keepends=True)
+                                            new_lines = new_string.splitlines(keepends=True)
+                                            diff = difflib.unified_diff(
+                                                old_lines, new_lines,
+                                                fromfile=f"a/{target_file}",
+                                                tofile=f"b/{target_file}",
+                                                lineterm=""
+                                            )
+                                            diff_text = "".join(diff)
+                                            if diff_text:
+                                                self.cli.print_diff(diff_text)
+                                            else:
+                                                self.cli.print_thinking("   (no changes detected in diff)")
+                                        else:
+                                            # Default: show parameters as JSON (truncate if too long)
+                                            args_str = str(tool_args)
+                                            if len(args_str) > 200:
+                                                args_str = args_str[:200] + "..."
+                                            self.cli.print_info(
+                                                f"🔧 Calling tool: {tool_name} with parameters {args_str}",
+                                                agent_name,
+                                            )
+                                        
+                                        self.logger.debug(f"🔧 Tool call: {tool_name}")
                                         # JSON Logger: Capture tool call
                                         self.json_logger.log_tool_call(
                                             agent_name=agent_name,
@@ -1838,6 +1889,9 @@ TITLE:"""
                                             if hasattr(execution_result, "content")
                                             else "OK"
                                         )
+                                        
+                                        # DEBUG: Log tool result details
+                                        self.logger.debug(f"[TOOL_RESULT_DEBUG] tool_name={tool_name}, result_starts_with={result_content[:50] if len(result_content) > 50 else result_content}, has_File={('File:' in result_content)}")
 
                                         # Check if this is an edit_file result with diff
                                         if (
@@ -1880,6 +1934,30 @@ TITLE:"""
                                                 self.logger.debug(
                                                     f"✅ Tool result: {tool_name} -> {result_preview}"
                                                 )
+                                        elif tool_name == "read_file" and "File:" in result_content:
+                                            # Special handling for read_file - show with syntax highlighting
+                                            # Extract filename from result
+                                            try:
+                                                # Result format: "File: <path>\n<content>"
+                                                first_line = result_content.split("\n")[0]
+                                                if first_line.startswith("File:"):
+                                                    filename = first_line.replace("File:", "").strip()
+                                                    # Get code content (everything after first line)
+                                                    code_content = "\n".join(result_content.split("\n")[1:])
+                                                    # Display with syntax highlighting
+                                                    self.cli.print_code(code_content, filename, max_lines=50)
+                                                    self.logger.debug(f"✅ Tool result: {tool_name} -> {filename} (displayed with syntax highlighting)")
+                                                else:
+                                                    # Fallback
+                                                    result_preview = result_content[:100]
+                                                    self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
+                                            except Exception:
+                                                result_preview = result_content[:100]
+                                                self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
+                                        elif tool_name == "write_file" and "Successfully wrote" in result_content:
+                                            # Special handling for write_file - show success message
+                                            self.cli.print_success(f"{agent_name} > {tool_name}: {result_content}")
+                                            self.logger.debug(f"✅ Tool result: {tool_name} -> {result_content}")
                                         else:
                                             # Regular tool result
                                             result_preview = result_content[:100]
