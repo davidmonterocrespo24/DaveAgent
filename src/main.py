@@ -316,17 +316,6 @@ class DaveAgentCLI:
                 sort_csv,
                 run_terminal_cmd,
             ],
-            # Specific tools for CodeSearcher (always available)
-            "search": [
-                grep_search,
-                file_search,
-                glob_search,
-                read_file,
-                list_dir,
-                analyze_python_file,
-                find_function_definition,
-                list_all_functions,
-            ],
         }
 
         self.logger.info(f"✨ DaveAgent initialized in {time.time() - t_start:.2f}s")
@@ -378,7 +367,6 @@ class DaveAgentCLI:
         errors with "multiple system messages" in models like DeepSeek.
         Instead, they use RAG tools (query_*_memory, save_*).
         """
-        from src.agents import CodeSearcher
         
         if self.current_mode == "agent":
             # AGENT mode: all tools + technical prompt
@@ -424,12 +412,6 @@ class DaveAgentCLI:
             agent_name="Coder",
         )
 
-        searcher_client = LoggingModelClientWrapper(
-            wrapped_client=self.model_client._wrapped,
-            json_logger=self.json_logger,
-            agent_name="CodeSearcher",
-        )
-
         planner_client = LoggingModelClientWrapper(
             wrapped_client=self.model_client._wrapped,
             json_logger=self.json_logger,
@@ -445,13 +427,6 @@ class DaveAgentCLI:
             tools=coder_tools,  # Includes memory RAG tools
             max_tool_iterations=5,
             reflect_on_tool_use=False,
-            # NO memory parameter - uses RAG tools instead
-        )
-
-        # Create CodeSearcher with search tools (without memory parameter)
-        self.code_searcher = CodeSearcher(
-            searcher_client,
-            self.all_tools["search"],  # Includes query_codebase_memory, query_conversation_memory
             # NO memory parameter - uses RAG tools instead
         )
 
@@ -473,8 +448,7 @@ class DaveAgentCLI:
         # =====================================================================
         # This team automatically decides which agent to use according to context:
         # - Planner: For complex multi-step tasks
-        # - CodeSearcher: For code search and analysis
-        # - Coder: For direct code modifications
+        # - Coder: For code modifications and analysis
         #
         # Advantages:
         # - Does not need manual complexity detection
@@ -486,11 +460,11 @@ class DaveAgentCLI:
         termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(50)
 
         self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
-        self.logger.debug(f"[SELECTOR] Participants: Planner, CodeSearcher, Coder")
-        self.logger.debug(f"[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(10)")
+        self.logger.debug(f"[SELECTOR] Participants: Planner, Coder")
+        self.logger.debug(f"[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(50)")
 
         self.main_team = SelectorGroupChat(
-            participants=[self.planning_agent, self.code_searcher.searcher_agent, self.coder_agent],
+            participants=[self.planning_agent, self.coder_agent],
             model_client=self.router_client,
             termination_condition=termination_condition,
             allow_repeated_speaker=True,  # Allows the same agent to speak multiple times

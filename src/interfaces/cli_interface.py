@@ -547,7 +547,6 @@ class CLIInterface:
 **Available Commands:**
 
 • `/help` - Shows this help message
-• `/search <query>` - Search and analyze code before modifying it
 
 **Model Configuration:**
 • `/config` - Shows current configuration (model, URL, API key)
@@ -604,7 +603,7 @@ DAVEAGENT_MODEL=deepseek-reasoner
 
 `@src/config/settings.py @.env update the API configuration`
 
-`explain how @src/agents/code_searcher.py works`
+`explain how @src/main.py works`
 
 **Operation Modes (NEW):**
 
@@ -656,14 +655,6 @@ Simply write what you need the agent to do. The agent will:
 "Find all Python files with bugs and fix them"
 
 "Refactor the code in src/utils to use async/await"
-
-**Search Examples:**
-
-"/search authentication function"
-
-"/search where the User class is used"
-
-"/search methods that modify the database"
         """
         self.console.print()
         self.console.print(
