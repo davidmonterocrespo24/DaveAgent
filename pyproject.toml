@@ -29,6 +29,7 @@ dependencies = [
     "autogen-ext[openai]>=0.4.0",
     "prompt-toolkit>=3.0.0",
     "rich>=13.0.0",
+    "readchar>=4.0.0",
     "pandas>=2.0.0",
     "wikipedia>=1.4.0",
     "python-dotenv>=1.0.0",
