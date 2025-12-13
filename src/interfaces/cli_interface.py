@@ -586,6 +586,7 @@ DAVEAGENT_MODEL=deepseek-reasoner
 • `/stats` - Show current session statistics
 
 **System:**
+• `/init` - Create a DAVEAGENT.md template for project-specific context
 • `/debug` - Toggle debug mode
 • `/logs` - Show log file location
 • `/exit` or `/quit` - Exit the agent
