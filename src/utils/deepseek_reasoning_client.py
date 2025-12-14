@@ -249,6 +249,11 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             if not msg.get("role"):
                 continue
 
+            # DeepSeek Fix: Strip 'name' from user messages to prevent role confusion
+            # The API might treat named user messages (e.g. name='Coder') as assistant-like
+            if msg.get("role") == "user" and "name" in msg:
+                 del msg["name"]
+
             if not normalized:
                 normalized.append(msg)
                 continue

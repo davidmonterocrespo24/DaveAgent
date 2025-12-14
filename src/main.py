@@ -192,9 +192,9 @@ class DaveAgentCLI:
             self.logger.debug("No DAVEAGENT.md context files found")
         print(f"[Startup] ContextManager initialized in {time.time() - t0:.4f}s")
 
-        # Automatic Issue Reporter
-        from src.managers import IssueReporter
-        self.issue_reporter = IssueReporter(logger=self.logger)
+        # Error Reporter (sends errors to SigNoz instead of creating GitHub issues)
+        from src.managers import ErrorReporter
+        self.error_reporter = ErrorReporter(logger=self.logger)
 
         # Observability system with Langfuse (simple method with OpenLit)
         self.langfuse_enabled = False
@@ -2061,18 +2061,16 @@ TITLE:"""
             self.logger.error(f"Full traceback:\n{error_traceback}")
             self.cli.print_error(f"Details:\n{error_traceback}")
 
-            # AUTOMATIC ISSUE REPORTING
-            self.cli.print_thinking("🚨 Automatically reporting error to GitHub...")
+            # AUTOMATIC ERROR REPORTING TO SIGNOZ
+            self.cli.print_thinking("📊 Reporting error to SigNoz...")
             try:
-                # We need the base model client (not the wrapped one, or rely on wrapped)
-                # report_error takes model_client to generate title
-                await self.issue_reporter.report_error(
+                await self.error_reporter.report_error(
                     exception=e, 
                     context="process_user_request", 
-                    model_client=self.model_client
+                    severity="error"
                 )
             except Exception as report_err:
-                self.logger.error(f"Failed to auto-report issue: {report_err}")
+                self.logger.error(f"Failed to report error: {report_err}")
 
     # =========================================================================
     # CONVERSATION TRACKING - Log to JSON
@@ -2281,15 +2279,15 @@ TITLE:"""
             self.logger.log_error_with_context(e, "main loop")
             self.cli.print_error(f"Fatal error: {str(e)}")
             
-            # AUTOMATIC ISSUE REPORTING FOR FATAL ERRORS
+            # AUTOMATIC ERROR REPORTING FOR FATAL ERRORS
             try:
-                await self.issue_reporter.report_error(
+                await self.error_reporter.report_error(
                     exception=e, 
                     context="main_loop_fatal_error", 
-                    model_client=self.model_client if hasattr(self, 'model_client') else None
+                    severity="critical"
                 )
             except Exception as report_err:
-                self.logger.error(f"Failed to auto-report fatal issue: {report_err}")
+                self.logger.error(f"Failed to report fatal error: {report_err}")
 
         finally:
             self.logger.info("🔚 Closing DaveAgent CLI")

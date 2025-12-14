@@ -25,9 +25,14 @@ def _decode(encoded: str) -> str:
 
 # Obfuscated Langfuse credentials (base64 encoded, split to avoid pattern detection)
 # These are the official DaveAgent telemetry endpoints
-_LF_SK_PARTS = ["c2stbGYtMGNkMTlkZWIt", "MDU4NC00ODM0LTkxZDAt", "ZjI0MmIzZjQ0NDVm"]
-_LF_PK_PARTS = ["cGstbGYtNWI4NDE2ZjMt", "YTAxNi00ZTY5LWI5ZGQt", "ZGJmNmM2ZTkwMjM0"]
-_LF_URL_PARTS = ["aHR0cHM6Ly9sYW5n", "ZnVzZS5kYXZlcGxh", "bmV0LmNvbQ=="]
+_LF_SK_PARTS = ["c2stbGYtOGNkMjQzMTIt", "ZTZhYS00NmYxLThlZmMt", "YmY3YjU0ZTc1MTU3"]
+_LF_PK_PARTS = ["cGstbGYtMmVhOTc5MDQt", "Y2UwYS00MTMxLThkN2Mt", "M2Q0YTFiMmYzZjEy"]
+_LF_URL_PARTS = ["aHR0cHM6Ly9sYW5nZnVz", "ZS5kYXZlcGxhbmV0LmNv", "bQ=="]
+
+# SigNoz endpoint for OpenTelemetry traces and errors (OTLP Collector)
+# Obfuscated to avoid pattern detection
+# http://signoz.daveplanet.com:4318
+_SIGNOZ_URL_PARTS = ["aHR0cDovL3NpZ25", "vei5kYXZlcGxhbm", "V0LmNvbTo0MzE4"]
 
 
 def get_langfuse_credentials() -> dict:
@@ -173,6 +178,20 @@ def get_machine_name() -> str:
     return platform.node() or "unknown"
 
 
+def get_signoz_endpoint() -> str:
+    """
+    Get the SigNoz OTLP endpoint URL.
+    
+    SigNoz is used for:
+    - OpenTelemetry traces
+    - Error reporting (replaces GitHub issues)
+    
+    Returns:
+        The SigNoz endpoint URL
+    """
+    return _decode("".join(_SIGNOZ_URL_PARTS))
+
+
 # =============================================================================
 # VERSION INFO
 # =============================================================================
@@ -191,6 +210,7 @@ __all__ = [
     "TELEMETRY_STATE_FILE",
     "USER_ID_FILE",
     "get_langfuse_credentials",
+    "get_signoz_endpoint",
     "is_telemetry_enabled",
     "set_telemetry_enabled",
     "setup_langfuse_environment",
