@@ -101,7 +101,6 @@ class VibeSpinner:
         "bounce": ["⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"],
     }
 
-    # ANSI color codes
     COLORS = {
         "cyan": "\033[96m",
         "blue": "\033[94m",
@@ -112,6 +111,31 @@ class VibeSpinner:
         "bold": "\033[1m",
         "dim": "\033[2m",
     }
+
+    # Global registry for active spinner
+    _active_spinner = None
+
+    @classmethod
+    def set_active_spinner(cls, spinner):
+        cls._active_spinner = spinner
+
+    @classmethod
+    def clear_active_spinner(cls):
+        cls._active_spinner = None
+
+    @classmethod
+    def pause_active_spinner(cls):
+        """Pauses the active spinner if one exists"""
+        if cls._active_spinner and cls._active_spinner.is_running():
+            cls._active_spinner.stop(clear_line=True)
+            return cls._active_spinner
+        return None
+
+    @classmethod
+    def resume_spinner(cls, spinner):
+        """Resumes a paused spinner"""
+        if spinner:
+            spinner.start()
 
     def __init__(
         self,
@@ -187,6 +211,9 @@ class VibeSpinner:
         """Start the spinner animation"""
         if self._thread is not None and self._thread.is_alive():
             return  # Already running
+            
+        # REGISTER AS ACTIVE SPINNER
+        VibeSpinner.set_active_spinner(self)
 
         # Randomize starting message for variety
         self._current_message_index = random.randint(0, len(self.messages) - 1)
@@ -205,6 +232,9 @@ class VibeSpinner:
         Args:
             clear_line: Whether to clear the spinner line
         """
+        # CLEAR ACTIVE SPINNER
+        VibeSpinner.clear_active_spinner()
+
         if self._thread is None or not self._thread.is_alive():
             return  # Not running
 

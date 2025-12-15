@@ -87,7 +87,8 @@ class ErrorReporter:
             exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
             
             # Add batch processor
-            provider.add_span_processor(BatchSpanProcessor(exporter))
+            self._processor = BatchSpanProcessor(exporter)
+            provider.add_span_processor(self._processor)
             
             # Set as global tracer provider
             trace.set_tracer_provider(provider)
@@ -172,6 +173,11 @@ class ErrorReporter:
                 # Set error status
                 span.set_status(StatusCode.ERROR, str(exception))
             
+            # Force flush to ensure delivery implies we block until sent
+            # This prevents lost errors if the application crashes/exits shortly after
+            if hasattr(self, "_processor") and self._processor:
+                self._processor.force_flush()
+
             self.logger.info(f"📊 Error reported to SigNoz: {type(exception).__name__} in {context}")
             return True
             

@@ -195,20 +195,24 @@ class AdvancedEmbeddingFunction(EmbeddingFunction):
     """
     def __init__(self, settings: DaveAgentSettings, use_gpu: bool = False):
         self.model = None
-        
+        self.model_name = "sentence-transformers/all-MiniLM-L6-v2"
+
         # Intenta cargar SentenceTransformer (Local - Gratis y Potente)
         try:
-            model_name = "sentence-transformers/all-MiniLM-L6-v2"
             device = "cuda" if use_gpu else "cpu"
             import time
             start_time = time.time()
-            logger.info(f"Loading skills and components: {model_name} en {device}...")
-            self.model = SentenceTransformer(model_name, device=device)
+            logger.info(f"Loading skills and components: {self.model_name} en {device}...")
+            self.model = SentenceTransformer(self.model_name, device=device)
             load_time = time.time() - start_time
             logger.info(f"Skills and components loaded successfully in {load_time:.2f} seconds.")
         except Exception as e:
             logger.error(f"Error loading skills and components ({e}).")
             raise ValueError(f"Error loading skills and components ({e}).")
+
+    def name(self) -> str:
+        """Return the name of the embedding function (required by ChromaDB)."""
+        return self.model_name
 
     def __call__(self, input: Documents) -> Embeddings:
         if self.model:

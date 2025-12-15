@@ -189,35 +189,44 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
             # Only inject into assistant messages
             if msg.get("role") == "assistant":
+                # CRITICAL Fix for "Invalid consecutive assistant message":
+                # Only inject reasoning_content if the message has tool_calls.
+                # Injecting reasoning into pure text messages in history causes API errors.
+                if not msg.get("tool_calls"):
+                    modified_messages.append(modified_msg)
+                    continue
+
                 # Try to match this message with a raw response
                 for raw_resp in reversed(self._raw_responses):
-                    # Match by content or tool_calls
-                    if self._messages_match(msg, raw_resp):
+                    # Match by tool_calls ONLY (since content matching is risky for history)
+                    if self._messages_match_tools(msg, raw_resp):
                         reasoning = raw_resp.get("reasoning_content")
                         if reasoning:
                             modified_msg["reasoning_content"] = reasoning
-                            self.logger.debug("💭 Injected reasoning_content")
+                            self.logger.debug("💭 Injected reasoning_content for tool call")
                         break
 
             modified_messages.append(modified_msg)
 
         return modified_messages
 
-    def _messages_match(self, msg: Dict[str, Any], raw_resp: Dict[str, Any]) -> bool:
-        """Check if a message matches a raw response."""
-        # Match by content
-        if msg.get("content") and msg.get("content") == raw_resp.get("content"):
-            return True
-
-        # Match by tool_calls
+    def _messages_match_tools(self, msg: Dict[str, Any], raw_resp: Dict[str, Any]) -> bool:
+        """Check if message matches raw response by tool calls."""
         msg_tool_calls = msg.get("tool_calls", [])
         raw_tool_calls = raw_resp.get("tool_calls", [])
+        
         if msg_tool_calls and raw_tool_calls:
-            msg_ids = {tc.get("id") for tc in msg_tool_calls if tc.get("id")}
-            raw_ids = {tc.get("id") for tc in raw_tool_calls if tc.get("id")}
-            return msg_ids and msg_ids == raw_ids
-
+            try:
+                msg_ids = {tc.get("id") for tc in msg_tool_calls if tc.get("id")}
+                raw_ids = {tc.get("id") for tc in raw_tool_calls if tc.get("id")}
+                return msg_ids and msg_ids == raw_ids
+            except Exception:
+                return False
         return False
+
+    def _messages_match(self, msg: Dict[str, Any], raw_resp: Dict[str, Any]) -> bool:
+        # Kept for backward compatibility but unused by injection now
+        return self._messages_match_tools(msg, raw_resp)
 
     def clear_reasoning_cache(self):
         """Clear stored reasoning_content (useful for new conversations)."""
@@ -295,22 +304,60 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             else:
                 normalized.append(msg)
 
-        # Cleanup pass
-        final_messages = []
-        for msg in normalized:
+        return self._fix_broken_tool_chains(normalized)
+
+    def _fix_broken_tool_chains(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Fix broken tool chains where A(tool_calls) is followed by a user message 
+        instead of a tool output. This happens when the system interrupts 
+        execution (e.g. for approval).
+        
+        Strategy: Strip 'tool_calls' from the assistant message, making it a 
+        pure text message.
+        """
+        if not messages:
+            return messages
+            
+        fixed_messages = []
+        for i, msg in enumerate(messages):
+            # Create a copy to match the output structure of previous processing
+            # (although simple dict copy is enough as we modify dicts)
+            current_msg = msg.copy()
+            
+            # Check if this is an assistant message with tool calls
+            if (current_msg.get("role") == "assistant" and 
+                current_msg.get("tool_calls")):
+                
+                # Look ahead to the next message
+                if i + 1 < len(messages):
+                    next_msg = messages[i + 1]
+                    # If next message is NOT a tool response (function or tool role),
+                    # then the chain is broken.
+                    if next_msg.get("role") not in ["tool", "function"]:
+                        self.logger.warning(
+                            f"🔧 Fixing broken tool chain at index {i}. "
+                            f"Next role is {next_msg.get('role')}, expected 'tool'."
+                        )
+                        # Strip tool calls to convert to text message
+                        del current_msg["tool_calls"]
+                else:
+                    # Trailing assistant message with tool calls is valid 
+                    # (it's the one currently being generated or waiting for response)
+                    pass
+            
             # 1. Ensure content is string if present (some clients send None)
-            if "content" in msg and msg["content"] is None:
-                msg["content"] = ""
+            if "content" in current_msg and current_msg["content"] is None:
+                current_msg["content"] = ""
 
             # 2. If tool_calls is empty list, remove it
-            if "tool_calls" in msg and not msg["tool_calls"]:
-                del msg["tool_calls"]
+            if "tool_calls" in current_msg and not current_msg["tool_calls"]:
+                del current_msg["tool_calls"]
             
             # 3. Handle messages with empty content
-            if not msg.get("content") and "tool_calls" not in msg:
-                 msg["content"] = "" 
+            if not current_msg.get("content") and "tool_calls" not in current_msg:
+                 current_msg["content"] = "" 
             
-            final_messages.append(msg)
-
-        return final_messages
+            fixed_messages.append(current_msg)
+            
+        return fixed_messages
 

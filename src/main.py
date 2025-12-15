@@ -689,16 +689,7 @@ class DaveAgentCLI:
                     )
                 self.logger.info(f"SSL verify changed from {old_ssl} to {new_ssl}")
 
-        elif cmd == "/search":
-            # Invoke CodeSearcher to search in the code
-            if len(parts) < 2:
-                self.cli.print_error("Usage: /search <query>")
-                self.cli.print_info("Example: /search authentication function")
-            else:
-                query = parts[1]
-                self.cli.print_thinking(f"🔍 Searching in code: {query}")
-                await self._run_code_searcher(query)
-
+    
         elif cmd == "/skills":
             # List available agent skills
             await self._list_skills_command()
@@ -1001,12 +992,7 @@ TITLE:"""
             await self.state_manager.save_agent_state(
                 "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
             )
-
-            await self.state_manager.save_agent_state(
-                "code_searcher",
-                self.code_searcher.searcher_agent,
-                metadata={"description": "Code search and analysis agent"},
-            )
+           
 
             await self.state_manager.save_agent_state(
                 "planning",
@@ -1065,11 +1051,7 @@ TITLE:"""
                 "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
             )
 
-            await self.state_manager.save_agent_state(
-                "code_searcher",
-                self.code_searcher.searcher_agent,
-                metadata={"description": "Code search and analysis agent"},
-            )
+           
 
             await self.state_manager.save_agent_state(
                 "planning",
@@ -1145,10 +1127,7 @@ TITLE:"""
             if await self.state_manager.load_agent_state("coder", self.coder_agent):
                 agents_loaded += 1
 
-            if await self.state_manager.load_agent_state(
-                "code_searcher", self.code_searcher.searcher_agent
-            ):
-                agents_loaded += 1
+
 
             if await self.state_manager.load_agent_state("planning", self.planning_agent):
                 agents_loaded += 1
@@ -1354,95 +1333,7 @@ TITLE:"""
             self.logger.warning("⚠️ Fallback: using SIMPLE flow")
             return "simple"
 
-    # =========================================================================
-    # CODE SEARCHER - Code search
-    # =========================================================================
-
-    async def _run_code_searcher(self, query: str):
-        """
-        Execute CodeSearcher to search and analyze code
-
-        Args:
-            query: User's search query
-        """
-        try:
-            self.logger.info(f"🔍 Executing CodeSearcher: {query}")
-
-            # Use streaming to show progress in real-time
-            message_count = 0
-            agent_messages_shown = set()
-
-            async for msg in self.code_searcher.search_code_context_stream(query):
-                message_count += 1
-                msg_type = type(msg).__name__
-                self.logger.debug(f"CodeSearcher message #{message_count} - Type: {msg_type}")
-
-                if hasattr(msg, "source") and msg.source != "user":
-                    agent_name = msg.source
-
-                    if hasattr(msg, "content"):
-                        content = msg.content
-                    else:
-                        content = str(msg)
-
-                    # Create unique key
-                    try:
-                        if isinstance(content, list):
-                            content_str = str(content)
-                        else:
-                            content_str = content
-                        message_key = f"{agent_name}:{hash(content_str)}"
-                    except TypeError:
-                        message_key = f"{agent_name}:{hash(str(content))}"
-
-                    if message_key not in agent_messages_shown:
-                        # Show different message types
-                        if msg_type == "ThoughtEvent":
-                            self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
-                            self.logger.debug(f"💭 Thought: {content_str}")
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "ToolCallRequestEvent":
-                            if isinstance(content, list):
-                                for tool_call in content:
-                                    if hasattr(tool_call, "name"):
-                                        tool_name = tool_call.name
-                                        self.cli.print_info(
-                                            f"🔧 Searching with: {tool_name}", agent_name
-                                        )
-                                        self.logger.debug(f"🔧 Tool call: {tool_name}")
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "ToolCallExecutionEvent":
-                            if isinstance(content, list):
-                                for execution_result in content:
-                                    if hasattr(execution_result, "name"):
-                                        tool_name = execution_result.name
-                                        result_preview = (
-                                            str(execution_result.content)[:100]
-                                            if hasattr(execution_result, "content")
-                                            else "OK"
-                                        )
-                                        self.cli.print_thinking(
-                                            f"✅ {agent_name} > {tool_name}: {result_preview}..."
-                                        )
-                                        self.logger.debug(f"✅ Tool result: {tool_name}")
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "TextMessage":
-                            # Show complete analysis
-                            self.cli.print_agent_message(content_str, agent_name)
-                            agent_messages_shown.add(message_key)
-
-            self.cli.print_success(
-                "\n✅ Search completed. Use this information for your next request."
-            )
-            self.logger.info("✅ CodeSearcher completed")
-
-        except Exception as e:
-            self.logger.log_error_with_context(e, "_run_code_searcher")
-            self.cli.print_error(f"Error in code search: {str(e)}")
-
+    
     # =========================================================================
     # COMPLEX TASK EXECUTION - SelectorGroupChat with selector_func
     # =========================================================================
@@ -1497,8 +1388,7 @@ TITLE:"""
 
             complex_team = SelectorGroupChat(
                 participants=[
-                    self.planning_agent,
-                    self.code_searcher.searcher_agent,
+                    self.planning_agent,           
                     self.coder_agent,
                 ],
                 model_client=self.router_client,
@@ -2203,10 +2093,7 @@ TITLE:"""
                     agents_loaded = 0
                     if await self.state_manager.load_agent_state("coder", self.coder_agent):
                         agents_loaded += 1
-                    if await self.state_manager.load_agent_state(
-                        "code_searcher", self.code_searcher.searcher_agent
-                    ):
-                        agents_loaded += 1
+               
                     if await self.state_manager.load_agent_state("planning", self.planning_agent):
                         agents_loaded += 1
 
