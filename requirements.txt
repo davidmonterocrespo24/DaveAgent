@@ -7,7 +7,7 @@ python-dotenv>=1.0.0
 rich>=13.0.0
 readchar>=4.0.0
 prompt-toolkit>=3.0.0
-pydantic>=2.0.0
+pydantic>=2.10.0
 httpcore
 httpx>=0.24.0
 beautifulsoup4
@@ -17,7 +17,8 @@ pandas>=2.0.0
 black>=23.0.0
 autopep8>=2.0.0
 pylint>=3.0.0
-jsonschema>=4.0.0
+jsonschema>=4.23.0
+litellm>=1.55.0
 chromadb>=0.4.22
 sentence-transformers>=2.2.2
 aiofiles>=23.0.0
