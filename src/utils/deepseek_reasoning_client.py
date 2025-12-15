@@ -97,6 +97,15 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             oai_messages = self._normalize_messages(oai_messages)
             oai_messages = self._inject_reasoning_content(oai_messages)
 
+            # CRITICAL Fix for "Invalid consecutive assistant message":
+            # DeepSeek API forbids the last message from being 'assistant'.
+            # If the last message is from the assistant, we must append a user message.
+            if oai_messages and oai_messages[-1].get("role") == "assistant":
+                oai_messages.append({
+                    "role": "user",
+                    "content": "Continue",
+                })
+
             # Prepare API request parameters
             request_params = {
                 "model": self._create_args["model"],
@@ -251,6 +260,10 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         if not messages:
             return messages
 
+        # DEBUG: Log input message roles
+        roles = [m.get("role") for m in messages]
+        self.logger.debug(f"Input messages for normalization: {roles}")
+
         normalized = []
 
         for msg in messages:
@@ -303,6 +316,10 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                         last_msg["reasoning_content"] = rc2
             else:
                 normalized.append(msg)
+
+        # DEBUG: Log normalized roles
+        norm_roles = [m.get("role") for m in normalized]
+        self.logger.debug(f"Normalized roles (pre-fix): {norm_roles}")
 
         return self._fix_broken_tool_chains(normalized)
 
@@ -359,5 +376,8 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             
             fixed_messages.append(current_msg)
             
-        return fixed_messages
+        # DEBUG: Log fixed msg roles
+        fixed_roles = [m.get("role") for m in fixed_messages]
+        self.logger.debug(f"Fixed roles: {fixed_roles}")
 
+        return fixed_messages
