@@ -80,67 +80,76 @@ class DaveAgentCLI:
         # DEEPSEEK REASONER SUPPORT
         # Use DeepSeekReasoningClient for models with thinking mode
         from src.utils.deepseek_fix import should_use_reasoning_client
-
-        # Create model client
-        self.logger.debug(f"Configuring model client: {self.settings.model}")
-        self.logger.debug(f"SSL verify: {self.settings.ssl_verify}")
-
-        t0 = time.time()
+        
         # Create custom HTTP client with SSL configuration
         import httpx
-
         http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
 
         # Complete JSON logging system (ALWAYS active, independent of Langfuse)
         # IMPORTANT: Initialize JSONLogger BEFORE creating the model_client wrapper
         from src.utils.json_logger import JSONLogger
-
         self.json_logger = JSONLogger()
+
+        # =====================================================================
+        # DYNAMIC MODEL CLIENTS (Base vs Strong)
+        # =====================================================================
         
-        # Create base model client (with DeepSeek Reasoner support)
-        if should_use_reasoning_client(self.settings):
-            # Use DeepSeekReasoningClient to preserve reasoning_content
-            from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
+        # 1. Base Client (lighter/faster) - Usually deepseek-chat or gpt-4o-mini
+        # For base model we typically use standard client (no reasoning usually needed)
+        self.client_base = OpenAIChatCompletionClient(
+            model=self.settings.base_model,
+            base_url=self.settings.base_url,
+            api_key=self.settings.api_key,
+            model_info=self.settings.get_model_capabilities(),
+            custom_http_client=http_client,
+        )
+        self.logger.info(f"🤖 Base client initialized: {self.settings.base_model}")
 
-            base_model_client = DeepSeekReasoningClient(
-                model=self.settings.model,
+        # 2. Strong Client (Reasoning/Powerful) - Usually deepseek-reasoner or gpt-4o
+        from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
+        
+        # Check if strong model needs reasoning client
+        is_deepseek_reasoner = (
+            "deepseek-reasoner" in self.settings.strong_model.lower() 
+            and "deepseek" in self.settings.base_url.lower()
+        )
+
+        if is_deepseek_reasoner:
+             self.client_strong = DeepSeekReasoningClient(
+                model=self.settings.strong_model,
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
                 model_info=self.settings.get_model_capabilities(),
                 custom_http_client=http_client,
-                enable_thinking=None,  # Auto detect based on model name
+                enable_thinking=None,  # Auto detect
             )
-
-            
+             self.logger.info(f"🧠 Strong client initialized (Reasoning): {self.settings.strong_model}")
         else:
-            # Use standard client for other models
-            base_model_client = OpenAIChatCompletionClient(
-                model=self.settings.model,
+             self.client_strong = OpenAIChatCompletionClient(
+                model=self.settings.strong_model,
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
                 model_info=self.settings.get_model_capabilities(),
                 custom_http_client=http_client,
             )
-            self.logger.info(f"🤖 Standard client for {self.settings.model}")
+             self.logger.info(f"💪 Strong client initialized: {self.settings.strong_model}")
 
-        # Wrap the model_client with LoggingModelClientWrapper to capture LLM calls
+
+        # Wrappers for Logging
+        # Note: We will wrap them again with specific agent names later, 
+        # but here we set up the default 'model_client' for compatibility with rest of init
+        
+        # Default model client (starts as Strong for compatibility)
         self.model_client = LoggingModelClientWrapper(
-            wrapped_client=base_model_client,
+            wrapped_client=self.client_strong, 
             json_logger=self.json_logger,
-            agent_name="SystemRouter",  # Will be updated per agent
+            agent_name="SystemRouter",
         )
         
 
-        # ROUTER CLIENT: Create separate client WITHOUT thinking for SelectorGroupChat
-        # The router does not support extra_body parameters like {"thinking": ...}
-        if self.settings.model == "deepseek-reasoner":
-            # For deepseek-reasoner, use deepseek-chat in the router
-            router_model = "deepseek-chat"
-        else:
-            router_model = self.settings.model
-
+        # ROUTER CLIENT: Always use Base Model for routing/planning
         self.router_client = OpenAIChatCompletionClient(
-            model=router_model,
+            model=self.settings.base_model, # Use base model for router
             base_url=self.settings.base_url,
             api_key=self.settings.api_key,
             model_capabilities=self.settings.get_model_capabilities(),
@@ -414,14 +423,19 @@ class DaveAgentCLI:
         # =====================================================================
 
         # Create separate wrappers for each agent (for logging with correct names)
+
+
+        # Create separate wrappers for each agent (for logging with correct names)
+        # 1. Coder (Defaulting to Strong client, but will be switched dynamically)
         coder_client = LoggingModelClientWrapper(
-            wrapped_client=self.model_client._wrapped,
+            wrapped_client=self.client_strong, 
             json_logger=self.json_logger,
             agent_name="Coder",
         )
 
+        # 2. Planner (Always Base client)
         planner_client = LoggingModelClientWrapper(
-            wrapped_client=self.model_client._wrapped,
+            wrapped_client=self.client_base,
             json_logger=self.json_logger,
             agent_name="Planner",
         )
@@ -433,7 +447,7 @@ class DaveAgentCLI:
             system_message=system_prompt,
             model_client=coder_client,
             tools=coder_tools,  # Includes memory RAG tools
-            max_tool_iterations=5,
+            max_tool_iterations=25,
             reflect_on_tool_use=False,
             # NO memory parameter - uses RAG tools instead
         )
@@ -447,9 +461,6 @@ class DaveAgentCLI:
             tools=[],  # Planner has no tools, only plans
             # NO memory parameter
         )
-
-        # SummaryAgent REMOVED - Caused conflicts and was not necessary
-        # Coder and Planner agents can generate their own summaries
 
         # =====================================================================
         # ROUTER TEAM: Single SelectorGroupChat that routes automatically
@@ -1627,6 +1638,24 @@ TITLE:"""
             full_input = f"{user_input}\n{mentioned_files_content}{skills_context}"
 
             self.logger.debug(f"Input context prepared with {len(skills_context)} chars of skills")
+
+            # =================================================================
+            # DYNAMIC COMPLEXITY DETECTION & MODEL SWITCHING
+            # =================================================================
+            # Detect complexity to choose the right model for the Coder
+            complexity = await self._detect_task_complexity(full_input)
+            
+            # Switch Coder model based on complexity
+            if complexity == "complex":
+                # Use Strong Model (Reasoner)
+                self.coder_agent.model_client._wrapped = self.client_strong
+                model_name = self.settings.strong_model
+                self.logger.info(f"🧠 Task is COMPLEX: Switched Coder to Strong Model ({model_name})")
+            else:
+                # Use Base Model (Standard)
+                self.coder_agent.model_client._wrapped = self.client_base
+                model_name = self.settings.base_model
+                self.logger.info(f"⚡ Task is SIMPLE: Switched Coder to Base Model ({model_name})")
 
             # ============= USE SINGLE ROUTER TEAM =============
             

@@ -31,8 +31,14 @@ class CLIInterface:
 
     def __init__(self):
         self.console = Console()
+
+        # Ensure .daveagent directory exists
+        history_dir = Path(".daveagent")
+        history_dir.mkdir(exist_ok=True)
+        history_file = history_dir / ".agent_history"
+
         self.session = PromptSession(
-            history=FileHistory(".agent_history"),
+            history=FileHistory(str(history_file)),
             auto_suggest=AutoSuggestFromHistory(),
         )
         self.conversation_active = False
