@@ -11,7 +11,7 @@ async def write_file(target_file: str, file_content: str) -> str:
     preview = file_content[:500] + "..." if len(file_content) > 500 else file_content
     approval_msg = f"Writing {len(file_content)} chars to {target_file}"
     
-    approval_result = ask_for_approval(
+    approval_result = await ask_for_approval(
         action_description=f"WRITE FILE: {target_file}",
         context=f"```\n{preview}\n```"
     )

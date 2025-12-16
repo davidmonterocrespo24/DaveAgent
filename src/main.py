@@ -1648,12 +1648,12 @@ TITLE:"""
             # Switch Coder model based on complexity
             if complexity == "complex":
                 # Use Strong Model (Reasoner)
-                self.coder_agent.model_client._wrapped = self.client_strong
+                self.coder_agent._model_client._wrapped = self.client_strong
                 model_name = self.settings.strong_model
                 self.logger.info(f"🧠 Task is COMPLEX: Switched Coder to Strong Model ({model_name})")
             else:
                 # Use Base Model (Standard)
-                self.coder_agent.model_client._wrapped = self.client_base
+                self.coder_agent._model_client._wrapped = self.client_base
                 model_name = self.settings.base_model
                 self.logger.info(f"⚡ Task is SIMPLE: Switched Coder to Base Model ({model_name})")
 

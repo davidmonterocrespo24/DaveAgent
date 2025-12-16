@@ -37,7 +37,7 @@ async def run_terminal_cmd(
         from src.utils.interaction import ask_for_approval
         
         explanation_text = f"Command: {command}\n{explanation}"
-        approval_result = ask_for_approval(
+        approval_result = await ask_for_approval(
             action_description="COMMAND APPROVAL REQUIRED",
             context=f"```bash\n{command}\n```"
         )

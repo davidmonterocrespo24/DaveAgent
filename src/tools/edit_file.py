@@ -156,7 +156,7 @@ async def edit_file(
     # approval context
     diff_preview = f"FILE: {target_file}\n\nRunning edit_file:\n<<<<<< OLD\n{old_string}\n======\n{new_string}\n>>>>>> NEW"
     
-    approval_result = ask_for_approval(
+    approval_result = await ask_for_approval(
         action_description=f"EDIT FILE: {target_file}",
         context=f"```diff\n{diff_preview}\n```"
     )

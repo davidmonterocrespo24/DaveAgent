@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 
 
 
-def ask_for_approval(action_description: str, context: str = "") -> Optional[str]:
+async def ask_for_approval(action_description: str, context: str = "") -> Optional[str]:
     """
     Interactively asks the user for approval to execute an action.
     
@@ -17,6 +17,7 @@ def ask_for_approval(action_description: str, context: str = "") -> Optional[str
         None if approved.
         A string message if cancelled or if feedback is provided.
     """
+    import asyncio
     try:
         from rich.console import Console, Group
         from rich.panel import Panel
@@ -68,19 +69,38 @@ def ask_for_approval(action_description: str, context: str = "") -> Optional[str
                 Choice("feedback", "Type feedback")
             ]
             
-            choice = inquirer.select(
-                message="Select an option:",
-                choices=options,
-                default="execute",
-                pointer=">",
-            ).execute()
+            # Use execute_async to run in the existing event loop
+            try:
+                choice = await inquirer.select(
+                    message="Select an option:",
+                    choices=options,
+                    default="execute",
+                    pointer=">",
+                ).execute_async()
+            except AttributeError:
+                # Fallback if execute_async is not available (older versions)
+                # Run sync execute() in a thread to avoid blocking the loop
+                loop = asyncio.get_running_loop()
+                prompt = inquirer.select(
+                    message="Select an option:",
+                    choices=options,
+                    default="execute",
+                    pointer=">",
+                )
+                choice = await loop.run_in_executor(None, prompt.execute)
             
             if choice == "cancel":
                 return "Action cancelled by user."
             
             if choice == "feedback":
                 # Use standard input or prompt for feedback
-                feedback = inquirer.text(message="Enter your feedback for the agent:").execute()
+                try:
+                    feedback = await inquirer.text(message="Enter your feedback for the agent:").execute_async()
+                except AttributeError:
+                    loop = asyncio.get_running_loop()
+                    prompt = inquirer.text(message="Enter your feedback for the agent:")
+                    feedback = await loop.run_in_executor(None, prompt.execute)
+
                 return f"User Feedback: {feedback}"
                 
             # If choice is execute
@@ -95,7 +115,14 @@ def ask_for_approval(action_description: str, context: str = "") -> Optional[str
         # Fallback
         print(f"\nWARNING: Approval required for: {action_description}")
         print(f"Context: {context}")
-        response = input("Execute this action? (y/n/feedback): ").lower()
+        
+        # Run blocking input in executor
+        loop = asyncio.get_running_loop()
+        def get_input():
+            return input("Execute this action? (y/n/feedback): ").lower()
+            
+        response = await loop.run_in_executor(None, get_input)
+        
         if response.startswith('n'):
             return "Action cancelled by user."
         if not response.startswith('y'):
