@@ -33,6 +33,9 @@ async def ask_for_approval(action_description: str, context: str = "") -> Option
         console = Console()
         
         # Pause any active spinner to prevent interference
+        # 1. Try standard import pause
+        active_spinner = VibeSpinner.pause_active_spinner()
+        
         if not active_spinner:
             # Fallback check (removed recursive scan as module-level global now handles this)
             pass
