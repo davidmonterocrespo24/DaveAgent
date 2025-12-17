@@ -51,13 +51,11 @@ class DaveAgentCLI:
         # Configure logging (now in .daveagent/logs/)
         log_level = logging.DEBUG if debug else logging.INFO
         self.logger = get_logger(log_file=None, level=log_level)  # Use default path
-        print(f"[Startup] Logger initialized in {time.time() - t_start:.4f}s")
-
+       
         t0 = time.time()
         # Configure conversation tracker (logs to .daveagent/conversations.json)
         self.conversation_tracker = get_conversation_tracker()
-        print(f"[Startup] Conversation tracker initialized in {time.time() - t0:.4f}s")
-
+        
         # Mode system: "agent" (with tools) or "chat" (without modification tools)
         self.current_mode = "agent"  # Default mode
 
@@ -75,8 +73,7 @@ class DaveAgentCLI:
             self.logger.error(f"[ERROR] Invalid configuration: {error_msg}")
             print(error_msg)
             raise ValueError("Invalid configuration")
-        print(f"[Startup] Config loaded in {time.time() - t0:.4f}s")
-
+        
         # DEEPSEEK REASONER SUPPORT
         # Use DeepSeekReasoningClient for models with thinking mode
         from src.utils.deepseek_fix import should_use_reasoning_client
@@ -103,8 +100,7 @@ class DaveAgentCLI:
             model_info=self.settings.get_model_capabilities(),
             custom_http_client=http_client,
         )
-        self.logger.info(f"🤖 Base client initialized: {self.settings.base_model}")
-
+        
         # 2. Strong Client (Reasoning/Powerful) - Usually deepseek-reasoner or gpt-4o
         from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
         
@@ -123,7 +119,7 @@ class DaveAgentCLI:
                 custom_http_client=http_client,
                 enable_thinking=None,  # Auto detect
             )
-             self.logger.info(f"🧠 Strong client initialized (Reasoning): {self.settings.strong_model}")
+        
         else:
              self.client_strong = OpenAIChatCompletionClient(
                 model=self.settings.strong_model,
@@ -132,7 +128,7 @@ class DaveAgentCLI:
                 model_info=self.settings.get_model_capabilities(),
                 custom_http_client=http_client,
             )
-             self.logger.info(f"💪 Strong client initialized: {self.settings.strong_model}")
+             
 
 
         # Wrappers for Logging

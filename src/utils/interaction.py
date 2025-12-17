@@ -33,7 +33,25 @@ async def ask_for_approval(action_description: str, context: str = "") -> Option
         console = Console()
         
         # Pause any active spinner to prevent interference
+        # Robustly search for any VibeSpinner class in sys.modules to handle import mismatches
+        import sys
+        active_spinner = None
+        
+        # 1. Try standard import pause
         active_spinner = VibeSpinner.pause_active_spinner()
+        
+        # 2. If not found, try searching sys.modules for other instances
+        if not active_spinner:
+            for module_name, module in list(sys.modules.items()):
+                if 'vibe_spinner' in module_name and hasattr(module, 'VibeSpinner'):
+                    try:
+                        possible_cls = getattr(module, 'VibeSpinner')
+                        if possible_cls is not VibeSpinner: # Only if it's a different class object
+                            found = possible_cls.pause_active_spinner()
+                            if found:
+                                active_spinner = found
+                                break
+                    except: pass
         
         try:
             # Format the context
@@ -62,44 +80,90 @@ async def ask_for_approval(action_description: str, context: str = "") -> Option
             
             console.print(panel)
             
-            # Use InquirerPy for arrow key navigation
-            options = [
-                Choice("execute", "Yes, execute now"),
-                Choice("cancel", "No, cancel"),
-                Choice("feedback", "Type feedback")
-            ]
+            # Force blocking input using executor to guarantee wait on Windows/Agent environments
+            loop = asyncio.get_running_loop()
             
-            # Use execute_async to run in the existing event loop
-            try:
-                choice = await inquirer.select(
-                    message="Select an option:",
-                    choices=options,
-                    default="execute",
-                    pointer=">",
-                ).execute_async()
-            except AttributeError:
-                # Fallback if execute_async is not available (older versions)
-                # Run sync execute() in a thread to avoid blocking the loop
-                loop = asyncio.get_running_loop()
-                prompt = inquirer.select(
-                    message="Select an option:",
-                    choices=options,
-                    default="execute",
-                    pointer=">",
-                )
-                choice = await loop.run_in_executor(None, prompt.execute)
+            # Force blocking input using executor to guarantee wait on Windows/Agent environments
+            # Custom Arrow Key Menu for Windows (Mimicking Claude CLI)
+            loop = asyncio.get_running_loop()
+            
+            def windows_arrow_menu():
+                import msvcrt
+                import sys
+                import time
+
+                options = [
+                    ("Yes", "execute"),
+                    ("Yes, allow all edits during this session (not implemented)", "execute_all"),
+                    ("Type here to tell the agent what to do differently", "feedback"),
+                    ("No, cancel", "cancel")
+                ]
+                current_idx = 0
+                
+                # ANSI codes
+                gray = "\033[90m"
+                reset = "\033[0m"
+                clear_line = "\033[K"
+                up = "\033[F"
+                
+                # Clear any potential spinner artifacts from the current line
+                sys.stdout.write("\r" + " " * 120 + "\r")
+                sys.stdout.flush()
+                
+                print(f" {gray}Do you want to proceed?{reset}")
+                print(f" {gray}Esc to cancel{reset}\n")
+                
+                # Initial render lines (allocate space)
+                for _ in options:
+                    print()
+                
+                # Move cursor back up to start of options
+                for _ in options:
+                    sys.stdout.write(up)
+                
+                while True:
+                    # Redraw options
+                    for idx, (label, _) in enumerate(options):
+                        prefix = " > " if idx == current_idx else "   "
+                        color = "\033[1m" if idx == current_idx else "" # Bold for selected
+                        print(f"{prefix}{color}{idx + 1}. {label}{reset}{clear_line}")
+                    
+                    # Check for input
+                    if msvcrt.kbhit():
+                        key = msvcrt.getch()
+                        if key == b'\x1b': # Esc
+                            return 'cancel'
+                        elif key == b'\r': # Enter
+                            _, value = options[current_idx]
+                            return value
+                        elif key == b'\xe0': # Special key (arrows)
+                            try:
+                                key = msvcrt.getch()
+                                if key == b'H': # Up
+                                    current_idx = max(0, current_idx - 1)
+                                elif key == b'P': # Down
+                                    current_idx = min(len(options) - 1, current_idx + 1)
+                            except: pass
+                    
+                    # Move cursor back up to repaint for next frame
+                    for _ in options:
+                        sys.stdout.write(up)
+                    
+                    time.sleep(0.05)
+            
+            # Execute the menu in the thread executor
+            choice = await loop.run_in_executor(None, windows_arrow_menu)
             
             if choice == "cancel":
                 return "Action cancelled by user."
             
             if choice == "feedback":
-                # Use standard input or prompt for feedback
-                try:
-                    feedback = await inquirer.text(message="Enter your feedback for the agent:").execute_async()
-                except AttributeError:
-                    loop = asyncio.get_running_loop()
-                    prompt = inquirer.text(message="Enter your feedback for the agent:")
-                    feedback = await loop.run_in_executor(None, prompt.execute)
+                # Use standard input for feedback
+                def get_feedback():
+                    return input("Enter your feedback for the agent: ")
+                
+                loop = asyncio.get_running_loop()
+                feedback = await loop.run_in_executor(None, get_feedback)
 
                 return f"User Feedback: {feedback}"
                 
