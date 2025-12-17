@@ -9,6 +9,9 @@ import threading
 import time
 from typing import Optional, List
 
+# Global registry for active spinner (module level for safety across imports)
+_GLOBAL_ACTIVE_SPINNER = None
+
 
 class VibeSpinner:
     """Animated spinner with rotating creative messages"""
@@ -112,23 +115,23 @@ class VibeSpinner:
         "dim": "\033[2m",
     }
 
-    # Global registry for active spinner
-    _active_spinner = None
-
     @classmethod
     def set_active_spinner(cls, spinner):
-        cls._active_spinner = spinner
+        global _GLOBAL_ACTIVE_SPINNER
+        _GLOBAL_ACTIVE_SPINNER = spinner
 
     @classmethod
     def clear_active_spinner(cls):
-        cls._active_spinner = None
+        global _GLOBAL_ACTIVE_SPINNER
+        _GLOBAL_ACTIVE_SPINNER = None
 
     @classmethod
     def pause_active_spinner(cls):
         """Pauses the active spinner if one exists"""
-        if cls._active_spinner and cls._active_spinner.is_running():
-            cls._active_spinner.stop(clear_line=True)
-            return cls._active_spinner
+        global _GLOBAL_ACTIVE_SPINNER
+        if _GLOBAL_ACTIVE_SPINNER and _GLOBAL_ACTIVE_SPINNER.is_running():
+            _GLOBAL_ACTIVE_SPINNER.stop(clear_line=True)
+            return _GLOBAL_ACTIVE_SPINNER
         return None
 
     @classmethod

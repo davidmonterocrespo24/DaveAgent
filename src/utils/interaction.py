@@ -33,25 +33,9 @@ async def ask_for_approval(action_description: str, context: str = "") -> Option
         console = Console()
         
         # Pause any active spinner to prevent interference
-        # Robustly search for any VibeSpinner class in sys.modules to handle import mismatches
-        import sys
-        active_spinner = None
-        
-        # 1. Try standard import pause
-        active_spinner = VibeSpinner.pause_active_spinner()
-        
-        # 2. If not found, try searching sys.modules for other instances
         if not active_spinner:
-            for module_name, module in list(sys.modules.items()):
-                if 'vibe_spinner' in module_name and hasattr(module, 'VibeSpinner'):
-                    try:
-                        possible_cls = getattr(module, 'VibeSpinner')
-                        if possible_cls is not VibeSpinner: # Only if it's a different class object
-                            found = possible_cls.pause_active_spinner()
-                            if found:
-                                active_spinner = found
-                                break
-                    except: pass
+            # Fallback check (removed recursive scan as module-level global now handles this)
+            pass
         
         try:
             # Format the context
