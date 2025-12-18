@@ -7,7 +7,6 @@ import random
 import sys
 import threading
 import time
-from typing import Optional, List
 
 # Global registry for active spinner (module level for safety across imports)
 _GLOBAL_ACTIVE_SPINNER = None
@@ -130,14 +129,14 @@ class VibeSpinner:
     def pause_active_spinner(cls):
         """Pauses ANY active spinner instance"""
         global _GLOBAL_ACTIVE_SPINNER, _ALL_SPINNERS
-        
+
         paused_spinner = None
-        
+
         # 1. Check primary global
         if _GLOBAL_ACTIVE_SPINNER and _GLOBAL_ACTIVE_SPINNER.is_running():
             _GLOBAL_ACTIVE_SPINNER.stop(clear_line=True)
             paused_spinner = _GLOBAL_ACTIVE_SPINNER
-            
+
         # 2. Check ALL known instances (Nuclear Option for ghosts)
         # Use list copy to avoid modification during iteration if needed
         for spinner in list(_ALL_SPINNERS):
@@ -145,7 +144,7 @@ class VibeSpinner:
                 spinner.stop(clear_line=True)
                 if not paused_spinner:
                     paused_spinner = spinner
-                    
+
         return paused_spinner
 
     @classmethod
@@ -156,7 +155,7 @@ class VibeSpinner:
 
     def __init__(
         self,
-        messages: Optional[List[str]] = None,
+        messages: list[str] | None = None,
         *,
         spinner_style: str = "dots",
         color: str = "cyan",
@@ -190,7 +189,7 @@ class VibeSpinner:
         global _ALL_SPINNERS
         _ALL_SPINNERS.add(self)
 
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._current_message_index = 0
         self._spinner_index = 0
@@ -232,7 +231,7 @@ class VibeSpinner:
         """Start the spinner animation"""
         if self._thread is not None and self._thread.is_alive():
             return  # Already running
-            
+
         # REGISTER AS ACTIVE SPINNER
         VibeSpinner.set_active_spinner(self)
 
@@ -299,7 +298,7 @@ class VibeSpinner:
 
 # Convenience function
 def show_vibe_spinner(
-    message: Optional[str] = None, style: str = "dots", color: str = "cyan", language: str = "es"
+    message: str | None = None, style: str = "dots", color: str = "cyan", language: str = "es"
 ) -> VibeSpinner:
     """
     Create and start a vibe spinner

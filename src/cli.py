@@ -83,7 +83,7 @@ def main():
     from src.main import main as run_daveagent
 
     # Show working directory information
-    working_dir = Path.cwd()    
+    working_dir = Path.cwd()
     # Change to current working directory (where user executed the command)
     os.chdir(working_dir)
 

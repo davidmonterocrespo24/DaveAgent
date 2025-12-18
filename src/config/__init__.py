@@ -2,6 +2,13 @@
 System configuration
 """
 
+from src.config.constants import (
+    DAVEAGENT_NAME,
+    DAVEAGENT_VERSION,
+    is_telemetry_enabled,
+    set_telemetry_enabled,
+    setup_langfuse_environment,
+)
 from src.config.prompts import (
     AGENT_SYSTEM_PROMPT,
     CHAT_SYSTEM_PROMPT,
@@ -11,13 +18,6 @@ from src.config.prompts import (
     PLANNING_AGENT_SYSTEM_MESSAGE,
 )
 from src.config.settings import DaveAgentSettings, get_settings
-from src.config.constants import (
-    DAVEAGENT_VERSION,
-    DAVEAGENT_NAME,
-    is_telemetry_enabled,
-    set_telemetry_enabled,
-    setup_langfuse_environment,
-)
 
 __all__ = [
     "AGENT_SYSTEM_PROMPT",

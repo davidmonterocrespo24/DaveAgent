@@ -1,8 +1,9 @@
 """
 Setup configuration for DaveAgent
 """
-from setuptools import setup, find_packages
 from pathlib import Path
+
+from setuptools import find_packages, setup
 
 # Leer el README para la descripción larga
 this_directory = Path(__file__).parent

@@ -2,9 +2,9 @@
 Script automatizado para publicar DaveAgent en PyPI
 Ejecutar: python publish.py [test|prod]
 """
+import shutil
 import subprocess
 import sys
-import shutil
 from pathlib import Path
 
 
@@ -21,7 +21,7 @@ def run_command(cmd, description):
         print(result.stdout)
 
     if result.returncode != 0:
-        print(f"\n❌ ERROR:")
+        print("\n❌ ERROR:")
         print(result.stderr)
         return False
 

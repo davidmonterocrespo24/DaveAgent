@@ -11,17 +11,18 @@ Based on: https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
 """
 
 import logging
-from typing import Any, Dict, Sequence, Mapping, Literal, List
+from collections.abc import Mapping, Sequence
+from typing import Any, Literal
 
 from autogen_core import CancellationToken
-from autogen_core.models import LLMMessage, CreateResult, RequestUsage
+from autogen_core.models import CreateResult, LLMMessage, RequestUsage
 from autogen_core.tools import Tool, ToolSchema
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_ext.models.openai._openai_client import (
-    to_oai_type,
-    convert_tools,
-    convert_tool_choice,
     FunctionCall,
+    convert_tool_choice,
+    convert_tools,
+    to_oai_type,
 )
 from pydantic import BaseModel
 
@@ -54,11 +55,11 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         self.logger = logging.getLogger(__name__)
 
         # Store raw API responses with reasoning_content
-        self._raw_responses: List[Dict[str, Any]] = []
+        self._raw_responses: list[dict[str, Any]] = []
 
         super().__init__(*args, **kwargs)
 
-       
+
 
     async def create(
         self,
@@ -182,7 +183,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             self.logger.error(f"❌ DeepSeek call failed: {e}")
             raise
 
-    def _inject_reasoning_content(self, oai_messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _inject_reasoning_content(self, oai_messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Inject reasoning_content into assistant messages before sending to API.
 
@@ -219,11 +220,11 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
         return modified_messages
 
-    def _messages_match_tools(self, msg: Dict[str, Any], raw_resp: Dict[str, Any]) -> bool:
+    def _messages_match_tools(self, msg: dict[str, Any], raw_resp: dict[str, Any]) -> bool:
         """Check if message matches raw response by tool calls."""
         msg_tool_calls = msg.get("tool_calls", [])
         raw_tool_calls = raw_resp.get("tool_calls", [])
-        
+
         if msg_tool_calls and raw_tool_calls:
             try:
                 msg_ids = {tc.get("id") for tc in msg_tool_calls if tc.get("id")}
@@ -233,7 +234,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                 return False
         return False
 
-    def _messages_match(self, msg: Dict[str, Any], raw_resp: Dict[str, Any]) -> bool:
+    def _messages_match(self, msg: dict[str, Any], raw_resp: dict[str, Any]) -> bool:
         # Kept for backward compatibility but unused by injection now
         return self._messages_match_tools(msg, raw_resp)
 
@@ -243,7 +244,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         self._raw_responses.clear()
         self.logger.debug(f"🧹 Cleared {count} raw responses")
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get statistics about stored reasoning_content."""
         return {
             "raw_responses": len(self._raw_responses),
@@ -252,7 +253,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             ),
         }
 
-    def _normalize_messages(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _normalize_messages(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Merge consecutive assistant messages to satisfy API requirements.
         DeepSeek (and OpenAI) do not allow consecutive assistant messages.
@@ -323,7 +324,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
         return self._fix_broken_tool_chains(normalized)
 
-    def _fix_broken_tool_chains(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _fix_broken_tool_chains(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Fix broken tool chains where A(tool_calls) is followed by a user message 
         instead of a tool output. This happens when the system interrupts 
@@ -334,17 +335,17 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         """
         if not messages:
             return messages
-            
+
         fixed_messages = []
         for i, msg in enumerate(messages):
             # Create a copy to match the output structure of previous processing
             # (although simple dict copy is enough as we modify dicts)
             current_msg = msg.copy()
-            
+
             # Check if this is an assistant message with tool calls
-            if (current_msg.get("role") == "assistant" and 
+            if (current_msg.get("role") == "assistant" and
                 current_msg.get("tool_calls")):
-                
+
                 # Look ahead to the next message
                 if i + 1 < len(messages):
                     next_msg = messages[i + 1]
@@ -358,10 +359,10 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                         # Strip tool calls to convert to text message
                         del current_msg["tool_calls"]
                 else:
-                    # Trailing assistant message with tool calls is valid 
+                    # Trailing assistant message with tool calls is valid
                     # (it's the one currently being generated or waiting for response)
                     pass
-            
+
             # 1. Ensure content is string if present (some clients send None)
             if "content" in current_msg and current_msg["content"] is None:
                 current_msg["content"] = ""
@@ -369,13 +370,13 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             # 2. If tool_calls is empty list, remove it
             if "tool_calls" in current_msg and not current_msg["tool_calls"]:
                 del current_msg["tool_calls"]
-            
+
             # 3. Handle messages with empty content
             if not current_msg.get("content") and "tool_calls" not in current_msg:
-                 current_msg["content"] = "" 
-            
+                 current_msg["content"] = ""
+
             fixed_messages.append(current_msg)
-            
+
         # DEBUG: Log fixed msg roles
         fixed_roles = [m.get("role") for m in fixed_messages]
         self.logger.debug(f"Fixed roles: {fixed_roles}")

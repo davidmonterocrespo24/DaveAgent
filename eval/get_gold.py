@@ -1,5 +1,5 @@
+
 from datasets import load_dataset
-import sys
 
 instance_id = "astropy__astropy-12907"
 print(f"Loading dataset for {instance_id}...")

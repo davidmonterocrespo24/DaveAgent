@@ -3,10 +3,10 @@ Manager for DAVEAGENT.md context files.
 Handles discovery, reading, and template generation for project-specific context.
 """
 
-import os
 from pathlib import Path
-from typing import List, Optional
+
 from src.utils import get_logger
+
 
 class ContextManager:
     """
@@ -21,12 +21,12 @@ class ContextManager:
         self.home_context_path = Path.home() / ".daveagent" / "DAVEAGENT.md"
         self.default_filename = "DAVEAGENT.md"
 
-    def discover_context_files(self) -> List[Path]:
+    def discover_context_files(self) -> list[Path]:
         """
         Finds all relevant DAVEAGENT.md files.
         Returns a list of paths from general (home) to specific (closest to current dir).
         """
-        found_files: List[Path] = []
+        found_files: list[Path] = []
 
         # 1. Home directory context (General)
         if self.home_context_path.exists():
@@ -38,18 +38,18 @@ class ContextManager:
             cwd = Path.cwd().resolve()
             # We want to find context files in parents, but ordered from top to bottom
             # so that specific overrides general.
-            
+
             # Get all parents + current dir
             # parents list is [parent(N), ..., parent(0)], so reverse it to get top-down
             search_paths = list(reversed(cwd.parents)) + [cwd]
-            
+
             for path in search_paths:
                 context_file = path / self.default_filename
                 if context_file.exists():
                     # Avoid duplicates if home dir is in the path
                     if context_file not in found_files:
                         found_files.append(context_file)
-                        
+
         except Exception as e:
             self.logger.warning(f"Error discovering context files: {e}")
 
@@ -78,18 +78,18 @@ class ContextManager:
                 self.logger.error(f"Failed to read context file {file_path}: {e}")
 
         context_parts.append("</project_context>\n\n")
-        
+
         return "\n".join(context_parts)
 
-    def create_template(self, target_dir: Optional[Path] = None) -> Path:
+    def create_template(self, target_dir: Path | None = None) -> Path:
         """
         Creates a DAVEAGENT.md template in the target directory (defaults to cwd).
         """
         if target_dir is None:
             target_dir = Path.cwd()
-            
+
         target_file = target_dir / self.default_filename
-        
+
         if target_file.exists():
             raise FileExistsError(f"{self.default_filename} already exists in {target_dir}")
 

@@ -4,10 +4,9 @@ Stores in .daveagent/conversations.json with newest first
 """
 
 import json
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 
 class ConversationTracker:
@@ -30,15 +29,15 @@ class ConversationTracker:
         if not self.conversations_file.exists():
             self._save_conversations([])
 
-    def _load_conversations(self) -> List[Dict[str, Any]]:
+    def _load_conversations(self) -> list[dict[str, Any]]:
         """Load conversations from JSON file"""
         try:
-            with open(self.conversations_file, "r", encoding="utf-8") as f:
+            with open(self.conversations_file, encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 
-    def _save_conversations(self, conversations: List[Dict[str, Any]]):
+    def _save_conversations(self, conversations: list[dict[str, Any]]):
         """Save conversations to JSON file"""
         with open(self.conversations_file, "w", encoding="utf-8") as f:
             json.dump(conversations, f, indent=2, ensure_ascii=False)
@@ -51,7 +50,7 @@ class ConversationTracker:
         provider: str,
         *,
         agent_name: str = "DaveAgent",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Log an LLM interaction
@@ -93,7 +92,7 @@ class ConversationTracker:
 
         return conversation_id
 
-    def get_recent_conversations(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_recent_conversations(self, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get recent conversations
 
@@ -106,7 +105,7 @@ class ConversationTracker:
         conversations = self._load_conversations()
         return conversations[:limit]
 
-    def get_conversation_by_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
+    def get_conversation_by_id(self, conversation_id: str) -> dict[str, Any] | None:
         """
         Get a specific conversation by ID
 
@@ -122,7 +121,7 @@ class ConversationTracker:
                 return conv
         return None
 
-    def get_conversations_by_date(self, date: str) -> List[Dict[str, Any]]:
+    def get_conversations_by_date(self, date: str) -> list[dict[str, Any]]:
         """
         Get all conversations from a specific date
 
@@ -135,7 +134,7 @@ class ConversationTracker:
         conversations = self._load_conversations()
         return [conv for conv in conversations if conv.get("date") == date]
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """
         Get statistics about conversations
 
@@ -153,19 +152,19 @@ class ConversationTracker:
             }
 
         # Count by model
-        models: Dict[str, int] = {}
+        models: dict[str, int] = {}
         for conv in conversations:
             model = conv.get("model", "unknown")
             models[model] = models.get(model, 0) + 1
 
         # Count by provider
-        providers: Dict[str, int] = {}
+        providers: dict[str, int] = {}
         for conv in conversations:
             provider = conv.get("provider", "unknown")
             providers[provider] = providers.get(provider, 0) + 1
 
         # Count by date
-        by_date: Dict[str, int] = {}
+        by_date: dict[str, int] = {}
         for conv in conversations:
             date = conv.get("date", "unknown")
             by_date[date] = by_date.get(date, 0) + 1
@@ -204,7 +203,7 @@ class ConversationTracker:
 
 
 # Global instance
-_tracker_instance: Optional[ConversationTracker] = None
+_tracker_instance: ConversationTracker | None = None
 
 
 def get_conversation_tracker(data_dir: str = ".daveagent") -> ConversationTracker:

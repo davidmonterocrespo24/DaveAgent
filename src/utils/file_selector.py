@@ -4,12 +4,12 @@ Interactive File Selector - Clean file selection with scrollbar
 
 import os
 import sys
-from typing import List, Optional
-
-from .file_indexer import FileIndexer
 
 # Try to import readchar for better cross-platform support
 import readchar
+
+from .file_indexer import FileIndexer
+
 
 # Configure UTF-8 output for Windows
 def _setup_utf8_output():
@@ -125,7 +125,7 @@ class FileSelector:
             sys.stdout.flush()
         self.lines_drawn = 0
 
-    def _render_file_list(self, files: List[str], query: str):
+    def _render_file_list(self, files: list[str], query: str):
         """
         Render the file list with scrollbar
 
@@ -238,7 +238,7 @@ class FileSelector:
         # So we need to move up len(lines) - 1.
         self.lines_drawn = len(lines) - 1
 
-    def select_file(self, initial_query: str = "") -> Optional[str]:
+    def select_file(self, initial_query: str = "") -> str | None:
         """
         Show interactive file selector
 
@@ -306,7 +306,7 @@ class FileSelector:
                 self.scroll_offset = 0
 
 
-def select_file_interactive(root_dir: str = ".", initial_query: str = "") -> Optional[str]:
+def select_file_interactive(root_dir: str = ".", initial_query: str = "") -> str | None:
     """
     Convenience function to select a file interactively
 

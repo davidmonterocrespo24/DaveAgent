@@ -1,9 +1,8 @@
 import sys
-import os
 from unittest.mock import MagicMock
 
 # MOCK RESOURCE MODULE FOR WINDOWS
-# swebench imports 'resource' which is Unix-only. 
+# swebench imports 'resource' which is Unix-only.
 # We mock it before importing swebench to bypass the ModuleNotFoundError.
 if sys.platform == 'win32':
     print("🪟 Windows detected: Mocking 'resource' module...")
@@ -21,7 +20,7 @@ except ImportError as e:
     sys.exit(1)
 
     # Call main with arguments directly
-    print(f"🚀 Running SWE-bench evaluation...")
+    print("🚀 Running SWE-bench evaluation...")
 
     # Defaults
     dataset_name = "princeton-nlp/SWE-bench_Verified"

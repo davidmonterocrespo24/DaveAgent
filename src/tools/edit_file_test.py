@@ -4,7 +4,6 @@ Test para edit_file tool
 
 import asyncio
 import os
-from pathlib import Path
 
 from edit_file import edit_file
 from write_file import write_file

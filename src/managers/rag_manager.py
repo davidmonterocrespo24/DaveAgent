@@ -1,22 +1,17 @@
-import os
-import uuid
+import json
 import logging
 import sqlite3
-import json
-import math
-import shutil
-from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple, Union
+import uuid
 from collections import defaultdict
-import re
+from pathlib import Path
+from typing import Any
 
 # Librerías Core
 import chromadb
-from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
-from chromadb.config import Settings
-import openai
-from sentence_transformers import SentenceTransformer
 import httpx
+import openai
+from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+from sentence_transformers import SentenceTransformer
 
 # Configuration
 from src.config.settings import DaveAgentSettings
@@ -39,20 +34,20 @@ class TextSplitter:
         # Orden de separadores: Párrafos -> Líneas -> Oraciones -> Palabras -> Caracteres
         self.separators = ["\n\n", "\n", ". ", " ", ""]
 
-    def split_text(self, text: str) -> List[str]:
+    def split_text(self, text: str) -> list[str]:
         final_chunks = []
         if self._length_function(text) <= self.chunk_size:
             return [text]
-        
+
         # Estrategia recursiva
         self._split_text_recursive(text, self.separators, final_chunks)
         return final_chunks
 
-    def _split_text_recursive(self, text: str, separators: List[str], final_chunks: List[str]):
+    def _split_text_recursive(self, text: str, separators: list[str], final_chunks: list[str]):
         """Función recursiva interna."""
         final_separator = separators[-1]
         separator = separators[0]
-        
+
         # Encontrar el separador adecuado
         for s in separators:
             if s == "":
@@ -61,7 +56,7 @@ class TextSplitter:
             if s in text:
                 separator = s
                 break
-        
+
         # Dividir
         splits = list(text) if separator == "" else text.split(separator)
         new_separators = separators[1:] if len(separators) > 1 else separators
@@ -82,32 +77,32 @@ class TextSplitter:
                     final_chunks.append(s) # Caso base extremo
                 else:
                     self._split_text_recursive(s, new_separators, final_chunks)
-        
+
         if good_splits:
             merged = self._merge_splits(good_splits, separator)
             final_chunks.extend(merged)
 
-    def _merge_splits(self, splits: List[str], separator: str) -> List[str]:
+    def _merge_splits(self, splits: list[str], separator: str) -> list[str]:
         """Une splits pequeños hasta alcanzar el chunk_size con overlap."""
         docs = []
         current_doc = []
         total_len = 0
-        
+
         for d in splits:
             _len = self._length_function(d)
             if total_len + _len + (len(current_doc) * len(separator)) > self.chunk_size:
                 if total_len > 0:
                     doc_text = separator.join(current_doc)
                     docs.append(doc_text)
-                    
+
                     # Lógica de Overlap: Mantener los últimos chunks que quepan
                     while total_len > self.chunk_overlap or (total_len + _len > self.chunk_size and total_len > 0):
                         total_len -= (self._length_function(current_doc[0]) + len(separator))
                         current_doc.pop(0)
-            
+
             current_doc.append(d)
             total_len += _len
-            
+
         if current_doc:
             docs.append(separator.join(current_doc))
         return docs
@@ -141,7 +136,7 @@ class SQLiteDocStore:
             logger.error(f"Error initializing DocStore DB: {e}")
             raise
 
-    def add_documents(self, doc_ids: List[str], contents: List[str], metadatas: List[Dict]):
+    def add_documents(self, doc_ids: list[str], contents: list[str], metadatas: list[dict]):
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -149,21 +144,21 @@ class SQLiteDocStore:
             for i, doc_id in enumerate(doc_ids):
                 meta_json = json.dumps(metadatas[i]) if metadatas[i] else "{}"
                 data.append((doc_id, contents[i], meta_json))
-            
+
             cursor.executemany('INSERT OR REPLACE INTO documents VALUES (?, ?, ?)', data)
             conn.commit()
             conn.close()
         except Exception as e:
             logger.error(f"Error adding documents to DocStore: {e}")
 
-    def get_document(self, doc_id: str) -> Optional[Dict[str, Any]]:
+    def get_document(self, doc_id: str) -> dict[str, Any] | None:
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute('SELECT content, metadata FROM documents WHERE id = ?', (doc_id,))
             row = cursor.fetchone()
             conn.close()
-            
+
             if row:
                 return {
                     "content": row[0],
@@ -173,7 +168,7 @@ class SQLiteDocStore:
         except Exception as e:
             logger.error(f"Error getting document from DocStore: {e}")
             return None
-            
+
     def clear(self):
         """Limpia todos los documentos."""
         try:
@@ -225,22 +220,22 @@ class AdvancedEmbeddingFunction(EmbeddingFunction):
 # 4. RAG Manager (Core Class)
 # -----------------------------------------------------------------------------
 class RAGManager:
-    def __init__(self, settings: DaveAgentSettings, persist_dir: Optional[str] = None):
+    def __init__(self, settings: DaveAgentSettings, persist_dir: str | None = None):
         self.settings = settings
         self.persist_dir = Path(persist_dir) if persist_dir else Path("./rag_data")
         self.persist_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Inicializar ChromaDB
         self.client = chromadb.PersistentClient(path=str(self.persist_dir / "vector_db"))
         self.embedding_fn = AdvancedEmbeddingFunction(settings=self.settings)
-        
+
         # Inicializar DocStore (SQLite)
         self.docstore = SQLiteDocStore(str(self.persist_dir / "docstore.db"))
-        
+
         # Splitters para Parent Document Retrieval
         self.parent_splitter = TextSplitter(chunk_size=2000, chunk_overlap=200)
         self.child_splitter = TextSplitter(chunk_size=400, chunk_overlap=50)
-        
+
         # Cliente OpenAI para RAG Fusion (Generación de queries)
         http_client = httpx.Client(verify=self.settings.ssl_verify)
         self.llm_client = openai.Client(
@@ -262,8 +257,8 @@ class RAGManager:
         Útil para tests.
         """
         try:
-            self.client.reset() 
-            # Note: chromadb.PersistentClient.reset() might not be enabled by default in new versions 
+            self.client.reset()
+            # Note: chromadb.PersistentClient.reset() might not be enabled by default in new versions
             # or requires ALLOW_RESET=TRUE env var.
             # If it fails, we might need to manually delete collections.
         except Exception as e:
@@ -282,7 +277,7 @@ class RAGManager:
     # ---------------------------------------------------------
     # Ingesta: Parent Document Retrieval Strategy
     # ---------------------------------------------------------
-    def add_document(self, collection_name: str, text: str, metadata: Dict[str, Any] = None, source_id: str = None):
+    def add_document(self, collection_name: str, text: str, metadata: dict[str, Any] = None, source_id: str = None):
         """
         Divide el documento en 'Padres' grandes y luego en 'Hijos' pequeños.
         Los hijos van al VectorDB, los padres al DocStore.
@@ -292,14 +287,14 @@ class RAGManager:
             source_id = str(uuid.uuid4())
 
         collection = self._get_collection(collection_name)
-        
+
         # 1. Crear chunks PADRES
         parent_chunks = self.parent_splitter.split_text(text)
-        
+
         parent_ids = []
         parent_contents = []
         parent_metas = []
-        
+
         child_ids = []
         child_contents = []
         child_metas = []
@@ -308,7 +303,7 @@ class RAGManager:
             p_id = f"{source_id}_p_{i}"
             parent_ids.append(p_id)
             parent_contents.append(p_text)
-            
+
             # Metadata del padre
             p_meta = metadata.copy()
             p_meta.update({"type": "parent", "original_source_id": source_id})
@@ -316,18 +311,18 @@ class RAGManager:
 
             # 2. Crear chunks HIJOS a partir del padre
             child_chunks = self.child_splitter.split_text(p_text)
-            
+
             for j, c_text in enumerate(child_chunks):
                 c_id = f"{p_id}_c_{j}"
                 child_ids.append(c_id)
                 child_contents.append(c_text)
-                
+
                 # Metadata del hijo DEBE apuntar al ID del padre
                 c_meta = metadata.copy()
                 # Chroma requiere tipos primitivos en metadata
                 flat_meta = {k: str(v) if isinstance(v, (list, dict)) else v for k,v in c_meta.items()}
                 flat_meta.update({
-                    "parent_id": p_id, 
+                    "parent_id": p_id,
                     "type": "child",
                     "original_source_id": source_id
                 })
@@ -351,18 +346,18 @@ class RAGManager:
     # ---------------------------------------------------------
     # Búsqueda Avanzada: Multi-Query + RRF + Parent Retrieval
     # ---------------------------------------------------------
-    def _generate_multi_queries(self, query: str, n=3) -> List[str]:
+    def _generate_multi_queries(self, query: str, n=3) -> list[str]:
         """Usa el Modelo Configurado para generar variaciones de la pregunta."""
         try:
             prompt = f"""Eres un experto en búsqueda semántica. Genera {n} versiones diferentes de la siguiente pregunta de usuario para mejorar la recuperación de documentos desde diversas perspectivas.
             Pregunta original: "{query}"
             Responde SOLO con las variaciones, una por línea. No enumeres."""
-            
+
             # Usar el modelo configurado
             model_to_use = self.settings.model
-            
+
             response = self.llm_client.chat.completions.create(
-                model=model_to_use, 
+                model=model_to_use,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7
             )
@@ -373,7 +368,7 @@ class RAGManager:
             logger.error(f"Error generando multi-queries: {e}")
             return [query]
 
-    def _reciprocal_rank_fusion(self, results_list: List[Dict], k=60):
+    def _reciprocal_rank_fusion(self, results_list: list[dict], k=60):
         """
         Algoritmo RRF para fusionar resultados de múltiples queries.
         Score = 1 / (k + rank)
@@ -386,11 +381,11 @@ class RAGManager:
             if results['ids']:
                 ids = results['ids'][0]
                 # distances = results['distances'][0] (no lo usamos para RRF puro, usamos el rango)
-                
+
                 for rank, doc_id in enumerate(ids):
                     # RRF Formula
                     fused_scores[doc_id] += 1 / (k + rank)
-                    
+
                     # Guardar referencia del documento si no existe
                     if doc_id not in doc_map:
                         idx = ids.index(doc_id)
@@ -401,14 +396,14 @@ class RAGManager:
 
         # Ordenar por score RRF descendente
         sorted_ids = sorted(fused_scores.keys(), key=lambda x: fused_scores[x], reverse=True)
-        
+
         final_results = []
         for doc_id in sorted_ids:
             item = doc_map[doc_id]
             item['id'] = doc_id
             item['score'] = fused_scores[doc_id]
             final_results.append(item)
-            
+
         return final_results
 
     def search(self, collection_name: str, query: str, top_k: int = 5, min_score: float = 0.3):
@@ -455,7 +450,7 @@ class RAGManager:
 
         for item in fused_results:
             # FILTRO POR UMBRAL DE SCORE
-            if item['score'] < min_score:                
+            if item['score'] < min_score:
                 continue
 
             if len(final_output) >= top_k:

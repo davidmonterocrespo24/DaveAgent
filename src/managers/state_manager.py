@@ -10,7 +10,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 
 class StateManager:
@@ -28,7 +28,7 @@ class StateManager:
 
     def __init__(
         self,
-        state_dir: Optional[Path] = None,
+        state_dir: Path | None = None,
         auto_save_enabled: bool = True,
         auto_save_interval: int = 300,  # 5 minutos
     ):
@@ -51,16 +51,16 @@ class StateManager:
 
         self.auto_save_enabled = auto_save_enabled
         self.auto_save_interval = auto_save_interval
-        self._auto_save_task: Optional[asyncio.Task] = None
+        self._auto_save_task: asyncio.Task | None = None
 
         # Track current session
-        self.session_id: Optional[str] = None
-        self.last_save_time: Optional[datetime] = None
-        self.session_metadata: Dict[str, Any] = {}
+        self.session_id: str | None = None
+        self.last_save_time: datetime | None = None
+        self.session_metadata: dict[str, Any] = {}
 
         # State cache
-        self._agent_states: Dict[str, Dict] = {}
-        self._team_states: Dict[str, Dict] = {}
+        self._agent_states: dict[str, dict] = {}
+        self._team_states: dict[str, dict] = {}
 
     # =========================================================================
     # Session Management
@@ -68,10 +68,10 @@ class StateManager:
 
     def start_session(
         self,
-        session_id: Optional[str] = None,
-        title: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        description: Optional[str] = None,
+        session_id: str | None = None,
+        title: str | None = None,
+        tags: list[str] | None = None,
+        description: str | None = None,
     ) -> str:
         """
         Start a new session or resume existing one
@@ -106,12 +106,12 @@ class StateManager:
 
         return session_id
 
-    def get_session_path(self, session_id: Optional[str] = None) -> Path:
+    def get_session_path(self, session_id: str | None = None) -> Path:
         """Get path to session state file"""
         session_id = session_id or self.session_id or "default"
         return self.state_dir / f"session_{session_id}.json"
 
-    def list_sessions(self) -> List[Dict[str, Any]]:
+    def list_sessions(self) -> list[dict[str, Any]]:
         """
         List all available sessions with enhanced metadata
 
@@ -122,7 +122,7 @@ class StateManager:
 
         for state_file in self.state_dir.glob("session_*.json"):
             try:
-                with open(state_file, "r") as f:
+                with open(state_file) as f:
                     data = json.load(f)
 
                 # Extract session metadata
@@ -166,7 +166,7 @@ class StateManager:
     # =========================================================================
 
     async def save_agent_state(
-        self, agent_name: str, agent: Any, metadata: Optional[Dict] = None
+        self, agent_name: str, agent: Any, metadata: dict | None = None
     ) -> None:
         """
         Save state of a single agent
@@ -227,7 +227,7 @@ class StateManager:
     # =========================================================================
 
     async def save_team_state(
-        self, team_name: str, team: Any, metadata: Optional[Dict] = None
+        self, team_name: str, team: Any, metadata: dict | None = None
     ) -> None:
         """
         Save state of a team (includes all agents in the team)
@@ -288,7 +288,7 @@ class StateManager:
     # =========================================================================
 
     async def save_to_disk(
-        self, session_id: Optional[str] = None, include_metadata: bool = True
+        self, session_id: str | None = None, include_metadata: bool = True
     ) -> Path:
         """
         Save all cached states to disk
@@ -336,7 +336,7 @@ class StateManager:
             self.logger.error(f"Failed to save state to disk: {e}")
             raise
 
-    async def load_from_disk(self, session_id: Optional[str] = None) -> bool:
+    async def load_from_disk(self, session_id: str | None = None) -> bool:
         """
         Load states from disk
 
@@ -354,7 +354,7 @@ class StateManager:
             return False
 
         try:
-            with open(state_path, "r") as f:
+            with open(state_path) as f:
                 data = json.load(f)
 
             self._agent_states = data.get("agent_states", {})
@@ -379,7 +379,7 @@ class StateManager:
 
     async def _auto_save_loop(self):
         """Background task that auto-saves state periodically"""
-        
+
         while self.auto_save_enabled:
             try:
                 await asyncio.sleep(self.auto_save_interval)
@@ -397,7 +397,7 @@ class StateManager:
                 self.logger.error(f"Auto-save error: {e}")
                 # Continue despite errors
 
-    def enable_auto_save(self, interval: Optional[int] = None):
+    def enable_auto_save(self, interval: int | None = None):
         """
         Enable auto-save
 
@@ -489,7 +489,7 @@ class StateManager:
             self.logger.error(f"Failed to delete session {session_id}: {e}")
             raise
 
-    def get_session_history(self, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_session_history(self, session_id: str | None = None) -> list[dict[str, Any]]:
         """
         Extract conversation history from current session
 
@@ -510,7 +510,7 @@ class StateManager:
                 if not state_path.exists():
                     return []
 
-                with open(state_path, "r") as f:
+                with open(state_path) as f:
                     data = json.load(f)
                 agent_states = data.get("agent_states", {})
 
@@ -539,7 +539,7 @@ class StateManager:
             self.logger.error(f"Failed to get session history: {e}")
             return []
 
-    def get_session_metadata(self, session_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_session_metadata(self, session_id: str | None = None) -> dict[str, Any]:
         """
         Get metadata for a session
 
@@ -558,7 +558,7 @@ class StateManager:
             if not state_path.exists():
                 return {}
 
-            with open(state_path, "r") as f:
+            with open(state_path) as f:
                 data = json.load(f)
 
             return data.get("session_metadata", {})
@@ -571,7 +571,7 @@ class StateManager:
     # Statistics
     # =========================================================================
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get state manager statistics"""
         return {
             "session_id": self.session_id,

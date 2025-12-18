@@ -4,26 +4,21 @@ Interactive CLI interface in the style of Claude Code
 
 import asyncio
 import random
-import sys
 import time
-from datetime import datetime
 from pathlib import Path
+
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.history import FileHistory
 from rich.console import Console
-from rich.layout import Layout
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.spinner import Spinner
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
-from typing import Optional, List
 
-from src.utils import FileIndexer, select_file_interactive, VibeSpinner
+from src.utils import FileIndexer, VibeSpinner, select_file_interactive
 
 
 class CLIInterface:
@@ -43,8 +38,8 @@ class CLIInterface:
         )
         self.conversation_active = False
         self.file_indexer = None  # Will be initialized on first use
-        self.mentioned_files: List[str] = []  # Track files mentioned with @
-        self.vibe_spinner: Optional[VibeSpinner] = None  # Spinner for thinking animation
+        self.mentioned_files: list[str] = []  # Track files mentioned with @
+        self.vibe_spinner: VibeSpinner | None = None  # Spinner for thinking animation
         self.current_mode = "agent"  # Track current mode for display
 
     def print_banner(self):
@@ -219,7 +214,7 @@ class CLIInterface:
             query = user_input[query_start:query_end]
 
             # Show file selector
-            self.console.print(f"\n[cyan]Detected @ mention, opening file selector...[/cyan]")
+            self.console.print("\n[cyan]Detected @ mention, opening file selector...[/cyan]")
 
             # Run file selector (synchronously since we're in a coroutine)
             loop = asyncio.get_event_loop()
@@ -236,7 +231,7 @@ class CLIInterface:
             else:
                 # User cancelled, keep original @query
                 parts.append(f"@{query}")
-                self.console.print(f"[yellow]✗ Selection cancelled[/yellow]")
+                self.console.print("[yellow]✗ Selection cancelled[/yellow]")
 
             current_pos = query_end
 
@@ -318,7 +313,7 @@ class CLIInterface:
         )
         self.console.print()
 
-    def start_thinking(self, message: Optional[str] = None):
+    def start_thinking(self, message: str | None = None):
         """
         Start the vibe spinner to show agent is thinking
 
@@ -505,7 +500,7 @@ class CLIInterface:
         self.console.print(md)
         self.console.print("─" * 60, style="dim cyan")
 
-    def create_progress_table(self, tasks: List[dict]) -> Table:
+    def create_progress_table(self, tasks: list[dict]) -> Table:
         """Creates a table with task progress"""
         table = Table(title="Task Progress", show_header=True, header_style="bold")
         table.add_column("ID", style="cyan", width=4)
@@ -689,7 +684,7 @@ Simply write what you need the agent to do. The agent will:
         """Clears the screen"""
         self.console.clear()
 
-    def get_mentioned_files(self) -> List[str]:
+    def get_mentioned_files(self) -> list[str]:
         """
         Get list of files mentioned with @
 
@@ -728,7 +723,7 @@ Simply write what you need the agent to do. The agent will:
 
         for file_path in self.mentioned_files:
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     file_content = f.read()
 
                 content_parts.append(f"\n{'=' * 60}")

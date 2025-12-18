@@ -19,7 +19,7 @@ import logging
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 
 class JSONLogger:
@@ -32,7 +32,7 @@ class JSONLogger:
     - Statistics summary
     """
 
-    def __init__(self, log_dir: Optional[Path] = None):
+    def __init__(self, log_dir: Path | None = None):
         """
         Initialize JSON Logger
 
@@ -50,11 +50,11 @@ class JSONLogger:
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
         # Current session state
-        self.session_id: Optional[str] = None
-        self.session_start: Optional[datetime] = None
-        self.events: List[Dict[str, Any]] = []
-        self.metadata: Dict[str, Any] = {}
-        self.stats: Dict[str, int] = {
+        self.session_id: str | None = None
+        self.session_start: datetime | None = None
+        self.events: list[dict[str, Any]] = []
+        self.metadata: dict[str, Any] = {}
+        self.stats: dict[str, int] = {
             "user_messages": 0,
             "agent_messages": 0,
             "tool_calls": 0,
@@ -62,9 +62,9 @@ class JSONLogger:
             "errors": 0,
         }
 
-       
 
-    def start_session(self, session_id: Optional[str] = None, mode: str = "agent", **kwargs):
+
+    def start_session(self, session_id: str | None = None, mode: str = "agent", **kwargs):
         """
         Start a new logging session
 
@@ -96,7 +96,7 @@ class JSONLogger:
 
         self.logger.info(f"📝 Started JSON logging session: {session_id}")
 
-    def log_user_message(self, content: str, mentioned_files: Optional[List[str]] = None):
+    def log_user_message(self, content: str, mentioned_files: list[str] | None = None):
         """Log user input"""
         event = {
             "timestamp": datetime.now().isoformat(),
@@ -133,7 +133,7 @@ class JSONLogger:
         self.stats["thoughts"] += 1
         self.logger.debug(f"📝 Logged thought: {agent_name} - {thought[:50]}...")
 
-    def log_tool_call(self, agent_name: str, tool_name: str, arguments: Dict[str, Any]):
+    def log_tool_call(self, agent_name: str, tool_name: str, arguments: dict[str, Any]):
         """Log tool call with arguments"""
         event = {
             "timestamp": datetime.now().isoformat(),
@@ -167,7 +167,7 @@ class JSONLogger:
             f"📝 Logged tool result: {tool_name} - {'success' if success else 'failed'}"
         )
 
-    def log_router_decision(self, selected_agent: str, reason: Optional[str] = None):
+    def log_router_decision(self, selected_agent: str, reason: str | None = None):
         """Log router's agent selection decision"""
         event = {
             "timestamp": datetime.now().isoformat(),
@@ -195,11 +195,11 @@ class JSONLogger:
     def log_llm_call(
         self,
         agent_name: str,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         *,
-        response: Optional[str] = None,
-        model: Optional[str] = None,
-        tokens_used: Optional[Dict[str, int]] = None,
+        response: str | None = None,
+        model: str | None = None,
+        tokens_used: dict[str, int] | None = None,
     ):
         """
         Log complete LLM call (input and output)
@@ -223,7 +223,7 @@ class JSONLogger:
         self.events.append(event)
         self.logger.debug(f"📝 Logged LLM call: {agent_name} - {len(messages)} messages")
 
-    def end_session(self, summary: Optional[str] = None):
+    def end_session(self, summary: str | None = None):
         """End session and save to file"""
         if not self.session_id:
             self.logger.warning("No active session to end")
@@ -255,9 +255,9 @@ class JSONLogger:
         try:
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(
-                    log_data, 
-                    f, 
-                    indent=2, 
+                    log_data,
+                    f,
+                    indent=2,
                     ensure_ascii=False,
                     default=lambda o: o.model_dump() if hasattr(o, "model_dump") else (o.__dict__ if hasattr(o, "__dict__") else str(o))
                 )
@@ -274,7 +274,7 @@ class JSONLogger:
         except Exception as e:
             self.logger.error(f"Error saving JSON log: {e}")
 
-    def get_session_filepath(self) -> Optional[Path]:
+    def get_session_filepath(self) -> Path | None:
         """Get filepath for current session"""
         if not self.session_id:
             return None

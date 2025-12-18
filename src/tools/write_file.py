@@ -10,7 +10,7 @@ async def write_file(target_file: str, file_content: str) -> str:
 
     preview = file_content[:500] + "..." if len(file_content) > 500 else file_content
     approval_msg = f"Writing {len(file_content)} chars to {target_file}"
-    
+
     approval_result = await ask_for_approval(
         action_description=f"WRITE FILE: {target_file}",
         context=f"```\n{preview}\n```"
@@ -32,7 +32,7 @@ async def write_file(target_file: str, file_content: str) -> str:
         # --- SANITY CHECK: PREVENT OVERWRITE DEMOLITION ---
         if target.exists():
             try:
-                with open(target, "r", encoding="utf-8") as f:
+                with open(target, encoding="utf-8") as f:
                     old_content = f.read()
                 old_lines = len(old_content.splitlines())
                 new_lines = len(file_content.splitlines())

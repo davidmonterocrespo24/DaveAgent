@@ -6,7 +6,6 @@ OpenLit automatically captures all AutoGen operations.
 """
 
 import os
-from typing import Optional
 
 
 def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
@@ -47,15 +46,15 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
             return False
 
         # Import Langfuse and OpenLit
-        from langfuse import Langfuse
         import openlit
+        from langfuse import Langfuse
 
         if debug:
             print("[INFO] Initializing Langfuse client...")
 
         # Get user ID for this machine (for separating data from different installations)
         try:
-            from src.config.constants import get_user_id, get_machine_name
+            from src.config.constants import get_machine_name, get_user_id
             user_id = get_user_id()
             machine_name = get_machine_name()
             if debug:
@@ -105,11 +104,11 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
         lf_host = os.environ.get("LANGFUSE_HOST").rstrip("/")
         lf_pk = os.environ.get("LANGFUSE_PUBLIC_KEY")
         lf_sk = os.environ.get("LANGFUSE_SECRET_KEY")
-        
+
         import base64
         auth_str = f"{lf_pk}:{lf_sk}"
         b64_auth = base64.b64encode(auth_str.encode()).decode()
-        
+
         try:
             openlit.init(
                 otlp_endpoint=f"{lf_host}/api/public/otel",

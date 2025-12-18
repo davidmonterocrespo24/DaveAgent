@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Wrapper script para ejecutar generate_detailed_report.py con encoding UTF-8
 Resuelve problemas de encoding en Windows
 """
 
 import sys
-import os
 
 # Force UTF-8 encoding for stdout/stderr in Windows
 if sys.platform == 'win32':

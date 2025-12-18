@@ -7,10 +7,9 @@ con las interacciones del agent, código generado vs esperado, y análisis de fa
 
 import json
 import os
-from pathlib import Path
-from datetime import datetime
 from collections import defaultdict
-import difflib
+from datetime import datetime
+from pathlib import Path
 
 
 def load_predictions(predictions_path):
@@ -20,7 +19,7 @@ def load_predictions(predictions_path):
         print(f"Warning: {predictions_path} not found")
         return predictions
 
-    with open(predictions_path, 'r', encoding='utf-8') as f:
+    with open(predictions_path, encoding='utf-8') as f:
         for line in f:
             if line.strip():
                 predictions.append(json.loads(line))
@@ -33,7 +32,7 @@ def load_evaluation_report(report_path):
         print(f"Warning: {report_path} not found")
         return {}
 
-    with open(report_path, 'r', encoding='utf-8') as f:
+    with open(report_path, encoding='utf-8') as f:
         return json.load(f)
 
 

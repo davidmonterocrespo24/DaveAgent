@@ -9,7 +9,6 @@ import base64
 import os
 from pathlib import Path
 
-
 # =============================================================================
 # TELEMETRY CONFIGURATION
 # =============================================================================
@@ -63,11 +62,11 @@ def is_telemetry_enabled() -> bool:
         True if telemetry is enabled (default), False if disabled
     """
     state_file = Path(TELEMETRY_STATE_FILE)
-    
+
     # Default: telemetry enabled
     if not state_file.exists():
         return True
-    
+
     try:
         content = state_file.read_text().strip().lower()
         return content != "false" and content != "0" and content != "disabled"
@@ -106,12 +105,12 @@ def setup_langfuse_environment() -> bool:
     """
     if not is_telemetry_enabled():
         return False
-    
+
     creds = get_langfuse_credentials()
     os.environ["LANGFUSE_SECRET_KEY"] = creds["secret_key"]
     os.environ["LANGFUSE_PUBLIC_KEY"] = creds["public_key"]
     os.environ["LANGFUSE_HOST"] = creds["host"]
-    
+
     return True
 
 
@@ -135,33 +134,33 @@ def get_user_id() -> str:
     Returns:
         A unique identifier string (UUID format)
     """
-    import uuid
     import hashlib
     import platform
-    
+    import uuid
+
     try:
         # Check if we already have a user ID
         if USER_ID_FILE.exists():
             existing_id = USER_ID_FILE.read_text().strip()
             if existing_id:
                 return existing_id
-        
+
         # Generate a new unique ID
         # Combine multiple sources for uniqueness
         machine_info = f"{platform.node()}-{platform.machine()}-{platform.system()}"
-        
+
         # Create a hash-based UUID from machine info + random component
         # This ensures some stability but also uniqueness
         seed = f"{machine_info}-{uuid.uuid4()}"
         hash_bytes = hashlib.sha256(seed.encode()).digest()[:16]
         user_id = str(uuid.UUID(bytes=hash_bytes))
-        
+
         # Persist the ID
         USER_ID_FILE.parent.mkdir(parents=True, exist_ok=True)
         USER_ID_FILE.write_text(user_id)
-        
+
         return user_id
-        
+
     except Exception:
         # Fallback: generate a random UUID without persistence
         return str(uuid.uuid4())

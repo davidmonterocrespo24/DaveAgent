@@ -6,10 +6,9 @@ análisis de qué herramientas usó, qué archivos leyó, qué errores tuvo, etc
 """
 
 import json
-import os
-from pathlib import Path
+from collections import Counter
 from datetime import datetime
-from collections import Counter, defaultdict
+from pathlib import Path
 
 
 def find_json_logs(base_dir):
@@ -33,7 +32,7 @@ def find_json_logs(base_dir):
 def analyze_log_file(log_path):
     """Analiza un archivo de log JSON del agent"""
     try:
-        with open(log_path, 'r', encoding='utf-8') as f:
+        with open(log_path, encoding='utf-8') as f:
             logs = [json.loads(line) for line in f if line.strip()]
     except Exception as e:
         print(f"   Warning: Could not read {log_path}: {e}")

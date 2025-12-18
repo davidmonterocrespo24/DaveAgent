@@ -2,18 +2,18 @@
 Main file - Complete CLI interface for the code agent
 NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 """
-import os
 import asyncio
 import logging
+import os
+
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
+from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
 
 # Imports added for the new flow
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 # from src.agents import CodeSearcher (Moved to __init__)
-
 # Import from new structure
 from src.config import (
     CODER_AGENT_DESCRIPTION,
@@ -24,8 +24,9 @@ from src.config import (
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
 from src.interfaces.vscode_interface import VSCodeInterface
+
 # Managers moved to __init__
-from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
+from src.utils import HistoryViewer, LoggingModelClientWrapper, get_conversation_tracker, get_logger
 
 
 class DaveAgentCLI:
@@ -51,11 +52,11 @@ class DaveAgentCLI:
         # Configure logging (now in .daveagent/logs/)
         log_level = logging.DEBUG if debug else logging.INFO
         self.logger = get_logger(log_file=None, level=log_level)  # Use default path
-       
+
         t0 = time.time()
         # Configure conversation tracker (logs to .daveagent/conversations.json)
         self.conversation_tracker = get_conversation_tracker()
-        
+
         # Mode system: "agent" (with tools) or "chat" (without modification tools)
         self.current_mode = "agent"  # Default mode
 
@@ -73,11 +74,10 @@ class DaveAgentCLI:
             self.logger.error(f"[ERROR] Invalid configuration: {error_msg}")
             print(error_msg)
             raise ValueError("Invalid configuration")
-        
+
         # DEEPSEEK REASONER SUPPORT
         # Use DeepSeekReasoningClient for models with thinking mode
-        from src.utils.deepseek_fix import should_use_reasoning_client
-        
+
         # Create custom HTTP client with SSL configuration
         import httpx
         http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
@@ -90,7 +90,7 @@ class DaveAgentCLI:
         # =====================================================================
         # DYNAMIC MODEL CLIENTS (Base vs Strong)
         # =====================================================================
-        
+
         # 1. Base Client (lighter/faster) - Usually deepseek-chat or gpt-4o-mini
         # For base model we typically use standard client (no reasoning usually needed)
         self.client_base = OpenAIChatCompletionClient(
@@ -100,13 +100,13 @@ class DaveAgentCLI:
             model_info=self.settings.get_model_capabilities(),
             custom_http_client=http_client,
         )
-        
+
         # 2. Strong Client (Reasoning/Powerful) - Usually deepseek-reasoner or gpt-4o
         from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
-        
+
         # Check if strong model needs reasoning client
         is_deepseek_reasoner = (
-            "deepseek-reasoner" in self.settings.strong_model.lower() 
+            "deepseek-reasoner" in self.settings.strong_model.lower()
             and "deepseek" in self.settings.base_url.lower()
         )
 
@@ -119,7 +119,7 @@ class DaveAgentCLI:
                 custom_http_client=http_client,
                 enable_thinking=None,  # Auto detect
             )
-        
+
         else:
              self.client_strong = OpenAIChatCompletionClient(
                 model=self.settings.strong_model,
@@ -128,20 +128,20 @@ class DaveAgentCLI:
                 model_info=self.settings.get_model_capabilities(),
                 custom_http_client=http_client,
             )
-             
+
 
 
         # Wrappers for Logging
-        # Note: We will wrap them again with specific agent names later, 
+        # Note: We will wrap them again with specific agent names later,
         # but here we set up the default 'model_client' for compatibility with rest of init
-        
+
         # Default model client (starts as Strong for compatibility)
         self.model_client = LoggingModelClientWrapper(
-            wrapped_client=self.client_strong, 
+            wrapped_client=self.client_strong,
             json_logger=self.json_logger,
             agent_name="SystemRouter",
         )
-        
+
 
         # ROUTER CLIENT: Always use Base Model for routing/planning
         self.router_client = OpenAIChatCompletionClient(
@@ -152,7 +152,7 @@ class DaveAgentCLI:
             http_client=http_client,
         )
         print(f"[Startup] Model clients initialized in {time.time() - t0:.4f}s")
-        
+
         t0 = time.time()
         # State management system (AutoGen save_state/load_state)
         from src.managers import StateManager
@@ -163,7 +163,7 @@ class DaveAgentCLI:
 
         t0 = time.time()
         # RAG Manager (Advanced retrieval system)
-        print(f"[Startup] Importing RAGManager...")
+        print("[Startup] Importing RAGManager...")
         t_rag_import = time.time()
         from src.managers.rag_manager import RAGManager
         print(f"[Startup] RAGManager imported in {time.time() - t_rag_import:.4f}s")
@@ -174,7 +174,7 @@ class DaveAgentCLI:
         work_dir = os.getcwd()
         self.rag_manager = RAGManager(settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data")
         print(f"[Startup] RAGManager initialized in {time.time() - t0:.4f}s")
-        
+
         t0 = time.time()
         # Agent Skills system (Claude-compatible and RAG-enhanced)
         from src.skills import SkillManager
@@ -205,11 +205,11 @@ class DaveAgentCLI:
         self.langfuse_enabled = False
         try:
             # Setup Langfuse environment from obfuscated credentials
-            from src.config import setup_langfuse_environment, is_telemetry_enabled
-            
+            from src.config import is_telemetry_enabled, setup_langfuse_environment
+
             if is_telemetry_enabled():
                 setup_langfuse_environment()
-                
+
                 # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
                 from src.observability import init_langfuse_tracing
                 self.langfuse_enabled = init_langfuse_tracing(enabled=True, debug=debug)
@@ -228,54 +228,54 @@ class DaveAgentCLI:
         t0 = time.time()
         # Import all tools from the new structure
         from src.tools import (
-            # Filesystem
-            read_file,
-            write_file,
-            list_dir,
-            edit_file,
+            # Analysis
+            analyze_python_file,
+            csv_info,
+            csv_to_json,
             delete_file,
+            edit_file,
             file_search,
-            glob_search,
+            filter_csv,
+            find_function_definition,
+            format_json,
+            git_add,
+            git_branch,
+            git_commit,
+            git_diff,
+            git_log,
+            git_pull,
+            git_push,
             # Git
             git_status,
-            git_add,
-            git_commit,
-            git_push,
-            git_pull,
-            git_log,
-            git_branch,
-            git_diff,
-            # JSON
-            read_json,
-            write_json,
-            merge_json_files,
-            validate_json,
-            format_json,
+            glob_search,
+            grep_search,
             json_get_value,
             json_set_value,
             json_to_text,
+            list_all_functions,
+            list_dir,
+            merge_csv_files,
+            merge_json_files,
             # CSV
             read_csv,
-            write_csv,
-            csv_info,
-            filter_csv,
-            merge_csv_files,
-            csv_to_json,
+            # Filesystem
+            read_file,
+            # JSON
+            read_json,
+            run_terminal_cmd,
             sort_csv,
-            # Web
-            wiki_search,
-            wiki_summary,
+            validate_json,
+            web_search,
             wiki_content,
             wiki_page_info,
             wiki_random,
+            # Web
+            wiki_search,
             wiki_set_language,
-            web_search,
-            # Analysis
-            analyze_python_file,
-            find_function_definition,
-            list_all_functions,
-            grep_search,
-            run_terminal_cmd,
+            wiki_summary,
+            write_csv,
+            write_file,
+            write_json,
         )
         self.logger.info(f"[Startup] Tools imported in {time.time() - t0:.4f}s")
 
@@ -365,7 +365,7 @@ class DaveAgentCLI:
             self.history_viewer = HistoryViewer(console=self.cli.console)
 
         self.running = True
-        
+
         # Initialize agents and main_team for the current mode
         self._initialize_agents_for_mode()
 
@@ -380,11 +380,11 @@ class DaveAgentCLI:
         errors with "multiple system messages" in models like DeepSeek.
         Instead, they use RAG tools (query_*_memory, save_*).
         """
-        
+
         if self.current_mode == "agent":
             # AGENT mode: all tools + technical prompt
             coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
-            system_prompt = AGENT_SYSTEM_PROMPT            
+            system_prompt = AGENT_SYSTEM_PROMPT
         else:
             # CHAT mode: read-only + conversational prompt
             coder_tools = self.all_tools["read_only"]
@@ -424,7 +424,7 @@ class DaveAgentCLI:
         # Create separate wrappers for each agent (for logging with correct names)
         # 1. Coder (Defaulting to Strong client, but will be switched dynamically)
         coder_client = LoggingModelClientWrapper(
-            wrapped_client=self.client_strong, 
+            wrapped_client=self.client_strong,
             json_logger=self.json_logger,
             agent_name="Coder",
         )
@@ -475,8 +475,8 @@ class DaveAgentCLI:
         termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(50)
 
         self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
-        self.logger.debug(f"[SELECTOR] Participants: Planner, Coder")
-        self.logger.debug(f"[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(50)")
+        self.logger.debug("[SELECTOR] Participants: Planner, Coder")
+        self.logger.debug("[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(50)")
 
         self.main_team = SelectorGroupChat(
             participants=[self.planning_agent, self.coder_agent],
@@ -496,7 +496,7 @@ class DaveAgentCLI:
         This creates new instances of all agents with the correct
         configuration for the mode (tools + system prompt).
         """
-        
+
         # STEP 1: Clean current StateManager session
         if self.state_manager.session_id:
             self.logger.debug("🧹 Cleaning StateManager session...")
@@ -590,7 +590,7 @@ class DaveAgentCLI:
                 await self._update_agent_tools_for_mode()
                 self.cli.print_success("🔧 AGENT mode enabled")
                 self.cli.print_info("✓ The agent can modify files and execute commands")
-                
+
         elif cmd == "/modo-chat":
             # Switch to chat mode (read-only tools)
             if self.current_mode == "chat":
@@ -696,7 +696,7 @@ class DaveAgentCLI:
                     )
                 self.logger.info(f"SSL verify changed from {old_ssl} to {new_ssl}")
 
-    
+
         elif cmd == "/skills":
             # List available agent skills
             await self._list_skills_command()
@@ -711,7 +711,7 @@ class DaveAgentCLI:
 
         elif cmd == "/telemetry-off":
             # Disable telemetry
-            from src.config import set_telemetry_enabled, is_telemetry_enabled
+            from src.config import is_telemetry_enabled, set_telemetry_enabled
             if not is_telemetry_enabled():
                 self.cli.print_info("📊 Telemetry is already disabled")
             else:
@@ -721,7 +721,7 @@ class DaveAgentCLI:
 
         elif cmd == "/telemetry-on":
             # Enable telemetry
-            from src.config import set_telemetry_enabled, is_telemetry_enabled
+            from src.config import is_telemetry_enabled, set_telemetry_enabled
             if is_telemetry_enabled():
                 self.cli.print_info("📊 Telemetry is already enabled")
             else:
@@ -999,7 +999,7 @@ TITLE:"""
             await self.state_manager.save_agent_state(
                 "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
             )
-           
+
 
             await self.state_manager.save_agent_state(
                 "planning",
@@ -1058,7 +1058,7 @@ TITLE:"""
                 "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
             )
 
-           
+
 
             await self.state_manager.save_agent_state(
                 "planning",
@@ -1075,11 +1075,11 @@ TITLE:"""
             metadata = self.state_manager.get_session_metadata()
             messages = self.state_manager.get_session_history()
 
-            self.cli.print_success(f"✅ State saved successfully!")
+            self.cli.print_success("✅ State saved successfully!")
             self.cli.print_info(f"  • Title: {metadata.get('title', 'Untitled')}")
             self.cli.print_info(f"  • Session ID: {session_id}")
             self.cli.print_info(f"  • Location: {state_path}")
-            self.cli.print_info(f"  • Agents saved: 3")
+            self.cli.print_info("  • Agents saved: 3")
             self.cli.print_info(f"  • Messages saved: {len(messages)}")
 
             self.logger.info(f"✅ State saved in session: {session_id}")
@@ -1283,7 +1283,7 @@ TITLE:"""
             "simple" or "complex"
         """
         try:
-            self.logger.debug(f"🔀 Router: analyzing complexity...")
+            self.logger.debug("🔀 Router: analyzing complexity...")
 
             # Create prompt with user request
             prompt = COMPLEXITY_DETECTOR_PROMPT.format(user_input=user_input)
@@ -1340,7 +1340,7 @@ TITLE:"""
             self.logger.warning("⚠️ Fallback: using SIMPLE flow")
             return "simple"
 
-    
+
     # =========================================================================
     # COMPLEX TASK EXECUTION - SelectorGroupChat with selector_func
     # =========================================================================
@@ -1395,7 +1395,7 @@ TITLE:"""
 
             complex_team = SelectorGroupChat(
                 participants=[
-                    self.planning_agent,           
+                    self.planning_agent,
                     self.coder_agent,
                 ],
                 model_client=self.router_client,
@@ -1445,7 +1445,7 @@ TITLE:"""
                             agent_messages_shown.add(message_key)
 
                             # After agent finishes, start spinner waiting for next agent
-                            self.cli.start_thinking(message=f"waiting for next action")
+                            self.cli.start_thinking(message="waiting for next action")
                             spinner_active = True
 
                         elif msg_type == "ToolCallRequestEvent":
@@ -1640,7 +1640,7 @@ TITLE:"""
             # =================================================================
             # Detect complexity to choose the right model for the Coder
             complexity = await self._detect_task_complexity(full_input)
-            
+
             # Switch Coder model based on complexity
             if complexity == "complex":
                 # Use Strong Model (Reasoner)
@@ -1654,10 +1654,10 @@ TITLE:"""
                 self.logger.info(f"⚡ Task is SIMPLE: Switched Coder to Base Model ({model_name})")
 
             # ============= USE SINGLE ROUTER TEAM =============
-            
+
             # Start spinner
             self.cli.start_thinking()
-           
+
             agent_messages_shown = set()
             message_count = 0
             spinner_active = True
@@ -1732,7 +1732,7 @@ TITLE:"""
                                             if hasattr(tool_call, "arguments")
                                             else {}
                                         )
-                                        
+
                                         # Parse tool_args if it's a JSON string
                                         if isinstance(tool_args, str):
                                             try:
@@ -1740,7 +1740,7 @@ TITLE:"""
                                                 tool_args = json.loads(tool_args)
                                             except (json.JSONDecodeError, TypeError):
                                                 pass  # Keep as string if parsing fails
-                                        
+
                                         # Special formatting for file tools with code content
                                         if tool_name == "write_file" and isinstance(tool_args, dict) and "file_content" in tool_args:
                                             # Show write_file with syntax highlighting
@@ -1781,7 +1781,7 @@ TITLE:"""
                                                 f"🔧 Calling tool: {tool_name} with parameters {args_str}",
                                                 agent_name,
                                             )
-                                        
+
                                         self.logger.debug(f"🔧 Tool call: {tool_name}")
                                         # JSON Logger: Capture tool call
                                         self.json_logger.log_tool_call(
@@ -1818,7 +1818,7 @@ TITLE:"""
                                             if hasattr(execution_result, "content")
                                             else "OK"
                                         )
-                                        
+
                                         # DEBUG: Log tool result details
                                         self.logger.debug(f"[TOOL_RESULT_DEBUG] tool_name={tool_name}, result_starts_with={result_content[:50] if len(result_content) > 50 else result_content}, has_File={('File:' in result_content)}")
 
@@ -1929,7 +1929,7 @@ TITLE:"""
                             agent_messages_shown.add(message_key)
 
                             # After agent finishes, start spinner waiting for next agent
-                            self.cli.start_thinking(message=f"waiting for next action")
+                            self.cli.start_thinking(message="waiting for next action")
                             spinner_active = True
 
                         else:
@@ -1980,8 +1980,8 @@ TITLE:"""
             self.cli.print_thinking("📊 Reporting error to SigNoz...")
             try:
                 await self.error_reporter.report_error(
-                    exception=e, 
-                    context="process_user_request", 
+                    exception=e,
+                    context="process_user_request",
                     severity="error"
                 )
             except Exception as report_err:
@@ -2118,7 +2118,7 @@ TITLE:"""
                     agents_loaded = 0
                     if await self.state_manager.load_agent_state("coder", self.coder_agent):
                         agents_loaded += 1
-               
+
                     if await self.state_manager.load_agent_state("planning", self.planning_agent):
                         agents_loaded += 1
 
@@ -2190,12 +2190,12 @@ TITLE:"""
         except Exception as e:
             self.logger.log_error_with_context(e, "main loop")
             self.cli.print_error(f"Fatal error: {str(e)}")
-            
+
             # AUTOMATIC ERROR REPORTING FOR FATAL ERRORS
             try:
                 await self.error_reporter.report_error(
-                    exception=e, 
-                    context="main_loop_fatal_error", 
+                    exception=e,
+                    context="main_loop_fatal_error",
                     severity="critical"
                 )
             except Exception as report_err:

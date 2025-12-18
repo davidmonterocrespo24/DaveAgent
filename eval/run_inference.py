@@ -1,14 +1,13 @@
 import argparse
+import asyncio
 import json
 import os
 import shutil
-import asyncio
-from datasets import load_dataset
-from pathlib import Path
 import subprocess
 
 # Import our solver
 from agent_wrapper import SWESolver
+from datasets import load_dataset
 
 
 def clone_repo(repo, commit, work_dir):

@@ -7,8 +7,7 @@ import base64
 import logging
 import mimetypes
 import os
-from pathlib import Path
-from typing import Union, Optional, Tuple, Dict, Any, List
+from typing import Any
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -75,7 +74,7 @@ class ToolErrorType:
     READ_CONTENT_FAILURE = "READ_CONTENT_FAILURE"
 
 
-def detect_bom(buf: bytes) -> Optional[Tuple[str, int]]:
+def detect_bom(buf: bytes) -> tuple[str, int] | None:
     """
     Detect a Unicode BOM (Byte Order Mark) if present.
     Returns (encoding, bom_length) or None.
@@ -137,10 +136,10 @@ async def read_file_with_encoding(file_path: str) -> str:
             return full.decode("latin-1")
 
     except Exception as e:
-        raise IOError(f"Failed to read file {file_path}: {str(e)}")
+        raise OSError(f"Failed to read file {file_path}: {str(e)}")
 
 
-def get_specific_mime_type(file_path: str) -> Optional[str]:
+def get_specific_mime_type(file_path: str) -> str | None:
     """Looks up the specific MIME type for a file path."""
     mime_type, _ = mimetypes.guess_type(file_path)
     return mime_type
@@ -225,8 +224,8 @@ async def detect_file_type(file_path: str) -> str:
 
 
 async def process_single_file_content(
-    file_path: str, root_directory: str, offset: int = 0, limit: Optional[int] = None
-) -> Dict[str, Any]:
+    file_path: str, root_directory: str, offset: int = 0, limit: int | None = None
+) -> dict[str, Any]:
     """
     Reads and processes a single file, handling text, images, and PDFs.
     """

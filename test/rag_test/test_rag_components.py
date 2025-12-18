@@ -1,9 +1,9 @@
-import os
-import sys
-import logging
-from pathlib import Path
-import shutil
 import json
+import logging
+import os
+import shutil
+import sys
+from pathlib import Path
 
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -29,8 +29,8 @@ def test_rag_components():
     test_db_path = "./rag_data_test_components"
     if os.path.exists(test_db_path):
         shutil.rmtree(test_db_path)
-    
-    print(f"[Setup] Initializing RAGManager with local embeddings (BGE-M3)...")
+
+    print("[Setup] Initializing RAGManager with local embeddings (BGE-M3)...")
     try:
         rag = RAGManager(settings=settings, persist_dir=test_db_path)
         print("[Setup] RAG Manager initialized successfully.")
@@ -46,7 +46,7 @@ def test_rag_components():
     RAG systems typically use vector databases to store and retrieve semantic embeddings.
     """
     collection_name = "test_components"
-    print(f"\n[Setup] Ingesting dummy data...")
+    print("\n[Setup] Ingesting dummy data...")
     rag.add_document(collection_name, text_content, metadata={"topic": "RAG"})
     print("[Setup] Data ingested.")
 
@@ -59,12 +59,12 @@ def test_rag_components():
     print("\n----------------------------------------------------------------")
     print("COMPONENT 1: Multi-Query Generation")
     print("----------------------------------------------------------------")
-    
+
     queries = rag._generate_multi_queries(query, n=2)
     print(f"Generated {len(queries)} queries:")
     for i, q in enumerate(queries):
         print(f"  {i+1}: {q}")
-    
+
     if len(queries) > 1:
         print("[Pass] Multi-query generation working.")
     else:
@@ -76,15 +76,15 @@ def test_rag_components():
     print("\n----------------------------------------------------------------")
     print("COMPONENT 2: Vector Search (Simulated for each query)")
     print("----------------------------------------------------------------")
-    
+
     collection = rag._get_collection(collection_name)
     results_list = []
-    
+
     for i, q in enumerate(queries):
         print(f"\nSearching for query {i+1}: '{q}'")
         res = collection.query(query_texts=[q], n_results=2)
         results_list.append(res)
-        
+
         # Print raw results for this query
         if res['ids']:
             for j, doc_id in enumerate(res['ids'][0]):
@@ -100,10 +100,10 @@ def test_rag_components():
     print("\n----------------------------------------------------------------")
     print("COMPONENT 3: Reciprocal Rank Fusion (RRF)")
     print("----------------------------------------------------------------")
-    
+
     fused_results = rag._reciprocal_rank_fusion(results_list)
-    
-    print(f"Top Fused Results (Sorted by RRF Score):")
+
+    print("Top Fused Results (Sorted by RRF Score):")
     for item in fused_results[:3]:
         print(f"  ID: {item['id']} | Score: {item['score']:.4f}")
         print(f"  Metadata: {item['metadata']}")
@@ -119,7 +119,7 @@ def test_rag_components():
     print("\n----------------------------------------------------------------")
     print("COMPONENT 4: Parent Document Retrieval")
     print("----------------------------------------------------------------")
-    
+
     final_output = []
     seen_parents = set()
     top_k = 2
@@ -127,14 +127,14 @@ def test_rag_components():
     for item in fused_results:
         if len(final_output) >= top_k:
             break
-            
+
         parent_id = item['metadata'].get('parent_id')
         print(f"Processing Item ID: {item['id']} -> Parent ID: {parent_id}")
-        
+
         if parent_id and parent_id not in seen_parents:
             parent_doc = rag.docstore.get_document(parent_id)
             if parent_doc:
-                print(f"  [Hit] Found Parent Document in DocStore.")
+                print("  [Hit] Found Parent Document in DocStore.")
                 print(f"  Parent Content Length: {len(parent_doc['content'])}")
                 print(f"  Parent Content Preview: {parent_doc['content'][:60].replace(chr(10), ' ')}...")
                 final_output.append(parent_doc)
@@ -144,7 +144,7 @@ def test_rag_components():
         elif parent_id in seen_parents:
             print(f"  [Skip] Parent {parent_id} already retrieved.")
         else:
-             print(f"  [Info] No parent ID, using child doc.")
+             print("  [Info] No parent ID, using child doc.")
 
     if final_output:
         print("[Pass] Parent retrieval successful.")

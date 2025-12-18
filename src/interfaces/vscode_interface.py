@@ -2,14 +2,14 @@
 VS Code Interface - JSON based communication for the VS Code Extension
 """
 
-import sys
-import json
 import asyncio
-from typing import Optional, List, Any
+import json
+import sys
+from typing import Any
 
 # We'll just inherit from object/dummy or try to match CLIInterface signature
 # Since Python doesn't enforce interfaces strictly, we just need the same methods.
-from src.interfaces.cli_interface import CLIInterface
+
 
 class VSCodeInterface:
     """
@@ -19,7 +19,7 @@ class VSCodeInterface:
     """
 
     def __init__(self):
-        self.mentioned_files: List[str] = []
+        self.mentioned_files: list[str] = []
         self.current_mode = "agent"
         # We don't need rich console or prompt session
 
@@ -47,20 +47,20 @@ class VSCodeInterface:
         Waits for a JSON object on stdin.
         """
         self._emit_event("request_input", {"prompt": prompt})
-        
+
         # Run in executor to avoid blocking the loop while reading stdin
         loop = asyncio.get_event_loop()
         line = await loop.run_in_executor(None, sys.stdin.readline)
-        
+
         if not line:
             return "/exit"
-            
+
         try:
             # Expecting JSON input from VS Code extension
             # Format: {"input": "user message", "files": ["file1", "file2"]}
             data = json.loads(line)
             user_input = data.get("input", "")
-            
+
             # Update mentioned files if provided
             if "files" in data:
                 # We append or replace? Let's append
@@ -68,9 +68,9 @@ class VSCodeInterface:
                 for f in new_files:
                     if f not in self.mentioned_files:
                         self.mentioned_files.append(f)
-                        
+
             return user_input.strip()
-            
+
         except json.JSONDecodeError:
             # Fallback for plain text input (e.g. debugging)
             return line.strip()
@@ -87,32 +87,32 @@ class VSCodeInterface:
 
     def print_task_start(self, task_id: int, task_title: str, task_description: str):
         self._emit_event("task_start", {
-            "id": task_id, 
-            "title": task_title, 
+            "id": task_id,
+            "title": task_title,
             "description": task_description
         })
 
     def print_task_complete(self, task_id: int, task_title: str, result_summary: str):
         self._emit_event("task_complete", {
-            "id": task_id, 
-            "title": task_title, 
+            "id": task_id,
+            "title": task_title,
             "summary": result_summary
         })
 
     def print_task_failed(self, task_id: int, task_title: str, error: str):
         self._emit_event("task_failed", {
-            "id": task_id, 
-            "title": task_title, 
+            "id": task_id,
+            "title": task_title,
             "error": error
         })
 
     def print_plan_update(self, reasoning: str, changes_summary: str):
         self._emit_event("plan_update", {
-            "reasoning": reasoning, 
+            "reasoning": reasoning,
             "changes": changes_summary
         })
 
-    def start_thinking(self, message: Optional[str] = None):
+    def start_thinking(self, message: str | None = None):
         self._emit_event("start_thinking", {"message": message or "Thinking..."})
 
     def stop_thinking(self, clear: bool = True):
@@ -139,7 +139,7 @@ class VSCodeInterface:
     def print_task_summary(self, summary: str):
         self._emit_event("summary", {"content": summary})
 
-    def create_progress_table(self, tasks: List[dict]):
+    def create_progress_table(self, tasks: list[dict]):
         # Just send the raw tasks list
         self._emit_event("progress_table", {"tasks": tasks})
 
@@ -157,7 +157,7 @@ class VSCodeInterface:
         # Not applicable but can signal UI clear
         self._emit_event("clear_screen", {})
 
-    def get_mentioned_files(self) -> List[str]:
+    def get_mentioned_files(self) -> list[str]:
         return self.mentioned_files.copy()
 
     def clear_mentioned_files(self):
@@ -181,23 +181,23 @@ class VSCodeInterface:
                 # Basic read
                 import os
                 if os.path.exists(file_path):
-                    with open(file_path, "r", encoding="utf-8") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         file_content = f.read()
-                    
+
                     content_parts.append(f"\\n{'=' * 60}")
                     content_parts.append(f"FILE: {file_path}")
                     content_parts.append(f"{'=' * 60}\\n")
                     content_parts.append(file_content)
                     content_parts.append(f"\\n{'=' * 60}\\n")
-            except Exception as e:
+            except Exception:
                 pass
-                
+
         return "\\n".join(content_parts)
 
     def stop_task_tracking(self):
         """Mock method for when main.py calls this (it's in CLIInterface but not used heavily)"""
         pass
-        
+
     @property
     def task_panel_active(self):
         return False

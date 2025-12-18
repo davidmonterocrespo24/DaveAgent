@@ -4,10 +4,10 @@ JSON File Tools - AutoGen Format
 
 import json
 import logging
-from typing import Dict, List, Any, Union
+from typing import Any
 
 
-async def read_json(filepath: str, encoding: str = "utf-8") -> Union[Dict[str, Any], List[Any]]:
+async def read_json(filepath: str, encoding: str = "utf-8") -> dict[str, Any] | list[Any]:
     """
     Reads a JSON file and returns its contents.
 
@@ -19,7 +19,7 @@ async def read_json(filepath: str, encoding: str = "utf-8") -> Union[Dict[str, A
         Dict or List: Contents of the JSON file
     """
     try:
-        with open(filepath, "r", encoding=encoding) as f:
+        with open(filepath, encoding=encoding) as f:
             data = json.load(f)
         return data
     except Exception as e:
@@ -30,7 +30,7 @@ async def read_json(filepath: str, encoding: str = "utf-8") -> Union[Dict[str, A
 
 async def write_json(
     filepath: str,
-    data: Union[Dict[str, Any], List[Any]],
+    data: dict[str, Any] | list[Any],
     encoding: str = "utf-8",
     indent: int = 2,
     ensure_ascii: bool = False,
@@ -84,7 +84,7 @@ async def merge_json_files(
             return str(data2["error"])
 
         # Merge
-        result: Union[Dict[str, Any], List[Any]]
+        result: dict[str, Any] | list[Any]
         if isinstance(data1, dict) and isinstance(data2, dict):
             if overwrite_duplicates:
                 result = {**data1, **data2}
@@ -118,7 +118,7 @@ async def validate_json(filepath: str) -> str:
         str: Message indicating whether it's valid or not
     """
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             json.load(f)
         return f"✓ {filepath} is a valid JSON"
     except json.JSONDecodeError as e:

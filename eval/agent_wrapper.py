@@ -1,7 +1,8 @@
-import sys
-import os
 import asyncio
+import os
+import sys
 from pathlib import Path
+
 from autogen_agentchat.messages import TextMessage
 
 # Add src to pythonpath
@@ -31,7 +32,7 @@ class SWESolver:
     async def solve(self, problem_statement, repo_path):
         current_dir = os.getcwd()
         try:
-            print(f"\n[DEBUG] Starting solve()")
+            print("\n[DEBUG] Starting solve()")
             print(f"[DEBUG] Current dir: {current_dir}")
             print(f"[DEBUG] Target repo_path: {repo_path}")
 
@@ -55,7 +56,7 @@ class SWESolver:
 
             # INCREASE tool iteration limit AFTER recreating agents
             self.app.coder_agent._max_tool_call_depth = 25
-            print(f"[DEBUG] Set coder max_tool_call_depth to 25")
+            print("[DEBUG] Set coder max_tool_call_depth to 25")
 
             # SKIP INDEXING - Too slow and not necessary for evaluation
             print("[EVAL] Skipping repository indexing for faster evaluation...")

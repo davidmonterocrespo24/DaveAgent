@@ -3,8 +3,6 @@ Test para read_file tool
 """
 
 import asyncio
-import os
-from pathlib import Path
 
 from read_file import read_file
 

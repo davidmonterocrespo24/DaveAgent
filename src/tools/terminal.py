@@ -2,9 +2,7 @@
 Tool for executing terminal commands safely
 """
 
-import os
 import subprocess
-from pathlib import Path
 
 from src.tools.common import get_workspace
 
@@ -35,13 +33,13 @@ async def run_terminal_cmd(
 
     if require_user_approval or is_dangerous:
         from src.utils.interaction import ask_for_approval
-        
+
         explanation_text = f"Command: {command}\n{explanation}"
         approval_result = await ask_for_approval(
             action_description="COMMAND APPROVAL REQUIRED",
             context=f"```bash\n{command}\n```"
         )
-        
+
         if approval_result:
             return approval_result
 
@@ -64,6 +62,6 @@ async def run_terminal_cmd(
         return output
 
     except subprocess.TimeoutExpired:
-        return f"Error: Command timed out after 60 seconds"
+        return "Error: Command timed out after 60 seconds"
     except Exception as e:
         return f"Error executing command: {str(e)}"

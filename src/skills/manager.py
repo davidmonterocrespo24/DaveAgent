@@ -8,17 +8,15 @@ Uses RAG for semantic skill discovery.
 
 import logging
 from pathlib import Path
-from typing import List, Dict, Optional, Any
-import os
 
 from src.skills.models import Skill
 from src.skills.parser import (
-    parse_skill_md,
-    validate_skill_name,
-    validate_skill_description,
-    parse_allowed_tools,
+    SkillParseError,
     extract_skill_metadata,
-    SkillParseError
+    parse_allowed_tools,
+    parse_skill_md,
+    validate_skill_description,
+    validate_skill_name,
 )
 
 
@@ -36,19 +34,19 @@ class SkillManager:
     1. Personal skills: ~/.daveagent/skills/
     2. Project skills: .daveagent/skills/ (relative to working directory)
     """
-    
+
     # Default skill directory names
     SKILLS_DIRNAME = "skills"
     DAVEAGENT_DIRNAME = ".daveagent"
     RAG_COLLECTION = "agent_skills"
-    
+
     def __init__(
         self,
         rag_manager=None,
-        personal_skills_dir: Optional[Path] = None,
-        project_skills_dir: Optional[Path] = None,
-        additional_dirs: Optional[List[Path]] = None,
-        logger: Optional[logging.Logger] = None
+        personal_skills_dir: Path | None = None,
+        project_skills_dir: Path | None = None,
+        additional_dirs: list[Path] | None = None,
+        logger: logging.Logger | None = None
     ):
         """
         Initialize the SkillManager.
@@ -62,7 +60,7 @@ class SkillManager:
         """
         self.logger = logger or logging.getLogger(__name__)
         self.rag_manager = rag_manager
-        
+
         # Configure skill directories
         self.personal_skills_dir = personal_skills_dir or (
             Path.home() / self.DAVEAGENT_DIRNAME / self.SKILLS_DIRNAME
@@ -71,13 +69,13 @@ class SkillManager:
             Path.cwd() / self.DAVEAGENT_DIRNAME / self.SKILLS_DIRNAME
         )
         self.additional_dirs = additional_dirs or []
-        
+
         # Skills storage (name -> Skill)
-        self._skills: Dict[str, Skill] = {}
-        
+        self._skills: dict[str, Skill] = {}
+
         # Track load errors for debugging
-        self._load_errors: List[Dict] = []
-    
+        self._load_errors: list[dict] = []
+
     def discover_skills(self) -> int:
         """
         Discover, load, and index all skills from configured directories.
@@ -87,33 +85,33 @@ class SkillManager:
         """
         self._skills.clear()
         self._load_errors.clear()
-        
+
         # Scan directories in order of precedence (later overrides earlier)
         directories = [
             (self.personal_skills_dir, "personal"),
             (self.project_skills_dir, "project"),
         ]
-        
+
         for additional_dir in self.additional_dirs:
             directories.append((additional_dir, "plugin"))
-        
+
         # 1. Load all skills into memory
         for skill_dir, source in directories:
             if skill_dir.is_dir():
                 self._scan_directory(skill_dir, source)
             else:
                 self.logger.debug(f"Skill directory does not exist: {skill_dir}")
-        
+
         # 2. Index skills in RAG if manager available
         if self.rag_manager and self._skills:
             self._index_skills()
-        
+
         self.logger.info(f"Discovered {len(self._skills)} skills")
         if self._load_errors:
             self.logger.warning(f"Failed to load {len(self._load_errors)} skills")
-        
+
         return len(self._skills)
-    
+
     def _scan_directory(self, directory: Path, source: str) -> None:
         """Scan a directory for skill folders."""
         self.logger.debug(f"Scanning for skills in: {directory}")
@@ -127,24 +125,24 @@ class SkillManager:
             self.logger.warning(f"Permission denied scanning {directory}: {e}")
         except Exception as e:
             self.logger.error(f"Error scanning {directory}: {e}")
-    
-    def _load_skill(self, skill_path: Path, source: str) -> Optional[Skill]:
+
+    def _load_skill(self, skill_path: Path, source: str) -> Skill | None:
         """Load a skill from its directory."""
         skill_md_path = skill_path / "SKILL.md"
         try:
             content = skill_md_path.read_text(encoding="utf-8")
             frontmatter, body = parse_skill_md(content)
-            
+
             name = str(frontmatter.get("name", "")).strip()
             is_valid, error = validate_skill_name(name)
             if not is_valid:
                 raise SkillParseError(f"Invalid skill name: {error}")
-            
+
             description = str(frontmatter.get("description", "")).strip()
             is_valid, error = validate_skill_description(description)
             if not is_valid:
                 raise SkillParseError(f"Invalid description: {error}")
-            
+
             skill = Skill(
                 name=name,
                 description=description,
@@ -155,10 +153,10 @@ class SkillManager:
                 license=frontmatter.get("license"),
                 metadata=extract_skill_metadata(frontmatter)
             )
-            
+
             self._skills[name] = skill
             return skill
-            
+
         except Exception as e:
             self._load_errors.append({"path": str(skill_path), "error": str(e)})
             self.logger.warning(f"Failed to load skill at {skill_path}: {e}")
@@ -176,10 +174,10 @@ class SkillManager:
             for skill in self._skills.values():
                 # Content includes description and full instructions for matching
                 search_content = f"Skill: {skill.name}\nDescription: {skill.description}\n\n{skill.instructions}"
-                
+
                 # Deterministic ID based on skill name
                 source_id = f"skill-{skill.name}"
-                
+
                 # Compute hash of the content
                 import hashlib
                 content_hash = hashlib.md5(search_content.encode("utf-8")).hexdigest()
@@ -203,21 +201,21 @@ class SkillManager:
                     "metadata": metadata,
                     "source_id": source_id
                 })
-            
+
             # Perform indexing only for new/changed skills
             if skills_to_index:
                 self.logger.info(f"Indexing {len(skills_to_index)} new/modified skills in RAG...")
                 for item in skills_to_index:
                     self.rag_manager.add_document(**item)
-            
+
             if skipped_count > 0:
                 self.logger.info(f"Skipped {skipped_count} unchanged skills")
 
             # Save new hashes if we successfully processed everything
             self._save_hashes(new_hashes)
-            
+
             self.logger.info("✓ Skills indexing completed")
-            
+
         except Exception as e:
             self.logger.error(f"Error indexing skills: {e}")
 
@@ -225,7 +223,7 @@ class SkillManager:
         """Get path to skills hash file."""
         return self.personal_skills_dir.parent / "skills_hashes.json"
 
-    def _load_hashes(self) -> Dict[str, str]:
+    def _load_hashes(self) -> dict[str, str]:
         """Load stored skill hashes."""
         hash_file = self._get_hashes_file()
         if not hash_file.exists():
@@ -237,7 +235,7 @@ class SkillManager:
             self.logger.warning(f"Failed to load skill hashes: {e}")
             return {}
 
-    def _save_hashes(self, hashes: Dict[str, str]):
+    def _save_hashes(self, hashes: dict[str, str]):
         """Save skill hashes."""
         try:
             import json
@@ -250,7 +248,7 @@ class SkillManager:
             self.logger.error(f"Failed to save skill hashes: {e}")
 
 
-    def find_relevant_skills(self, user_query: str, max_results: int = 10, min_score: float = 0.5) -> List[Skill]:
+    def find_relevant_skills(self, user_query: str, max_results: int = 10, min_score: float = 0.5) -> list[Skill]:
         """
         Find skills relevant to a user query using RAG semantic search.
         Falls back to keyword matching if RAG is not available.
@@ -267,7 +265,7 @@ class SkillManager:
         """
         if not self._skills:
             return []
-            
+
         # 1. Use RAG if available
         if self.rag_manager:
             try:
@@ -307,56 +305,56 @@ class SkillManager:
 
             except Exception as e:
                 self.logger.warning(f"RAG skill search failed: {e}. Falling back to keywords.")
-        
+
         # 2. Keywork fallback (or if RAG returned nothing/failed)
         return self._find_skills_by_keyword(user_query, max_results)
 
-    def _find_skills_by_keyword(self, user_query: str, max_results: int) -> List[Skill]:
+    def _find_skills_by_keyword(self, user_query: str, max_results: int) -> list[Skill]:
         """Simple keyword matching fallback."""
         query_lower = user_query.lower()
         query_words = set(query_lower.split())
         scored_skills = []
-        
+
         for skill in self._skills.values():
             desc_lower = skill.description.lower()
             desc_words = set(desc_lower.split())
             common = query_words & desc_words
             name_bonus = 2 if skill.name.replace("-", " ") in query_lower else 0
             score = len(common) + name_bonus
-            
+
             if score > 0:
                 scored_skills.append((score, skill))
-        
+
         scored_skills.sort(key=lambda x: x[0], reverse=True)
         return [skill for _, skill in scored_skills[:max_results]]
 
     # -------------------------------------------------------------------------
     # Accessors
     # -------------------------------------------------------------------------
-    
-    def get_skill(self, name: str) -> Optional[Skill]:
+
+    def get_skill(self, name: str) -> Skill | None:
         return self._skills.get(name)
-    
-    def get_all_skills(self) -> List[Skill]:
+
+    def get_all_skills(self) -> list[Skill]:
         return list(self._skills.values())
-        
+
     def get_skills_metadata(self) -> str:
         """Get list of ALL skills metadata (legacy/fallback usage)."""
         if not self._skills: return ""
         lines = [s.to_metadata_string() for s in sorted(self._skills.values(), key=lambda s: s.name)]
         return "\n".join(lines)
-    
-    def get_skill_context(self, skill_name: str) -> Optional[str]:
+
+    def get_skill_context(self, skill_name: str) -> str | None:
         skill = self.get_skill(skill_name)
         return skill.to_context_string() if skill else None
 
-    def get_skill_names(self) -> List[str]:
+    def get_skill_names(self) -> list[str]:
         """Get names of all loaded skills."""
         return list(self._skills.keys())
-        
-    def get_load_errors(self) -> List[Dict]:
+
+    def get_load_errors(self) -> list[dict]:
         return self._load_errors.copy()
-        
+
     def __len__(self) -> int:
         return len(self._skills)
 

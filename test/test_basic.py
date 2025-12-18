@@ -25,7 +25,7 @@ def test_version():
 
 def test_tools_import():
     """Test that tools can be imported"""
-    from src.tools import read_file, write_file, edit_file
+    from src.tools import edit_file, read_file, write_file
     assert read_file is not None
     assert write_file is not None
     assert edit_file is not None

@@ -1,8 +1,8 @@
-import os
-import sys
 import logging
-from pathlib import Path
+import os
 import shutil
+import sys
+from pathlib import Path
 
 # Add project root to path
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -29,18 +29,18 @@ def test_rag_flow():
 
     # 2. Initialize RAG Manager with a temporary directory
     test_db_path = "./rag_data_test"
-    
+
     # Ensure clean slate
     if os.path.exists(test_db_path):
         shutil.rmtree(test_db_path)
-    
+
     rag = RAGManager(settings=settings, persist_dir=test_db_path)
     print("RAG Manager initialized.")
 
     # 3. Read Dummy Data
     data_path = Path(__file__).parent / "data" / "dummy_data.txt"
     try:
-        with open(data_path, "r", encoding="utf-8") as f:
+        with open(data_path, encoding="utf-8") as f:
             text_content = f.read()
     except FileNotFoundError:
         print(f"[Error] Dummy data file not found at {data_path}")
@@ -59,11 +59,11 @@ def test_rag_flow():
     # 5. Search
     query = "What is Retrieval-Augmented Generation?"
     print(f"Searching for: '{query}'")
-    
+
     results = rag.search(collection_name=collection_name, query=query, top_k=3)
-    
+
     print(f"Found {len(results)} results.")
-    
+
     if results:
         for i, res in enumerate(results):
             print(f"\nResult {i+1} (Score: {res.get('score', 'N/A')}):")
@@ -76,7 +76,7 @@ def test_rag_flow():
     # 6. Clean up
     rag.reset_db()
     # Explicitly remove directory if possible (might fail if still locked by dll)
-    # shutil.rmtree(test_db_path, ignore_errors=True) 
+    # shutil.rmtree(test_db_path, ignore_errors=True)
     print("Test completed.")
 
 if __name__ == "__main__":
