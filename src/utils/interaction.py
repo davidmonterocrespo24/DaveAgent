@@ -32,12 +32,30 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
         console = Console()
 
         # Pause any active spinner to prevent interference
-        # 1. Try standard import pause
-        active_spinner = VibeSpinner.pause_active_spinner()
-
-        if not active_spinner:
-            # Fallback check (removed recursive scan as module-level global now handles this)
-            pass
+        # Robustly search for any VibeSpinner class in sys.modules to handle import mismatches
+        import sys
+        paused_spinners = []
+        
+        # Scan all loaded modules for VibeSpinner classes
+        for module_name, module in list(sys.modules.items()):
+            # Check if likely the vibe_spinner module
+            if 'vibe_spinner' in module_name and hasattr(module, 'VibeSpinner'):
+                try:
+                    possible_cls = getattr(module, 'VibeSpinner')
+                    # Call pause on this specific class version
+                    if hasattr(possible_cls, 'pause_active_spinner'):
+                        found = possible_cls.pause_active_spinner()
+                        if found:
+                            paused_spinners.append((possible_cls, found))
+                except Exception:
+                    pass
+                    
+        # Also try the directly imported one just in case
+        try:
+             found = VibeSpinner.pause_active_spinner()
+             if found and not any(s is found for _, s in paused_spinners):
+                 paused_spinners.append((VibeSpinner, found))
+        except: pass
 
         try:
             # Format the context
@@ -158,8 +176,11 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             return None
 
         finally:
-            # Resume spinner if it was running
-            VibeSpinner.resume_spinner(active_spinner)
+            # Resume all spinners that were paused
+            for cls_ref, spinner_inst in paused_spinners:
+                try:
+                    cls_ref.resume_spinner(spinner_inst)
+                except: pass
 
     except ImportError:
         # Fallback
