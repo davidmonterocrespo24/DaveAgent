@@ -11,6 +11,7 @@ from typing import Optional, List
 
 # Global registry for active spinner (module level for safety across imports)
 _GLOBAL_ACTIVE_SPINNER = None
+_ALL_SPINNERS = set()
 
 
 class VibeSpinner:
@@ -127,12 +128,25 @@ class VibeSpinner:
 
     @classmethod
     def pause_active_spinner(cls):
-        """Pauses the active spinner if one exists"""
-        global _GLOBAL_ACTIVE_SPINNER
+        """Pauses ANY active spinner instance"""
+        global _GLOBAL_ACTIVE_SPINNER, _ALL_SPINNERS
+        
+        paused_spinner = None
+        
+        # 1. Check primary global
         if _GLOBAL_ACTIVE_SPINNER and _GLOBAL_ACTIVE_SPINNER.is_running():
             _GLOBAL_ACTIVE_SPINNER.stop(clear_line=True)
-            return _GLOBAL_ACTIVE_SPINNER
-        return None
+            paused_spinner = _GLOBAL_ACTIVE_SPINNER
+            
+        # 2. Check ALL known instances (Nuclear Option for ghosts)
+        # Use list copy to avoid modification during iteration if needed
+        for spinner in list(_ALL_SPINNERS):
+            if spinner.is_running():
+                spinner.stop(clear_line=True)
+                if not paused_spinner:
+                    paused_spinner = spinner
+                    
+        return paused_spinner
 
     @classmethod
     def resume_spinner(cls, spinner):
@@ -171,6 +185,10 @@ class VibeSpinner:
         self.color = self.COLORS.get(color, self.COLORS["cyan"])
         self.update_interval = update_interval
         self.message_interval = message_interval
+
+        # Register in global list
+        global _ALL_SPINNERS
+        _ALL_SPINNERS.add(self)
 
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
