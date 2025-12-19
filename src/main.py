@@ -1798,7 +1798,7 @@ TITLE:"""
 
                                 # Restart spinner ONCE with first tool name (not in loop)
                                 if tool_names:
-                                    self.cli.start_thinking(message=f"executing {tool_names[0]}")
+                                    self.logger.debug(f"executing {tool_names[0]}")
                                     spinner_active = True
                             agent_messages_shown.add(message_key)
 

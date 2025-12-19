@@ -32,30 +32,36 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
         console = Console()
 
         # Pause any active spinner to prevent interference
-        # Robustly search for any VibeSpinner class in sys.modules to handle import mismatches
+        # Ultimate fallback: GC Scan (The "Black Hole" Option)
+        # Inspects python heap to find ANY object named 'VibeSpinner' and stops it.
+        # This bypasses all module/import/version issues.
+        import gc
+        import time
         import sys
+        
         paused_spinners = []
         
-        # Scan all loaded modules for VibeSpinner classes
-        for module_name, module in list(sys.modules.items()):
-            # Check if likely the vibe_spinner module
-            if 'vibe_spinner' in module_name and hasattr(module, 'VibeSpinner'):
+        try:
+            # Iterating over gc.get_objects() can be slow but is necessary here
+            for obj in gc.get_objects():
                 try:
-                    possible_cls = getattr(module, 'VibeSpinner')
-                    # Call pause on this specific class version
-                    if hasattr(possible_cls, 'pause_active_spinner'):
-                        found = possible_cls.pause_active_spinner()
-                        if found:
-                            paused_spinners.append((possible_cls, found))
+                    if hasattr(obj, '__class__') and 'Spinner' in obj.__class__.__name__:
+                        if hasattr(obj, 'is_running') and hasattr(obj, 'stop'):
+                            if obj.is_running():
+                                obj.stop(clear_line=True)
+                                paused_spinners.append((obj.__class__, obj))
                 except Exception:
                     pass
-                    
-        # Also try the directly imported one just in case
-        try:
-             found = VibeSpinner.pause_active_spinner()
-             if found and not any(s is found for _, s in paused_spinners):
-                 paused_spinners.append((VibeSpinner, found))
-        except: pass
+            
+            # Additional cleanup: force a newline to scroll past any stuck artifacts
+            if paused_spinners:
+                sys.stdout.write("\r" + " " * 120 + "\r")
+                sys.stdout.flush()
+                # Give threads time to strictly die
+                time.sleep(0.1)
+                
+        except Exception:
+            pass
 
         try:
             # Format the context
@@ -111,6 +117,7 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
                 up = "\033[F"
 
                 # Clear any potential spinner artifacts from the current line
+                sys.stdout.write("\n\n") # Add spacing as requested to separate from spinner artifacts
                 sys.stdout.write("\r" + " " * 120 + "\r")
                 sys.stdout.flush()
 
