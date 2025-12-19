@@ -49,34 +49,12 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             return "Action denied by persistent settings."
 
         # Pause any active spinner to prevent interference
-        # Ultimate fallback: GC Scan (The "Black Hole" Option)
-        import gc
-        import time
-        import sys
-        
-        paused_spinners = []
-        
-        try:
-            # Iterating over gc.get_objects() can be slow but is necessary here
-            for obj in gc.get_objects():
-                try:
-                    if hasattr(obj, '__class__') and 'Spinner' in obj.__class__.__name__:
-                        if hasattr(obj, 'is_running') and hasattr(obj, 'stop'):
-                            if obj.is_running():
-                                obj.stop(clear_line=True)
-                                paused_spinners.append((obj.__class__, obj))
-                except Exception:
-                    pass
-            
-            # Additional cleanup: force a newline to scroll past any stuck artifacts
-            if paused_spinners:
-                sys.stdout.write("\r" + " " * 120 + "\r")
-                sys.stdout.flush()
-                # Give threads time to strictly die
-                time.sleep(0.1)
-                
-        except Exception:
-            pass
+        # Pause active spinner during user interaction
+        active_spinner = VibeSpinner.pause_active_spinner()
+
+        # Clear any potential artifacts visually
+        sys.stdout.write("\r" + " " * 120 + "\r")
+        sys.stdout.flush()
 
         try:
             # Format the context
@@ -201,10 +179,10 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             return None
 
         finally:
-            # Resume all spinners that were paused
-            for cls_ref, spinner_inst in paused_spinners:
+            # Resume spinner if it was active
+            if active_spinner:
                 try:
-                    cls_ref.resume_spinner(spinner_inst)
+                    VibeSpinner.resume_spinner(active_spinner)
                 except: pass
 
     except ImportError:
