@@ -18,23 +18,38 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
     """
     import asyncio
     try:
-        # Import InquirerPy for arrow key support
         from InquirerPy import inquirer
         from InquirerPy.base.control import Choice
         from rich.console import Console, Group
         from rich.markdown import Markdown
         from rich.panel import Panel
         from rich.text import Text
-
-        # Import VibeSpinner to pause animation
+        
+        # Import VibeSpinner and PermissionManager
         from src.utils.vibe_spinner import VibeSpinner
+        from src.utils.permissions import get_permission_manager
 
         console = Console()
+        perm_mgr = get_permission_manager()
+        
+        # 1. Construct Action String for Permissions
+        # Normalize to Bash(...) or Read(...) based on description
+        action_string = f"{action_description}({context})"
+        if "Run terminal command" in action_description or "Execute command" in action_description:
+             action_string = f"Bash({context.strip()})"
+        elif "Read file" in action_description:
+             action_string = f"Read({context.strip()})"
+             
+        # 2. Check Persistent Permissions
+        perm_status = perm_mgr.check_permission(action_string)
+        if perm_status == "allow":
+            console.print(f"[dim]Auto-approved by settings: {action_string}[/dim]")
+            return None
+        elif perm_status == "deny":
+            return "Action denied by persistent settings."
 
         # Pause any active spinner to prevent interference
         # Ultimate fallback: GC Scan (The "Black Hole" Option)
-        # Inspects python heap to find ANY object named 'VibeSpinner' and stops it.
-        # This bypasses all module/import/version issues.
         import gc
         import time
         import sys
@@ -89,12 +104,9 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             )
 
             console.print(panel)
+            print(f"[dim]Permission Key: {action_string}[/dim]")
 
             # Force blocking input using executor to guarantee wait on Windows/Agent environments
-            loop = asyncio.get_running_loop()
-
-            # Force blocking input using executor to guarantee wait on Windows/Agent environments
-            # Custom Arrow Key Menu for Windows (Mimicking Claude CLI)
             loop = asyncio.get_running_loop()
 
             def windows_arrow_menu():
@@ -104,7 +116,7 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
 
                 options = [
                     ("Yes", "execute"),
-                    ("Yes, allow all edits during this session (not implemented)", "execute_all"),
+                    (f"Yes, and don't ask again for this specific command", "execute_save"),
                     ("Type here to tell the agent what to do differently", "feedback"),
                     ("No, cancel", "cancel")
                 ]
@@ -117,7 +129,7 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
                 up = "\033[F"
 
                 # Clear any potential spinner artifacts from the current line
-                sys.stdout.write("\n\n") # Add spacing as requested to separate from spinner artifacts
+                sys.stdout.write("\n\n") 
                 sys.stdout.write("\r" + " " * 120 + "\r")
                 sys.stdout.flush()
 
@@ -167,6 +179,12 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
 
             if choice == "cancel":
                 return "Action cancelled by user."
+
+            if choice == "execute_save":
+                 perm_mgr.save_permission(action_string, "allow")
+                 console.print(f"[green]Permission saved: {action_string}[/green]")
+                 console.print("[green]Approved. Executing...[/green]")
+                 return None
 
             if choice == "feedback":
                 # Use standard input for feedback
