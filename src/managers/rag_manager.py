@@ -1,17 +1,14 @@
 import json
 import logging
 import sqlite3
+import threading
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Optional
 
-# Librerías Core
-import chromadb
 import httpx
 import openai
-from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
-from sentence_transformers import SentenceTransformer
 
 # Configuration
 from src.config.settings import DaveAgentSettings
@@ -183,33 +180,51 @@ class SQLiteDocStore:
 # -----------------------------------------------------------------------------
 # 3. Hybrid Embedding Function (Compatible con ChromaDB)
 # -----------------------------------------------------------------------------
-class AdvancedEmbeddingFunction(EmbeddingFunction):
+class AdvancedEmbeddingFunction:
     """
     Maneja embeddings automáticamente.
     Intenta cargar BGE-M3 (local/huggingface), si falla usa OpenAI.
+    Lazy loading implemented con soporte de threading.
     """
     def __init__(self, settings: DaveAgentSettings, use_gpu: bool = False):
+        self.settings = settings
+        self.use_gpu = use_gpu
         self.model = None
         self.model_name = "sentence-transformers/all-MiniLM-L6-v2"
+        self._initialized = False
+        self._init_lock = threading.Lock()
 
-        # Intenta cargar SentenceTransformer (Local - Gratis y Potente)
-        try:
-            device = "cuda" if use_gpu else "cpu"
-            import time
-            start_time = time.time()
-            logger.info(f"Loading skills and components: {self.model_name} en {device}...")
-            self.model = SentenceTransformer(self.model_name, device=device)
-            load_time = time.time() - start_time
-            logger.info(f"Skills and components loaded successfully in {load_time:.2f} seconds.")
-        except Exception as e:
-            logger.error(f"Error loading skills and components ({e}).")
-            raise ValueError(f"Error loading skills and components ({e}).")
+    def _ensure_initialized(self):
+        """Lazy load the model only when required."""
+        if self._initialized:
+            return
+
+        with self._init_lock:
+            if self._initialized:
+                return
+
+            try:
+                # Importación Lazy de SentenceTransformer (Heavy import)
+                from sentence_transformers import SentenceTransformer
+                import time
+                
+                device = "cuda" if self.use_gpu else "cpu"
+                start_time = time.time()
+                logger.info(f"Loading embedding model: {self.model_name} on {device}...")
+                self.model = SentenceTransformer(self.model_name, device=device)
+                load_time = time.time() - start_time
+                logger.info(f"Embedding model loaded successfully in {load_time:.2f} seconds.")
+                self._initialized = True
+            except Exception as e:
+                logger.error(f"Error loading embedding model ({e}).")
+                raise ValueError(f"Error loading embedding model ({e}).")
 
     def name(self) -> str:
         """Return the name of the embedding function (required by ChromaDB)."""
         return self.model_name
 
-    def __call__(self, input: Documents) -> Embeddings:
+    def __call__(self, input: Any) -> Any:
+        self._ensure_initialized()
         if self.model:
             # Normalizar embeddings es crucial para similitud coseno
             embeddings = self.model.encode(input, normalize_embeddings=True)
@@ -224,15 +239,15 @@ class RAGManager:
         self.settings = settings
         self.persist_dir = Path(persist_dir) if persist_dir else Path("./rag_data")
         self.persist_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Estado Lazy
+        self._client = None
+        self._embedding_fn = None
+        self._docstore = None
+        self._initialized = False
+        self._init_lock = threading.Lock()
 
-        # Inicializar ChromaDB
-        self.client = chromadb.PersistentClient(path=str(self.persist_dir / "vector_db"))
-        self.embedding_fn = AdvancedEmbeddingFunction(settings=self.settings)
-
-        # Inicializar DocStore (SQLite)
-        self.docstore = SQLiteDocStore(str(self.persist_dir / "docstore.db"))
-
-        # Splitters para Parent Document Retrieval
+        # Splitters para Parent Document Retrieval (lightweight)
         self.parent_splitter = TextSplitter(chunk_size=2000, chunk_overlap=200)
         self.child_splitter = TextSplitter(chunk_size=400, chunk_overlap=50)
 
@@ -244,7 +259,64 @@ class RAGManager:
             http_client=http_client
         )
 
+    def _ensure_initialized(self):
+        """Lazy init for heavy components (ChromaDB, DocStore, Embeddings)."""
+        if self._initialized:
+            return
+            
+        with self._init_lock:
+            if self._initialized:
+                return
+                
+            import time
+            t0 = time.time()
+            logger.info("[RAGManager] Initializing heavy components...")
+
+            # 1. Init Embedding Function (Wrapper only, model loads on first call)
+            self._embedding_fn = AdvancedEmbeddingFunction(settings=self.settings)
+
+            # 2. Init ChromaDB (Heavy import)
+            import chromadb
+            self._client = chromadb.PersistentClient(path=str(self.persist_dir / "vector_db"))
+            
+            # 3. Init DocStore (SQLite)
+            self._docstore = SQLiteDocStore(str(self.persist_dir / "docstore.db"))
+            
+            self._initialized = True
+            logger.info(f"[RAGManager] Components initialized in {time.time() - t0:.4f}s")
+
+    def warmup(self):
+        """
+        Triggers initialization in background.
+        Safe to be called from a background thread.
+        """
+        try:
+            logger.info("[RAGManager] Starting background warmup...")
+            self._ensure_initialized()
+            # Also warmup the embedding model itself to avoid lag on first query
+            if self._embedding_fn:
+                 self._embedding_fn._ensure_initialized()
+            logger.info("[RAGManager] Background warmup complete and ready.")
+        except Exception as e:
+            logger.error(f"[RAGManager] Background warmup failed: {e}")
+
+    @property
+    def client(self):
+        self._ensure_initialized()
+        return self._client
+        
+    @property
+    def embedding_fn(self):
+        self._ensure_initialized()
+        return self._embedding_fn
+        
+    @property
+    def docstore(self):
+        self._ensure_initialized()
+        return self._docstore
+
     def _get_collection(self, name: str):
+        self._ensure_initialized()
         return self.client.get_or_create_collection(
             name=name,
             embedding_function=self.embedding_fn,
@@ -256,6 +328,7 @@ class RAGManager:
         DANGER: Elimina y recrea la base de datos de vectores y docstore.
         Útil para tests.
         """
+        self._ensure_initialized()
         try:
             self.client.reset()
             # Note: chromadb.PersistentClient.reset() might not be enabled by default in new versions
@@ -282,6 +355,9 @@ class RAGManager:
         Divide el documento en 'Padres' grandes y luego en 'Hijos' pequeños.
         Los hijos van al VectorDB, los padres al DocStore.
         """
+        # Ensure init before doing work
+        self._ensure_initialized()
+        
         metadata = metadata or {}
         if not source_id:
             source_id = str(uuid.uuid4())
@@ -426,6 +502,9 @@ class RAGManager:
                       - 0.4-0.6: Moderado (solo resultados medianamente relevantes)
                       - 0.7+: Estricto (solo resultados muy relevantes)
         """
+        # Ensure init
+        self._ensure_initialized()
+        
         collection = self._get_collection(collection_name)
 
         # 1. Generar variaciones de la query
@@ -477,4 +556,3 @@ class RAGManager:
             # Current logic ignores if parent_id exists but not found in docstore.
 
         return final_output
-

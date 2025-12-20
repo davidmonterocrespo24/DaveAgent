@@ -5,6 +5,7 @@ NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 import asyncio
 import logging
 import os
+import sys
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
@@ -12,6 +13,9 @@ from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermi
 # Imports added for the new flow
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+
+# Ensure we use local src files over installed packages
+sys.path.insert(0, os.getcwd())
 
 # from src.agents import CodeSearcher (Moved to __init__)
 # Import from new structure
@@ -174,6 +178,13 @@ class DaveAgentCLI:
         work_dir = os.getcwd()
         self.rag_manager = RAGManager(settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data")
         print(f"[Startup] RAGManager initialized in {time.time() - t0:.4f}s")
+        
+        # Start background warmup to load heavy models
+        import threading
+        if hasattr(self.rag_manager, "warmup"):
+             threading.Thread(target=self.rag_manager.warmup, daemon=True).start()
+        else:
+             print("[Startup] Warning: RAGManager warmup method missing (using stale version?)")
 
         t0 = time.time()
         # Agent Skills system (Claude-compatible and RAG-enhanced)
@@ -202,27 +213,36 @@ class DaveAgentCLI:
         self.error_reporter = ErrorReporter(logger=self.logger)
 
         # Observability system with Langfuse (simple method with OpenLit)
-        self.langfuse_enabled = False
-        try:
-            # Setup Langfuse environment from obfuscated credentials
-            from src.config import is_telemetry_enabled, setup_langfuse_environment
+        # Observability system with Langfuse (simple method with OpenLit)
+        # MOVED TO BACKGROUND COMPONENT (THREAD) to avoid blocking startup (40s delay)
+        self.langfuse_enabled = False # Will be set to True by background thread eventually
+        
+        def init_telemetry_background():
+            try:
+                # Setup Langfuse environment from obfuscated credentials
+                from src.config import is_telemetry_enabled, setup_langfuse_environment
 
-            if is_telemetry_enabled():
-                setup_langfuse_environment()
+                if is_telemetry_enabled():
+                    # Check first if we should even proceed, to avoid heavy imports
+                    setup_langfuse_environment()
 
-                # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
-                from src.observability import init_langfuse_tracing
-                self.langfuse_enabled = init_langfuse_tracing(enabled=True, debug=debug)
+                    # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
+                    from src.observability import init_langfuse_tracing
+                    if init_langfuse_tracing(enabled=True, debug=debug):
+                        self.langfuse_enabled = True
+                        # Use print because logger might not be thread-safe or visible yet
+                        # but we want to confirm it loaded
+                        if debug:
+                            print("[Background] ✓ Telemetry enabled - Langfuse + OpenLit active")
+                    else:
+                        if debug:
+                            print("[Background] ✗ Langfuse not available - continuing without tracking")
+            except Exception as e:
+                if debug:
+                    print(f"[Background] ✗ Error initializing Langfuse: {e}")
 
-                if self.langfuse_enabled:
-                    self.logger.info("✓ Telemetry enabled - Langfuse + OpenLit active")
-                else:
-                    self.logger.info("✗ Langfuse not available - continuing without tracking")
-            else:
-                self.logger.info("📊 Telemetry disabled by user preference")
-        except Exception as e:
-            self.logger.warning(f"✗ Error initializing Langfuse: {e}")
-            self.langfuse_enabled = False
+        # Start telemetry in background
+        threading.Thread(target=init_telemetry_background, daemon=True).start()
 
 
         t0 = time.time()
