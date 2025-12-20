@@ -222,13 +222,43 @@ class AdvancedEmbeddingFunction:
     def name(self) -> str:
         """Return the name of the embedding function (required by ChromaDB)."""
         return self.model_name
+    
+    def is_legacy(self) -> bool:
+        """Silences ChromaDB deprecation warning (must be a method)."""
+        return False
+
+    def embed_query(self, text: str = None, input: str = None) -> List[float]:
+        """LangChain compatibility: Embed a single query."""
+        self._ensure_initialized()
+        # Handle both 'text' (LangChain) and 'input' (Chroma/Generic) args
+        content = text or input
+        if not content:
+            return []
+            
+        if not self.model:
+            return []
+            
+        # encode returns numpy array, convert to list
+        embeddings = self.model.encode([content], normalize_embeddings=True)
+        return embeddings[0].tolist()
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """LangChain compatibility: Embed a list of documents."""
+        self._ensure_initialized()
+        if not self.model:
+            return []
+        embeddings = self.model.encode(texts, normalize_embeddings=True)
+        return embeddings.tolist()
 
     def __call__(self, input: Any) -> Any:
+        # ChromaDB calls this. Input can be str or list[str]
         self._ensure_initialized()
         if self.model:
-            # Normalizar embeddings es crucial para similitud coseno
-            embeddings = self.model.encode(input, normalize_embeddings=True)
-            return embeddings.tolist()
+            # Handle single string vs list
+            if isinstance(input, str):
+                return self.embed_query(input=input)
+            elif isinstance(input, list):
+                return self.embed_documents(input)
         return []
 
 # -----------------------------------------------------------------------------

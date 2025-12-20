@@ -28,6 +28,7 @@ from src.config import (
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
 from src.interfaces.vscode_interface import VSCodeInterface
+from src.utils.errors import UserCancelledError
 
 # Managers moved to __init__
 from src.utils import HistoryViewer, LoggingModelClientWrapper, get_conversation_tracker, get_logger
@@ -1562,6 +1563,15 @@ TITLE:"""
 
             # 💾 AUTO-SAVE: Save agent states automatically after each response
             await self._auto_save_agent_states()
+
+        except UserCancelledError:
+            if spinner_active:
+                self.cli.stop_thinking(clear=True)
+            if self.cli.task_panel_active:
+                self.cli.stop_task_tracking()
+            
+            self.cli.print_error(f"\n🚫 Task stopped by user.")
+            self.logger.info("Task explicitly cancelled by user during tool approval.")
 
         except Exception as e:
             if spinner_active:

@@ -3,6 +3,8 @@ Interaction utilities for Human-in-the-Loop approval.
 """
 
 
+import sys
+from src.utils.errors import UserCancelledError
 
 async def ask_for_approval(action_description: str, context: str = "") -> str | None:
     """
@@ -156,7 +158,7 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             choice = await loop.run_in_executor(None, windows_arrow_menu)
 
             if choice == "cancel":
-                return "Action cancelled by user."
+                raise UserCancelledError("User selected 'No, cancel'")
 
             if choice == "execute_save":
                  perm_mgr.save_permission(action_string, "allow")
