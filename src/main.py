@@ -22,7 +22,6 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 # Ensure we use local src files over installed packages
 sys.path.insert(0, os.getcwd())
 
-# from src.agents import CodeSearcher (Moved to __init__)
 # Import from new structure
 from src.config import (
     CODER_AGENT_DESCRIPTION,
@@ -1302,8 +1301,8 @@ TITLE:"""
         Does NOT use agents, only calls the model with an optimized prompt.
 
         FLOWS:
-        - SIMPLE → SelectorGroupChat (CodeSearcher + Coder)
-        - COMPLEX → Planner + TaskExecutor + Agents
+        - SIMPLE → Direct Coder execution
+        - COMPLEX → Planner + Coder with re-planning
 
         Returns:
             "simple" or "complex"
@@ -1377,12 +1376,11 @@ TITLE:"""
 
         ARCHITECTURE:
         - PlanningAgent: Create plan, review progress, re-plan
-        - CodeSearcher: Search and analyze existing code
-        - Coder: Execute modifications, create files
+        - Coder: Execute all tasks (search, analyze, modify, create files)
 
         FLOW:
         1. Planner creates initial plan
-        2. LLM Selector chooses CodeSearcher or Coder for each task
+        2. Coder executes each task using available tools
         3. selector_func forces Planner to review after each action
         4. Planner can re-plan if necessary
         5. When everything is complete, Planner marks TASK_COMPLETED
@@ -1395,8 +1393,8 @@ TITLE:"""
             def custom_selector_func(messages):
                 """
                 Control flow to allow re-planning:
-                - After Planner → LLM Selector decides (Coder/CodeSearcher)
-                - After Coder/CodeSearcher → Return to Planner (review progress)
+                - After Planner → Coder executes the task
+                - After Coder → Return to Planner (review progress)
                 """
                 if not messages:
                     return None
@@ -1405,12 +1403,12 @@ TITLE:"""
 
                 # If PlanningAgent just spoke
                 if last_message.source == "Planner":
-                    # Let the LLM selector choose between Coder/CodeSearcher
-                    return None  # None = use default LLM selector
+                    # Route to Coder for execution
+                    return "Coder"
 
-                # If Coder or CodeSearcher acted, ALWAYS return to Planner
+                # If Coder acted, ALWAYS return to Planner
                 # so it can review progress and update the plan
-                if last_message.source in ["Coder", "CodeSearcher"]:
+                if last_message.source == "Coder":
                     return "Planner"
 
                 # For other cases, use default selector
@@ -1606,9 +1604,8 @@ TITLE:"""
         - The team persists and handles everything automatically
 
         AVAILABLE AGENTS IN THE ROUTER:
-        - Planner: Complex multi-step tasks
-        - CodeSearcher: Code search and analysis
-        - Coder: Direct code modifications
+        - Planner: Complex multi-step tasks (planning and coordination)
+        - Coder: All code operations (search, analysis, and modifications)
         """
         try:
             self.logger.info(f"📝 New user request: {user_input[:100]}...")
