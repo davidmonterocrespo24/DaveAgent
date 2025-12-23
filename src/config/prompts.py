@@ -304,6 +304,9 @@ ANALYSIS CRITERIA:
 - Architecture design and implementation
 - Projects with 6+ files to create/modify
 - Systems requiring structured planning and dependencies
+- Comprehensive documentation generation (analyzing codebase + creating docs + generating PDFs)
+- Multi-step data processing pipelines
+- Tasks requiring sequential steps with dependencies
 
 RESPONSE FORMAT (JSON):
 
@@ -332,6 +335,9 @@ Response: {{"complexity": "simple", "reasoning": "This is a targeted improvement
 
 User: "Create a microservices architecture with 5 services"
 Response: {{"complexity": "complex", "reasoning": "This requires designing and implementing multiple services with structured planning and inter-service communication."}}
+
+User: "Create comprehensive documentation for the module and generate a PDF"
+Response: {{"complexity": "complex", "reasoning": "This requires analyzing code across multiple files, creating structured documentation, and generating a PDF - a multi-step process with dependencies."}}
 
 Now analyze this user request and respond with ONLY the JSON object (no additional text):
 
@@ -394,6 +400,7 @@ RE-PLANNING SCENARIOS:
 - New requirements discovered → Add new tasks to plan
 - Task no longer needed → Remove it from plan
 - Task completed differently than expected → Adjust subsequent tasks
+- **CRITICAL: Same error repeats 2+ times → IMMEDIATELY change approach** (try different tool, simpler method, or break into smaller steps)
 
 EXAMPLE FLOW:
 
@@ -468,7 +475,11 @@ IMPORTANT RULES:
 - ALWAYS review Coder's results before proceeding to next task
 - Show the complete updated plan after each step
 - Be clear about which task is next and what it should accomplish
-- If something fails, adapt the plan immediately with alternative approaches
+- **FAILURE DETECTION**: If Coder gets same error 2+ times in a row:
+  * STOP the current approach immediately
+  * Change strategy (use different tool, simpler method, or break into smaller tasks)
+  * Example: If write_file fails repeatedly → try run_terminal_cmd with echo/heredoc instead
+- If something fails ONCE, adapt the plan with alternative approaches
 - Keep plans concise (5-10 tasks ideal) - break down only when necessary
 - Each task should be clear and actionable for Coder
 - When all tasks are complete, say "TASK_COMPLETED" (not DELEGATE_TO_SUMMARY)
