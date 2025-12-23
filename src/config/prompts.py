@@ -255,103 +255,36 @@ e.g. to search for a method call 'foo.bar(', you could use the query '\\bfoo\\.b
 Reply with TASK_COMPLETED when the task has been completed.
 """
 
-CODER_AGENT_DESCRIPTION = """Specialist in SIMPLE and DIRECT coding tasks.
+CODER_AGENT_DESCRIPTION = """Expert developer agent for direct code operations and implementations.
 
-Use it for:
-- Reading, writing, or editing specific files
-- Searching code or files
-- Fixing specific bugs
-- Git operations (status, commit, push, pull)
-- Working with JSON and CSV
-- Searching Wikipedia
-- Analyzing Python code
-- Tasks that complete in 1-3 steps
+Use for:
+- File operations: reading, writing, editing, searching files
+- Code analysis: understanding structure, finding bugs, code review
+- Single-file implementations: new functions, bug fixes, refactoring
+- Multi-file implementations: when guided by a plan or when scope is clear
+- Git operations: status, diff, commit, push, pull, branch management
+- Data operations: JSON/CSV manipulation, file conversions
+- Terminal commands: running tests, builds, installations
+- Research: web search, Wikipedia lookups, documentation reading
+- Python analysis: AST parsing, function extraction, code structure
 
-DO NOT use it for:
-- Complex projects requiring multiple files
-- Tasks needing detailed planning
-- Complete system implementations"""
+Has access to ALL development tools and can execute complex multi-step tasks autonomously."""
 
 # =============================================================================
-# COMPLEXITY DETECTOR PROMPT
+# PLANNING AGENT - Strategic planner for complex multi-step projects
 # =============================================================================
 
-COMPLEXITY_DETECTOR_PROMPT = """You are an expert at analyzing task complexity for a coding assistant system.
+PLANNING_AGENT_DESCRIPTION = """Strategic planning agent for complex multi-component projects requiring coordination.
 
-YOUR ROLE:
-Analyze the user's request and determine if it requires:
-- SIMPLE workflow: Direct actions, 1-5 files, straightforward modifications
-- COMPLEX workflow: Multi-file projects, architecture design, complete systems
+Use ONLY for:
+- Complete system implementations: full apps, APIs, microservices architectures
+- Multi-component projects: frontend + backend + database setups
+- Large-scale refactoring: touching 6+ files or major architectural changes
+- Complex workflows: multi-step pipelines with dependencies between steps
+- Projects requiring: architecture design, technology selection, step sequencing
 
-ANALYSIS CRITERIA:
-
-**SIMPLE Tasks** (use direct execution):
-- Fix a specific bug or error
-- Modify 1-5 existing files
-- Add a single function or feature
-- Read/search code
-- Git operations (status, commit, push)
-- Work with JSON/CSV files
-- Run terminal commands
-- Answer questions about code
-- Small refactoring in limited scope
-
-**COMPLEX Tasks** (requires planning + execution):
-- Create complete systems from scratch
-- Build full applications (web apps, APIs, CLIs)
-- Multi-component projects (frontend + backend + database)
-- Major refactoring across many files
-- Architecture design and implementation
-- Projects with 6+ files to create/modify
-- Systems requiring structured planning and dependencies
-- Comprehensive documentation generation (analyzing codebase + creating docs + generating PDFs)
-- Multi-step data processing pipelines
-- Tasks requiring sequential steps with dependencies
-
-RESPONSE FORMAT (JSON):
-
-You MUST respond with a JSON object containing:
-{{
-  "complexity": "simple" or "complex",
-  "reasoning": "Brief explanation of why this task is simple or complex (1-2 sentences)"
-}}
-
-EXAMPLES:
-
-User: "Fix the login bug in auth.py"
-Response: {{"complexity": "simple", "reasoning": "This is a focused bug fix in a single file that doesn't require multi-step planning."}}
-
-User: "Create a complete REST API with FastAPI for user management"
-Response: {{"complexity": "complex", "reasoning": "This requires creating multiple files (models, routes, schemas), database setup, and coordinated implementation across components."}}
-
-User: "Find where the authentication function is defined"
-Response: {{"complexity": "simple", "reasoning": "This is a code search task that doesn't involve modifications or planning."}}
-
-User: "Build a web application with React frontend and Node.js backend"
-Response: {{"complexity": "complex", "reasoning": "This is a multi-component project requiring frontend, backend, and integration between them with 6+ files."}}
-
-User: "Add error handling to the database connection"
-Response: {{"complexity": "simple", "reasoning": "This is a targeted improvement to existing code in 1-2 files."}}
-
-User: "Create a microservices architecture with 5 services"
-Response: {{"complexity": "complex", "reasoning": "This requires designing and implementing multiple services with structured planning and inter-service communication."}}
-
-User: "Create comprehensive documentation for the module and generate a PDF"
-Response: {{"complexity": "complex", "reasoning": "This requires analyzing code across multiple files, creating structured documentation, and generating a PDF - a multi-step process with dependencies."}}
-
-Now analyze this user request and respond with ONLY the JSON object (no additional text):
-
-USER REQUEST: {user_input}
-
-JSON RESPONSE:"""
-
-# =============================================================================
-# PLANNING AGENT (Para flujo COMPLEX con SelectorGroupChat)
-# =============================================================================
-
-PLANNING_AGENT_DESCRIPTION = """Creates and manages execution plans for complex multi-step tasks.
-
-Tracks progress, marks completed tasks, and can re-plan dynamically if needed."""
+Creates numbered plans, delegates to Coder for execution, reviews results, and re-plans when needed.
+NO tools - only planning and coordination."""
 
 PLANNING_AGENT_SYSTEM_MESSAGE = """You are a PlanningAgent that creates and manages task execution plans.
 

@@ -25,7 +25,6 @@ sys.path.insert(0, os.getcwd())
 # Import from new structure
 from src.config import (
     CODER_AGENT_DESCRIPTION,
-    COMPLEXITY_DETECTOR_PROMPT,
     PLANNING_AGENT_DESCRIPTION,
     PLANNING_AGENT_SYSTEM_MESSAGE,
 )
@@ -1290,80 +1289,6 @@ TITLE:"""
             self.logger.log_error_with_context(e, "_show_history_command")
             self.cli.print_error(f"Error showing history: {str(e)}")
 
-    # =========================================================================
-    # COMPLEXITY DETECTION - Task complexity detection
-    # =========================================================================
-
-    async def _detect_task_complexity(self, user_input: str) -> str:
-        """
-        🔀 SIMPLE ROUTER: Detect complexity with direct model call.
-
-        Does NOT use agents, only calls the model with an optimized prompt.
-
-        FLOWS:
-        - SIMPLE → Direct Coder execution
-        - COMPLEX → Planner + Coder with re-planning
-
-        Returns:
-            "simple" or "complex"
-        """
-        try:
-            self.logger.debug("🔀 Router: analyzing complexity...")
-
-            # Create prompt with user request
-            prompt = COMPLEXITY_DETECTOR_PROMPT.format(user_input=user_input)
-
-            # DIRECT call to model (without agents, faster)
-            from autogen_core.models import UserMessage
-
-            result = await self.model_client.create(
-                messages=[UserMessage(content=prompt, source="user")]
-            )
-
-            # Extract and parse JSON response
-            response = result.content.strip()
-            self.logger.debug(f"🔀 Model response: {response[:200]}")
-
-            # Parse JSON
-            import json
-            import re
-
-            try:
-                # Clean markdown if it exists (some models add ```json```)
-                json_match = re.search(r'\{[^{}]*"complexity"[^{}]*\}', response, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group(0)
-                    response_data = json.loads(json_str)
-                    complexity = response_data.get("complexity", "simple").lower()
-                    reasoning = response_data.get("reasoning", "No reasoning provided")
-
-                    self.logger.info(f"✅ Router decided: {complexity.upper()}")
-                    self.logger.debug(f"   Reasoning: {reasoning}")
-                else:
-                    # Fallback: search for the word in the response
-                    self.logger.warning("⚠️ Valid JSON not found, using fallback")
-                    if "complex" in response.lower():
-                        complexity = "complex"
-                    else:
-                        complexity = "simple"
-                    self.logger.warning(f"   Fallback decided: {complexity}")
-
-            except json.JSONDecodeError as e:
-                # If JSON parsing fails, use simple fallback
-                self.logger.warning(f"⚠️ Error parsing JSON: {e}, using fallback")
-                if "complex" in response.lower():
-                    complexity = "complex"
-                else:
-                    complexity = "simple"
-                self.logger.warning(f"   Fallback decided: {complexity}")
-
-            return complexity
-
-        except Exception as e:
-            # Safe fallback
-            self.logger.error(f"❌ Error in router: {str(e)}")
-            self.logger.warning("⚠️ Fallback: using SIMPLE flow")
-            return "simple"
 
 
     # =========================================================================
@@ -1668,24 +1593,16 @@ TITLE:"""
             self.logger.debug(f"Input context prepared with {len(skills_context)} chars of skills")
 
             # =================================================================
-            # DYNAMIC COMPLEXITY DETECTION & MODEL SWITCHING
+            # LET SELECTOR GROUP CHAT HANDLE EVERYTHING
             # =================================================================
-            # Detect complexity to choose the right model for the Coder
-            complexity = await self._detect_task_complexity(full_input)
-
-            # Switch Coder model based on complexity
-            if complexity == "complex":
-                # Use Strong Model (Reasoner)
-                self.coder_agent._model_client._wrapped = self.client_strong
-                model_name = self.settings.strong_model
-                self.logger.info(f"🧠 Task is COMPLEX: Switched Coder to Strong Model ({model_name})")
-            else:
-                # Use Base Model (Standard)
-                self.coder_agent._model_client._wrapped = self.client_base
-                model_name = self.settings.base_model
-                self.logger.info(f"⚡ Task is SIMPLE: Switched Coder to Base Model ({model_name})")
-
-            # ============= USE SINGLE ROUTER TEAM =============
+            # No manual complexity detection - the SelectorGroupChat's model-based
+            # selector intelligently routes to the appropriate agent based on:
+            # - Agent descriptions (name + description attributes)
+            # - Conversation context and history
+            # - The nature of the user's request
+            #
+            # This is more efficient and intelligent than manual classification.
+            # =================================================================
 
             # Start spinner
             self.cli.start_thinking()
