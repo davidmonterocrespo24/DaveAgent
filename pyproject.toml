@@ -25,8 +25,8 @@ classifiers = [
 ]
 
 dependencies = [
-    "autogen-agentchat>=0.4.0",
-    "autogen-ext[openai]>=0.4.0",
+    "autogen-agentchat>=0.7.5",
+    "autogen-ext[openai]>=0.7.5",
     "prompt-toolkit>=3.0.0",
     "rich>=13.0.0",
     "readchar>=4.0.0",

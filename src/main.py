@@ -2,6 +2,11 @@
 Main file - Complete CLI interface for the code agent
 NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 """
+# IMPORTANTE: Filtros de warnings ANTES de todos los imports
+import warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='autogen.import_utils')
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='chromadb.api.collection_configuration')
+
 import asyncio
 import logging
 import os
@@ -1849,6 +1854,14 @@ TITLE:"""
                                             else "OK"
                                         )
 
+                                        # 🚨 CRITICAL: Detect user cancellation in tool results
+                                        # When a tool is cancelled, ask_for_approval raises UserCancelledError,
+                                        # but AutoGen converts it to a string result. We need to detect this
+                                        # and re-raise the exception to stop the entire workflow.
+                                        if "User selected 'No, cancel'" in result_content or "UserCancelledError" in result_content:
+                                            self.logger.info("🚫 User cancelled tool execution - stopping workflow")
+                                            raise UserCancelledError("User cancelled tool execution")
+
                                         # DEBUG: Log tool result details
                                         self.logger.debug(f"[TOOL_RESULT_DEBUG] tool_name={tool_name}, result_starts_with={result_content[:50] if len(result_content) > 50 else result_content}, has_File={('File:' in result_content)}")
 
@@ -1988,6 +2001,19 @@ TITLE:"""
             # ============= END JSON LOGGING SESSION =============
             # Save all captured events to timestamped JSON file
             self.json_logger.end_session(summary="Request completed successfully")
+
+        except UserCancelledError:
+            # Stop spinner on user cancellation
+            if spinner_active:
+                self.cli.stop_thinking()
+            
+            # Clear message and show cancellation
+            self.cli.print_error(f"\n\n🚫 Task cancelled by user.")
+            self.cli.print_info("ℹ️  You can start a new task whenever you're ready.")
+            self.logger.info("Task explicitly cancelled by user during tool approval.")
+            
+            # End JSON logging session
+            self.json_logger.end_session(summary="Task cancelled by user")
 
         except Exception as e:
             # Stop spinner on error

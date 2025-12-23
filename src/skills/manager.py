@@ -304,7 +304,15 @@ class SkillManager:
                     return []
 
             except Exception as e:
-                self.logger.warning(f"RAG skill search failed: {e}. Falling back to keywords.")
+                # Log detallado del error real para debugging
+                import traceback
+                self.logger.debug(f"RAG search exception: {type(e).__name__}: {e}")
+                self.logger.debug(f"Traceback: {traceback.format_exc()}")
+                # Solo mostrar warning si es un error inesperado (no por falta de resultados)
+                if "index out of range" not in str(e).lower():
+                    self.logger.warning(f"RAG skill search failed: {e}. Falling back to keywords.")
+                else:
+                    self.logger.debug(f"RAG search returned no results, using keyword fallback.")
 
         # 2. Keywork fallback (or if RAG returned nothing/failed)
         return self._find_skills_by_keyword(user_query, max_results)

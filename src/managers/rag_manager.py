@@ -186,6 +186,9 @@ class AdvancedEmbeddingFunction:
     Intenta cargar BGE-M3 (local/huggingface), si falla usa OpenAI.
     Lazy loading implemented con soporte de threading.
     """
+    # Atributo requerido por ChromaDB nuevo API
+    supported_spaces = ["l2", "cosine", "ip"]
+    
     def __init__(self, settings: DaveAgentSettings, use_gpu: bool = False):
         self.settings = settings
         self.use_gpu = use_gpu
@@ -231,14 +234,16 @@ class AdvancedEmbeddingFunction:
         """LangChain compatibility: Embed a single query."""
         self._ensure_initialized()
         # Handle both 'text' (LangChain) and 'input' (Chroma/Generic) args
-        content = text or input
-        if not content:
+        content = text if text is not None else input
+        
+        if content is None:
             return []
             
         if not self.model:
             return []
             
         # encode returns numpy array, convert to list
+        # Ensure content is passed as list to encode
         embeddings = self.model.encode([content], normalize_embeddings=True)
         return embeddings[0].tolist()
 
@@ -484,21 +489,36 @@ class RAGManager:
 
         for results in results_list:
             # Chroma devuelve listas de listas, aplanamos
-            if results['ids']:
-                ids = results['ids'][0]
-                # distances = results['distances'][0] (no lo usamos para RRF puro, usamos el rango)
+            # Validar que results contiene datos antes de acceder
+            if not results or 'ids' not in results:
+                continue
+            
+            if not results['ids'] or len(results['ids']) == 0:
+                continue
+            
+            # Verificar que la primera sublista no esté vacía
+            if len(results['ids'][0]) == 0:
+                continue
+                
+            ids = results['ids'][0]
+            documents = results.get('documents', [[]])[0]
+            metadatas = results.get('metadatas', [[]])[0]
+            
+            # Verificar que tenemos la misma cantidad de documentos y metadatos
+            if len(ids) != len(documents) or len(ids) != len(metadatas):
+                logger.warning(f"[RRF] Inconsistencia en resultados: {len(ids)} ids, {len(documents)} docs, {len(metadatas)} metas")
+                continue
 
-                for rank, doc_id in enumerate(ids):
-                    # RRF Formula
-                    fused_scores[doc_id] += 1 / (k + rank)
+            for rank, doc_id in enumerate(ids):
+                # RRF Formula
+                fused_scores[doc_id] += 1 / (k + rank)
 
-                    # Guardar referencia del documento si no existe
-                    if doc_id not in doc_map:
-                        idx = ids.index(doc_id)
-                        doc_map[doc_id] = {
-                            "content": results['documents'][0][idx],
-                            "metadata": results['metadatas'][0][idx]
-                        }
+                # Guardar referencia del documento si no existe
+                if doc_id not in doc_map:
+                    doc_map[doc_id] = {
+                        "content": documents[rank],
+                        "metadata": metadatas[rank]
+                    }
 
         # Ordenar por score RRF descendente
         sorted_ids = sorted(fused_scores.keys(), key=lambda x: fused_scores[x], reverse=True)
