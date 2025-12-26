@@ -30,7 +30,6 @@ from src.config import (
 )
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
-from src.interfaces.vscode_interface import VSCodeInterface
 from src.utils.errors import UserCancelledError
 
 # Managers moved to __init__
@@ -49,7 +48,6 @@ class DaveAgentCLI:
         model: str = None,
         ssl_verify: bool = None,
         headless: bool = False,
-        vscode_mode: bool = False,
     ):
         """
         Initialize all agent components
@@ -358,12 +356,7 @@ class DaveAgentCLI:
         self.logger.info(f"✨ DaveAgent initialized in {time.time() - t_start:.2f}s")
 
         # System components
-        if vscode_mode:
-            # VS Code mode: JSON output
-            self.cli = VSCodeInterface()
-            self.history_viewer = None
-            self.logger.info("🔧 Initialized VSCodeInterface")
-        elif headless:
+        if headless:
             # Headless mode: without interactive CLI (for evaluations)
             self.cli = type(
                 "DummyCLI",
@@ -1292,228 +1285,6 @@ TITLE:"""
 
 
     # =========================================================================
-    # COMPLEX TASK EXECUTION - SelectorGroupChat with selector_func
-    # =========================================================================
-
-    async def _execute_complex_task(self, user_input: str):
-        """
-        Execute complex tasks using SelectorGroupChat with dynamic re-planning.
-
-        ARCHITECTURE:
-        - PlanningAgent: Create plan, review progress, re-plan
-        - Coder: Execute all tasks (search, analyze, modify, create files)
-
-        FLOW:
-        1. Planner creates initial plan
-        2. Coder executes each task using available tools
-        3. selector_func forces Planner to review after each action
-        4. Planner can re-plan if necessary
-        5. When everything is complete, Planner marks TASK_COMPLETED
-        """
-        try:
-            self.logger.info("🎯 Using COMPLEX flow: SelectorGroupChat + re-planning")
-            self.cli.print_info("📋 Complex task detected. Starting planning...\n")
-
-            # Custom selection function for dynamic re-planning
-            def custom_selector_func(messages):
-                """
-                Control flow to allow re-planning:
-                - After Planner → Coder executes the task
-                - After Coder → Return to Planner (review progress)
-                """
-                if not messages:
-                    return None
-
-                last_message = messages[-1]
-
-                # If PlanningAgent just spoke
-                if last_message.source == "Planner":
-                    # Route to Coder for execution
-                    return "Coder"
-
-                # If Coder acted, ALWAYS return to Planner
-                # so it can review progress and update the plan
-                if last_message.source == "Coder":
-                    return "Planner"
-
-                # For other cases, use default selector
-                return None
-
-            # Create complex team with selector_func
-            termination = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(15)
-
-            complex_team = SelectorGroupChat(
-                participants=[
-                    self.planning_agent,
-                    self.coder_agent,
-                ],
-                model_client=self.router_client,
-                termination_condition=termination,
-                selector_func=custom_selector_func,  # ← Key for re-planning
-            )
-
-            # Execute with streaming
-            self.logger.debug("Starting SelectorGroupChat with streaming...")
-
-            agent_messages_shown = set()
-            message_count = 0
-            spinner_active = False
-
-            # Start initial spinner
-            self.cli.start_thinking(message="starting planning")
-            spinner_active = True
-
-            async for msg in complex_team.run_stream(task=user_input):
-                message_count += 1
-                msg_type = type(msg).__name__
-
-                if hasattr(msg, "source") and msg.source != "user":
-                    agent_name = msg.source
-
-                    if hasattr(msg, "content"):
-                        content = msg.content
-                    else:
-                        content = str(msg)
-
-                    # Crear clave única
-                    try:
-                        content_str = str(content) if isinstance(content, list) else content
-                        message_key = f"{agent_name}:{hash(content_str)}"
-                    except TypeError:
-                        message_key = f"{agent_name}:{hash(str(content))}"
-
-                    if message_key not in agent_messages_shown:
-                        # Show messages by type
-                        if msg_type == "TextMessage":
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-                                spinner_active = False
-
-                            self.cli.print_agent_message(content_str, agent_name)
-                            self.logger.debug(f"[{agent_name}] {content_str[:100]}")
-                            agent_messages_shown.add(message_key)
-
-                            # After agent finishes, start spinner waiting for next agent
-                            self.cli.start_thinking(message="waiting for next action")
-                            spinner_active = True
-
-                        elif msg_type == "ToolCallRequestEvent":
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-
-                            if isinstance(content, list):
-                                tool_names = []
-                                for tool_call in content:
-                                    if hasattr(tool_call, "name"):
-                                        tool_name = tool_call.name
-                                        self.cli.print_info(
-                                            f"🔧 Executing: {tool_name}", agent_name
-                                        )
-                                        tool_names.append(tool_name)
-
-                                # Restart spinner ONCE with first tool name (not in loop)
-                                if tool_names:
-                                    self.cli.start_thinking(message=f"executing {tool_names[0]}")
-                                    spinner_active = True
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "ToolCallExecutionEvent":
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-                                spinner_active = False
-
-                            if isinstance(content, list):
-                                for result in content:
-                                    if hasattr(result, "name"):
-                                        tool_name = result.name
-                                        result_content = (
-                                            str(result.content)
-                                            if hasattr(result, "content")
-                                            else "OK"
-                                        )
-
-                                        # Check if this is an edit_file result with diff
-                                        if (
-                                            tool_name == "edit_file"
-                                            and "DIFF (Changes Applied)" in result_content
-                                        ):
-                                            # Extract and display the diff
-                                            diff_start = result_content.find(
-                                                "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):"
-                                            )
-                                            diff_end = result_content.find(
-                                                "\n═══════════════════════════════════════════════════════════════",
-                                                diff_start + 100,
-                                            )
-
-                                            if diff_start != -1 and diff_end != -1:
-                                                diff_text = result_content[
-                                                    diff_start : diff_end + 64
-                                                ]
-                                                # Print file info first
-                                                info_end = result_content.find(
-                                                    "\n\n", 0, diff_start
-                                                )
-                                                if info_end != -1:
-                                                    file_info = result_content[:info_end]
-                                                    self.cli.print_thinking(
-                                                        f"✅ {tool_name}: {file_info}"
-                                                    )
-                                                # Display diff with colors
-                                                self.cli.print_diff(diff_text)
-                                            else:
-                                                # Fallback to showing preview
-                                                result_preview = result_content[:100]
-                                                self.cli.print_thinking(
-                                                    f"✅ {tool_name}: {result_preview}..."
-                                                )
-                                        else:
-                                            # Regular tool result
-                                            result_preview = result_content[:100]
-                                            self.cli.print_thinking(
-                                                f"✅ {tool_name}: {result_preview}..."
-                                            )
-
-                            self.cli.start_thinking()
-                            spinner_active = True
-                            agent_messages_shown.add(message_key)
-
-            # Ensure spinner is stopped
-            if spinner_active:
-                self.cli.stop_thinking(clear=True)
-
-            # Stop task tracking panel
-            if self.cli.task_panel_active:
-                self.cli.stop_task_tracking()
-
-            self.logger.info("✅ Complex flow completed")
-            self.cli.print_success("\n✅ Complex task completed!")
-
-            # 💾 AUTO-SAVE: Save agent states automatically after each response
-            await self._auto_save_agent_states()
-
-        except UserCancelledError:
-            if spinner_active:
-                self.cli.stop_thinking(clear=True)
-            if self.cli.task_panel_active:
-                self.cli.stop_task_tracking()
-            
-            self.cli.print_error(f"\n🚫 Task stopped by user.")
-            self.logger.info("Task explicitly cancelled by user during tool approval.")
-
-        except Exception as e:
-            if spinner_active:
-                self.cli.stop_thinking(clear=True)
-            # Stop task tracking on error
-            if self.cli.task_panel_active:
-                self.cli.stop_task_tracking()
-            self.logger.log_error_with_context(e, "_execute_complex_task")
-            self.cli.print_error(f"Error in complex task: {str(e)}")
-            import traceback
-
-            self.logger.error(f"Traceback: {traceback.format_exc()}")
-
-    # =========================================================================
     # USER REQUEST PROCESSING
     # =========================================================================
 
@@ -2194,7 +1965,6 @@ async def main(
     base_url: str = None,
     model: str = None,
     ssl_verify: bool = None,
-    vscode_mode: bool = False,
 ):
     """
     Main entry point
@@ -2212,7 +1982,6 @@ async def main(
         base_url=base_url,
         model=model,
         ssl_verify=ssl_verify,
-        vscode_mode=vscode_mode,
     )
     await app.run()
 
