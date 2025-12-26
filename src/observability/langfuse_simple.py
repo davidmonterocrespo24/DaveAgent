@@ -103,7 +103,12 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
 
         # Initialize OpenLit with user identification metadata
         # Using OTLP direct endpoint for Langfuse v3 compatibility
-        lf_host = os.environ.get("LANGFUSE_HOST").rstrip("/")
+        lf_host_raw = os.environ.get("LANGFUSE_HOST")
+        if lf_host_raw is None:
+            if debug:
+                print("[ERROR] LANGFUSE_HOST is not set")
+            return False
+        lf_host = lf_host_raw.rstrip("/")
         lf_pk = os.environ.get("LANGFUSE_PUBLIC_KEY")
         lf_sk = os.environ.get("LANGFUSE_SECRET_KEY")
 

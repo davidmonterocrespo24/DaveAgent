@@ -9,8 +9,8 @@ import threading
 import time
 
 # Global registry for active spinner (module level for safety across imports)
-_GLOBAL_ACTIVE_SPINNER = None
-_ALL_SPINNERS = set()
+_GLOBAL_ACTIVE_SPINNER: "VibeSpinner | None" = None
+_ALL_SPINNERS: set["VibeSpinner"] = set()
 
 
 class VibeSpinner:
@@ -128,8 +128,7 @@ class VibeSpinner:
     @classmethod
     def pause_active_spinner(cls):
         """Pauses ANY active spinner instance"""
-        global _GLOBAL_ACTIVE_SPINNER, _ALL_SPINNERS
-
+        # Note: No 'global' needed as we only read these variables, not reassign them
         paused_spinner = None
 
         # 1. Check primary global
@@ -185,8 +184,7 @@ class VibeSpinner:
         self.update_interval = update_interval
         self.message_interval = message_interval
 
-        # Register in global list
-        global _ALL_SPINNERS
+        # Register in global list (no need for 'global' as we're only mutating the set)
         _ALL_SPINNERS.add(self)
 
         self._thread: threading.Thread | None = None

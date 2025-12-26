@@ -34,7 +34,7 @@ class TextSplitter:
         self.separators = ["\n\n", "\n", ". ", " ", ""]
 
     def split_text(self, text: str) -> list[str]:
-        final_chunks = []
+        final_chunks: list[str] = []
         if self._length_function(text) <= self.chunk_size:
             return [text]
 
@@ -84,7 +84,7 @@ class TextSplitter:
     def _merge_splits(self, splits: list[str], separator: str) -> list[str]:
         """Une splits pequeños hasta alcanzar el chunk_size con overlap."""
         docs = []
-        current_doc = []
+        current_doc: list[str] = []
         total_len = 0
 
         for d in splits:
@@ -491,8 +491,8 @@ class RAGManager:
         Algoritmo RRF para fusionar resultados de múltiples queries.
         Score = 1 / (k + rank)
         """
-        fused_scores = defaultdict(float)
-        doc_map = {}  # Para guardar metadata y contenido y no perderlo
+        fused_scores: dict[str, float] = defaultdict(float)
+        doc_map: dict[str, dict[str, Any]] = {}  # Para guardar metadata y contenido y no perderlo
 
         for results in results_list:
             # Chroma devuelve listas de listas, aplanamos
@@ -580,7 +580,7 @@ class RAGManager:
         fused_results = self._reciprocal_rank_fusion(results_list)
 
         # 4. Resolver a Documentos Padres (Parent Retrieval)
-        final_output = []
+        final_output: list[dict[str, Any]] = []
         seen_parents = set()
 
         for item in fused_results:

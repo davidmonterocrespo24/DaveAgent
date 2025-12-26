@@ -202,7 +202,7 @@ class DaveAgentCLI:
         # Agent Skills system (Claude-compatible and RAG-enhanced)
         from src.skills import SkillManager
 
-        self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger)
+        self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger.logger)
         skill_count = self.skill_manager.discover_skills()
         if skill_count > 0:
             self.logger.info(f"✓ Loaded {skill_count} agent skills")

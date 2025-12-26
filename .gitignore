@@ -45,3 +45,4 @@ rag_data_test/*
 rag_data_test_components/*
 vscode-extension/node_modules/*
 test_rag_data/*
+.mypy_cache/*

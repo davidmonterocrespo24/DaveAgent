@@ -157,6 +157,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             self._raw_responses.append(raw_dict)
 
             # Convert to AutoGen CreateResult
+            content: list[FunctionCall] | str
             if raw_message.tool_calls:
                 content = [
                     FunctionCall(id=tc.id, name=tc.function.name, arguments=tc.function.arguments)
@@ -234,7 +235,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             try:
                 msg_ids = {tc.get("id") for tc in msg_tool_calls if tc.get("id")}
                 raw_ids = {tc.get("id") for tc in raw_tool_calls if tc.get("id")}
-                return msg_ids and msg_ids == raw_ids
+                return bool(msg_ids and msg_ids == raw_ids)
             except Exception:
                 return False
         return False
@@ -270,7 +271,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         roles = [m.get("role") for m in messages]
         self.logger.debug(f"Input messages for normalization: {roles}")
 
-        normalized = []
+        normalized: list[dict[str, Any]] = []
 
         for msg in messages:
             # Skip messages with None role
