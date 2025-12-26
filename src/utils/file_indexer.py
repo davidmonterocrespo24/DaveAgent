@@ -31,7 +31,6 @@ class FileIndexer:
             "build",
             "egg-info",
             ".idea",
-            ".vscode",
             "logs",
             # File patterns to exclude (handled by hidden file check)
         }

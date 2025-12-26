@@ -54,10 +54,6 @@ def parse_arguments():
 
     parser.add_argument("-v", "--version", action="store_true", help="Shows DaveAgent version")
 
-    parser.add_argument(
-        "--vscode", action="store_true", help="Enables VS Code mode (JSON output)"
-    )
-
     return parser.parse_args()
 
 
@@ -106,7 +102,6 @@ def main():
                 base_url=args.base_url,
                 model=args.model,
                 ssl_verify=ssl_verify,
-                vscode_mode=args.vscode,
             )
         )
         return 0
