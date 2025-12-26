@@ -180,10 +180,10 @@ class SkillManager:
                 # Deterministic ID based on skill name
                 source_id = f"skill-{skill.name}"
 
-                # Compute hash of the content
+                # Compute hash of the content (for change detection, not security)
                 import hashlib
 
-                content_hash = hashlib.md5(search_content.encode("utf-8")).hexdigest()
+                content_hash = hashlib.sha256(search_content.encode("utf-8")).hexdigest()
                 new_hashes[source_id] = content_hash
 
                 # Check if changed
