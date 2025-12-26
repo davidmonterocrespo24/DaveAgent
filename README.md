@@ -41,9 +41,7 @@ You: find all TODOs in the project
 
 ## 📦 Installation
 
-### Installation from PyPI (Coming Soon)
-
-**When published on PyPI**:
+### Installation from PyPI
 
 ```bash
 pip install daveagent-ai

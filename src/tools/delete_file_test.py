@@ -3,8 +3,6 @@ Test para delete_file tool
 """
 
 import asyncio
-import os
-from pathlib import Path
 
 from delete_file import delete_file
 from write_file import write_file

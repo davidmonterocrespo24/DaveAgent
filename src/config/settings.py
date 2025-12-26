@@ -4,9 +4,9 @@ Environment variables are loaded from .daveagent/.env
 """
 
 import os
-from dotenv import load_dotenv
 from pathlib import Path
-from typing import Optional
+
+from dotenv import load_dotenv
 
 # Load environment variables from .daveagent/.env if it exists
 # Priority: .daveagent/.env > .env (for compatibility)
@@ -27,15 +27,20 @@ class DaveAgentSettings:
 
     # Valores por defecto
     DEFAULT_BASE_URL = "https://api.deepseek.com"
-    DEFAULT_MODEL = "deepseek-reasoner"
+    DEFAULT_BASE_URL = "https://api.deepseek.com"
+    DEFAULT_MODEL = "deepseek-reasoner"  # Used as fallback or specific selection
+    DEFAULT_BASE_MODEL = "deepseek-chat"  # Default base model
+    DEFAULT_STRONG_MODEL = "deepseek-reasoner"  # Default strong model
     DEFAULT_SSL_VERIFY = True
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        model: Optional[str] = None,
-        ssl_verify: Optional[bool] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        base_model: str | None = None,
+        strong_model: str | None = None,
+        ssl_verify: bool | None = None,
     ):
         """
         Initializes the configuration with priority:
@@ -46,8 +51,10 @@ class DaveAgentSettings:
         Args:
             api_key: API key for the LLM model
             base_url: Base URL of the API
-            model: Name of the model to use
-            ssl_verify: If True, verify SSL certificates (default True)
+            model: Name of the model to use (main/fallback)
+            base_model: Name of the base model (for simple tasks/planner)
+            strong_model: Name of the strong model (for complex tasks)
+            ssl_verify: If True, Verify SSL certificates (default True)
         """
         # API Key (required)
         self.api_key = (
@@ -76,6 +83,28 @@ class DaveAgentSettings:
             or self.DEFAULT_MODEL
         )
 
+        # Base Model (lighter/faster for Planner and simple tasks)
+        self.base_model = (
+            base_model
+            or os.getenv("DAVEAGENT_BASE_MODEL")
+            or (
+                "deepseek-chat"
+                if "deepseek" in self.base_url.lower() or "deepseek" in self.model.lower()
+                else self.model  # Fallback to main model
+            )
+        )
+
+        # Strong Model (reasoner/powerful for Coder in complex tasks)
+        self.strong_model = (
+            strong_model
+            or os.getenv("DAVEAGENT_STRONG_MODEL")
+            or (
+                "deepseek-reasoner"
+                if "deepseek" in self.base_url.lower() or "deepseek" in self.model.lower()
+                else self.model  # Fallback to main model
+            )
+        )
+
         # SSL Verify (optional, with default value)
         if ssl_verify is not None:
             self.ssl_verify = ssl_verify
@@ -87,7 +116,7 @@ class DaveAgentSettings:
             else:
                 self.ssl_verify = self.DEFAULT_SSL_VERIFY
 
-    def validate(self, interactive: bool = True) -> tuple[bool, Optional[str]]:
+    def validate(self, interactive: bool = True) -> tuple[bool, str | None]:
         """
         Validates that the configuration is correct
 
@@ -130,6 +159,14 @@ class DaveAgentSettings:
                     if model:
                         self.model = model
 
+                    # Re-evaluate base/strong models if not explicitly set
+                    if "deepseek" in self.base_url.lower():
+                        self.base_model = "deepseek-chat"
+                        self.strong_model = "deepseek-reasoner"
+                    else:
+                        self.base_model = self.model
+                        self.strong_model = self.model
+
                     # Validate again (without interactivity to avoid loop)
                     return self.validate(interactive=False)
 
@@ -171,6 +208,7 @@ class DaveAgentSettings:
                 "function_calling": True,
                 "json_output": True,
                 "structured_output": False,
+                "family": "unknown",
             }
 
         # Capabilities for OpenAI
@@ -180,6 +218,7 @@ class DaveAgentSettings:
                 "function_calling": True,
                 "json_output": True,
                 "structured_output": True,
+                "family": "openai",
             }
 
         # Generic capabilities by default
@@ -188,6 +227,7 @@ class DaveAgentSettings:
             "function_calling": True,
             "json_output": True,
             "structured_output": False,
+            "family": "unknown",
         }
 
     def __repr__(self) -> str:
@@ -200,16 +240,20 @@ class DaveAgentSettings:
             f"  api_key={masked_key},\n"
             f"  base_url={self.base_url},\n"
             f"  model={self.model},\n"
+            f"  base_model={self.base_model},\n"
+            f"  strong_model={self.strong_model},\n"
             f"  ssl_verify={self.ssl_verify}\n"
             f")"
         )
 
 
 def get_settings(
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    model: Optional[str] = None,
-    ssl_verify: Optional[bool] = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    model: str | None = None,
+    base_model: str | None = None,
+    strong_model: str | None = None,
+    ssl_verify: bool | None = None,
 ) -> DaveAgentSettings:
     """
     Factory function to get configuration
@@ -223,7 +267,14 @@ def get_settings(
     Returns:
         DaveAgentSettings instance
     """
-    return DaveAgentSettings(api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify)
+    return DaveAgentSettings(
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        base_model=base_model,
+        strong_model=strong_model,
+        ssl_verify=ssl_verify,
+    )
 
 
 # Maintain compatibility with old code

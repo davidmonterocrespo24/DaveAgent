@@ -1,11 +1,11 @@
+import glob
 import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional
 
-import glob
-from src.tools.common import get_workspace
+from src.tools.common import EXCLUDED_DIRS, get_workspace
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ def _load_gitignore_patterns(root_path: Path) -> Optional["pathspec.PathSpec"]:
     gitignore = root_path / ".gitignore"
     if gitignore.exists():
         try:
-            with open(gitignore, "r", encoding="utf-8") as f:
+            with open(gitignore, encoding="utf-8") as f:
                 return pathspec.PathSpec.from_lines("gitwildmatch", f)
         except Exception:
             return None
@@ -31,17 +31,12 @@ def _load_gitignore_patterns(root_path: Path) -> Optional["pathspec.PathSpec"]:
 
 
 def _is_ignored(path: Path, spec: Optional["pathspec.PathSpec"]) -> bool:
-    # Exclusiones hardcoded de seguridad
+    # Check hardcoded exclusions from common configuration
     parts = path.parts
-    if ".git" in parts:
-        return True
-    if "node_modules" in parts:
-        return True
-    if "__pycache__" in parts:
-        return True
-    if ".venv" in parts:
+    if any(excluded_dir in parts for excluded_dir in EXCLUDED_DIRS):
         return True
 
+    # Check gitignore patterns if available
     if spec:
         try:
             rel_path = path.relative_to(WORKSPACE)
@@ -51,7 +46,7 @@ def _is_ignored(path: Path, spec: Optional["pathspec.PathSpec"]) -> bool:
     return False
 
 
-def _sort_file_entries(entries: List[Path]) -> List[Path]:
+def _sort_file_entries(entries: list[Path]) -> list[Path]:
     now = time.time()
 
     def get_sort_key(path_obj: Path):
@@ -74,7 +69,7 @@ def _sort_file_entries(entries: List[Path]) -> List[Path]:
 
 async def glob_search(
     pattern: str,
-    dir_path: Optional[str] = None,
+    dir_path: str | None = None,
     case_sensitive: bool = False,
     respect_git_ignore: bool = True,
     respect_gemini_ignore: bool = True,

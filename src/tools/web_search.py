@@ -4,11 +4,11 @@ Web Search Tool - Real-time web search using DuckDuckGo
 
 import logging
 import random
-import requests
 import time
-from bs4 import BeautifulSoup
-from typing import Dict, List
 from urllib.parse import quote_plus
+
+import requests
+from bs4 import BeautifulSoup
 
 
 async def web_search(search_term: str, explanation: str = "", max_results: int = 5) -> str:
@@ -78,7 +78,7 @@ async def web_search(search_term: str, explanation: str = "", max_results: int =
         return f"Error in web search: {str(e)}"
 
 
-def _search_duckduckgo(query: str, headers: dict, max_results: int) -> List[Dict]:
+def _search_duckduckgo(query: str, headers: dict, max_results: int) -> list[dict]:
     """Search DuckDuckGo"""
     results = []
 
@@ -107,13 +107,13 @@ def _search_duckduckgo(query: str, headers: dict, max_results: int) -> List[Dict
                     results.append(
                         {"title": title, "url": url, "snippet": snippet or "No snippet available"}
                     )
-        except Exception as e:
+        except Exception:
             continue
 
     return results
 
 
-def _search_bing(query: str, headers: dict, max_results: int) -> List[Dict]:
+def _search_bing(query: str, headers: dict, max_results: int) -> list[dict]:
     """Search Bing"""
     results = []
 
@@ -145,13 +145,13 @@ def _search_bing(query: str, headers: dict, max_results: int) -> List[Dict]:
 
                     if title and url:
                         results.append({"title": title, "url": url, "snippet": snippet})
-        except Exception as e:
+        except Exception:
             continue
 
     return results
 
 
-def _search_google_simple(query: str, headers: dict, max_results: int) -> List[Dict]:
+def _search_google_simple(query: str, headers: dict, max_results: int) -> list[dict]:
     """Simple Google search (use sparingly to avoid rate limiting)"""
     results = []
 
@@ -187,7 +187,7 @@ def _search_google_simple(query: str, headers: dict, max_results: int) -> List[D
 
                 if title and url and not url.startswith("/search"):
                     results.append({"title": title, "url": url, "snippet": snippet})
-        except Exception as e:
+        except Exception:
             continue
 
     return results

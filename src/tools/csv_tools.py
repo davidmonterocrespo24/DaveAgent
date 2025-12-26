@@ -4,7 +4,6 @@ CSV File Tools - AutoGen Format
 
 import logging
 from importlib import util
-from typing import List, Dict, Any
 
 
 def _check_pandas():
@@ -108,7 +107,7 @@ async def csv_info(filepath: str, delimiter: str = ",", encoding: str = "utf-8")
         for col in df.columns:
             output += f"  - {col}: {df[col].dtype}\n"
 
-        output += f"\nNull values:\n"
+        output += "\nNull values:\n"
         nulls = df.isnull().sum()
         if nulls.sum() == 0:
             output += "  No null values\n"

@@ -1,6 +1,7 @@
-import httpx
 import json
-from autogen_core.models import UserMessage, SystemMessage
+
+import httpx
+from autogen_core.models import SystemMessage, UserMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from src.config import get_settings

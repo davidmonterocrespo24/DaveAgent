@@ -3,7 +3,7 @@ Model Settings - Model and provider configuration
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -17,7 +17,7 @@ class ModelProvider:
     models: list[str]
     requires_api_key: bool
     api_key_url: str
-    capabilities: Dict[str, Any]
+    capabilities: dict[str, Any]
 
 
 # Supported provider definitions
@@ -238,7 +238,7 @@ def show_models_menu(provider_name: str) -> str:
             raise
 
 
-def configure_azure_settings() -> Dict[str, str]:
+def configure_azure_settings() -> dict[str, str]:
     """
     Configures Azure-specific settings
 
@@ -276,7 +276,7 @@ def get_provider_info(provider_name: str) -> ModelProvider:
     return PROVIDERS.get(provider_name, PROVIDERS["deepseek"])
 
 
-def interactive_model_selection() -> tuple[str, str, str, Optional[Dict[str, str]]]:
+def interactive_model_selection() -> tuple[str, str, str, dict[str, str] | None]:
     """
     Interactive provider and model selection
 
@@ -293,10 +293,10 @@ def interactive_model_selection() -> tuple[str, str, str, Optional[Dict[str, str
     print(f"✓ Provider selected: {provider.display_name}")
 
     if provider.requires_api_key:
-        print(f"  API Key required: Yes")
+        print("  API Key required: Yes")
         print(f"  Get API key at: {provider.api_key_url}")
     else:
-        print(f"  API Key required: No")
+        print("  API Key required: No")
 
     # Select model
     model_name = show_models_menu(provider_name)

@@ -80,9 +80,6 @@ def main():
 
     # Show working directory information
     working_dir = Path.cwd()
-    print(f"🚀 Starting DaveAgent in: {working_dir}")
-    print(f"📂 Working directory: {working_dir.absolute()}\n")
-
     # Change to current working directory (where user executed the command)
     os.chdir(working_dir)
 

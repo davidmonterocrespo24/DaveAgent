@@ -4,7 +4,6 @@ File Indexer - Indexes all files in the directory for @ mentions
 
 import os
 from pathlib import Path
-from typing import List, Set
 
 
 class FileIndexer:
@@ -18,8 +17,8 @@ class FileIndexer:
             root_dir: Root directory to index (default: current directory)
         """
         self.root_dir = Path(root_dir).resolve()
-        self.indexed_files: List[str] = []
-        self.excluded_patterns: Set[str] = {
+        self.indexed_files: list[str] = []
+        self.excluded_patterns: set[str] = {
             # Directories to exclude
             ".git",
             ".venv",
@@ -32,7 +31,6 @@ class FileIndexer:
             "build",
             "egg-info",
             ".idea",
-            ".vscode",
             "logs",
             # File patterns to exclude (handled by hidden file check)
         }
@@ -85,7 +83,7 @@ class FileIndexer:
 
         return False
 
-    def index_directory(self) -> List[str]:
+    def index_directory(self) -> list[str]:
         """
         Index all files in the directory tree
 
@@ -126,7 +124,7 @@ class FileIndexer:
 
         return self.indexed_files
 
-    def search_files(self, query: str) -> List[str]:
+    def search_files(self, query: str) -> list[str]:
         """
         Search for files matching a query
 

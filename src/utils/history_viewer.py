@@ -6,19 +6,20 @@ using Rich for tables, panels, and syntax highlighting.
 """
 
 from datetime import datetime
+from typing import Any
+
 from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
-from typing import List, Dict, Any, Optional
 
 
 class HistoryViewer:
     """Conversation history viewer with Rich"""
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Console | None = None):
         """
         Initialize HistoryViewer
 
@@ -27,7 +28,7 @@ class HistoryViewer:
         """
         self.console = console or Console()
 
-    def display_sessions_list(self, sessions: List[Dict[str, Any]]):
+    def display_sessions_list(self, sessions: list[dict[str, Any]]):
         """
         Display list of sessions in a table
 
@@ -79,7 +80,7 @@ class HistoryViewer:
         self.console.print(table)
         self.console.print("\n")
 
-    def display_session_metadata(self, metadata: Dict[str, Any], session_id: str):
+    def display_session_metadata(self, metadata: dict[str, Any], session_id: str):
         """
         Display session metadata in a panel
 
@@ -133,8 +134,8 @@ class HistoryViewer:
 
     def display_conversation_history(
         self,
-        messages: List[Dict[str, Any]],
-        max_messages: Optional[int] = None,
+        messages: list[dict[str, Any]],
+        max_messages: int | None = None,
         show_thoughts: bool = False,
     ):
         """
@@ -169,7 +170,7 @@ class HistoryViewer:
 
         self.console.print("\n")
 
-    def _display_message(self, msg: Dict[str, Any], index: int, show_thoughts: bool):
+    def _display_message(self, msg: dict[str, Any], index: int, show_thoughts: bool):
         """
         Display a single message
 
@@ -237,7 +238,7 @@ class HistoryViewer:
             self.console.print("")
 
     def display_session_summary(
-        self, session_id: str, metadata: Dict[str, Any], total_messages: int, agents_used: List[str]
+        self, session_id: str, metadata: dict[str, Any], total_messages: int, agents_used: list[str]
     ):
         """
         Display comprehensive session summary
@@ -257,7 +258,7 @@ class HistoryViewer:
         if metadata.get("description"):
             summary_parts.append(f"[bold]Description:[/bold] {metadata.get('description')}")
 
-        summary_parts.append(f"\n[bold cyan]📊 Statistics:[/bold cyan]")
+        summary_parts.append("\n[bold cyan]📊 Statistics:[/bold cyan]")
         summary_parts.append(f"  • Total messages: {total_messages}")
         summary_parts.append(f"  • Participating agents: {len(agents_used)}")
 
@@ -279,7 +280,7 @@ class HistoryViewer:
         self.console.print(panel)
         self.console.print("\n")
 
-    def prompt_session_selection(self, sessions: List[Dict[str, Any]]) -> Optional[str]:
+    def prompt_session_selection(self, sessions: list[dict[str, Any]]) -> str | None:
         """
         Display sessions and prompt for selection
 
@@ -324,7 +325,7 @@ class HistoryViewer:
             total_messages: Number of messages restored
             agents_restored: Number of agents restored
         """
-        self.console.print(f"\n[green]✅ Session loaded successfully![/green]")
+        self.console.print("\n[green]✅ Session loaded successfully![/green]")
         self.console.print(f"  • Session: {session_id}")
         self.console.print(f"  • Messages restored: {total_messages}")
         self.console.print(f"  • Agents restored: {agents_restored}\n")

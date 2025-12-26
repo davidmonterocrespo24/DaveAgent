@@ -3,7 +3,6 @@ Setup Wizard - Asistente interactivo para configurar DaveAgent
 """
 
 from pathlib import Path
-from typing import Optional
 
 
 def print_welcome_banner():
@@ -60,7 +59,7 @@ def get_api_key_interactive() -> str:
         return api_key
 
 
-def get_provider_choice() -> tuple[Optional[str], Optional[str], Optional[str]]:
+def get_provider_choice() -> tuple[str | None, str | None, str | None]:
     """
     Asks which provider to use with improved menu
 
@@ -87,9 +86,7 @@ def get_provider_choice() -> tuple[Optional[str], Optional[str], Optional[str]]:
         return None, None, None
 
 
-def ask_save_to_env(
-    api_key: str, base_url: Optional[str] = None, model: Optional[str] = None
-) -> bool:
+def ask_save_to_env(api_key: str, base_url: str | None = None, model: str | None = None) -> bool:
     """
     Asks if they want to save the configuration to .env
 
@@ -144,8 +141,8 @@ def ask_save_to_env(
                 return False
 
         # Create .env content
-        env_content = f"# DaveAgent Configuration\n"
-        env_content += f"# Generated automatically\n\n"
+        env_content = "# DaveAgent Configuration\n"
+        env_content += "# Generated automatically\n\n"
         env_content += f"DAVEAGENT_API_KEY={api_key}\n"
 
         if base_url:
@@ -179,7 +176,7 @@ def ask_save_to_env(
         return False
 
 
-def run_interactive_setup() -> tuple[str, Optional[str], Optional[str]]:
+def run_interactive_setup() -> tuple[str, str | None, str | None]:
     """
     Runs the complete configuration wizard
 
@@ -200,7 +197,7 @@ def run_interactive_setup() -> tuple[str, Optional[str], Optional[str]]:
     return api_key, base_url, model
 
 
-def should_run_setup(api_key: Optional[str]) -> bool:
+def should_run_setup(api_key: str | None) -> bool:
     """
     Determines if interactive setup should run
 

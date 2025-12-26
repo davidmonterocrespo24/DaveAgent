@@ -4,10 +4,9 @@ Git Tools for AutoGen - Basic git operations
 
 import asyncio
 import os
-from typing import Optional, List, Union
 
 
-async def git_status(path: Optional[str] = None) -> str:
+async def git_status(path: str | None = None) -> str:
     """
     Gets the git repository status.
 
@@ -79,7 +78,7 @@ Untracked files: {untracked}
         return f"ERROR executing git status: {str(e)}"
 
 
-async def git_add(files: Union[str, List[str]], path: Optional[str] = None) -> str:
+async def git_add(files: str | list[str], path: str | None = None) -> str:
     """
     Adds files to the git staging area.
 
@@ -115,7 +114,7 @@ async def git_add(files: Union[str, List[str]], path: Optional[str] = None) -> s
         return f"ERROR executing git add: {str(e)}"
 
 
-async def git_commit(message: str, path: Optional[str] = None) -> str:
+async def git_commit(message: str, path: str | None = None) -> str:
     """
     Creates a commit with staged changes.
 
@@ -151,7 +150,7 @@ async def git_commit(message: str, path: Optional[str] = None) -> str:
 
 
 async def git_push(
-    remote: str = "origin", branch: Optional[str] = None, path: Optional[str] = None
+    remote: str = "origin", branch: str | None = None, path: str | None = None
 ) -> str:
     """
     Pushes commits to the remote repository.
@@ -189,7 +188,7 @@ async def git_push(
 
 
 async def git_pull(
-    remote: str = "origin", branch: Optional[str] = None, path: Optional[str] = None
+    remote: str = "origin", branch: str | None = None, path: str | None = None
 ) -> str:
     """
     Pulls changes from the remote repository.
@@ -225,7 +224,7 @@ async def git_pull(
         return f"ERROR executing git pull: {str(e)}"
 
 
-async def git_log(limit: int = 10, path: Optional[str] = None) -> str:
+async def git_log(limit: int = 10, path: str | None = None) -> str:
     """
     Shows the commit history.
 
@@ -262,7 +261,7 @@ async def git_log(limit: int = 10, path: Optional[str] = None) -> str:
 
 
 async def git_branch(
-    operation: str = "list", branch_name: Optional[str] = None, path: Optional[str] = None
+    operation: str = "list", branch_name: str | None = None, path: str | None = None
 ) -> str:
     """
     Manages git branches.
@@ -304,7 +303,7 @@ async def git_branch(
         return f"ERROR executing git branch: {str(e)}"
 
 
-async def git_diff(cached: bool = False, path: Optional[str] = None) -> str:
+async def git_diff(cached: bool = False, path: str | None = None) -> str:
     """
     Shows the differences in the repository.
 

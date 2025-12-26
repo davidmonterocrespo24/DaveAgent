@@ -42,33 +42,3 @@ def get_thinking_mode_enabled(model: str) -> bool:
     """
     # Enable automatically for deepseek-reasoner and deepseek-r1
     return model in ("deepseek-reasoner", "deepseek-r1")
-
-
-# User documentation
-DEEPSEEK_REASONER_INFO = """
-═══════════════════════════════════════════════════════════════
-🧠 DEEPSEEK REASONER (R1) - THINKING MODE ENABLED
-
-This client uses DeepSeek R1 with extended reasoning mode.
-
-FEATURES:
-✅ Reasoning mode (thinking mode) enabled
-✅ Full support for tool calls
-✅ Automatic preservation of reasoning_content
-✅ Compatible with all AutoGen functions
-
-SUPPORTED MODELS:
-- deepseek-reasoner (R1) - Recommended
-- deepseek-chat + thinking mode
-- deepseek-r1
-
-HOW IT WORKS:
-The model generates a "reasoning_content" with its reasoning
-process before giving the final answer. This reasoning
-improves response quality, especially for complex tasks
-and multiple tool calls.
-
-REFERENCE:
-https://api-docs.deepseek.com/guides/thinking_mode
-═══════════════════════════════════════════════════════════════
-"""

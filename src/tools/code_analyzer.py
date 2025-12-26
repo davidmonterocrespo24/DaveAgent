@@ -5,7 +5,7 @@ Analyzes Python file structure to extract functions, classes, and imports
 
 import ast
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
 
 async def analyze_python_file(filepath: str) -> str:
@@ -26,7 +26,7 @@ async def analyze_python_file(filepath: str) -> str:
         if not filepath.endswith(".py"):
             return f"ERROR: {filepath} is not a Python file (.py)"
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         tree = ast.parse(content, filename=filepath)
@@ -96,7 +96,7 @@ async def find_function_definition(filepath: str, function_name: str) -> str:
         if not file_path.exists():
             return f"ERROR: File not found: {filepath}"
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
             lines = content.splitlines()
 
@@ -140,7 +140,7 @@ async def list_all_functions(filepath: str) -> str:
         if not file_path.exists():
             return f"ERROR: File not found: {filepath}"
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         tree = ast.parse(content, filename=filepath)
@@ -165,7 +165,7 @@ async def list_all_functions(filepath: str) -> str:
         return f"ERROR: {str(e)}"
 
 
-def _extract_imports(tree: ast.AST) -> List[Dict[str, Any]]:
+def _extract_imports(tree: ast.AST) -> list[dict[str, Any]]:
     """Extracts imports from AST"""
     imports = []
 
@@ -196,7 +196,7 @@ def _extract_imports(tree: ast.AST) -> List[Dict[str, Any]]:
     return imports
 
 
-def _extract_classes(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
+def _extract_classes(tree: ast.AST, content: str) -> list[dict[str, Any]]:
     """Extracts classes from AST"""
     classes = []
 
@@ -231,7 +231,7 @@ def _extract_classes(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
     return classes
 
 
-def _extract_functions(tree: ast.AST, content: str) -> List[Dict[str, Any]]:
+def _extract_functions(tree: ast.AST, content: str) -> list[dict[str, Any]]:
     """Extracts functions from AST"""
     functions = []
     lines = content.splitlines()

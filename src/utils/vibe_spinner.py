@@ -7,7 +7,10 @@ import random
 import sys
 import threading
 import time
-from typing import Optional, List
+
+# Global registry for active spinner (module level for safety across imports)
+_GLOBAL_ACTIVE_SPINNER: "VibeSpinner | None" = None
+_ALL_SPINNERS: set["VibeSpinner"] = set()
 
 
 class VibeSpinner:
@@ -101,7 +104,6 @@ class VibeSpinner:
         "bounce": ["⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"],
     }
 
-    # ANSI color codes
     COLORS = {
         "cyan": "\033[96m",
         "blue": "\033[94m",
@@ -113,9 +115,46 @@ class VibeSpinner:
         "dim": "\033[2m",
     }
 
+    @classmethod
+    def set_active_spinner(cls, spinner):
+        global _GLOBAL_ACTIVE_SPINNER
+        _GLOBAL_ACTIVE_SPINNER = spinner
+
+    @classmethod
+    def clear_active_spinner(cls):
+        global _GLOBAL_ACTIVE_SPINNER
+        _GLOBAL_ACTIVE_SPINNER = None
+
+    @classmethod
+    def pause_active_spinner(cls):
+        """Pauses ANY active spinner instance"""
+        # Note: No 'global' needed as we only read these variables, not reassign them
+        paused_spinner = None
+
+        # 1. Check primary global
+        if _GLOBAL_ACTIVE_SPINNER and _GLOBAL_ACTIVE_SPINNER.is_running():
+            _GLOBAL_ACTIVE_SPINNER.stop(clear_line=True)
+            paused_spinner = _GLOBAL_ACTIVE_SPINNER
+
+        # 2. Check ALL known instances (Nuclear Option for ghosts)
+        # Use list copy to avoid modification during iteration if needed
+        for spinner in list(_ALL_SPINNERS):
+            if spinner.is_running():
+                spinner.stop(clear_line=True)
+                if not paused_spinner:
+                    paused_spinner = spinner
+
+        return paused_spinner
+
+    @classmethod
+    def resume_spinner(cls, spinner):
+        """Resumes a paused spinner"""
+        if spinner:
+            spinner.start()
+
     def __init__(
         self,
-        messages: Optional[List[str]] = None,
+        messages: list[str] | None = None,
         *,
         spinner_style: str = "dots",
         color: str = "cyan",
@@ -145,7 +184,10 @@ class VibeSpinner:
         self.update_interval = update_interval
         self.message_interval = message_interval
 
-        self._thread: Optional[threading.Thread] = None
+        # Register in global list (no need for 'global' as we're only mutating the set)
+        _ALL_SPINNERS.add(self)
+
+        self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._current_message_index = 0
         self._spinner_index = 0
@@ -188,6 +230,9 @@ class VibeSpinner:
         if self._thread is not None and self._thread.is_alive():
             return  # Already running
 
+        # REGISTER AS ACTIVE SPINNER
+        VibeSpinner.set_active_spinner(self)
+
         # Randomize starting message for variety
         self._current_message_index = random.randint(0, len(self.messages) - 1)
         self._spinner_index = 0
@@ -205,6 +250,9 @@ class VibeSpinner:
         Args:
             clear_line: Whether to clear the spinner line
         """
+        # CLEAR ACTIVE SPINNER
+        VibeSpinner.clear_active_spinner()
+
         if self._thread is None or not self._thread.is_alive():
             return  # Not running
 
@@ -248,7 +296,7 @@ class VibeSpinner:
 
 # Convenience function
 def show_vibe_spinner(
-    message: Optional[str] = None, style: str = "dots", color: str = "cyan", language: str = "es"
+    message: str | None = None, style: str = "dots", color: str = "cyan", language: str = "es"
 ) -> VibeSpinner:
     """
     Create and start a vibe spinner

@@ -3,30 +3,41 @@ Main file - Complete CLI interface for the code agent
 NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 """
 
+# IMPORTANTE: Filtros de warnings ANTES de todos los imports
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="autogen.import_utils")
+warnings.filterwarnings(
+    "ignore", category=DeprecationWarning, module="chromadb.api.collection_configuration"
+)
+
 import asyncio
 import logging
+import os
+import sys
+
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
+from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
 
 # Imports added for the new flow
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from src.agents import CodeSearcher
+# Ensure we use local src files over installed packages
+sys.path.insert(0, os.getcwd())
 
 # Import from new structure
 from src.config import (
     CODER_AGENT_DESCRIPTION,
-    COMPLEXITY_DETECTOR_PROMPT,
     PLANNING_AGENT_DESCRIPTION,
     PLANNING_AGENT_SYSTEM_MESSAGE,
 )
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
-from src.managers import StateManager
-from src.observability import init_langfuse_tracing, is_langfuse_enabled
-from src.utils import get_logger, get_conversation_tracker, HistoryViewer, LoggingModelClientWrapper
-from src.skills import SkillManager
+
+# Managers moved to __init__
+from src.utils import HistoryViewer, LoggingModelClientWrapper, get_conversation_tracker, get_logger
+from src.utils.errors import UserCancelledError
 
 
 class DaveAgentCLI:
@@ -44,25 +55,23 @@ class DaveAgentCLI:
     ):
         """
         Initialize all agent components
-
-        Args:
-            debug: Debug mode enabled
-            api_key: API key for the LLM model
-            base_url: Base URL of the API
-            model: Name of the model to use
-            ssl_verify: Whether to verify SSL certificates (default True)
-            headless: Headless mode without interactive CLI (for evaluations/tests)
         """
+        import time
+
+        t_start = time.time()
+
         # Configure logging (now in .daveagent/logs/)
         log_level = logging.DEBUG if debug else logging.INFO
         self.logger = get_logger(log_file=None, level=log_level)  # Use default path
 
+        t0 = time.time()
         # Configure conversation tracker (logs to .daveagent/conversations.json)
         self.conversation_tracker = get_conversation_tracker()
 
         # Mode system: "agent" (with tools) or "chat" (without modification tools)
         self.current_mode = "agent"  # Default mode
 
+        t0 = time.time()
         # Load configuration (API key, URL, model)
         from src.config import get_settings
 
@@ -77,15 +86,8 @@ class DaveAgentCLI:
             print(error_msg)
             raise ValueError("Invalid configuration")
 
-        self.logger.info(f"✓ Configuration loaded: {self.settings}")
-
         # DEEPSEEK REASONER SUPPORT
         # Use DeepSeekReasoningClient for models with thinking mode
-        from src.utils.deepseek_fix import should_use_reasoning_client, DEEPSEEK_REASONER_INFO
-
-        # Create model client
-        self.logger.debug(f"Configuring model client: {self.settings.model}")
-        self.logger.debug(f"SSL verify: {self.settings.ssl_verify}")
 
         # Create custom HTTP client with SSL configuration
         import httpx
@@ -97,144 +99,223 @@ class DaveAgentCLI:
         from src.utils.json_logger import JSONLogger
 
         self.json_logger = JSONLogger()
-        self.logger.info("✅ JSONLogger initialized - capturing all interactions")
 
-        # Create base model client (with DeepSeek Reasoner support)
-        if should_use_reasoning_client(self.settings):
-            # Use DeepSeekReasoningClient to preserve reasoning_content
-            from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
+        # =====================================================================
+        # DYNAMIC MODEL CLIENTS (Base vs Strong)
+        # =====================================================================
 
-            base_model_client = DeepSeekReasoningClient(
-                model=self.settings.model,
-                base_url=self.settings.base_url,
-                api_key=self.settings.api_key,
-                model_capabilities=self.settings.get_model_capabilities(),
-                http_client=http_client,
-                enable_thinking=None,  # Auto-detect based on model name
-            )
-
-            # Print info safely (avoid encoding errors in Windows)
-            try:
-                print(DEEPSEEK_REASONER_INFO)
-            except UnicodeEncodeError:
-                print("[DeepSeek Reasoner Info - encoding issue]")
-            self.logger.info(f"DeepSeek Reasoner enabled for {self.settings.model}")
-        else:
-            # Use standard client for other models
-            base_model_client = OpenAIChatCompletionClient(
-                model=self.settings.model,
-                base_url=self.settings.base_url,
-                api_key=self.settings.api_key,
-                model_capabilities=self.settings.get_model_capabilities(),
-                http_client=http_client,
-            )
-            self.logger.info(f"🤖 Standard client for {self.settings.model}")
-
-        # Wrap the model_client with LoggingModelClientWrapper to capture LLM calls
-        self.model_client = LoggingModelClientWrapper(
-            wrapped_client=base_model_client,
-            json_logger=self.json_logger,
-            agent_name="SystemRouter",  # Will be updated per agent
+        # 1. Base Client (lighter/faster) - Usually deepseek-chat or gpt-4o-mini
+        # For base model we typically use standard client (no reasoning usually needed)
+        self.client_base = OpenAIChatCompletionClient(
+            model=self.settings.base_model,
+            base_url=self.settings.base_url,
+            api_key=self.settings.api_key,
+            model_info=self.settings.get_model_capabilities(),
+            custom_http_client=http_client,
         )
-        self.logger.info("✅ Model client wrapped with logging interceptor")
 
-        # ROUTER CLIENT: Create separate client WITHOUT thinking for SelectorGroupChat
-        # The router does not support extra_body parameters like {"thinking": ...}
-        if self.settings.model == "deepseek-reasoner":
-            # For deepseek-reasoner, use deepseek-chat in the router
-            router_model = "deepseek-chat"
-            self.logger.info(f"🔀 Router will use {router_model} (without thinking mode)")
+        # 2. Strong Client (Reasoning/Powerful) - Usually deepseek-reasoner or gpt-4o
+        from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
+
+        # Check if strong model needs reasoning client
+        is_deepseek_reasoner = (
+            "deepseek-reasoner" in self.settings.strong_model.lower()
+            and "deepseek" in self.settings.base_url.lower()
+        )
+
+        if is_deepseek_reasoner:
+            self.client_strong = DeepSeekReasoningClient(
+                model=self.settings.strong_model,
+                base_url=self.settings.base_url,
+                api_key=self.settings.api_key,
+                model_info=self.settings.get_model_capabilities(),
+                custom_http_client=http_client,
+                enable_thinking=None,  # Auto detect
+            )
+
         else:
-            router_model = self.settings.model
+            self.client_strong = OpenAIChatCompletionClient(
+                model=self.settings.strong_model,
+                base_url=self.settings.base_url,
+                api_key=self.settings.api_key,
+                model_info=self.settings.get_model_capabilities(),
+                custom_http_client=http_client,
+            )
 
+        # Wrappers for Logging
+        # Note: We will wrap them again with specific agent names later,
+        # but here we set up the default 'model_client' for compatibility with rest of init
+
+        # Default model client (starts as Strong for compatibility)
+        self.model_client = LoggingModelClientWrapper(
+            wrapped_client=self.client_strong,
+            json_logger=self.json_logger,
+            agent_name="SystemRouter",
+        )
+
+        # ROUTER CLIENT: Always use Base Model for routing/planning
         self.router_client = OpenAIChatCompletionClient(
-            model=router_model,
+            model=self.settings.base_model,  # Use base model for router
             base_url=self.settings.base_url,
             api_key=self.settings.api_key,
             model_capabilities=self.settings.get_model_capabilities(),
             http_client=http_client,
         )
-        self.logger.info(f"✅ Router client created with model: {router_model}")
+        print(f"[Startup] Model clients initialized in {time.time() - t0:.4f}s")
 
+        t0 = time.time()
         # State management system (AutoGen save_state/load_state)
-        self.state_manager = StateManager(
-            auto_save_enabled=True, auto_save_interval=300  # Auto-save every 5 minutes
-        )
+        from src.managers import StateManager
 
-        # Agent Skills system (Claude-compatible)
-        self.skill_manager = SkillManager(logger=self.logger)
+        self.state_manager = StateManager(
+            auto_save_enabled=True,
+            auto_save_interval=300,  # Auto-save every 5 minutes
+        )
+        print(f"[Startup] StateManager initialized in {time.time() - t0:.4f}s")
+
+        t0 = time.time()
+        # RAG Manager (Advanced retrieval system)
+        print("[Startup] Importing RAGManager...")
+        t_rag_import = time.time()
+        from src.managers.rag_manager import RAGManager
+
+        print(f"[Startup] RAGManager imported in {time.time() - t_rag_import:.4f}s")
+
+        # Used for ContextManager search and SkillManager indexing
+        # Initialize RAG Manager first
+        # Use current working directory for rag_data persistence
+        work_dir = os.getcwd()
+        self.rag_manager = RAGManager(
+            settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data"
+        )
+        print(f"[Startup] RAGManager initialized in {time.time() - t0:.4f}s")
+
+        # Start background warmup to load heavy models
+        import threading
+
+        if hasattr(self.rag_manager, "warmup"):
+            threading.Thread(target=self.rag_manager.warmup, daemon=True).start()
+        else:
+            print("[Startup] Warning: RAGManager warmup method missing (using stale version?)")
+
+        t0 = time.time()
+        # Agent Skills system (Claude-compatible and RAG-enhanced)
+        from src.skills import SkillManager
+
+        self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger.logger)
         skill_count = self.skill_manager.discover_skills()
         if skill_count > 0:
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
         else:
             self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
+        print(f"[Startup] SkillManager initialized in {time.time() - t0:.4f}s")
+
+        t0 = time.time()
+        # Context Manager (DAVEAGENT.md)
+        from src.managers import ContextManager
+
+        self.context_manager = ContextManager(logger=self.logger)
+        context_files = self.context_manager.discover_context_files()
+        if context_files:
+            self.logger.info(f"✓ Found {len(context_files)} DAVEAGENT.md context file(s)")
+        else:
+            self.logger.debug("No DAVEAGENT.md context files found")
+        print(f"[Startup] ContextManager initialized in {time.time() - t0:.4f}s")
+
+        # Error Reporter (sends errors to SigNoz instead of creating GitHub issues)
+        from src.managers import ErrorReporter
+
+        self.error_reporter = ErrorReporter(logger=self.logger)
 
         # Observability system with Langfuse (simple method with OpenLit)
-        self.langfuse_enabled = False
-        try:
-            # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
-            self.langfuse_enabled = init_langfuse_tracing(enabled=True, debug=debug)
+        # Observability system with Langfuse (simple method with OpenLit)
+        # MOVED TO BACKGROUND COMPONENT (THREAD) to avoid blocking startup (40s delay)
+        self.langfuse_enabled = False  # Will be set to True by background thread eventually
 
-            if self.langfuse_enabled:
-                self.logger.info("✅ Langfuse + OpenLit enabled - automatic tracking active")
-                self.logger.info("   All AutoGen operations will be tracked automatically")
-            else:
-                self.logger.info("ℹ️ Langfuse not available - continuing without tracking")
-        except Exception as e:
-            self.logger.warning(f"⚠️ Error initializing Langfuse: {e}")
-            self.langfuse_enabled = False
+        def init_telemetry_background():
+            try:
+                # Setup Langfuse environment from obfuscated credentials
+                from src.config import is_telemetry_enabled, setup_langfuse_environment
 
+                if is_telemetry_enabled():
+                    # Check first if we should even proceed, to avoid heavy imports
+                    setup_langfuse_environment()
+
+                    # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
+                    from src.observability import init_langfuse_tracing
+
+                    if init_langfuse_tracing(enabled=True, debug=debug):
+                        self.langfuse_enabled = True
+                        # Use print because logger might not be thread-safe or visible yet
+                        # but we want to confirm it loaded
+                        if debug:
+                            print("[Background] ✓ Telemetry enabled - Langfuse + OpenLit active")
+                    else:
+                        if debug:
+                            print(
+                                "[Background] ✗ Langfuse not available - continuing without tracking"
+                            )
+            except Exception as e:
+                if debug:
+                    print(f"[Background] ✗ Error initializing Langfuse: {e}")
+
+        # Start telemetry in background
+        threading.Thread(target=init_telemetry_background, daemon=True).start()
+
+        t0 = time.time()
         # Import all tools from the new structure
         from src.tools import (
-            # Filesystem
-            read_file,
-            write_file,
-            list_dir,
-            edit_file,
+            # Analysis
+            analyze_python_file,
+            csv_info,
+            csv_to_json,
             delete_file,
+            edit_file,
             file_search,
-            glob_search,
+            filter_csv,
+            find_function_definition,
+            format_json,
+            git_add,
+            git_branch,
+            git_commit,
+            git_diff,
+            git_log,
+            git_pull,
+            git_push,
             # Git
             git_status,
-            git_add,
-            git_commit,
-            git_push,
-            git_pull,
-            git_log,
-            git_branch,
-            git_diff,
-            # JSON
-            read_json,
-            write_json,
-            merge_json_files,
-            validate_json,
-            format_json,
+            glob_search,
+            grep_search,
             json_get_value,
             json_set_value,
             json_to_text,
+            list_all_functions,
+            list_dir,
+            merge_csv_files,
+            merge_json_files,
             # CSV
             read_csv,
-            write_csv,
-            csv_info,
-            filter_csv,
-            merge_csv_files,
-            csv_to_json,
+            # Filesystem
+            read_file,
+            # JSON
+            read_json,
+            run_terminal_cmd,
             sort_csv,
-            # Web
-            wiki_search,
-            wiki_summary,
+            validate_json,
+            web_search,
             wiki_content,
             wiki_page_info,
             wiki_random,
+            # Web
+            wiki_search,
             wiki_set_language,
-            web_search,
-            # Analysis
-            analyze_python_file,
-            find_function_definition,
-            list_all_functions,
-            grep_search,
-            run_terminal_cmd,
+            wiki_summary,
+            write_csv,
+            write_file,
+            write_json,
         )
+
+        self.logger.info(f"[Startup] Tools imported in {time.time() - t0:.4f}s")
 
         # Store all tools to filter them according to mode
         self.all_tools = {
@@ -286,21 +367,9 @@ class DaveAgentCLI:
                 sort_csv,
                 run_terminal_cmd,
             ],
-            # Specific tools for CodeSearcher (always available)
-            "search": [
-                grep_search,
-                file_search,
-                glob_search,
-                read_file,
-                list_dir,
-                analyze_python_file,
-                find_function_definition,
-                list_all_functions,
-            ],
         }
 
-        # Initialize agents according to current mode
-        self._initialize_agents_for_mode()
+        self.logger.info(f"✨ DaveAgent initialized in {time.time() - t_start:.2f}s")
 
         # System components
         if headless:
@@ -330,6 +399,9 @@ class DaveAgentCLI:
 
         self.running = True
 
+        # Initialize agents and main_team for the current mode
+        self._initialize_agents_for_mode()
+
     def _initialize_agents_for_mode(self):
         """
         Initialize all system agents according to current mode
@@ -341,27 +413,31 @@ class DaveAgentCLI:
         errors with "multiple system messages" in models like DeepSeek.
         Instead, they use RAG tools (query_*_memory, save_*).
         """
+
         if self.current_mode == "agent":
             # AGENT mode: all tools + technical prompt
             coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
             system_prompt = AGENT_SYSTEM_PROMPT
-            self.logger.info("🔧 Initializing in AGENT mode (all tools)")
         else:
             # CHAT mode: read-only + conversational prompt
             coder_tools = self.all_tools["read_only"]
             system_prompt = CHAT_SYSTEM_PROMPT
-            self.logger.info("💬 Initializing in CHAT mode (read-only)")
 
         # =====================================================================
-        # INJECT SKILL METADATA INTO SYSTEM PROMPT
+        # SKILL METADATA IS NOW INJECTED DYNAMICALLY VIA RAG
         # =====================================================================
-        # Add available skills metadata so the agent knows what skills exist
-        # and can identify when to use them based on user requests
+        # See process_user_request() where finding_relevant_skills is called
         # =====================================================================
-        skill_metadata = self.skill_manager.get_skills_metadata()
-        if skill_metadata:
-            system_prompt = system_prompt + f"\n\n<available_skills>\n{skill_metadata}\n</available_skills>"
-            self.logger.debug(f"Injected {len(self.skill_manager)} skill(s) metadata into prompt")
+
+        # =====================================================================
+        # INJECT PROJECT CONTEXT (DAVEAGENT.md)
+        # =====================================================================
+        # Load specific instructions, commands, and guidelines from DAVEAGENT.md
+        # =====================================================================
+        project_context = self.context_manager.get_combined_context()
+        if project_context:
+            system_prompt = system_prompt + project_context
+            self.logger.info("✓ Injected project context from DAVEAGENT.md")
 
         # =====================================================================
         # IMPORTANT: DO NOT use parameter 'memory' - CAUSES ERROR WITH DEEPSEEK
@@ -375,20 +451,18 @@ class DaveAgentCLI:
         # =====================================================================
 
         # Create separate wrappers for each agent (for logging with correct names)
+
+        # Create separate wrappers for each agent (for logging with correct names)
+        # 1. Coder (Defaulting to Strong client, but will be switched dynamically)
         coder_client = LoggingModelClientWrapper(
-            wrapped_client=self.model_client._wrapped,
+            wrapped_client=self.client_strong,
             json_logger=self.json_logger,
             agent_name="Coder",
         )
 
-        searcher_client = LoggingModelClientWrapper(
-            wrapped_client=self.model_client._wrapped,
-            json_logger=self.json_logger,
-            agent_name="CodeSearcher",
-        )
-
+        # 2. Planner (Always Base client)
         planner_client = LoggingModelClientWrapper(
-            wrapped_client=self.model_client._wrapped,
+            wrapped_client=self.client_base,
             json_logger=self.json_logger,
             agent_name="Planner",
         )
@@ -400,15 +474,8 @@ class DaveAgentCLI:
             system_message=system_prompt,
             model_client=coder_client,
             tools=coder_tools,  # Includes memory RAG tools
-            max_tool_iterations=5,
+            max_tool_iterations=25,
             reflect_on_tool_use=False,
-            # NO memory parameter - uses RAG tools instead
-        )
-
-        # Create CodeSearcher with search tools (without memory parameter)
-        self.code_searcher = CodeSearcher(
-            searcher_client,
-            self.all_tools["search"],  # Includes query_codebase_memory, query_conversation_memory
             # NO memory parameter - uses RAG tools instead
         )
 
@@ -422,16 +489,12 @@ class DaveAgentCLI:
             # NO memory parameter
         )
 
-        # SummaryAgent REMOVED - Caused conflicts and was not necessary
-        # Coder and Planner agents can generate their own summaries
-
         # =====================================================================
         # ROUTER TEAM: Single SelectorGroupChat that routes automatically
         # =====================================================================
         # This team automatically decides which agent to use according to context:
         # - Planner: For complex multi-step tasks
-        # - CodeSearcher: For code search and analysis
-        # - Coder: For direct code modifications
+        # - Coder: For code modifications and analysis
         #
         # Advantages:
         # - Does not need manual complexity detection
@@ -443,11 +506,11 @@ class DaveAgentCLI:
         termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(50)
 
         self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
-        self.logger.debug(f"[SELECTOR] Participants: Planner, CodeSearcher, Coder")
-        self.logger.debug(f"[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(10)")
+        self.logger.debug("[SELECTOR] Participants: Planner, Coder")
+        self.logger.debug("[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(50)")
 
         self.main_team = SelectorGroupChat(
-            participants=[self.planning_agent, self.code_searcher.searcher_agent, self.coder_agent],
+            participants=[self.planning_agent, self.coder_agent],
             model_client=self.router_client,
             termination_condition=termination_condition,
             allow_repeated_speaker=True,  # Allows the same agent to speak multiple times
@@ -464,7 +527,6 @@ class DaveAgentCLI:
         This creates new instances of all agents with the correct
         configuration for the mode (tools + system prompt).
         """
-        self.logger.info(f"🔄 Reinitializing complete system for mode: {self.current_mode.upper()}")
 
         # STEP 1: Clean current StateManager session
         if self.state_manager.session_id:
@@ -473,10 +535,7 @@ class DaveAgentCLI:
 
         # STEP 2: Reinitialize agents
         # Agents will use RAG tools instead of memory parameter
-        self.logger.debug("🔧 Creating new agents...")
         self._initialize_agents_for_mode()
-
-        self.logger.info(f"✅ System completely reinitialized in mode: {self.current_mode.upper()}")
 
     async def handle_command(self, command: str) -> bool:
         """Handles special user commands"""
@@ -519,6 +578,17 @@ class DaveAgentCLI:
             # Show current session history
             await self._show_history_command(parts)
 
+        elif cmd == "/init":
+            # Create DAVEAGENT.md template
+            try:
+                path = self.context_manager.create_template()
+                self.cli.print_success(f"✓ Created configuration file: {path}")
+                self.cli.print_info(
+                    "Edit this file to add project-specific commands and guidelines."
+                )
+            except Exception as e:
+                self.cli.print_error(f"Error creating DAVEAGENT.md: {e}")
+
         # REMOVED: /load command - Use /load-state instead (AutoGen official)
 
         elif cmd == "/debug":
@@ -552,9 +622,7 @@ class DaveAgentCLI:
                 self.cli.set_mode("agent")  # Update CLI display
                 await self._update_agent_tools_for_mode()
                 self.cli.print_success("🔧 AGENT mode enabled")
-                self.cli.print_info("✓ All tools enabled (read + modification)")
                 self.cli.print_info("✓ The agent can modify files and execute commands")
-                self.logger.info("Mode changed to: AGENT")
 
         elif cmd == "/modo-chat":
             # Switch to chat mode (read-only tools)
@@ -565,10 +633,8 @@ class DaveAgentCLI:
                 self.cli.set_mode("chat")  # Update CLI display
                 await self._update_agent_tools_for_mode()
                 self.cli.print_success("💬 CHAT mode enabled")
-                self.cli.print_info("✓ Only read tools enabled")
                 self.cli.print_info("✗ The agent CANNOT modify files or execute commands")
                 self.cli.print_info("ℹ️  Use /modo-agent to return to full mode")
-                self.logger.info("Mode changed to: CHAT")
 
         elif cmd == "/config" or cmd == "/configuracion":
             # Show current configuration
@@ -663,16 +729,6 @@ class DaveAgentCLI:
                     )
                 self.logger.info(f"SSL verify changed from {old_ssl} to {new_ssl}")
 
-        elif cmd == "/search":
-            # Invoke CodeSearcher to search in the code
-            if len(parts) < 2:
-                self.cli.print_error("Usage: /search <query>")
-                self.cli.print_info("Example: /search authentication function")
-            else:
-                query = parts[1]
-                self.cli.print_thinking(f"🔍 Searching in code: {query}")
-                await self._run_code_searcher(query)
-
         elif cmd == "/skills":
             # List available agent skills
             await self._list_skills_command()
@@ -684,6 +740,41 @@ class DaveAgentCLI:
                 self.cli.print_info("Use /skills to see available skills")
             else:
                 await self._show_skill_info_command(parts[1])
+
+        elif cmd == "/telemetry-off":
+            # Disable telemetry
+            from src.config import is_telemetry_enabled, set_telemetry_enabled
+
+            if not is_telemetry_enabled():
+                self.cli.print_info("📊 Telemetry is already disabled")
+            else:
+                set_telemetry_enabled(False)
+                self.cli.print_success("📊 Telemetry disabled")
+                self.cli.print_info("ℹ️  Changes will take effect on next restart")
+
+        elif cmd == "/telemetry-on":
+            # Enable telemetry
+            from src.config import is_telemetry_enabled, set_telemetry_enabled
+
+            if is_telemetry_enabled():
+                self.cli.print_info("📊 Telemetry is already enabled")
+            else:
+                set_telemetry_enabled(True)
+                self.cli.print_success("📊 Telemetry enabled")
+                self.cli.print_info("ℹ️  Changes will take effect on next restart")
+
+        elif cmd == "/telemetry":
+            # Show telemetry status
+            from src.config import is_telemetry_enabled
+
+            status = "enabled" if is_telemetry_enabled() else "disabled"
+            runtime = "active" if self.langfuse_enabled else "inactive"
+            self.cli.print_info(f"📊 Telemetry status: {status}")
+            self.cli.print_info(f"📊 Runtime status: {runtime}")
+            if not is_telemetry_enabled():
+                self.cli.print_info("ℹ️  Use /telemetry-on to enable telemetry")
+            else:
+                self.cli.print_info("ℹ️  Use /telemetry-off to disable telemetry")
 
         else:
             self.cli.print_error(f"Unknown command: {cmd}")
@@ -717,19 +808,31 @@ class DaveAgentCLI:
             if personal_skills:
                 self.cli.print_info("📁 Personal Skills:")
                 for skill in personal_skills:
-                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    desc = (
+                        skill.description[:60] + "..."
+                        if len(skill.description) > 60
+                        else skill.description
+                    )
                     self.cli.print_info(f"  • {skill.name}: {desc}")
 
             if project_skills:
                 self.cli.print_info("\n📂 Project Skills:")
                 for skill in project_skills:
-                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    desc = (
+                        skill.description[:60] + "..."
+                        if len(skill.description) > 60
+                        else skill.description
+                    )
                     self.cli.print_info(f"  • {skill.name}: {desc}")
 
             if plugin_skills:
                 self.cli.print_info("\n🔌 Plugin Skills:")
                 for skill in plugin_skills:
-                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    desc = (
+                        skill.description[:60] + "..."
+                        if len(skill.description) > 60
+                        else skill.description
+                    )
                     self.cli.print_info(f"  • {skill.name}: {desc}")
 
             self.cli.print_info("\n💡 Use /skill-info <name> for details")
@@ -938,17 +1041,10 @@ TITLE:"""
                 title = await self._generate_session_title()
 
                 self.state_manager.start_session(session_id=session_id, title=title)
-                self.logger.info(f"🎯 New session created with title: {title}")
 
             # Save state of each agent
             await self.state_manager.save_agent_state(
                 "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
-            )
-
-            await self.state_manager.save_agent_state(
-                "code_searcher",
-                self.code_searcher.searcher_agent,
-                metadata={"description": "Code search and analysis agent"},
             )
 
             await self.state_manager.save_agent_state(
@@ -1009,12 +1105,6 @@ TITLE:"""
             )
 
             await self.state_manager.save_agent_state(
-                "code_searcher",
-                self.code_searcher.searcher_agent,
-                metadata={"description": "Code search and analysis agent"},
-            )
-
-            await self.state_manager.save_agent_state(
                 "planning",
                 self.planning_agent,
                 metadata={"description": "Planning and task management agent"},
@@ -1029,11 +1119,11 @@ TITLE:"""
             metadata = self.state_manager.get_session_metadata()
             messages = self.state_manager.get_session_history()
 
-            self.cli.print_success(f"✅ State saved successfully!")
+            self.cli.print_success("✅ State saved successfully!")
             self.cli.print_info(f"  • Title: {metadata.get('title', 'Untitled')}")
             self.cli.print_info(f"  • Session ID: {session_id}")
             self.cli.print_info(f"  • Location: {state_path}")
-            self.cli.print_info(f"  • Agents saved: 3")
+            self.cli.print_info("  • Agents saved: 3")
             self.cli.print_info(f"  • Messages saved: {len(messages)}")
 
             self.logger.info(f"✅ State saved in session: {session_id}")
@@ -1086,11 +1176,6 @@ TITLE:"""
             agents_loaded = 0
 
             if await self.state_manager.load_agent_state("coder", self.coder_agent):
-                agents_loaded += 1
-
-            if await self.state_manager.load_agent_state(
-                "code_searcher", self.code_searcher.searcher_agent
-            ):
                 agents_loaded += 1
 
             if await self.state_manager.load_agent_state("planning", self.planning_agent):
@@ -1223,385 +1308,6 @@ TITLE:"""
             self.cli.print_error(f"Error showing history: {str(e)}")
 
     # =========================================================================
-    # COMPLEXITY DETECTION - Task complexity detection
-    # =========================================================================
-
-    async def _detect_task_complexity(self, user_input: str) -> str:
-        """
-        🔀 SIMPLE ROUTER: Detect complexity with direct model call.
-
-        Does NOT use agents, only calls the model with an optimized prompt.
-
-        FLOWS:
-        - SIMPLE → SelectorGroupChat (CodeSearcher + Coder)
-        - COMPLEX → Planner + TaskExecutor + Agents
-
-        Returns:
-            "simple" or "complex"
-        """
-        try:
-            self.logger.debug(f"🔀 Router: analyzing complexity...")
-
-            # Create prompt with user request
-            prompt = COMPLEXITY_DETECTOR_PROMPT.format(user_input=user_input)
-
-            # DIRECT call to model (without agents, faster)
-            from autogen_core.models import UserMessage
-
-            result = await self.model_client.create(
-                messages=[UserMessage(content=prompt, source="user")]
-            )
-
-            # Extract and parse JSON response
-            response = result.content.strip()
-            self.logger.debug(f"🔀 Model response: {response[:200]}")
-
-            # Parse JSON
-            import json
-            import re
-
-            try:
-                # Clean markdown if it exists (some models add ```json```)
-                json_match = re.search(r'\{[^{}]*"complexity"[^{}]*\}', response, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group(0)
-                    response_data = json.loads(json_str)
-                    complexity = response_data.get("complexity", "simple").lower()
-                    reasoning = response_data.get("reasoning", "No reasoning provided")
-
-                    self.logger.info(f"✅ Router decided: {complexity.upper()}")
-                    self.logger.debug(f"   Reasoning: {reasoning}")
-                else:
-                    # Fallback: search for the word in the response
-                    self.logger.warning("⚠️ Valid JSON not found, using fallback")
-                    if "complex" in response.lower():
-                        complexity = "complex"
-                    else:
-                        complexity = "simple"
-                    self.logger.warning(f"   Fallback decided: {complexity}")
-
-            except json.JSONDecodeError as e:
-                # If JSON parsing fails, use simple fallback
-                self.logger.warning(f"⚠️ Error parsing JSON: {e}, using fallback")
-                if "complex" in response.lower():
-                    complexity = "complex"
-                else:
-                    complexity = "simple"
-                self.logger.warning(f"   Fallback decided: {complexity}")
-
-            return complexity
-
-        except Exception as e:
-            # Safe fallback
-            self.logger.error(f"❌ Error in router: {str(e)}")
-            self.logger.warning("⚠️ Fallback: using SIMPLE flow")
-            return "simple"
-
-    # =========================================================================
-    # CODE SEARCHER - Code search
-    # =========================================================================
-
-    async def _run_code_searcher(self, query: str):
-        """
-        Execute CodeSearcher to search and analyze code
-
-        Args:
-            query: User's search query
-        """
-        try:
-            self.logger.info(f"🔍 Executing CodeSearcher: {query}")
-
-            # Use streaming to show progress in real-time
-            message_count = 0
-            agent_messages_shown = set()
-
-            async for msg in self.code_searcher.search_code_context_stream(query):
-                message_count += 1
-                msg_type = type(msg).__name__
-                self.logger.debug(f"CodeSearcher message #{message_count} - Type: {msg_type}")
-
-                if hasattr(msg, "source") and msg.source != "user":
-                    agent_name = msg.source
-
-                    if hasattr(msg, "content"):
-                        content = msg.content
-                    else:
-                        content = str(msg)
-
-                    # Create unique key
-                    try:
-                        if isinstance(content, list):
-                            content_str = str(content)
-                        else:
-                            content_str = content
-                        message_key = f"{agent_name}:{hash(content_str)}"
-                    except TypeError:
-                        message_key = f"{agent_name}:{hash(str(content))}"
-
-                    if message_key not in agent_messages_shown:
-                        # Show different message types
-                        if msg_type == "ThoughtEvent":
-                            self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
-                            self.logger.debug(f"💭 Thought: {content_str}")
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "ToolCallRequestEvent":
-                            if isinstance(content, list):
-                                for tool_call in content:
-                                    if hasattr(tool_call, "name"):
-                                        tool_name = tool_call.name
-                                        self.cli.print_info(
-                                            f"🔧 Searching with: {tool_name}", agent_name
-                                        )
-                                        self.logger.debug(f"🔧 Tool call: {tool_name}")
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "ToolCallExecutionEvent":
-                            if isinstance(content, list):
-                                for execution_result in content:
-                                    if hasattr(execution_result, "name"):
-                                        tool_name = execution_result.name
-                                        result_preview = (
-                                            str(execution_result.content)[:100]
-                                            if hasattr(execution_result, "content")
-                                            else "OK"
-                                        )
-                                        self.cli.print_thinking(
-                                            f"✅ {agent_name} > {tool_name}: {result_preview}..."
-                                        )
-                                        self.logger.debug(f"✅ Tool result: {tool_name}")
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "TextMessage":
-                            # Show complete analysis
-                            self.cli.print_agent_message(content_str, agent_name)
-                            agent_messages_shown.add(message_key)
-
-            self.cli.print_success(
-                "\n✅ Search completed. Use this information for your next request."
-            )
-            self.logger.info("✅ CodeSearcher completed")
-
-        except Exception as e:
-            self.logger.log_error_with_context(e, "_run_code_searcher")
-            self.cli.print_error(f"Error in code search: {str(e)}")
-
-    # =========================================================================
-    # COMPLEX TASK EXECUTION - SelectorGroupChat with selector_func
-    # =========================================================================
-
-    async def _execute_complex_task(self, user_input: str):
-        """
-        Execute complex tasks using SelectorGroupChat with dynamic re-planning.
-
-        ARCHITECTURE:
-        - PlanningAgent: Create plan, review progress, re-plan
-        - CodeSearcher: Search and analyze existing code
-        - Coder: Execute modifications, create files
-
-        FLOW:
-        1. Planner creates initial plan
-        2. LLM Selector chooses CodeSearcher or Coder for each task
-        3. selector_func forces Planner to review after each action
-        4. Planner can re-plan if necessary
-        5. When everything is complete, Planner marks TASK_COMPLETED
-        """
-        try:
-            self.logger.info("🎯 Using COMPLEX flow: SelectorGroupChat + re-planning")
-            self.cli.print_info("📋 Complex task detected. Starting planning...\n")
-
-            # Custom selection function for dynamic re-planning
-            def custom_selector_func(messages):
-                """
-                Control flow to allow re-planning:
-                - After Planner → LLM Selector decides (Coder/CodeSearcher)
-                - After Coder/CodeSearcher → Return to Planner (review progress)
-                """
-                if not messages:
-                    return None
-
-                last_message = messages[-1]
-
-                # If PlanningAgent just spoke
-                if last_message.source == "Planner":
-                    # Let the LLM selector choose between Coder/CodeSearcher
-                    return None  # None = use default LLM selector
-
-                # If Coder or CodeSearcher acted, ALWAYS return to Planner
-                # so it can review progress and update the plan
-                if last_message.source in ["Coder", "CodeSearcher"]:
-                    return "Planner"
-
-                # For other cases, use default selector
-                return None
-
-            # Create complex team with selector_func
-            termination = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(15)
-
-            complex_team = SelectorGroupChat(
-                participants=[
-                    self.planning_agent,
-                    self.code_searcher.searcher_agent,
-                    self.coder_agent,
-                ],
-                model_client=self.router_client,
-                termination_condition=termination,
-                selector_func=custom_selector_func,  # ← Key for re-planning
-            )
-
-            # Execute with streaming
-            self.logger.debug("Starting SelectorGroupChat with streaming...")
-
-            agent_messages_shown = set()
-            message_count = 0
-            spinner_active = False
-
-            # Start initial spinner
-            self.cli.start_thinking(message="starting planning")
-            spinner_active = True
-
-            async for msg in complex_team.run_stream(task=user_input):
-                message_count += 1
-                msg_type = type(msg).__name__
-
-                if hasattr(msg, "source") and msg.source != "user":
-                    agent_name = msg.source
-
-                    if hasattr(msg, "content"):
-                        content = msg.content
-                    else:
-                        content = str(msg)
-
-                    # Crear clave única
-                    try:
-                        content_str = str(content) if isinstance(content, list) else content
-                        message_key = f"{agent_name}:{hash(content_str)}"
-                    except TypeError:
-                        message_key = f"{agent_name}:{hash(str(content))}"
-
-                    if message_key not in agent_messages_shown:
-                        # Show messages by type
-                        if msg_type == "TextMessage":
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-                                spinner_active = False
-
-                            self.cli.print_agent_message(content_str, agent_name)
-                            self.logger.debug(f"[{agent_name}] {content_str[:100]}")
-                            agent_messages_shown.add(message_key)
-
-                            # After agent finishes, start spinner waiting for next agent
-                            self.cli.start_thinking(message=f"waiting for next action")
-                            spinner_active = True
-
-                        elif msg_type == "ToolCallRequestEvent":
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-
-                            if isinstance(content, list):
-                                tool_names = []
-                                for tool_call in content:
-                                    if hasattr(tool_call, "name"):
-                                        tool_name = tool_call.name
-                                        self.cli.print_info(
-                                            f"🔧 Executing: {tool_name}", agent_name
-                                        )
-                                        tool_names.append(tool_name)
-
-                                # Restart spinner ONCE with first tool name (not in loop)
-                                if tool_names:
-                                    self.cli.start_thinking(message=f"executing {tool_names[0]}")
-                                    spinner_active = True
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "ToolCallExecutionEvent":
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-                                spinner_active = False
-
-                            if isinstance(content, list):
-                                for result in content:
-                                    if hasattr(result, "name"):
-                                        tool_name = result.name
-                                        result_content = (
-                                            str(result.content)
-                                            if hasattr(result, "content")
-                                            else "OK"
-                                        )
-
-                                        # Check if this is an edit_file result with diff
-                                        if (
-                                            tool_name == "edit_file"
-                                            and "DIFF (Changes Applied)" in result_content
-                                        ):
-                                            # Extract and display the diff
-                                            diff_start = result_content.find(
-                                                "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):"
-                                            )
-                                            diff_end = result_content.find(
-                                                "\n═══════════════════════════════════════════════════════════════",
-                                                diff_start + 100,
-                                            )
-
-                                            if diff_start != -1 and diff_end != -1:
-                                                diff_text = result_content[
-                                                    diff_start : diff_end + 64
-                                                ]
-                                                # Print file info first
-                                                info_end = result_content.find(
-                                                    "\n\n", 0, diff_start
-                                                )
-                                                if info_end != -1:
-                                                    file_info = result_content[:info_end]
-                                                    self.cli.print_thinking(
-                                                        f"✅ {tool_name}: {file_info}"
-                                                    )
-                                                # Display diff with colors
-                                                self.cli.print_diff(diff_text)
-                                            else:
-                                                # Fallback to showing preview
-                                                result_preview = result_content[:100]
-                                                self.cli.print_thinking(
-                                                    f"✅ {tool_name}: {result_preview}..."
-                                                )
-                                        else:
-                                            # Regular tool result
-                                            result_preview = result_content[:100]
-                                            self.cli.print_thinking(
-                                                f"✅ {tool_name}: {result_preview}..."
-                                            )
-
-                            self.cli.start_thinking()
-                            spinner_active = True
-                            agent_messages_shown.add(message_key)
-
-            # Ensure spinner is stopped
-            if spinner_active:
-                self.cli.stop_thinking(clear=True)
-
-            # Stop task tracking panel
-            if self.cli.task_panel_active:
-                self.cli.stop_task_tracking()
-
-            self.logger.info("✅ Complex flow completed")
-            self.cli.print_success("\n✅ Complex task completed!")
-
-            # 💾 AUTO-SAVE: Save agent states automatically after each response
-            await self._auto_save_agent_states()
-
-        except Exception as e:
-            if spinner_active:
-                self.cli.stop_thinking(clear=True)
-            # Stop task tracking on error
-            if self.cli.task_panel_active:
-                self.cli.stop_task_tracking()
-            self.logger.log_error_with_context(e, "_execute_complex_task")
-            self.cli.print_error(f"Error in complex task: {str(e)}")
-            import traceback
-
-            self.logger.error(f"Traceback: {traceback.format_exc()}")
-
-    # =========================================================================
     # USER REQUEST PROCESSING
     # =========================================================================
 
@@ -1617,9 +1323,8 @@ TITLE:"""
         - The team persists and handles everything automatically
 
         AVAILABLE AGENTS IN THE ROUTER:
-        - Planner: Complex multi-step tasks
-        - CodeSearcher: Code search and analysis
-        - Coder: Direct code modifications
+        - Planner: Complex multi-step tasks (planning and coordination)
+        - Coder: All code operations (search, analysis, and modifications)
         """
         try:
             self.logger.info(f"📝 New user request: {user_input[:100]}...")
@@ -1645,17 +1350,58 @@ TITLE:"""
                     f"📎 Including {len(self.cli.mentioned_files)} mentioned file(s) in context"
                 )
 
-                # Prepend file content to user input
-                full_input = f"{mentioned_files_content}\n\nUSER REQUEST:\n{user_input}"
-            else:
-                full_input = user_input
+            # =================================================================
+            # DYNAMIC SKILL RAG INJECTION (SEMANTIC THRESHOLD-BASED)
+            # =================================================================
+            # Skills are automatically injected ONLY if their semantic similarity
+            # score with the query exceeds the threshold (default: 0.6).
+            #
+            # This prevents false positives where irrelevant skills activate
+            # (e.g., xlsx/pptx skills activating on "summarize the project").
+            #
+            # The RAGManager uses:
+            # - Multi-Query Generation (query variations)
+            # - Reciprocal Rank Fusion (combines multiple results)
+            # - Score threshold filtering (min_score parameter)
+            # =================================================================
+            relevant_skills = self.skill_manager.find_relevant_skills(
+                user_input,
+                max_results=3,  # Maximum skills to activate
+                min_score=0.6,  # Minimum semantic similarity (0.0-1.0)
+                # 0.6 = moderately relevant (strict enough to avoid false positives)
+                # Lower = more permissive, higher = stricter matching
+            )
+            skills_context = ""
 
-            # ============= USE SINGLE ROUTER TEAM =============
-            self.logger.info("🎯 Using ROUTER TEAM (automatic SelectorGroupChat)")
+            if relevant_skills:
+                skills_list = "\n".join([s.to_context_string() for s in relevant_skills])
+                skills_context = f"\n\n<active_skills>\nThe following skills are relevant to your request and available for use:\n\n{skills_list}\n</active_skills>"
+                self.logger.info(
+                    f"🧠 RAG activated {len(relevant_skills)} relevant skill(s): {[s.name for s in relevant_skills]}"
+                )
+            else:
+                self.logger.debug("🧠 No skills met the relevance threshold for this request")
+
+            # Prepare final input with context
+            # Combine: User Request + Mentioned Files + Skills Context
+            full_input = f"{user_input}\n{mentioned_files_content}{skills_context}"
+
+            self.logger.debug(f"Input context prepared with {len(skills_context)} chars of skills")
+
+            # =================================================================
+            # LET SELECTOR GROUP CHAT HANDLE EVERYTHING
+            # =================================================================
+            # No manual complexity detection - the SelectorGroupChat's model-based
+            # selector intelligently routes to the appropriate agent based on:
+            # - Agent descriptions (name + description attributes)
+            # - Conversation context and history
+            # - The nature of the user's request
+            #
+            # This is more efficient and intelligent than manual classification.
+            # =================================================================
 
             # Start spinner
             self.cli.start_thinking()
-            self.logger.debug("Starting SelectorGroupChat (automatic router)")
 
             agent_messages_shown = set()
             message_count = 0
@@ -1731,11 +1477,74 @@ TITLE:"""
                                             if hasattr(tool_call, "arguments")
                                             else {}
                                         )
-                                        self.cli.print_info(
-                                            f"🔧 Calling tool: {tool_name} with parameters {tool_args}",
-                                            agent_name,
-                                        )
-                                        self.logger.debug(f"🔧 Tool call: {tool_name}({tool_args})")
+
+                                        # Parse tool_args if it's a JSON string
+                                        if isinstance(tool_args, str):
+                                            try:
+                                                import json
+
+                                                tool_args = json.loads(tool_args)
+                                            except (json.JSONDecodeError, TypeError):
+                                                pass  # Keep as string if parsing fails
+
+                                        # Special formatting for file tools with code content
+                                        if (
+                                            tool_name == "write_file"
+                                            and isinstance(tool_args, dict)
+                                            and "file_content" in tool_args
+                                        ):
+                                            # Show write_file with syntax highlighting
+                                            target_file = tool_args.get("target_file", "unknown")
+                                            file_content = tool_args.get("file_content", "")
+                                            self.cli.print_thinking(
+                                                f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
+                                            )
+                                            self.cli.print_code(
+                                                file_content, target_file, max_lines=50
+                                            )
+                                        elif tool_name == "edit_file" and isinstance(
+                                            tool_args, dict
+                                        ):
+                                            # Show edit_file with unified diff
+                                            import difflib
+
+                                            target_file = tool_args.get("target_file", "unknown")
+                                            old_string = tool_args.get("old_string", "")
+                                            new_string = tool_args.get("new_string", "")
+                                            instructions = tool_args.get("instructions", "")
+                                            self.cli.print_thinking(
+                                                f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
+                                            )
+                                            if instructions:
+                                                self.cli.print_thinking(f"   📝 {instructions}")
+                                            # Generate unified diff
+                                            old_lines = old_string.splitlines(keepends=True)
+                                            new_lines = new_string.splitlines(keepends=True)
+                                            diff = difflib.unified_diff(
+                                                old_lines,
+                                                new_lines,
+                                                fromfile=f"a/{target_file}",
+                                                tofile=f"b/{target_file}",
+                                                lineterm="",
+                                            )
+                                            diff_text = "".join(diff)
+                                            if diff_text:
+                                                self.cli.print_diff(diff_text)
+                                            else:
+                                                self.cli.print_thinking(
+                                                    "   (no changes detected in diff)"
+                                                )
+                                        else:
+                                            # Default: show parameters as JSON (truncate if too long)
+                                            args_str = str(tool_args)
+                                            if len(args_str) > 200:
+                                                args_str = args_str[:200] + "..."
+                                            self.cli.print_info(
+                                                f"🔧 Calling tool: {tool_name} with parameters {args_str}",
+                                                agent_name,
+                                            )
+
+                                        self.logger.debug(f"🔧 Tool call: {tool_name}")
                                         # JSON Logger: Capture tool call
                                         self.json_logger.log_tool_call(
                                             agent_name=agent_name,
@@ -1751,7 +1560,7 @@ TITLE:"""
 
                                 # Restart spinner ONCE with first tool name (not in loop)
                                 if tool_names:
-                                    self.cli.start_thinking(message=f"executing {tool_names[0]}")
+                                    self.logger.debug(f"executing {tool_names[0]}")
                                     spinner_active = True
                             agent_messages_shown.add(message_key)
 
@@ -1770,6 +1579,26 @@ TITLE:"""
                                             str(execution_result.content)
                                             if hasattr(execution_result, "content")
                                             else "OK"
+                                        )
+
+                                        # 🚨 CRITICAL: Detect user cancellation in tool results
+                                        # When a tool is cancelled, ask_for_approval raises UserCancelledError,
+                                        # but AutoGen converts it to a string result. We need to detect this
+                                        # and re-raise the exception to stop the entire workflow.
+                                        if (
+                                            "User selected 'No, cancel'" in result_content
+                                            or "UserCancelledError" in result_content
+                                        ):
+                                            self.logger.info(
+                                                "🚫 User cancelled tool execution - stopping workflow"
+                                            )
+                                            raise UserCancelledError(
+                                                "User cancelled tool execution"
+                                            )
+
+                                        # DEBUG: Log tool result details
+                                        self.logger.debug(
+                                            f"[TOOL_RESULT_DEBUG] tool_name={tool_name}, result_starts_with={result_content[:50] if len(result_content) > 50 else result_content}, has_File={('File:' in result_content)}"
                                         )
 
                                         # Check if this is an edit_file result with diff
@@ -1813,6 +1642,49 @@ TITLE:"""
                                                 self.logger.debug(
                                                     f"✅ Tool result: {tool_name} -> {result_preview}"
                                                 )
+                                        elif tool_name == "read_file" and "File:" in result_content:
+                                            # Special handling for read_file - show with syntax highlighting
+                                            # Extract filename from result
+                                            try:
+                                                # Result format: "File: <path>\n<content>"
+                                                first_line = result_content.split("\n")[0]
+                                                if first_line.startswith("File:"):
+                                                    filename = first_line.replace(
+                                                        "File:", ""
+                                                    ).strip()
+                                                    # Get code content (everything after first line)
+                                                    code_content = "\n".join(
+                                                        result_content.split("\n")[1:]
+                                                    )
+                                                    # Display with syntax highlighting
+                                                    self.cli.print_code(
+                                                        code_content, filename, max_lines=50
+                                                    )
+                                                    self.logger.debug(
+                                                        f"✅ Tool result: {tool_name} -> {filename} (displayed with syntax highlighting)"
+                                                    )
+                                                else:
+                                                    # Fallback
+                                                    result_preview = result_content[:100]
+                                                    self.cli.print_thinking(
+                                                        f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                    )
+                                            except Exception:
+                                                result_preview = result_content[:100]
+                                                self.cli.print_thinking(
+                                                    f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                )
+                                        elif (
+                                            tool_name == "write_file"
+                                            and "Successfully wrote" in result_content
+                                        ):
+                                            # Special handling for write_file - show success message
+                                            self.cli.print_success(
+                                                f"{agent_name} > {tool_name}: {result_content}"
+                                            )
+                                            self.logger.debug(
+                                                f"✅ Tool result: {tool_name} -> {result_content}"
+                                            )
                                         else:
                                             # Regular tool result
                                             result_preview = result_content[:100]
@@ -1855,7 +1727,7 @@ TITLE:"""
                             agent_messages_shown.add(message_key)
 
                             # After agent finishes, start spinner waiting for next agent
-                            self.cli.start_thinking(message=f"waiting for next action")
+                            self.cli.start_thinking(message="waiting for next action")
                             spinner_active = True
 
                         else:
@@ -1884,14 +1756,19 @@ TITLE:"""
             # ============= END JSON LOGGING SESSION =============
             # Save all captured events to timestamped JSON file
             self.json_logger.end_session(summary="Request completed successfully")
-            self.logger.debug("📝 JSON logging session ended and saved")
 
-            # Compress history if necessary (DISABLED - we no longer use TaskExecutor)
-            # if self.conversation_manager.needs_compression():
-            #     self.logger.warning("⚠️ History needs compression")
-            #     # TODO: Implement direct compression without TaskExecutor
+        except UserCancelledError:
+            # Stop spinner on user cancellation
+            if spinner_active:
+                self.cli.stop_thinking()
 
-            self.logger.info("✅ Request processed successfully")
+            # Clear message and show cancellation
+            self.cli.print_error("\n\n🚫 Task cancelled by user.")
+            self.cli.print_info("ℹ️  You can start a new task whenever you're ready.")
+            self.logger.info("Task explicitly cancelled by user during tool approval.")
+
+            # End JSON logging session
+            self.json_logger.end_session(summary="Task cancelled by user")
 
         except Exception as e:
             # Stop spinner on error
@@ -1907,7 +1784,17 @@ TITLE:"""
 
             error_traceback = traceback.format_exc()
             self.logger.error(f"Full traceback:\n{error_traceback}")
+            self.logger.error(f"Full traceback:\n{error_traceback}")
             self.cli.print_error(f"Details:\n{error_traceback}")
+
+            # AUTOMATIC ERROR REPORTING TO SIGNOZ
+            self.cli.print_thinking("📊 Reporting error to SigNoz...")
+            try:
+                await self.error_reporter.report_error(
+                    exception=e, context="process_user_request", severity="error"
+                )
+            except Exception as report_err:
+                self.logger.error(f"Failed to report error: {report_err}")
 
     # =========================================================================
     # CONVERSATION TRACKING - Log to JSON
@@ -2015,10 +1902,7 @@ TITLE:"""
                 formatted_date = "Unknown"
 
             # Display session info
-            self.cli.print_info("\n📋 Previous session found:")
-            self.cli.print_info(f"  • Title: {title}")
-            self.cli.print_info(f"  • Last interaction: {formatted_date}")
-            self.cli.print_info(f"  • Messages: {total_messages}")
+            self.cli.print_info(f"\n Previous session found: Messages: {total_messages}")
 
             # Prompt user (use async prompt)
             from prompt_toolkit import PromptSession
@@ -2043,10 +1927,7 @@ TITLE:"""
                     agents_loaded = 0
                     if await self.state_manager.load_agent_state("coder", self.coder_agent):
                         agents_loaded += 1
-                    if await self.state_manager.load_agent_state(
-                        "code_searcher", self.code_searcher.searcher_agent
-                    ):
-                        agents_loaded += 1
+
                     if await self.state_manager.load_agent_state("planning", self.planning_agent):
                         agents_loaded += 1
 
@@ -2119,6 +2000,14 @@ TITLE:"""
             self.logger.log_error_with_context(e, "main loop")
             self.cli.print_error(f"Fatal error: {str(e)}")
 
+            # AUTOMATIC ERROR REPORTING FOR FATAL ERRORS
+            try:
+                await self.error_reporter.report_error(
+                    exception=e, context="main_loop_fatal_error", severity="critical"
+                )
+            except Exception as report_err:
+                self.logger.error(f"Failed to report fatal error: {report_err}")
+
         finally:
             self.logger.info("🔚 Closing DaveAgent CLI")
             self.cli.print_goodbye()
@@ -2131,10 +2020,7 @@ TITLE:"""
 
             # Langfuse: OpenLit does automatic flush on exit
             if self.langfuse_enabled:
-                self.logger.info("📊 Langfuse: data sent automatically by OpenLit")
-
-            # Close model client
-            await self.model_client.close()
+                self.logger.info("� Langfuse: data sent automatically by OpenLit")
 
 
 async def main(
@@ -2155,7 +2041,11 @@ async def main(
         ssl_verify: Whether to verify SSL certificates (default True)
     """
     app = DaveAgentCLI(
-        debug=debug, api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify
+        debug=debug,
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        ssl_verify=ssl_verify,
     )
     await app.run()
 

@@ -5,19 +5,19 @@ Logs are saved in .daveagent/logs/
 """
 
 import logging
-import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
+
 from rich.console import Console
 from rich.logging import RichHandler
-from typing import Optional, Any
 
 
 class DaveAgentLogger:
     """Custom logger for DaveAgent with color and file support"""
 
     def __init__(
-        self, name: str = "DaveAgent", log_file: Optional[str] = None, level: int = logging.DEBUG
+        self, name: str = "DaveAgent", log_file: str | None = None, level: int = logging.DEBUG
     ):
         """
         Initialize the logger
@@ -30,6 +30,14 @@ class DaveAgentLogger:
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
         self.logger.handlers.clear()  # Clear existing handlers
+
+        # Silenciar loggers de terceros para evitar spam
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("autogen_core").setLevel(logging.WARNING)
+        logging.getLogger("autogen_core.events").setLevel(logging.WARNING)
+        logging.getLogger("chromadb").setLevel(logging.WARNING)
+        logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
+        logging.getLogger("huggingface_hub").setLevel(logging.WARNING)
 
         self.console = Console(stderr=True)
 
@@ -118,7 +126,7 @@ class DaveAgentLogger:
 
     def log_message_processing(self, message_type: str, source: str, content_preview: str):
         """Log message processing"""
-        self.debug(f"📨 Processing message:")
+        self.debug("📨 Processing message:")
         self.debug(f"   Type: {message_type}")
         self.debug(f"   Source: {source}")
         self.debug(f"   Content: {content_preview[:100]}...")
@@ -128,14 +136,14 @@ class DaveAgentLogger:
         self.error(f"💥 Error in {context}")
         self.error(f"   Type: {type(error).__name__}")
         self.error(f"   Message: {str(error)}")
-        self.exception(f"   Full traceback:")
+        self.exception("   Full traceback:")
 
 
 # Instancia global del logger
-_global_logger: Optional[DaveAgentLogger] = None
+_global_logger: DaveAgentLogger | None = None
 
 
-def get_logger(log_file: Optional[str] = None, level: int = logging.DEBUG) -> DaveAgentLogger:
+def get_logger(log_file: str | None = None, level: int = logging.DEBUG) -> DaveAgentLogger:
     """
     Gets the global logger instance
 

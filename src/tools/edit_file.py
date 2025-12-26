@@ -1,18 +1,13 @@
-import difflib
-
-from src.tools.common import get_workspace
 from src.utils.linter import lint_code_check
 from src.utils.llm_edit_fixer import _llm_fix_edit
 
 """
 File System Operations - Smart Edit v2 (With Auto-Correction)
 """
+import hashlib
 import os
 import re
-import ast
-import hashlib
 from pathlib import Path
-
 
 # --- Helper Functions ---
 
@@ -151,6 +146,17 @@ async def edit_file(
     Returns:
         Success message with strategy used, or error message if replacement failed.
     """
+    from src.utils.interaction import ask_for_approval
+
+    # approval context
+    diff_preview = f"FILE: {target_file}\n\nRunning edit_file:\n<<<<<< OLD\n{old_string}\n======\n{new_string}\n>>>>>> NEW"
+
+    approval_result = await ask_for_approval(
+        action_description=f"EDIT FILE: {target_file}", context=f"```diff\n{diff_preview}\n```"
+    )
+    if approval_result:
+        return approval_result
+
     try:
         workspace = Path(os.getcwd()).resolve()
         target = (
@@ -165,7 +171,7 @@ async def edit_file(
                 return f"Successfully created new file: {target_file}"
             return f"Error: File '{target_file}' not found."
 
-        with open(target, "r", encoding="utf-8") as f:
+        with open(target, encoding="utf-8") as f:
             raw_content = f.read()
 
         original_line_ending = _detect_line_ending(raw_content)

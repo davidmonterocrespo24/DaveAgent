@@ -11,17 +11,18 @@ Records everything in the JSONLogger for complete traceability.
 """
 
 import logging
-from autogen_core.models import ChatCompletionClient, RequestUsage
+from collections.abc import Sequence
+from datetime import datetime
+
 from autogen_core.models import (
-    LLMMessage,
+    AssistantMessage,
+    ChatCompletionClient,
     CreateResult,
+    FunctionExecutionResultMessage,
+    LLMMessage,
     SystemMessage,
     UserMessage,
-    AssistantMessage,
-    FunctionExecutionResultMessage,
 )
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Sequence, Union
 
 
 class LoggingModelClientWrapper:
@@ -47,7 +48,6 @@ class LoggingModelClientWrapper:
         self._json_logger = json_logger
         self._agent_name = agent_name
         self.logger = logging.getLogger(__name__)
-        self.logger.info(f"🔧 LoggingModelClientWrapper initialized for agent: {agent_name}")
 
     async def create(self, messages: Sequence[LLMMessage], **kwargs) -> CreateResult:
         """

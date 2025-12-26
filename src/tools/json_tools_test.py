@@ -5,7 +5,7 @@ Test para json_tools
 import asyncio
 import os
 
-from json_tools import read_json, write_json, validate_json, format_json
+from json_tools import format_json, read_json, validate_json, write_json
 
 
 async def test_json_tools():

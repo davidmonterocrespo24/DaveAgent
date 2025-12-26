@@ -4,7 +4,6 @@ Test para write_file tool
 
 import asyncio
 import os
-from pathlib import Path
 
 from write_file import write_file
 

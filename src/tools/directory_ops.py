@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.tools.common import get_workspace
+from src.tools.common import HIDDEN_DIRS, get_workspace
 
 
 async def list_dir(target_dir: str = ".") -> str:
@@ -8,8 +8,13 @@ async def list_dir(target_dir: str = ".") -> str:
     try:
         workspace = get_workspace()
         target = workspace / target_dir if not Path(target_dir).is_absolute() else Path(target_dir)
+
         result = f"Directory listing for {target}:\n"
         for item in sorted(target.iterdir()):
+            # Skip hidden system directories
+            if item.is_dir() and item.name in HIDDEN_DIRS:
+                continue
+
             if item.is_dir():
                 result += f"  [DIR]  {item.name}/\n"
             else:

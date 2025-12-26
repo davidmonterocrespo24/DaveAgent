@@ -4,25 +4,21 @@ Interactive CLI interface in the style of Claude Code
 
 import asyncio
 import random
-import sys
 import time
-from datetime import datetime
 from pathlib import Path
+
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.history import FileHistory
 from rich.console import Console
-from rich.layout import Layout
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.spinner import Spinner
+from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
-from typing import Optional, List
 
-from src.utils import FileIndexer, select_file_interactive, VibeSpinner
+from src.utils import FileIndexer, VibeSpinner, select_file_interactive
 
 
 class CLIInterface:
@@ -30,14 +26,20 @@ class CLIInterface:
 
     def __init__(self):
         self.console = Console()
+
+        # Ensure .daveagent directory exists
+        history_dir = Path(".daveagent")
+        history_dir.mkdir(exist_ok=True)
+        history_file = history_dir / ".agent_history"
+
         self.session = PromptSession(
-            history=FileHistory(".agent_history"),
+            history=FileHistory(str(history_file)),
             auto_suggest=AutoSuggestFromHistory(),
         )
         self.conversation_active = False
         self.file_indexer = None  # Will be initialized on first use
-        self.mentioned_files: List[str] = []  # Track files mentioned with @
-        self.vibe_spinner: Optional[VibeSpinner] = None  # Spinner for thinking animation
+        self.mentioned_files: list[str] = []  # Track files mentioned with @
+        self.vibe_spinner: VibeSpinner | None = None  # Spinner for thinking animation
         self.current_mode = "agent"  # Track current mode for display
 
     def print_banner(self):
@@ -61,13 +63,9 @@ class CLIInterface:
 ║   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝                  ║
 ║                                                              ║
 ║              Intelligent Development Agent                   ║
-║                    Version 1.2.1                            ║
+║                    Version 1.2.1                             ║
 ╚══════════════════════════════════════════════════════════════╝
-        """.strip(
-            "\n"
-        ).split(
-            "\n"
-        )
+        """.strip("\n").split("\n")
 
         height = len(banner_lines)
         width = max(len(line) for line in banner_lines)
@@ -212,7 +210,7 @@ class CLIInterface:
             query = user_input[query_start:query_end]
 
             # Show file selector
-            self.console.print(f"\n[cyan]Detected @ mention, opening file selector...[/cyan]")
+            self.console.print("\n[cyan]Detected @ mention, opening file selector...[/cyan]")
 
             # Run file selector (synchronously since we're in a coroutine)
             loop = asyncio.get_event_loop()
@@ -229,7 +227,7 @@ class CLIInterface:
             else:
                 # User cancelled, keep original @query
                 parts.append(f"@{query}")
-                self.console.print(f"[yellow]✗ Selection cancelled[/yellow]")
+                self.console.print("[yellow]✗ Selection cancelled[/yellow]")
 
             current_pos = query_end
 
@@ -311,7 +309,7 @@ class CLIInterface:
         )
         self.console.print()
 
-    def start_thinking(self, message: Optional[str] = None):
+    def start_thinking(self, message: str | None = None):
         """
         Start the vibe spinner to show agent is thinking
 
@@ -394,6 +392,99 @@ class CLIInterface:
                 # Context lines in dim white
                 self.console.print(f"[dim]{line}[/dim]")
 
+    def print_code(self, code: str, filename: str, max_lines: int = 50):
+        """
+        Display code with syntax highlighting based on file extension
+
+        Args:
+            code: The code content to display
+            filename: The filename (used to determine language)
+            max_lines: Maximum lines to display (truncates if longer)
+        """
+        # Map file extensions to language names for syntax highlighting
+        extension_map = {
+            ".py": "python",
+            ".js": "javascript",
+            ".ts": "typescript",
+            ".jsx": "jsx",
+            ".tsx": "tsx",
+            ".html": "html",
+            ".css": "css",
+            ".scss": "scss",
+            ".json": "json",
+            ".xml": "xml",
+            ".yaml": "yaml",
+            ".yml": "yaml",
+            ".md": "markdown",
+            ".sql": "sql",
+            ".sh": "bash",
+            ".bash": "bash",
+            ".zsh": "zsh",
+            ".ps1": "powershell",
+            ".java": "java",
+            ".c": "c",
+            ".cpp": "cpp",
+            ".h": "c",
+            ".hpp": "cpp",
+            ".cs": "csharp",
+            ".go": "go",
+            ".rs": "rust",
+            ".rb": "ruby",
+            ".php": "php",
+            ".swift": "swift",
+            ".kt": "kotlin",
+            ".scala": "scala",
+            ".r": "r",
+            ".lua": "lua",
+            ".pl": "perl",
+            ".toml": "toml",
+            ".ini": "ini",
+            ".cfg": "ini",
+            ".conf": "ini",
+            ".dockerfile": "dockerfile",
+            ".tf": "terraform",
+            ".vue": "vue",
+            ".svelte": "svelte",
+        }
+
+        # Get file extension and determine language
+        ext = Path(filename).suffix.lower()
+        language = extension_map.get(ext, "text")
+
+        # Truncate if too long
+        lines = code.split("\n")
+        truncated = False
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+            truncated = True
+            code = "\n".join(lines)
+
+        try:
+            syntax = Syntax(
+                code,
+                language,
+                theme="monokai",
+                line_numbers=True,
+                word_wrap=False,
+            )
+            self.console.print(
+                Panel(
+                    syntax,
+                    title=f"[bold cyan]{filename}[/bold cyan]",
+                    border_style="dim",
+                    subtitle=f"[dim]{language}[/dim]" if language != "text" else None,
+                )
+            )
+            if truncated:
+                self.console.print(
+                    f"[dim]... (showing first {max_lines} lines, file has {len(lines) + (len(code.split(chr(10))) - max_lines)} total)[/dim]"
+                )
+        except Exception:
+            # Fallback to plain text if syntax highlighting fails
+            self.console.print(
+                Panel(code, title=f"[bold cyan]{filename}[/bold cyan]", border_style="dim")
+            )
+
     def print_task_summary(self, summary: str):
         """
         Shows the completed task summary in a special format
@@ -407,7 +498,7 @@ class CLIInterface:
         self.console.print(md)
         self.console.print("─" * 60, style="dim cyan")
 
-    def create_progress_table(self, tasks: List[dict]) -> Table:
+    def create_progress_table(self, tasks: list[dict]) -> Table:
         """Creates a table with task progress"""
         table = Table(title="Task Progress", show_header=True, header_style="bold")
         table.add_column("ID", style="cyan", width=4)
@@ -434,9 +525,9 @@ class CLIInterface:
         stats_text = f"""
 **Current Session Statistics:**
 
-• Total messages: {stats.get('total_messages', 0)}
-• First message: {stats.get('first_message', 'N/A')}
-• Last message: {stats.get('last_message', 'N/A')}
+• Total messages: {stats.get("total_messages", 0)}
+• First message: {stats.get("first_message", "N/A")}
+• Last message: {stats.get("last_message", "N/A")}
 
 **Note:** To see the complete agent state, use `/list-sessions`
 **Persistence:** State is automatically saved using AutoGen save_state()
@@ -455,7 +546,6 @@ class CLIInterface:
 **Available Commands:**
 
 • `/help` - Shows this help message
-• `/search <query>` - Search and analyze code before modifying it
 
 **Model Configuration:**
 • `/config` - Shows current configuration (model, URL, API key)
@@ -494,6 +584,10 @@ DAVEAGENT_MODEL=deepseek-reasoner
 • `/stats` - Show current session statistics
 
 **System:**
+• `/init` - Create a DAVEAGENT.md template for project-specific context
+• `/telemetry` - Show telemetry status
+• `/telemetry-off` - Disable telemetry (anonymous usage data)
+• `/telemetry-on` - Enable telemetry
 • `/debug` - Toggle debug mode
 • `/logs` - Show log file location
 • `/exit` or `/quit` - Exit the agent
@@ -511,7 +605,7 @@ DAVEAGENT_MODEL=deepseek-reasoner
 
 `@src/config/settings.py @.env update the API configuration`
 
-`explain how @src/agents/code_searcher.py works`
+`explain how @src/main.py works`
 
 **Operation Modes (NEW):**
 
@@ -563,14 +657,6 @@ Simply write what you need the agent to do. The agent will:
 "Find all Python files with bugs and fix them"
 
 "Refactor the code in src/utils to use async/await"
-
-**Search Examples:**
-
-"/search authentication function"
-
-"/search where the User class is used"
-
-"/search methods that modify the database"
         """
         self.console.print()
         self.console.print(
@@ -583,8 +669,8 @@ Simply write what you need the agent to do. The agent will:
         goodbye = """
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║              Thank you for using Dave Agent                ║
-║                   See you soon!                             ║
+║              Thank you for using Dave Agent                  ║
+║                   See you soon!                              ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
         """
@@ -596,7 +682,7 @@ Simply write what you need the agent to do. The agent will:
         """Clears the screen"""
         self.console.clear()
 
-    def get_mentioned_files(self) -> List[str]:
+    def get_mentioned_files(self) -> list[str]:
         """
         Get list of files mentioned with @
 
@@ -635,7 +721,7 @@ Simply write what you need the agent to do. The agent will:
 
         for file_path in self.mentioned_files:
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     file_content = f.read()
 
                 content_parts.append(f"\n{'=' * 60}")

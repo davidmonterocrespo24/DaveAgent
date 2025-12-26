@@ -2,17 +2,18 @@
 Script automatizado para publicar DaveAgent en PyPI
 Ejecutar: python publish.py [test|prod]
 """
+
+import shutil
 import subprocess
 import sys
-import shutil
 from pathlib import Path
 
 
 def run_command(cmd, description):
     """Ejecuta un comando y muestra resultado"""
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"🔧 {description}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"Comando: {cmd}\n")
 
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
@@ -21,7 +22,7 @@ def run_command(cmd, description):
         print(result.stdout)
 
     if result.returncode != 0:
-        print(f"\n❌ ERROR:")
+        print("\n❌ ERROR:")
         print(result.stderr)
         return False
 
@@ -33,7 +34,12 @@ def clean_build():
     """Limpia directorios de build anteriores"""
     print("\n🧹 Limpiando builds anteriores...")
 
-    dirs_to_remove = ['dist', 'build', 'src/daveagent_cli.egg-info', 'src/codeagent_ai.egg-info']  # Keep old name for cleanup
+    dirs_to_remove = [
+        "dist",
+        "build",
+        "src/daveagent_cli.egg-info",
+        "src/codeagent_ai.egg-info",
+    ]  # Keep old name for cleanup
     for dir_name in dirs_to_remove:
         dir_path = Path(dir_name)
         if dir_path.exists():
@@ -47,14 +53,12 @@ def check_dependencies():
     """Verifica que estén instaladas las herramientas necesarias"""
     print("\n📦 Verificando dependencias...")
 
-    dependencies = ['build', 'twine']
+    dependencies = ["build", "twine"]
     missing = []
 
     for dep in dependencies:
         result = subprocess.run(
-            f"{sys.executable} -m {dep} --version",
-            shell=True,
-            capture_output=True
+            f"{sys.executable} -m {dep} --version", shell=True, capture_output=True
         )
         if result.returncode != 0:
             missing.append(dep)
@@ -72,33 +76,28 @@ def check_dependencies():
 
 def build_package():
     """Construye el paquete"""
-    return run_command(
-        f"{sys.executable} -m build",
-        "Construyendo paquete"
-    )
+    return run_command(f"{sys.executable} -m build", "Construyendo paquete")
 
 
 def check_package():
     """Verifica que el paquete esté bien formado"""
     return run_command(
-        f"{sys.executable} -m twine check dist/*",
-        "Verificando integridad del paquete"
+        f"{sys.executable} -m twine check dist/*", "Verificando integridad del paquete"
     )
 
 
 def upload_to_testpypi():
     """Sube el paquete a TestPyPI"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("📤 Subiendo a TestPyPI")
-    print("="*70)
+    print("=" * 70)
     print("\nNOTA: Usa estos credenciales:")
     print("  Username: __token__")
     print("  Password: Tu token de TestPyPI (empieza con 'pypi-')")
     print()
 
     result = subprocess.run(
-        f"{sys.executable} -m twine upload --repository testpypi dist/*",
-        shell=True
+        f"{sys.executable} -m twine upload --repository testpypi dist/*", shell=True
     )
 
     return result.returncode == 0
@@ -106,9 +105,9 @@ def upload_to_testpypi():
 
 def upload_to_pypi():
     """Sube el paquete a PyPI"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("🚀 Subiendo a PyPI (PRODUCCIÓN)")
-    print("="*70)
+    print("=" * 70)
     print("\n⚠️  ADVERTENCIA: Esto publicará el paquete públicamente!")
     print("Una vez publicado, NO puedes eliminar esta versión.")
     print()
@@ -124,19 +123,16 @@ def upload_to_pypi():
     print("  Password: Tu token de PyPI (empieza con 'pypi-')")
     print()
 
-    result = subprocess.run(
-        f"{sys.executable} -m twine upload dist/*",
-        shell=True
-    )
+    result = subprocess.run(f"{sys.executable} -m twine upload dist/*", shell=True)
 
     return result.returncode == 0
 
 
 def show_summary(target):
     """Muestra resumen final"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("✅ PUBLICACIÓN COMPLETADA")
-    print("="*70)
+    print("=" * 70)
 
     if target == "test":
         print("\n📦 Paquete publicado en TestPyPI")
@@ -156,9 +152,9 @@ def show_summary(target):
 
 def main():
     """Función principal"""
-    print("="*70)
+    print("=" * 70)
     print("📦 DaveAgent - Script de Publicación en PyPI")
-    print("="*70)
+    print("=" * 70)
 
     # Verificar argumentos
     if len(sys.argv) < 2:
@@ -169,7 +165,7 @@ def main():
 
     target = sys.argv[1].lower()
 
-    if target not in ['test', 'prod']:
+    if target not in ["test", "prod"]:
         print(f"\n❌ Objetivo inválido: {target}")
         print("Usa 'test' o 'prod'")
         sys.exit(1)
@@ -194,7 +190,7 @@ def main():
         sys.exit(1)
 
     # Subir según el objetivo
-    if target == 'test':
+    if target == "test":
         success = upload_to_testpypi()
     else:
         success = upload_to_pypi()

@@ -1,5 +1,7 @@
 import os
 
+from src.tools.common import EXCLUDED_DIRS
+
 
 async def file_search(query: str, explanation: str = "") -> str:
     """
@@ -14,7 +16,11 @@ async def file_search(query: str, explanation: str = "") -> str:
     """
     try:
         matches = []
+
         for root, dirs, files in os.walk("."):
+            # Filter out ignored directories IN-PLACE to prevent os.walk from descending into them
+            dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
+
             for file in files:
                 file_path = os.path.join(root, file)
                 if query.lower() in file_path.lower():

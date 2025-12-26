@@ -1,12 +1,18 @@
 """
 Setup configuration for DaveAgent
 """
-from setuptools import setup, find_packages
+
 from pathlib import Path
+
+from setuptools import find_packages, setup
 
 # Leer el README para la descripción larga
 this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text(encoding='utf-8') if (this_directory / "README.md").exists() else ""
+long_description = (
+    (this_directory / "README.md").read_text(encoding="utf-8")
+    if (this_directory / "README.md").exists()
+    else ""
+)
 
 setup(
     name="daveagent-cli",
@@ -22,40 +28,36 @@ setup(
         "Documentation": "https://github.com/davidmonterocrespo24/DaveAgent/wiki",
         "Source Code": "https://github.com/davidmonterocrespo24/DaveAgent",
     },
-    packages=find_packages(include=['src', 'src.*']),
+    packages=find_packages(include=["src", "src.*"]),
     include_package_data=True,
     python_requires=">=3.10",
     install_requires=[
         # Core dependencies
         "autogen-agentchat>=0.4.0",
         "autogen-ext[openai]>=0.4.0",
-
         # CLI and UI
         "prompt-toolkit>=3.0.0",
         "rich>=13.0.0",
         "readchar>=4.0.0",
-
         # Data processing
         "pandas>=2.0.0",
-
         # Web tools
         "wikipedia>=1.4.0",
-
         # Utilities
         "python-dotenv>=1.0.0",
     ],
     extras_require={
-        'dev': [
-            'pytest>=7.0.0',
-            'pytest-asyncio>=0.21.0',
-            'black>=23.0.0',
-            'flake8>=6.0.0',
-            'mypy>=1.0.0',
+        "dev": [
+            "pytest>=7.0.0",
+            "pytest-asyncio>=0.21.0",
+            "black>=23.0.0",
+            "flake8>=6.0.0",
+            "mypy>=1.0.0",
         ],
     },
     entry_points={
-        'console_scripts': [
-            'daveagent=src.cli:main',
+        "console_scripts": [
+            "daveagent=src.cli:main",
         ],
     },
     classifiers=[

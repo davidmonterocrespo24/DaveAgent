@@ -6,10 +6,9 @@ análisis de qué herramientas usó, qué archivos leyó, qué errores tuvo, etc
 """
 
 import json
-import os
-from pathlib import Path
+from collections import Counter
 from datetime import datetime
-from collections import Counter, defaultdict
+from pathlib import Path
 
 
 def find_json_logs(base_dir):
@@ -17,15 +16,11 @@ def find_json_logs(base_dir):
     json_files = []
 
     # Buscar en .daveagent/logs/ o en el directorio base
-    log_dirs = [
-        Path(base_dir) / '.daveagent' / 'logs',
-        Path(base_dir) / 'logs',
-        Path(base_dir)
-    ]
+    log_dirs = [Path(base_dir) / ".daveagent" / "logs", Path(base_dir) / "logs", Path(base_dir)]
 
     for log_dir in log_dirs:
         if log_dir.exists():
-            json_files.extend(log_dir.glob('*.json'))
+            json_files.extend(log_dir.glob("*.json"))
 
     return json_files
 
@@ -33,23 +28,23 @@ def find_json_logs(base_dir):
 def analyze_log_file(log_path):
     """Analiza un archivo de log JSON del agent"""
     try:
-        with open(log_path, 'r', encoding='utf-8') as f:
+        with open(log_path, encoding="utf-8") as f:
             logs = [json.loads(line) for line in f if line.strip()]
     except Exception as e:
         print(f"   Warning: Could not read {log_path}: {e}")
         return None
 
     analysis = {
-        'total_messages': len(logs),
-        'tools_used': Counter(),
-        'files_read': set(),
-        'files_written': set(),
-        'files_edited': set(),
-        'errors': [],
-        'thinking_events': 0,
-        'tool_calls': 0,
-        'duration_seconds': 0,
-        'model_used': None
+        "total_messages": len(logs),
+        "tools_used": Counter(),
+        "files_read": set(),
+        "files_written": set(),
+        "files_edited": set(),
+        "errors": [],
+        "thinking_events": 0,
+        "tool_calls": 0,
+        "duration_seconds": 0,
+        "model_used": None,
     }
 
     start_time = None
@@ -57,71 +52,71 @@ def analyze_log_file(log_path):
 
     for log in logs:
         # Extract timestamp
-        if 'timestamp' in log:
-            ts = datetime.fromisoformat(log['timestamp'])
+        if "timestamp" in log:
+            ts = datetime.fromisoformat(log["timestamp"])
             if start_time is None:
                 start_time = ts
             end_time = ts
 
         # Extract model info
-        if 'model' in log and analysis['model_used'] is None:
-            analysis['model_used'] = log['model']
+        if "model" in log and analysis["model_used"] is None:
+            analysis["model_used"] = log["model"]
 
         # Analyze message type
-        msg_type = log.get('type', '')
+        msg_type = log.get("type", "")
 
-        if msg_type == 'ThoughtEvent':
-            analysis['thinking_events'] += 1
+        if msg_type == "ThoughtEvent":
+            analysis["thinking_events"] += 1
 
-        elif msg_type == 'ToolCallRequestEvent':
-            analysis['tool_calls'] += 1
+        elif msg_type == "ToolCallRequestEvent":
+            analysis["tool_calls"] += 1
             # Extract tool names
-            content = log.get('content', {})
+            content = log.get("content", {})
             if isinstance(content, dict):
-                tool_name = content.get('name', '')
+                tool_name = content.get("name", "")
                 if tool_name:
-                    analysis['tools_used'][tool_name] += 1
+                    analysis["tools_used"][tool_name] += 1
 
                     # Extract file operations
-                    args = content.get('arguments', {})
+                    args = content.get("arguments", {})
                     if isinstance(args, str):
                         try:
                             args = json.loads(args)
                         except:
                             args = {}
 
-                    if tool_name == 'read_file':
-                        file_path = args.get('target_file', '')
+                    if tool_name == "read_file":
+                        file_path = args.get("target_file", "")
                         if file_path:
-                            analysis['files_read'].add(file_path)
+                            analysis["files_read"].add(file_path)
 
-                    elif tool_name == 'write_file':
-                        file_path = args.get('target_file', '')
+                    elif tool_name == "write_file":
+                        file_path = args.get("target_file", "")
                         if file_path:
-                            analysis['files_written'].add(file_path)
+                            analysis["files_written"].add(file_path)
 
-                    elif tool_name == 'edit_file':
-                        file_path = args.get('target_file', '')
+                    elif tool_name == "edit_file":
+                        file_path = args.get("target_file", "")
                         if file_path:
-                            analysis['files_edited'].add(file_path)
+                            analysis["files_edited"].add(file_path)
 
-        elif msg_type == 'ToolCallExecutionEvent':
+        elif msg_type == "ToolCallExecutionEvent":
             # Check for errors
-            content = log.get('content', {})
+            content = log.get("content", {})
             if isinstance(content, dict):
-                is_error = content.get('is_error', False)
+                is_error = content.get("is_error", False)
                 if is_error:
-                    error_msg = content.get('content', '')
-                    analysis['errors'].append(error_msg)
+                    error_msg = content.get("content", "")
+                    analysis["errors"].append(error_msg)
 
     # Calculate duration
     if start_time and end_time:
-        analysis['duration_seconds'] = (end_time - start_time).total_seconds()
+        analysis["duration_seconds"] = (end_time - start_time).total_seconds()
 
     # Convert sets to lists for JSON serialization
-    analysis['files_read'] = list(analysis['files_read'])
-    analysis['files_written'] = list(analysis['files_written'])
-    analysis['files_edited'] = list(analysis['files_edited'])
+    analysis["files_read"] = list(analysis["files_read"])
+    analysis["files_written"] = list(analysis["files_written"])
+    analysis["files_edited"] = list(analysis["files_edited"])
 
     return analysis
 
@@ -140,18 +135,18 @@ def generate_interaction_report(analyses, output_path):
 
     for analysis in analyses.values():
         if analysis:
-            all_tools.update(analysis['tools_used'])
-            total_messages += analysis['total_messages']
-            total_tool_calls += analysis['tool_calls']
-            total_thinking += analysis['thinking_events']
-            total_errors += len(analysis['errors'])
+            all_tools.update(analysis["tools_used"])
+            total_messages += analysis["total_messages"]
+            total_tool_calls += analysis["tool_calls"]
+            total_thinking += analysis["thinking_events"]
+            total_errors += len(analysis["errors"])
 
     html = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis de Interacciones del agent - {datetime.now().strftime('%Y-%m-%d %H:%M')}</title>
+    <title>Análisis de Interacciones del agent - {datetime.now().strftime("%Y-%m-%d %H:%M")}</title>
     <style>
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -283,7 +278,7 @@ def generate_interaction_report(analyses, output_path):
 <body>
     <div class="header">
         <h1>🔍 Análisis de Interacciones del agent</h1>
-        <p>Reporte generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p>Reporte generado: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
     </div>
 
     <div class="summary">
@@ -348,66 +343,66 @@ def generate_interaction_report(analyses, output_path):
         <div class="metric-row">
             <div class="metric">
                 <div class="metric-label">Mensajes Totales</div>
-                <div class="metric-value">{analysis['total_messages']}</div>
+                <div class="metric-value">{analysis["total_messages"]}</div>
             </div>
             <div class="metric">
                 <div class="metric-label">Llamadas a Herramientas</div>
-                <div class="metric-value">{analysis['tool_calls']}</div>
+                <div class="metric-value">{analysis["tool_calls"]}</div>
             </div>
             <div class="metric">
                 <div class="metric-label">Eventos de Pensamiento</div>
-                <div class="metric-value">{analysis['thinking_events']}</div>
+                <div class="metric-value">{analysis["thinking_events"]}</div>
             </div>
             <div class="metric">
                 <div class="metric-label">Duración</div>
-                <div class="metric-value">{analysis['duration_seconds']:.1f}s</div>
+                <div class="metric-value">{analysis["duration_seconds"]:.1f}s</div>
             </div>
         </div>
 """
 
         # Archivos leídos
-        if analysis['files_read']:
+        if analysis["files_read"]:
             html += f"""
-        <h4>📖 Archivos Leídos ({len(analysis['files_read'])})</h4>
+        <h4>📖 Archivos Leídos ({len(analysis["files_read"])})</h4>
         <div class="file-list">
 """
-            for file in sorted(analysis['files_read']):
+            for file in sorted(analysis["files_read"]):
                 html += f'            <div class="file-item">{file}</div>\n'
             html += """
         </div>
 """
 
         # Archivos editados
-        if analysis['files_edited']:
+        if analysis["files_edited"]:
             html += f"""
-        <h4>✏️ Archivos Editados ({len(analysis['files_edited'])})</h4>
+        <h4>✏️ Archivos Editados ({len(analysis["files_edited"])})</h4>
         <div class="file-list">
 """
-            for file in sorted(analysis['files_edited']):
+            for file in sorted(analysis["files_edited"]):
                 html += f'            <div class="file-item">{file}</div>\n'
             html += """
         </div>
 """
 
         # Archivos escritos
-        if analysis['files_written']:
+        if analysis["files_written"]:
             html += f"""
-        <h4>📝 Archivos Escritos ({len(analysis['files_written'])})</h4>
+        <h4>📝 Archivos Escritos ({len(analysis["files_written"])})</h4>
         <div class="file-list">
 """
-            for file in sorted(analysis['files_written']):
+            for file in sorted(analysis["files_written"]):
                 html += f'            <div class="file-item">{file}</div>\n'
             html += """
         </div>
 """
 
         # Errores
-        if analysis['errors']:
+        if analysis["errors"]:
             html += f"""
-        <h4>⚠️ Errores ({len(analysis['errors'])})</h4>
+        <h4>⚠️ Errores ({len(analysis["errors"])})</h4>
 """
-            for error in analysis['errors']:
-                error_escaped = error.replace('<', '&lt;').replace('>', '&gt;')
+            for error in analysis["errors"]:
+                error_escaped = error.replace("<", "&lt;").replace(">", "&gt;")
                 html += f"""
         <div class="error-box">
             <div class="error-text">{error_escaped}</div>
@@ -423,7 +418,7 @@ def generate_interaction_report(analyses, output_path):
 </html>
 """
 
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
 
     print(f"✓ Reporte de interacciones generado: {output_path}")
@@ -467,7 +462,9 @@ def main():
 
     # Generar reporte
     print("📝 Generando reporte HTML...")
-    output_path = base_dir / 'eval' / f'interacciones_agent_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
+    output_path = (
+        base_dir / "eval" / f"interacciones_agent_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+    )
     generate_interaction_report(analyses, output_path)
 
     print()
@@ -478,5 +475,5 @@ def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

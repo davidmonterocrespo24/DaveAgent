@@ -134,9 +134,6 @@ Usuario: "Create complete API with auth, CRUD, and tests"
     ↓ Coder implementa paso 2
     ↓ Planner revisa
     ↓ ...
-    ↓ Planner → DELEGATE_TO_SUMMARY
-    ↓ SummaryAgent resume
-    ↓
 [_auto_save_agent_states()] 💾 ← AQUÍ SE GUARDA (dentro de _execute_complex_task)
     ↓
 [_generate_task_summary()] → "Created complete API with..."

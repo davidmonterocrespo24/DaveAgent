@@ -2,36 +2,12 @@
 GREP Search Tool (Git Grep + Python Fallback)
 """
 
-import os
 import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
 
-from src.tools.common import get_workspace
-
-# --- Exclusion Configuration (Fallback) ---
-# Used only if git grep is not available
-EXCLUDED_DIRS = {
-    "node_modules",
-    "__pycache__",
-    ".git",
-    ".venv",
-    "venv",
-    "env",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".tox",
-    "dist",
-    "build",
-    "site-packages",
-    ".next",
-    ".nuxt",
-    "coverage",
-    ".idea",
-    ".vscode",
-}
+from src.tools.common import EXCLUDED_DIRS, get_workspace
 
 EXCLUDED_EXTS = {
     ".pyc",
@@ -66,7 +42,7 @@ def _is_git_repo(path: Path) -> bool:
 
 
 def _run_git_grep(
-    query: str, path: Path, include: Optional[str] = None, case_sensitive: bool = False
+    query: str, path: Path, include: str | None = None, case_sensitive: bool = False
 ) -> str | None:
     """Executes optimized 'git grep'."""
     if not shutil.which("git"):
@@ -144,7 +120,7 @@ def _python_grep_fallback(
 
             try:
                 # Line-by-line reading to avoid loading large files into memory
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                with open(file_path, encoding="utf-8", errors="ignore") as f:
                     for i, line in enumerate(f, 1):
                         if pattern.search(line):
                             # Format compatible with git grep: file:line:content
@@ -169,9 +145,9 @@ def _python_grep_fallback(
 async def grep_search(
     query: str,
     case_sensitive: bool = False,
-    include_pattern: Optional[str] = None,
-    exclude_pattern: Optional[str] = None,  # Deprecated in favor of gitignore but kept for compat
-    explanation: Optional[str] = None,
+    include_pattern: str | None = None,
+    exclude_pattern: str | None = None,  # Deprecated in favor of gitignore but kept for compat
+    explanation: str | None = None,
 ) -> str:
     """
     Search for a regex pattern in files.
