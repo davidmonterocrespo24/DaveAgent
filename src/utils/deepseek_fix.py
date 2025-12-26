@@ -42,4 +42,3 @@ def get_thinking_mode_enabled(model: str) -> bool:
     """
     # Enable automatically for deepseek-reasoner and deepseek-r1
     return model in ("deepseek-reasoner", "deepseek-r1")
-

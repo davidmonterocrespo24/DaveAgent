@@ -23,13 +23,13 @@ from src.skills.parser import (
 class SkillManager:
     """
     Manages Agent Skills discovery, loading, and access.
-    
+
     Scans configured directories for skill folders containing SKILL.md files,
     parses them, and provides access to skill metadata and instructions.
-    
+
     Uses RAG (Retrieval-Augmented Generation) to semantic search for relevant
     skills based on user queries, ensuring efficient context usage.
-    
+
     Skill directories (in order of precedence):
     1. Personal skills: ~/.daveagent/skills/
     2. Project skills: .daveagent/skills/ (relative to working directory)
@@ -46,11 +46,11 @@ class SkillManager:
         personal_skills_dir: Path | None = None,
         project_skills_dir: Path | None = None,
         additional_dirs: list[Path] | None = None,
-        logger: logging.Logger | None = None
+        logger: logging.Logger | None = None,
     ):
         """
         Initialize the SkillManager.
-        
+
         Args:
             rag_manager: RAGManager instance for skill indexing/retrieval
             personal_skills_dir: Override personal skills directory
@@ -79,7 +79,7 @@ class SkillManager:
     def discover_skills(self) -> int:
         """
         Discover, load, and index all skills from configured directories.
-        
+
         Returns:
             Number of skills successfully loaded
         """
@@ -151,7 +151,7 @@ class SkillManager:
                 source=source,
                 allowed_tools=parse_allowed_tools(frontmatter),
                 license=frontmatter.get("license"),
-                metadata=extract_skill_metadata(frontmatter)
+                metadata=extract_skill_metadata(frontmatter),
             )
 
             self._skills[name] = skill
@@ -173,13 +173,16 @@ class SkillManager:
 
             for skill in self._skills.values():
                 # Content includes description and full instructions for matching
-                search_content = f"Skill: {skill.name}\nDescription: {skill.description}\n\n{skill.instructions}"
+                search_content = (
+                    f"Skill: {skill.name}\nDescription: {skill.description}\n\n{skill.instructions}"
+                )
 
                 # Deterministic ID based on skill name
                 source_id = f"skill-{skill.name}"
 
                 # Compute hash of the content
                 import hashlib
+
                 content_hash = hashlib.md5(search_content.encode("utf-8")).hexdigest()
                 new_hashes[source_id] = content_hash
 
@@ -189,18 +192,16 @@ class SkillManager:
                     self.logger.debug(f"Skipping indexing for unchanging skill: {skill.name}")
                     continue
 
-                metadata = {
-                    "skill_name": skill.name,
-                    "source": skill.source,
-                    "type": "agent_skill"
-                }
+                metadata = {"skill_name": skill.name, "source": skill.source, "type": "agent_skill"}
 
-                skills_to_index.append({
-                    "collection_name": self.RAG_COLLECTION,
-                    "text": search_content,
-                    "metadata": metadata,
-                    "source_id": source_id
-                })
+                skills_to_index.append(
+                    {
+                        "collection_name": self.RAG_COLLECTION,
+                        "text": search_content,
+                        "metadata": metadata,
+                        "source_id": source_id,
+                    }
+                )
 
             # Perform indexing only for new/changed skills
             if skills_to_index:
@@ -230,6 +231,7 @@ class SkillManager:
             return {}
         try:
             import json
+
             return json.loads(hash_file.read_text(encoding="utf-8"))
         except Exception as e:
             self.logger.warning(f"Failed to load skill hashes: {e}")
@@ -239,6 +241,7 @@ class SkillManager:
         """Save skill hashes."""
         try:
             import json
+
             hash_file = self._get_hashes_file()
             # Ensure directory exists (it should, but just in case)
             hash_file.parent.mkdir(parents=True, exist_ok=True)
@@ -247,8 +250,9 @@ class SkillManager:
         except Exception as e:
             self.logger.error(f"Failed to save skill hashes: {e}")
 
-
-    def find_relevant_skills(self, user_query: str, max_results: int = 10, min_score: float = 0.5) -> list[Skill]:
+    def find_relevant_skills(
+        self, user_query: str, max_results: int = 10, min_score: float = 0.5
+    ) -> list[Skill]:
         """
         Find skills relevant to a user query using RAG semantic search.
         Falls back to keyword matching if RAG is not available.
@@ -273,7 +277,7 @@ class SkillManager:
                     collection_name=self.RAG_COLLECTION,
                     query=user_query,
                     top_k=max_results,
-                    min_score=min_score  # Umbral de relevancia
+                    min_score=min_score,  # Umbral de relevancia
                 )
 
                 found_skills = []
@@ -281,12 +285,12 @@ class SkillManager:
 
                 for res in results:
                     # Get skill name from metadata if available, or infer from id
-                    meta = res.get('metadata', {})
-                    skill_name = meta.get('skill_name')
-                    score = res.get('score', 0.0)
+                    meta = res.get("metadata", {})
+                    skill_name = meta.get("skill_name")
+                    score = res.get("score", 0.0)
 
                     # If not in metadata (e.g. child chunk), parsed from content or fallback
-                    if not skill_name and 'skill-' in str(res.get('id', '')):
+                    if not skill_name and "skill-" in str(res.get("id", "")):
                         # Try to extract from ID logic (skill-name-...)
                         # But simpler: just look up in our loaded skills which one matches
                         pass
@@ -294,10 +298,14 @@ class SkillManager:
                     if skill_name and skill_name in self._skills and skill_name not in seen_names:
                         found_skills.append(self._skills[skill_name])
                         seen_names.add(skill_name)
-                        self.logger.debug(f"  - Skill '{skill_name}' matched with score {score:.4f}")
+                        self.logger.debug(
+                            f"  - Skill '{skill_name}' matched with score {score:.4f}"
+                        )
 
                 if found_skills:
-                    self.logger.info(f"RAG found {len(found_skills)} relevant skill(s) with score >= {min_score}")
+                    self.logger.info(
+                        f"RAG found {len(found_skills)} relevant skill(s) with score >= {min_score}"
+                    )
                     return found_skills
                 else:
                     self.logger.debug(f"RAG found no skills with score >= {min_score}")
@@ -306,13 +314,14 @@ class SkillManager:
             except Exception as e:
                 # Log detallado del error real para debugging
                 import traceback
+
                 self.logger.debug(f"RAG search exception: {type(e).__name__}: {e}")
                 self.logger.debug(f"Traceback: {traceback.format_exc()}")
                 # Solo mostrar warning si es un error inesperado (no por falta de resultados)
                 if "index out of range" not in str(e).lower():
                     self.logger.warning(f"RAG skill search failed: {e}. Falling back to keywords.")
                 else:
-                    self.logger.debug(f"RAG search returned no results, using keyword fallback.")
+                    self.logger.debug("RAG search returned no results, using keyword fallback.")
 
         # 2. Keywork fallback (or if RAG returned nothing/failed)
         return self._find_skills_by_keyword(user_query, max_results)
@@ -348,8 +357,11 @@ class SkillManager:
 
     def get_skills_metadata(self) -> str:
         """Get list of ALL skills metadata (legacy/fallback usage)."""
-        if not self._skills: return ""
-        lines = [s.to_metadata_string() for s in sorted(self._skills.values(), key=lambda s: s.name)]
+        if not self._skills:
+            return ""
+        lines = [
+            s.to_metadata_string() for s in sorted(self._skills.values(), key=lambda s: s.name)
+        ]
         return "\n".join(lines)
 
     def get_skill_context(self, skill_name: str) -> str | None:
@@ -368,4 +380,3 @@ class SkillManager:
 
     def __contains__(self, item: str) -> bool:
         return item in self._skills
-

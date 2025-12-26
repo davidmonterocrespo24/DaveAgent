@@ -28,8 +28,13 @@ def clone_repo(repo, commit, work_dir):
             print(f"Repo {work_dir} exists. Cleaning and resetting...")
             subprocess.run(["git", "reset", "--hard"], cwd=work_dir, check=True)
             subprocess.run(["git", "clean", "-fd"], cwd=work_dir, check=True)
-            subprocess.run(["git", "fetch", "repo_origin"], cwd=work_dir, check=False)  # Try fetching from alias
-            if subprocess.run(["git", "fetch", "origin"], cwd=work_dir, check=False).returncode != 0:
+            subprocess.run(
+                ["git", "fetch", "repo_origin"], cwd=work_dir, check=False
+            )  # Try fetching from alias
+            if (
+                subprocess.run(["git", "fetch", "origin"], cwd=work_dir, check=False).returncode
+                != 0
+            ):
                 pass  # Warning or retry?
         else:
             # Weird state, delete and reclone
@@ -60,14 +65,14 @@ def main():
 
     print("Loading dataset...")
     try:
-        dataset = load_dataset('princeton-nlp/SWE-bench_Verified', split='test')
+        dataset = load_dataset("princeton-nlp/SWE-bench_Verified", split="test")
     except Exception as e:
         print(f"Error loading dataset: {e}")
         return
 
     # Filter if needed
     if args.instance_id:
-        dataset = dataset.filter(lambda x: x['instance_id'] == args.instance_id)
+        dataset = dataset.filter(lambda x: x["instance_id"] == args.instance_id)
         if len(dataset) == 0:
             print(f"No instance found with ID {args.instance_id}")
             return
@@ -90,14 +95,14 @@ async def run_tasks(dataset, repo_dir_base, output_file):
 
     try:
         for i, item in enumerate(dataset):
-            instance_id = item['instance_id']
-            repo = item['repo']
-            base_commit = item['base_commit']
-            problem_statement = item['problem_statement']
+            instance_id = item["instance_id"]
+            repo = item["repo"]
+            base_commit = item["base_commit"]
+            problem_statement = item["problem_statement"]
 
             print(f"\n[{i + 1}/{len(dataset)}] Processing {instance_id}...")
 
-            repo_name = repo.split('/')[-1]
+            repo_name = repo.split("/")[-1]
             work_dir = os.path.join(repo_dir_base, f"{repo_name}_{instance_id}")
 
             # Clone and setup
@@ -122,11 +127,11 @@ async def run_tasks(dataset, repo_dir_base, output_file):
             results = {
                 "instance_id": instance_id,
                 "model_patch": patch,
-                "model_name_or_path": "CodeAgent-v1"
+                "model_name_or_path": "CodeAgent-v1",
             }
 
             # Append to file immediately
-            with open(output_file, 'a', encoding='utf-8') as f:
+            with open(output_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(results) + "\n")
 
     finally:

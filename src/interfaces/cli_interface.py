@@ -65,11 +65,7 @@ class CLIInterface:
 ║              Intelligent Development Agent                   ║
 ║                    Version 1.2.1                             ║
 ╚══════════════════════════════════════════════════════════════╝
-        """.strip(
-            "\n"
-        ).split(
-            "\n"
-        )
+        """.strip("\n").split("\n")
 
         height = len(banner_lines)
         width = max(len(line) for line in banner_lines)
@@ -485,7 +481,9 @@ class CLIInterface:
                 )
         except Exception:
             # Fallback to plain text if syntax highlighting fails
-            self.console.print(Panel(code, title=f"[bold cyan]{filename}[/bold cyan]", border_style="dim"))
+            self.console.print(
+                Panel(code, title=f"[bold cyan]{filename}[/bold cyan]", border_style="dim")
+            )
 
     def print_task_summary(self, summary: str):
         """
@@ -527,9 +525,9 @@ class CLIInterface:
         stats_text = f"""
 **Current Session Statistics:**
 
-• Total messages: {stats.get('total_messages', 0)}
-• First message: {stats.get('first_message', 'N/A')}
-• Last message: {stats.get('last_message', 'N/A')}
+• Total messages: {stats.get("total_messages", 0)}
+• First message: {stats.get("first_message", "N/A")}
+• Last message: {stats.get("last_message", "N/A")}
 
 **Note:** To see the complete agent state, use `/list-sessions`
 **Persistence:** State is automatically saved using AutoGen save_state()

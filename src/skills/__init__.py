@@ -20,5 +20,5 @@ __all__ = [
     "parse_skill_frontmatter",
     "parse_skill_body",
     "validate_skill_name",
-    "validate_skill_description"
+    "validate_skill_description",
 ]

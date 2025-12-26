@@ -16,6 +16,7 @@ from src.managers.rag_manager import RAGManager
 # We want to see print output clearly, so we might suppress some logging or keep it to INFO
 logger = logging.getLogger(__name__)
 
+
 def test_rag_components():
     print("================================================================")
     print("DETAILED RAG COMPONENT TEST")
@@ -63,7 +64,7 @@ def test_rag_components():
     queries = rag._generate_multi_queries(query, n=2)
     print(f"Generated {len(queries)} queries:")
     for i, q in enumerate(queries):
-        print(f"  {i+1}: {q}")
+        print(f"  {i + 1}: {q}")
 
     if len(queries) > 1:
         print("[Pass] Multi-query generation working.")
@@ -81,15 +82,15 @@ def test_rag_components():
     results_list = []
 
     for i, q in enumerate(queries):
-        print(f"\nSearching for query {i+1}: '{q}'")
+        print(f"\nSearching for query {i + 1}: '{q}'")
         res = collection.query(query_texts=[q], n_results=2)
         results_list.append(res)
 
         # Print raw results for this query
-        if res['ids']:
-            for j, doc_id in enumerate(res['ids'][0]):
-                content_snippet = res['documents'][0][j][:50]
-                dist = res['distances'][0][j] if res['distances'] else "N/A"
+        if res["ids"]:
+            for j, doc_id in enumerate(res["ids"][0]):
+                content_snippet = res["documents"][0][j][:50]
+                dist = res["distances"][0][j] if res["distances"] else "N/A"
                 print(f"  -> Found: {doc_id} (Dist: {dist}) | '{content_snippet}...'")
         else:
             print("  -> No results found.")
@@ -128,7 +129,7 @@ def test_rag_components():
         if len(final_output) >= top_k:
             break
 
-        parent_id = item['metadata'].get('parent_id')
+        parent_id = item["metadata"].get("parent_id")
         print(f"Processing Item ID: {item['id']} -> Parent ID: {parent_id}")
 
         if parent_id and parent_id not in seen_parents:
@@ -136,7 +137,9 @@ def test_rag_components():
             if parent_doc:
                 print("  [Hit] Found Parent Document in DocStore.")
                 print(f"  Parent Content Length: {len(parent_doc['content'])}")
-                print(f"  Parent Content Preview: {parent_doc['content'][:60].replace(chr(10), ' ')}...")
+                print(
+                    f"  Parent Content Preview: {parent_doc['content'][:60].replace(chr(10), ' ')}..."
+                )
                 final_output.append(parent_doc)
                 seen_parents.add(parent_id)
             else:
@@ -144,7 +147,7 @@ def test_rag_components():
         elif parent_id in seen_parents:
             print(f"  [Skip] Parent {parent_id} already retrieved.")
         else:
-             print("  [Info] No parent ID, using child doc.")
+            print("  [Info] No parent ID, using child doc.")
 
     if final_output:
         print("[Pass] Parent retrieval successful.")
@@ -155,6 +158,7 @@ def test_rag_components():
     rag.reset_db()
     # shutil.rmtree(test_db_path, ignore_errors=True)
     print("\nTest Complete.")
+
 
 if __name__ == "__main__":
     test_rag_components()

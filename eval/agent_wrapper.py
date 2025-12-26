@@ -43,6 +43,7 @@ class SWESolver:
             daveagent_dir = Path(".daveagent")
             if daveagent_dir.exists():
                 import shutil
+
                 print(f"[DEBUG] Cleaning previous memory at {daveagent_dir}...")
                 try:
                     shutil.rmtree(daveagent_dir)
@@ -101,15 +102,13 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
                 print(f"[DEBUG] Task content length: {len(focused_task)} chars")
                 print(f"[DEBUG] main_team type: {type(self.app.main_team)}")
                 print(
-                    f"[DEBUG] main_team participants: {len(self.app.main_team._participants) if hasattr(self.app.main_team, '_participants') else 'unknown'}")
+                    f"[DEBUG] main_team participants: {len(self.app.main_team._participants) if hasattr(self.app.main_team, '_participants') else 'unknown'}"
+                )
 
                 print("\n[EVAL] Starting agent with 10-minute timeout...")
                 print("[DEBUG] Calling main_team.run()...")
 
-                result = await asyncio.wait_for(
-                    self.app.main_team.run(task=task),
-                    timeout=1600.0
-                )
+                result = await asyncio.wait_for(self.app.main_team.run(task=task), timeout=1600.0)
 
                 print("[DEBUG] main_team.run() completed")
                 print(f"[DEBUG] Result type: {type(result)}")
@@ -122,8 +121,8 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
                 # Print each message for debugging
                 print("\n[DEBUG] ===== MESSAGE DETAILS =====")
                 for i, msg in enumerate(result.messages):
-                    source = getattr(msg, 'source', 'Unknown')
-                    content = getattr(msg, 'content', '')
+                    source = getattr(msg, "source", "Unknown")
+                    content = getattr(msg, "content", "")
                     msg_type = type(msg).__name__
 
                     print(f"[DEBUG] Message {i + 1}:")
@@ -137,6 +136,7 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
 
                 # CHECK FOR CHANGES
                 import subprocess
+
                 diff_check = subprocess.run(["git", "diff"], capture_output=True, text=True).stdout
 
                 if not diff_check.strip():
@@ -149,6 +149,7 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
             except Exception as e:
                 print(f"[ERROR] Error during agent execution: {e}")
                 import traceback
+
                 traceback.print_exc()
 
             print("Task execution finished.")
@@ -156,17 +157,18 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
         except Exception as e:
             print(f"Error solving task: {e}")
             import traceback
+
             traceback.print_exc()
         finally:
             os.chdir(current_dir)
 
     async def close(self):
         try:
-            if hasattr(self.app, 'model_client'):
+            if hasattr(self.app, "model_client"):
                 await self.app.model_client.close()
-            if hasattr(self.app, 'memory_manager'):
+            if hasattr(self.app, "memory_manager"):
                 await self.app.memory_manager.close()
-            if hasattr(self.app, 'state_manager'):
+            if hasattr(self.app, "state_manager"):
                 await self.app.state_manager.close()
         except Exception as e:
             print(f"Error closing resources: {e}")

@@ -29,8 +29,8 @@ class DaveAgentSettings:
     DEFAULT_BASE_URL = "https://api.deepseek.com"
     DEFAULT_BASE_URL = "https://api.deepseek.com"
     DEFAULT_MODEL = "deepseek-reasoner"  # Used as fallback or specific selection
-    DEFAULT_BASE_MODEL = "deepseek-chat" # Default base model
-    DEFAULT_STRONG_MODEL = "deepseek-reasoner" # Default strong model
+    DEFAULT_BASE_MODEL = "deepseek-chat"  # Default base model
+    DEFAULT_STRONG_MODEL = "deepseek-reasoner"  # Default strong model
     DEFAULT_SSL_VERIFY = True
 
     def __init__(
@@ -273,7 +273,7 @@ def get_settings(
         model=model,
         base_model=base_model,
         strong_model=strong_model,
-        ssl_verify=ssl_verify
+        ssl_verify=ssl_verify,
     )
 
 

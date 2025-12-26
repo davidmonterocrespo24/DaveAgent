@@ -12,8 +12,7 @@ async def write_file(target_file: str, file_content: str) -> str:
     approval_msg = f"Writing {len(file_content)} chars to {target_file}"
 
     approval_result = await ask_for_approval(
-        action_description=f"WRITE FILE: {target_file}",
-        context=f"```\n{preview}\n```"
+        action_description=f"WRITE FILE: {target_file}", context=f"```\n{preview}\n```"
     )
     if approval_result:
         return approval_result

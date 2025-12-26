@@ -14,6 +14,7 @@ from src.managers.rag_manager import RAGManager
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def test_rag_flow():
     print("----------------------------------------------------------------")
     print("Testing RAG Manager Flow")
@@ -52,7 +53,7 @@ def test_rag_flow():
     source_id = rag.add_document(
         collection_name=collection_name,
         text=text_content,
-        metadata={"title": "AI History and RAG", "author": "Test Script"}
+        metadata={"title": "AI History and RAG", "author": "Test Script"},
     )
     print(f"Document ingested with Source ID: {source_id}")
 
@@ -66,7 +67,7 @@ def test_rag_flow():
 
     if results:
         for i, res in enumerate(results):
-            print(f"\nResult {i+1} (Score: {res.get('score', 'N/A')}):")
+            print(f"\nResult {i + 1} (Score: {res.get('score', 'N/A')}):")
             print(f"Content: {res['content'][:200]}...")
             print(f"Metadata: {res['metadata']}")
             print(f"Source: {res.get('retrieval_source', 'vector')}")
@@ -78,6 +79,7 @@ def test_rag_flow():
     # Explicitly remove directory if possible (might fail if still locked by dll)
     # shutil.rmtree(test_db_path, ignore_errors=True)
     print("Test completed.")
+
 
 if __name__ == "__main__":
     test_rag_flow()

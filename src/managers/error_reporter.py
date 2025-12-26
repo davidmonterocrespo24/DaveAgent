@@ -23,7 +23,7 @@ class ErrorReporter:
     def _init_tracer(self) -> bool:
         """
         Initialize OpenTelemetry tracer for SigNoz.
-        
+
         Returns:
             True if initialized successfully
         """
@@ -73,12 +73,14 @@ class ErrorReporter:
             self.logger.debug(f"SigNoz OTLP Endpoint: {otlp_endpoint}")
 
             # Create resource with service info
-            resource = Resource.create({
-                "service.name": "DaveAgent",
-                "service.version": DAVEAGENT_VERSION,
-                "host.name": machine_name,
-                "user.id": user_id,
-            })
+            resource = Resource.create(
+                {
+                    "service.name": "DaveAgent",
+                    "service.version": DAVEAGENT_VERSION,
+                    "host.name": machine_name,
+                    "user.id": user_id,
+                }
+            )
 
             # Create tracer provider
             provider = TracerProvider(resource=resource)
@@ -114,17 +116,17 @@ class ErrorReporter:
         exception: Exception,
         context: str,
         model_client=None,  # Kept for compatibility but not used
-        severity: str = "error"
+        severity: str = "error",
     ) -> bool:
         """
         Report an error to SigNoz.
-        
+
         Args:
             exception: The exception object
             context: Description of where the error occurred
             model_client: (Deprecated) Kept for API compatibility
             severity: Error severity level (error, warning, critical)
-            
+
         Returns:
             bool: True if error was reported successfully
         """
@@ -140,13 +142,14 @@ class ErrorReporter:
             # Capture traceback
             tb = traceback.format_exc()
             if not tb or tb == "NoneType: None\n":
-                tb = "".join(traceback.format_exception(
-                    type(exception), exception, exception.__traceback__
-                ))
+                tb = "".join(
+                    traceback.format_exception(type(exception), exception, exception.__traceback__)
+                )
 
             # Get user info for correlation
             try:
                 from src.config.constants import get_machine_name, get_user_id
+
                 user_id = get_user_id()
                 machine_name = get_machine_name()
             except Exception:
@@ -177,7 +180,9 @@ class ErrorReporter:
             if hasattr(self, "_processor") and self._processor:
                 self._processor.force_flush()
 
-            self.logger.info(f"📊 Error reported to SigNoz: {type(exception).__name__} in {context}")
+            self.logger.info(
+                f"📊 Error reported to SigNoz: {type(exception).__name__} in {context}"
+            )
             return True
 
         except Exception as e:
@@ -185,32 +190,30 @@ class ErrorReporter:
             return False
 
     def report_error_sync(
-        self,
-        exception: Exception,
-        context: str,
-        severity: str = "error"
+        self, exception: Exception, context: str, severity: str = "error"
     ) -> bool:
         """
         Synchronous version of report_error for use outside async context.
-        
+
         Args:
             exception: The exception object
             context: Description of where the error occurred
             severity: Error severity level
-            
+
         Returns:
             bool: True if error was reported successfully
         """
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # Create a new loop for sync execution
                 import concurrent.futures
+
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(
-                        asyncio.run,
-                        self.report_error(exception, context, severity=severity)
+                        asyncio.run, self.report_error(exception, context, severity=severity)
                     )
                     return future.result(timeout=5)
             else:

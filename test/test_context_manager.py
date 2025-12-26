@@ -56,6 +56,7 @@ class TestContextManager(unittest.TestCase):
         original_cwd = Path.cwd()
         try:
             import os
+
             os.chdir(sub_dir)
 
             # Re-initialize to pick up relative paths if any (though logic uses absolute)
@@ -72,6 +73,7 @@ class TestContextManager(unittest.TestCase):
 
         finally:
             import os
+
             os.chdir(original_cwd)
 
     def test_get_combined_context(self):
@@ -86,6 +88,7 @@ class TestContextManager(unittest.TestCase):
         original_cwd = Path.cwd()
         try:
             import os
+
             os.chdir(project_dir)
 
             combined = self.manager.get_combined_context()
@@ -96,8 +99,10 @@ class TestContextManager(unittest.TestCase):
             self.assertIn("PROJECT", combined)
 
         finally:
-             import os
-             os.chdir(original_cwd)
+            import os
+
+            os.chdir(original_cwd)
+
 
 if __name__ == "__main__":
     unittest.main()

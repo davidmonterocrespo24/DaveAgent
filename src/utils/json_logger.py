@@ -62,8 +62,6 @@ class JSONLogger:
             "errors": 0,
         }
 
-
-
     def start_session(self, session_id: str | None = None, mode: str = "agent", **kwargs):
         """
         Start a new logging session
@@ -259,7 +257,9 @@ class JSONLogger:
                     f,
                     indent=2,
                     ensure_ascii=False,
-                    default=lambda o: o.model_dump() if hasattr(o, "model_dump") else (o.__dict__ if hasattr(o, "__dict__") else str(o))
+                    default=lambda o: o.model_dump()
+                    if hasattr(o, "model_dump")
+                    else (o.__dict__ if hasattr(o, "__dict__") else str(o)),
                 )
 
             self.logger.info(f"📝 JSON log saved: {filepath}")

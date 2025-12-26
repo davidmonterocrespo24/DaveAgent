@@ -16,16 +16,21 @@ def _setup_utf8_output():
     """Setup UTF-8 encoding for stdout on Windows"""
     if os.name == "nt":
         import io
+
         # Use UTF-8 encoding with replace errors for compatibility
-        if hasattr(sys.stdout, 'buffer'):
-            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+        if hasattr(sys.stdout, "buffer"):
+            sys.stdout = io.TextIOWrapper(
+                sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True
+            )
         # Enable ANSI color codes on Windows
         try:
             import ctypes
+
             kernel32 = ctypes.windll.kernel32
             kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
         except:
             pass
+
 
 # Setup output on module import
 _setup_utf8_output()
@@ -143,7 +148,7 @@ class FileSelector:
         try:
             header = "\033[1m\033[96m📁 File Selector\033[0m \033[2m(↑↓ navigate | Enter select | Esc cancel)\033[0m"
             # Test if emoji can be encoded
-            header.encode(sys.stdout.encoding or 'utf-8')
+            header.encode(sys.stdout.encoding or "utf-8")
             lines.append(header)
         except (UnicodeEncodeError, LookupError):
             # Fallback without emoji
@@ -157,7 +162,7 @@ class FileSelector:
         if not files:
             try:
                 no_files_msg = "\033[93m⚠ No files found\033[0m\033[K"
-                no_files_msg.encode(sys.stdout.encoding or 'utf-8')
+                no_files_msg.encode(sys.stdout.encoding or "utf-8")
                 lines.append(no_files_msg)
             except (UnicodeEncodeError, LookupError):
                 lines.append("\033[93m! No files found\033[0m\033[K")

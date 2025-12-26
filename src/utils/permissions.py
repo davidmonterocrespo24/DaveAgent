@@ -2,13 +2,14 @@
 Permission Manager for Persistent User Approvals.
 Handles loading, saving, and checking permissions from .daveagent/settings.local.json
 """
-import json
-import os
+
 import fnmatch
+import json
 from pathlib import Path
-from typing import List, Dict, Optional, Literal
+from typing import Literal
 
 SETTINGS_FILE = Path(".daveagent/settings.local.json")
+
 
 class PermissionManager:
     _instance = None
@@ -21,15 +22,11 @@ class PermissionManager:
 
     def _load_settings(self):
         """Load permissions from settings file"""
-        self.permissions = {
-            "allow": [],
-            "deny": [],
-            "ask": []
-        }
-        
+        self.permissions = {"allow": [], "deny": [], "ask": []}
+
         if SETTINGS_FILE.exists():
             try:
-                with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                with open(SETTINGS_FILE, encoding="utf-8") as f:
                     data = json.load(f)
                     if "permissions" in data:
                         self.permissions.update(data["permissions"])
@@ -46,10 +43,10 @@ class PermissionManager:
         """Write current permissions to disk"""
         try:
             SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-            
+
             data = {"permissions": self.permissions}
-            
-            with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+
+            with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
             print(f"Error saving settings: {e}")
@@ -81,8 +78,9 @@ class PermissionManager:
             # Simple normalization for Windows/Unix compatibility
             pattern = pattern.replace("\\", "/")
             text = text.replace("\\", "/")
-            
+
         return fnmatch.fnmatch(text, pattern)
+
 
 def get_permission_manager() -> PermissionManager:
     return PermissionManager()

@@ -2,10 +2,14 @@
 Main file - Complete CLI interface for the code agent
 NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 """
+
 # IMPORTANTE: Filtros de warnings ANTES de todos los imports
 import warnings
-warnings.filterwarnings('ignore', category=DeprecationWarning, module='autogen.import_utils')
-warnings.filterwarnings('ignore', category=DeprecationWarning, module='chromadb.api.collection_configuration')
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="autogen.import_utils")
+warnings.filterwarnings(
+    "ignore", category=DeprecationWarning, module="chromadb.api.collection_configuration"
+)
 
 import asyncio
 import logging
@@ -30,10 +34,10 @@ from src.config import (
 )
 from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
-from src.utils.errors import UserCancelledError
 
 # Managers moved to __init__
 from src.utils import HistoryViewer, LoggingModelClientWrapper, get_conversation_tracker, get_logger
+from src.utils.errors import UserCancelledError
 
 
 class DaveAgentCLI:
@@ -53,6 +57,7 @@ class DaveAgentCLI:
         Initialize all agent components
         """
         import time
+
         t_start = time.time()
 
         # Configure logging (now in .daveagent/logs/)
@@ -86,11 +91,13 @@ class DaveAgentCLI:
 
         # Create custom HTTP client with SSL configuration
         import httpx
+
         http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
 
         # Complete JSON logging system (ALWAYS active, independent of Langfuse)
         # IMPORTANT: Initialize JSONLogger BEFORE creating the model_client wrapper
         from src.utils.json_logger import JSONLogger
+
         self.json_logger = JSONLogger()
 
         # =====================================================================
@@ -117,7 +124,7 @@ class DaveAgentCLI:
         )
 
         if is_deepseek_reasoner:
-             self.client_strong = DeepSeekReasoningClient(
+            self.client_strong = DeepSeekReasoningClient(
                 model=self.settings.strong_model,
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
@@ -127,15 +134,13 @@ class DaveAgentCLI:
             )
 
         else:
-             self.client_strong = OpenAIChatCompletionClient(
+            self.client_strong = OpenAIChatCompletionClient(
                 model=self.settings.strong_model,
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
                 model_info=self.settings.get_model_capabilities(),
                 custom_http_client=http_client,
             )
-
-
 
         # Wrappers for Logging
         # Note: We will wrap them again with specific agent names later,
@@ -148,10 +153,9 @@ class DaveAgentCLI:
             agent_name="SystemRouter",
         )
 
-
         # ROUTER CLIENT: Always use Base Model for routing/planning
         self.router_client = OpenAIChatCompletionClient(
-            model=self.settings.base_model, # Use base model for router
+            model=self.settings.base_model,  # Use base model for router
             base_url=self.settings.base_url,
             api_key=self.settings.api_key,
             model_capabilities=self.settings.get_model_capabilities(),
@@ -162,8 +166,10 @@ class DaveAgentCLI:
         t0 = time.time()
         # State management system (AutoGen save_state/load_state)
         from src.managers import StateManager
+
         self.state_manager = StateManager(
-            auto_save_enabled=True, auto_save_interval=300  # Auto-save every 5 minutes
+            auto_save_enabled=True,
+            auto_save_interval=300,  # Auto-save every 5 minutes
         )
         print(f"[Startup] StateManager initialized in {time.time() - t0:.4f}s")
 
@@ -172,25 +178,30 @@ class DaveAgentCLI:
         print("[Startup] Importing RAGManager...")
         t_rag_import = time.time()
         from src.managers.rag_manager import RAGManager
+
         print(f"[Startup] RAGManager imported in {time.time() - t_rag_import:.4f}s")
 
         # Used for ContextManager search and SkillManager indexing
         # Initialize RAG Manager first
         # Use current working directory for rag_data persistence
         work_dir = os.getcwd()
-        self.rag_manager = RAGManager(settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data")
+        self.rag_manager = RAGManager(
+            settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data"
+        )
         print(f"[Startup] RAGManager initialized in {time.time() - t0:.4f}s")
-        
+
         # Start background warmup to load heavy models
         import threading
+
         if hasattr(self.rag_manager, "warmup"):
-             threading.Thread(target=self.rag_manager.warmup, daemon=True).start()
+            threading.Thread(target=self.rag_manager.warmup, daemon=True).start()
         else:
-             print("[Startup] Warning: RAGManager warmup method missing (using stale version?)")
+            print("[Startup] Warning: RAGManager warmup method missing (using stale version?)")
 
         t0 = time.time()
         # Agent Skills system (Claude-compatible and RAG-enhanced)
         from src.skills import SkillManager
+
         self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger)
         skill_count = self.skill_manager.discover_skills()
         if skill_count > 0:
@@ -202,6 +213,7 @@ class DaveAgentCLI:
         t0 = time.time()
         # Context Manager (DAVEAGENT.md)
         from src.managers import ContextManager
+
         self.context_manager = ContextManager(logger=self.logger)
         context_files = self.context_manager.discover_context_files()
         if context_files:
@@ -212,13 +224,14 @@ class DaveAgentCLI:
 
         # Error Reporter (sends errors to SigNoz instead of creating GitHub issues)
         from src.managers import ErrorReporter
+
         self.error_reporter = ErrorReporter(logger=self.logger)
 
         # Observability system with Langfuse (simple method with OpenLit)
         # Observability system with Langfuse (simple method with OpenLit)
         # MOVED TO BACKGROUND COMPONENT (THREAD) to avoid blocking startup (40s delay)
-        self.langfuse_enabled = False # Will be set to True by background thread eventually
-        
+        self.langfuse_enabled = False  # Will be set to True by background thread eventually
+
         def init_telemetry_background():
             try:
                 # Setup Langfuse environment from obfuscated credentials
@@ -230,6 +243,7 @@ class DaveAgentCLI:
 
                     # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
                     from src.observability import init_langfuse_tracing
+
                     if init_langfuse_tracing(enabled=True, debug=debug):
                         self.langfuse_enabled = True
                         # Use print because logger might not be thread-safe or visible yet
@@ -238,14 +252,15 @@ class DaveAgentCLI:
                             print("[Background] ✓ Telemetry enabled - Langfuse + OpenLit active")
                     else:
                         if debug:
-                            print("[Background] ✗ Langfuse not available - continuing without tracking")
+                            print(
+                                "[Background] ✗ Langfuse not available - continuing without tracking"
+                            )
             except Exception as e:
                 if debug:
                     print(f"[Background] ✗ Error initializing Langfuse: {e}")
 
         # Start telemetry in background
         threading.Thread(target=init_telemetry_background, daemon=True).start()
-
 
         t0 = time.time()
         # Import all tools from the new structure
@@ -299,6 +314,7 @@ class DaveAgentCLI:
             write_file,
             write_json,
         )
+
         self.logger.info(f"[Startup] Tools imported in {time.time() - t0:.4f}s")
 
         # Store all tools to filter them according to mode
@@ -413,7 +429,6 @@ class DaveAgentCLI:
         # See process_user_request() where finding_relevant_skills is called
         # =====================================================================
 
-
         # =====================================================================
         # INJECT PROJECT CONTEXT (DAVEAGENT.md)
         # =====================================================================
@@ -436,7 +451,6 @@ class DaveAgentCLI:
         # =====================================================================
 
         # Create separate wrappers for each agent (for logging with correct names)
-
 
         # Create separate wrappers for each agent (for logging with correct names)
         # 1. Coder (Defaulting to Strong client, but will be switched dynamically)
@@ -569,7 +583,9 @@ class DaveAgentCLI:
             try:
                 path = self.context_manager.create_template()
                 self.cli.print_success(f"✓ Created configuration file: {path}")
-                self.cli.print_info("Edit this file to add project-specific commands and guidelines.")
+                self.cli.print_info(
+                    "Edit this file to add project-specific commands and guidelines."
+                )
             except Exception as e:
                 self.cli.print_error(f"Error creating DAVEAGENT.md: {e}")
 
@@ -713,7 +729,6 @@ class DaveAgentCLI:
                     )
                 self.logger.info(f"SSL verify changed from {old_ssl} to {new_ssl}")
 
-
         elif cmd == "/skills":
             # List available agent skills
             await self._list_skills_command()
@@ -729,6 +744,7 @@ class DaveAgentCLI:
         elif cmd == "/telemetry-off":
             # Disable telemetry
             from src.config import is_telemetry_enabled, set_telemetry_enabled
+
             if not is_telemetry_enabled():
                 self.cli.print_info("📊 Telemetry is already disabled")
             else:
@@ -739,6 +755,7 @@ class DaveAgentCLI:
         elif cmd == "/telemetry-on":
             # Enable telemetry
             from src.config import is_telemetry_enabled, set_telemetry_enabled
+
             if is_telemetry_enabled():
                 self.cli.print_info("📊 Telemetry is already enabled")
             else:
@@ -749,6 +766,7 @@ class DaveAgentCLI:
         elif cmd == "/telemetry":
             # Show telemetry status
             from src.config import is_telemetry_enabled
+
             status = "enabled" if is_telemetry_enabled() else "disabled"
             runtime = "active" if self.langfuse_enabled else "inactive"
             self.cli.print_info(f"📊 Telemetry status: {status}")
@@ -790,19 +808,31 @@ class DaveAgentCLI:
             if personal_skills:
                 self.cli.print_info("📁 Personal Skills:")
                 for skill in personal_skills:
-                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    desc = (
+                        skill.description[:60] + "..."
+                        if len(skill.description) > 60
+                        else skill.description
+                    )
                     self.cli.print_info(f"  • {skill.name}: {desc}")
 
             if project_skills:
                 self.cli.print_info("\n📂 Project Skills:")
                 for skill in project_skills:
-                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    desc = (
+                        skill.description[:60] + "..."
+                        if len(skill.description) > 60
+                        else skill.description
+                    )
                     self.cli.print_info(f"  • {skill.name}: {desc}")
 
             if plugin_skills:
                 self.cli.print_info("\n🔌 Plugin Skills:")
                 for skill in plugin_skills:
-                    desc = skill.description[:60] + "..." if len(skill.description) > 60 else skill.description
+                    desc = (
+                        skill.description[:60] + "..."
+                        if len(skill.description) > 60
+                        else skill.description
+                    )
                     self.cli.print_info(f"  • {skill.name}: {desc}")
 
             self.cli.print_info("\n💡 Use /skill-info <name> for details")
@@ -1017,7 +1047,6 @@ TITLE:"""
                 "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
             )
 
-
             await self.state_manager.save_agent_state(
                 "planning",
                 self.planning_agent,
@@ -1074,8 +1103,6 @@ TITLE:"""
             await self.state_manager.save_agent_state(
                 "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
             )
-
-
 
             await self.state_manager.save_agent_state(
                 "planning",
@@ -1150,8 +1177,6 @@ TITLE:"""
 
             if await self.state_manager.load_agent_state("coder", self.coder_agent):
                 agents_loaded += 1
-
-
 
             if await self.state_manager.load_agent_state("planning", self.planning_agent):
                 agents_loaded += 1
@@ -1282,8 +1307,6 @@ TITLE:"""
             self.logger.log_error_with_context(e, "_show_history_command")
             self.cli.print_error(f"Error showing history: {str(e)}")
 
-
-
     # =========================================================================
     # USER REQUEST PROCESSING
     # =========================================================================
@@ -1343,17 +1366,19 @@ TITLE:"""
             # =================================================================
             relevant_skills = self.skill_manager.find_relevant_skills(
                 user_input,
-                max_results=3,      # Maximum skills to activate
-                min_score=0.6       # Minimum semantic similarity (0.0-1.0)
-                                    # 0.6 = moderately relevant (strict enough to avoid false positives)
-                                    # Lower = more permissive, higher = stricter matching
+                max_results=3,  # Maximum skills to activate
+                min_score=0.6,  # Minimum semantic similarity (0.0-1.0)
+                # 0.6 = moderately relevant (strict enough to avoid false positives)
+                # Lower = more permissive, higher = stricter matching
             )
             skills_context = ""
 
             if relevant_skills:
                 skills_list = "\n".join([s.to_context_string() for s in relevant_skills])
                 skills_context = f"\n\n<active_skills>\nThe following skills are relevant to your request and available for use:\n\n{skills_list}\n</active_skills>"
-                self.logger.info(f"🧠 RAG activated {len(relevant_skills)} relevant skill(s): {[s.name for s in relevant_skills]}")
+                self.logger.info(
+                    f"🧠 RAG activated {len(relevant_skills)} relevant skill(s): {[s.name for s in relevant_skills]}"
+                )
             else:
                 self.logger.debug("🧠 No skills met the relevance threshold for this request")
 
@@ -1457,41 +1482,58 @@ TITLE:"""
                                         if isinstance(tool_args, str):
                                             try:
                                                 import json
+
                                                 tool_args = json.loads(tool_args)
                                             except (json.JSONDecodeError, TypeError):
                                                 pass  # Keep as string if parsing fails
 
                                         # Special formatting for file tools with code content
-                                        if tool_name == "write_file" and isinstance(tool_args, dict) and "file_content" in tool_args:
+                                        if (
+                                            tool_name == "write_file"
+                                            and isinstance(tool_args, dict)
+                                            and "file_content" in tool_args
+                                        ):
                                             # Show write_file with syntax highlighting
                                             target_file = tool_args.get("target_file", "unknown")
                                             file_content = tool_args.get("file_content", "")
-                                            self.cli.print_thinking(f"🔧 {agent_name} > {tool_name}: Writing to {target_file}")
-                                            self.cli.print_code(file_content, target_file, max_lines=50)
-                                        elif tool_name == "edit_file" and isinstance(tool_args, dict):
+                                            self.cli.print_thinking(
+                                                f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
+                                            )
+                                            self.cli.print_code(
+                                                file_content, target_file, max_lines=50
+                                            )
+                                        elif tool_name == "edit_file" and isinstance(
+                                            tool_args, dict
+                                        ):
                                             # Show edit_file with unified diff
                                             import difflib
+
                                             target_file = tool_args.get("target_file", "unknown")
                                             old_string = tool_args.get("old_string", "")
                                             new_string = tool_args.get("new_string", "")
                                             instructions = tool_args.get("instructions", "")
-                                            self.cli.print_thinking(f"🔧 {agent_name} > {tool_name}: Editing {target_file}")
+                                            self.cli.print_thinking(
+                                                f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
+                                            )
                                             if instructions:
                                                 self.cli.print_thinking(f"   📝 {instructions}")
                                             # Generate unified diff
                                             old_lines = old_string.splitlines(keepends=True)
                                             new_lines = new_string.splitlines(keepends=True)
                                             diff = difflib.unified_diff(
-                                                old_lines, new_lines,
+                                                old_lines,
+                                                new_lines,
                                                 fromfile=f"a/{target_file}",
                                                 tofile=f"b/{target_file}",
-                                                lineterm=""
+                                                lineterm="",
                                             )
                                             diff_text = "".join(diff)
                                             if diff_text:
                                                 self.cli.print_diff(diff_text)
                                             else:
-                                                self.cli.print_thinking("   (no changes detected in diff)")
+                                                self.cli.print_thinking(
+                                                    "   (no changes detected in diff)"
+                                                )
                                         else:
                                             # Default: show parameters as JSON (truncate if too long)
                                             args_str = str(tool_args)
@@ -1543,12 +1585,21 @@ TITLE:"""
                                         # When a tool is cancelled, ask_for_approval raises UserCancelledError,
                                         # but AutoGen converts it to a string result. We need to detect this
                                         # and re-raise the exception to stop the entire workflow.
-                                        if "User selected 'No, cancel'" in result_content or "UserCancelledError" in result_content:
-                                            self.logger.info("🚫 User cancelled tool execution - stopping workflow")
-                                            raise UserCancelledError("User cancelled tool execution")
+                                        if (
+                                            "User selected 'No, cancel'" in result_content
+                                            or "UserCancelledError" in result_content
+                                        ):
+                                            self.logger.info(
+                                                "🚫 User cancelled tool execution - stopping workflow"
+                                            )
+                                            raise UserCancelledError(
+                                                "User cancelled tool execution"
+                                            )
 
                                         # DEBUG: Log tool result details
-                                        self.logger.debug(f"[TOOL_RESULT_DEBUG] tool_name={tool_name}, result_starts_with={result_content[:50] if len(result_content) > 50 else result_content}, has_File={('File:' in result_content)}")
+                                        self.logger.debug(
+                                            f"[TOOL_RESULT_DEBUG] tool_name={tool_name}, result_starts_with={result_content[:50] if len(result_content) > 50 else result_content}, has_File={('File:' in result_content)}"
+                                        )
 
                                         # Check if this is an edit_file result with diff
                                         if (
@@ -1598,23 +1649,42 @@ TITLE:"""
                                                 # Result format: "File: <path>\n<content>"
                                                 first_line = result_content.split("\n")[0]
                                                 if first_line.startswith("File:"):
-                                                    filename = first_line.replace("File:", "").strip()
+                                                    filename = first_line.replace(
+                                                        "File:", ""
+                                                    ).strip()
                                                     # Get code content (everything after first line)
-                                                    code_content = "\n".join(result_content.split("\n")[1:])
+                                                    code_content = "\n".join(
+                                                        result_content.split("\n")[1:]
+                                                    )
                                                     # Display with syntax highlighting
-                                                    self.cli.print_code(code_content, filename, max_lines=50)
-                                                    self.logger.debug(f"✅ Tool result: {tool_name} -> {filename} (displayed with syntax highlighting)")
+                                                    self.cli.print_code(
+                                                        code_content, filename, max_lines=50
+                                                    )
+                                                    self.logger.debug(
+                                                        f"✅ Tool result: {tool_name} -> {filename} (displayed with syntax highlighting)"
+                                                    )
                                                 else:
                                                     # Fallback
                                                     result_preview = result_content[:100]
-                                                    self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
+                                                    self.cli.print_thinking(
+                                                        f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                    )
                                             except Exception:
                                                 result_preview = result_content[:100]
-                                                self.cli.print_thinking(f"✅ {agent_name} > {tool_name}: {result_preview}...")
-                                        elif tool_name == "write_file" and "Successfully wrote" in result_content:
+                                                self.cli.print_thinking(
+                                                    f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                )
+                                        elif (
+                                            tool_name == "write_file"
+                                            and "Successfully wrote" in result_content
+                                        ):
                                             # Special handling for write_file - show success message
-                                            self.cli.print_success(f"{agent_name} > {tool_name}: {result_content}")
-                                            self.logger.debug(f"✅ Tool result: {tool_name} -> {result_content}")
+                                            self.cli.print_success(
+                                                f"{agent_name} > {tool_name}: {result_content}"
+                                            )
+                                            self.logger.debug(
+                                                f"✅ Tool result: {tool_name} -> {result_content}"
+                                            )
                                         else:
                                             # Regular tool result
                                             result_preview = result_content[:100]
@@ -1691,12 +1761,12 @@ TITLE:"""
             # Stop spinner on user cancellation
             if spinner_active:
                 self.cli.stop_thinking()
-            
+
             # Clear message and show cancellation
-            self.cli.print_error(f"\n\n🚫 Task cancelled by user.")
+            self.cli.print_error("\n\n🚫 Task cancelled by user.")
             self.cli.print_info("ℹ️  You can start a new task whenever you're ready.")
             self.logger.info("Task explicitly cancelled by user during tool approval.")
-            
+
             # End JSON logging session
             self.json_logger.end_session(summary="Task cancelled by user")
 
@@ -1721,9 +1791,7 @@ TITLE:"""
             self.cli.print_thinking("📊 Reporting error to SigNoz...")
             try:
                 await self.error_reporter.report_error(
-                    exception=e,
-                    context="process_user_request",
-                    severity="error"
+                    exception=e, context="process_user_request", severity="error"
                 )
             except Exception as report_err:
                 self.logger.error(f"Failed to report error: {report_err}")
@@ -1935,9 +2003,7 @@ TITLE:"""
             # AUTOMATIC ERROR REPORTING FOR FATAL ERRORS
             try:
                 await self.error_reporter.report_error(
-                    exception=e,
-                    context="main_loop_fatal_error",
-                    severity="critical"
+                    exception=e, context="main_loop_fatal_error", severity="critical"
                 )
             except Exception as report_err:
                 self.logger.error(f"Failed to report fatal error: {report_err}")
@@ -1955,8 +2021,6 @@ TITLE:"""
             # Langfuse: OpenLit does automatic flush on exit
             if self.langfuse_enabled:
                 self.logger.info("� Langfuse: data sent automatically by OpenLit")
-
-
 
 
 async def main(

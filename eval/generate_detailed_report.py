@@ -19,7 +19,7 @@ def load_predictions(predictions_path):
         print(f"Warning: {predictions_path} not found")
         return predictions
 
-    with open(predictions_path, encoding='utf-8') as f:
+    with open(predictions_path, encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 predictions.append(json.loads(line))
@@ -32,7 +32,7 @@ def load_evaluation_report(report_path):
         print(f"Warning: {report_path} not found")
         return {}
 
-    with open(report_path, encoding='utf-8') as f:
+    with open(report_path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -46,54 +46,54 @@ def analyze_patch(patch_text):
     """Analiza un patch y extrae estadísticas"""
     if not patch_text or not patch_text.strip():
         return {
-            'empty': True,
-            'files_changed': 0,
-            'lines_added': 0,
-            'lines_removed': 0,
-            'total_changes': 0
+            "empty": True,
+            "files_changed": 0,
+            "lines_added": 0,
+            "lines_removed": 0,
+            "total_changes": 0,
         }
 
-    lines = patch_text.split('\n')
+    lines = patch_text.split("\n")
     files_changed = set()
     lines_added = 0
     lines_removed = 0
 
     for line in lines:
-        if line.startswith('diff --git'):
+        if line.startswith("diff --git"):
             # Extract filename
             parts = line.split()
             if len(parts) >= 3:
                 files_changed.add(parts[2])
-        elif line.startswith('+') and not line.startswith('+++'):
+        elif line.startswith("+") and not line.startswith("+++"):
             lines_added += 1
-        elif line.startswith('-') and not line.startswith('---'):
+        elif line.startswith("-") and not line.startswith("---"):
             lines_removed += 1
 
     return {
-        'empty': False,
-        'files_changed': len(files_changed),
-        'files': list(files_changed),
-        'lines_added': lines_added,
-        'lines_removed': lines_removed,
-        'total_changes': lines_added + lines_removed
+        "empty": False,
+        "files_changed": len(files_changed),
+        "files": list(files_changed),
+        "lines_added": lines_added,
+        "lines_removed": lines_removed,
+        "total_changes": lines_added + lines_removed,
     }
 
 
 def categorize_failure(instance_id, prediction, eval_result):
     """Categoriza el tipo de fallo"""
-    patch = prediction.get('model_patch', '')
+    patch = prediction.get("model_patch", "")
 
     if not patch or not patch.strip():
-        return 'NO_PATCH', 'El agent no generó ningún patch'
+        return "NO_PATCH", "El agent no generó ningún patch"
 
     if eval_result is None:
-        return 'NOT_EVALUATED', 'No se evaluó (posiblemente error de infraestructura)'
+        return "NOT_EVALUATED", "No se evaluó (posiblemente error de infraestructura)"
 
     # Aquí se puede extender con más categorías basadas en el eval_result
-    if eval_result.get('resolved', False):
-        return 'SUCCESS', 'Tarea resuelta correctamente'
+    if eval_result.get("resolved", False):
+        return "SUCCESS", "Tarea resuelta correctamente"
 
-    return 'PATCH_INCORRECT', 'Patch generado pero no pasó los tests'
+    return "PATCH_INCORRECT", "Patch generado pero no pasó los tests"
 
 
 def generate_html_report(predictions, eval_report, output_path):
@@ -101,23 +101,27 @@ def generate_html_report(predictions, eval_report, output_path):
 
     # Estadísticas globales
     total_tasks = len(predictions)
-    tasks_with_patches = sum(1 for p in predictions if p.get('model_patch', '').strip())
+    tasks_with_patches = sum(1 for p in predictions if p.get("model_patch", "").strip())
 
     # Categorizar resultados
-    resolved = eval_report.get('resolved_ids', eval_report.get('resolved', [])) if isinstance(eval_report, dict) else []
+    resolved = (
+        eval_report.get("resolved_ids", eval_report.get("resolved", []))
+        if isinstance(eval_report, dict)
+        else []
+    )
     resolved_ids = set(resolved) if isinstance(resolved, list) else set()
 
     categorized = defaultdict(list)
     for pred in predictions:
-        instance_id = pred['instance_id']
+        instance_id = pred["instance_id"]
         is_resolved = instance_id in resolved_ids
 
         if is_resolved:
-            category = 'SUCCESS'
-        elif not pred.get('model_patch', '').strip():
-            category = 'NO_PATCH'
+            category = "SUCCESS"
+        elif not pred.get("model_patch", "").strip():
+            category = "NO_PATCH"
         else:
-            category = 'PATCH_INCORRECT'
+            category = "PATCH_INCORRECT"
 
         categorized[category].append(pred)
 
@@ -127,7 +131,7 @@ def generate_html_report(predictions, eval_report, output_path):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte Detallado SWE-bench - {datetime.now().strftime('%Y-%m-%d %H:%M')}</title>
+    <title>Reporte Detallado SWE-bench - {datetime.now().strftime("%Y-%m-%d %H:%M")}</title>
     <style>
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -294,7 +298,7 @@ def generate_html_report(predictions, eval_report, output_path):
 <body>
     <div class="header">
         <h1>📊 Reporte Detallado de Evaluación SWE-bench</h1>
-        <p>Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p>Generado: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
     </div>
 
     <div class="stats">
@@ -311,55 +315,55 @@ def generate_html_report(predictions, eval_report, output_path):
         </div>
         <div class="stat-card">
             <div class="stat-label">Resueltas Correctamente</div>
-            <div class="stat-number" style="color: #28a745;">{len(categorized['SUCCESS'])}</div>
+            <div class="stat-number" style="color: #28a745;">{len(categorized["SUCCESS"])}</div>
             <div class="metric-bar">
-                <div class="metric-fill" style="width: {len(categorized['SUCCESS']) / total_tasks * 100:.1f}%; background: #28a745;"></div>
+                <div class="metric-fill" style="width: {len(categorized["SUCCESS"]) / total_tasks * 100:.1f}%; background: #28a745;"></div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Tasa de Éxito</div>
-            <div class="stat-number">{len(categorized['SUCCESS']) / total_tasks * 100:.1f}%</div>
+            <div class="stat-number">{len(categorized["SUCCESS"]) / total_tasks * 100:.1f}%</div>
         </div>
     </div>
 """
 
     # Sección de tareas exitosas
-    if categorized['SUCCESS']:
+    if categorized["SUCCESS"]:
         html += f"""
     <div class="category">
         <div class="category-header success">
-            ✅ Tareas Resueltas Correctamente ({len(categorized['SUCCESS'])})
+            ✅ Tareas Resueltas Correctamente ({len(categorized["SUCCESS"])})
         </div>
 """
-        for pred in categorized['SUCCESS']:
-            patch_analysis = analyze_patch(pred.get('model_patch', ''))
-            html += generate_task_html(pred, 'success', patch_analysis)
+        for pred in categorized["SUCCESS"]:
+            patch_analysis = analyze_patch(pred.get("model_patch", ""))
+            html += generate_task_html(pred, "success", patch_analysis)
         html += "    </div>\n"
 
     # Sección de tareas con patch incorrecto
-    if categorized['PATCH_INCORRECT']:
+    if categorized["PATCH_INCORRECT"]:
         html += f"""
     <div class="category">
         <div class="category-header failed">
-            ❌ Patches Generados pero Incorrectos ({len(categorized['PATCH_INCORRECT'])})
+            ❌ Patches Generados pero Incorrectos ({len(categorized["PATCH_INCORRECT"])})
         </div>
 """
-        for pred in categorized['PATCH_INCORRECT']:
-            patch_analysis = analyze_patch(pred.get('model_patch', ''))
-            html += generate_task_html(pred, 'failed', patch_analysis)
+        for pred in categorized["PATCH_INCORRECT"]:
+            patch_analysis = analyze_patch(pred.get("model_patch", ""))
+            html += generate_task_html(pred, "failed", patch_analysis)
         html += "    </div>\n"
 
     # Sección de tareas sin patch
-    if categorized['NO_PATCH']:
+    if categorized["NO_PATCH"]:
         html += f"""
     <div class="category">
         <div class="category-header no-patch">
-            ⚠️ Tareas sin Patch Generado ({len(categorized['NO_PATCH'])})
+            ⚠️ Tareas sin Patch Generado ({len(categorized["NO_PATCH"])})
         </div>
 """
-        for pred in categorized['NO_PATCH']:
-            patch_analysis = analyze_patch(pred.get('model_patch', ''))
-            html += generate_task_html(pred, 'no-patch', patch_analysis)
+        for pred in categorized["NO_PATCH"]:
+            patch_analysis = analyze_patch(pred.get("model_patch", ""))
+            html += generate_task_html(pred, "no-patch", patch_analysis)
         html += "    </div>\n"
 
     html += """
@@ -375,7 +379,7 @@ def generate_html_report(predictions, eval_report, output_path):
 </html>
 """
 
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
 
     print(f"✓ Reporte HTML generado: {output_path}")
@@ -383,15 +387,13 @@ def generate_html_report(predictions, eval_report, output_path):
 
 def generate_task_html(pred, status, patch_analysis):
     """Genera el HTML para una tarea individual"""
-    instance_id = pred['instance_id']
-    patch = pred.get('model_patch', '')
+    instance_id = pred["instance_id"]
+    patch = pred.get("model_patch", "")
 
     status_class = f"status-{status}"
-    status_text = {
-        'success': 'RESUELTO ✓',
-        'failed': 'INCORRECTO ✗',
-        'no-patch': 'SIN PATCH'
-    }.get(status, 'DESCONOCIDO')
+    status_text = {"success": "RESUELTO ✓", "failed": "INCORRECTO ✗", "no-patch": "SIN PATCH"}.get(
+        status, "DESCONOCIDO"
+    )
 
     html = f"""
         <div class="task">
@@ -402,24 +404,24 @@ def generate_task_html(pred, status, patch_analysis):
 """
 
     # Estadísticas del patch si existe
-    if not patch_analysis['empty']:
+    if not patch_analysis["empty"]:
         html += f"""
             <div class="patch-stats">
                 <div class="patch-stat">
-                    📁 <strong>{patch_analysis['files_changed']}</strong> archivo(s) modificado(s)
+                    📁 <strong>{patch_analysis["files_changed"]}</strong> archivo(s) modificado(s)
                 </div>
                 <div class="patch-stat added">
-                    + <strong>{patch_analysis['lines_added']}</strong> líneas
+                    + <strong>{patch_analysis["lines_added"]}</strong> líneas
                 </div>
                 <div class="patch-stat removed">
-                    - <strong>{patch_analysis['lines_removed']}</strong> líneas
+                    - <strong>{patch_analysis["lines_removed"]}</strong> líneas
                 </div>
             </div>
 """
-        if patch_analysis['files']:
+        if patch_analysis["files"]:
             html += f"""
             <div style="font-size: 12px; color: #666; margin: 5px 0;">
-                Archivos: {', '.join(patch_analysis['files'])}
+                Archivos: {", ".join(patch_analysis["files"])}
             </div>
 """
 
@@ -427,7 +429,7 @@ def generate_task_html(pred, status, patch_analysis):
     patch_id = f"patch-{instance_id.replace('__', '-').replace('_', '-')}"
     if patch and patch.strip():
         # Escape HTML characters
-        patch_escaped = patch.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        patch_escaped = patch.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         html += f"""
             <button class="toggle-btn" onclick="togglePatch('{patch_id}')">Mostrar Patch</button>
             <div id="{patch_id}" class="patch hidden">
@@ -449,14 +451,18 @@ def generate_markdown_report(predictions, eval_report, output_path):
     """Genera un reporte en formato Markdown"""
 
     total_tasks = len(predictions)
-    tasks_with_patches = sum(1 for p in predictions if p.get('model_patch', '').strip())
+    tasks_with_patches = sum(1 for p in predictions if p.get("model_patch", "").strip())
 
-    resolved = eval_report.get('resolved_ids', eval_report.get('resolved', [])) if isinstance(eval_report, dict) else []
+    resolved = (
+        eval_report.get("resolved_ids", eval_report.get("resolved", []))
+        if isinstance(eval_report, dict)
+        else []
+    )
     resolved_ids = set(resolved) if isinstance(resolved, list) else set()
 
     md = f"""# 📊 Reporte Detallado de Evaluación SWE-bench
 
-**Generado**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Generado**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 ## Resumen Ejecutivo
 
@@ -474,12 +480,14 @@ def generate_markdown_report(predictions, eval_report, output_path):
 
     # Análisis detallado de cada tarea
     for i, pred in enumerate(predictions, 1):
-        instance_id = pred['instance_id']
-        patch = pred.get('model_patch', '')
+        instance_id = pred["instance_id"]
+        patch = pred.get("model_patch", "")
         is_resolved = instance_id in resolved_ids
 
         status_emoji = "✅" if is_resolved else ("❌" if patch.strip() else "⚠️")
-        status_text = "RESUELTO" if is_resolved else ("INCORRECTO" if patch.strip() else "SIN PATCH")
+        status_text = (
+            "RESUELTO" if is_resolved else ("INCORRECTO" if patch.strip() else "SIN PATCH")
+        )
 
         md += f"""## {i}. {status_emoji} {instance_id}
 
@@ -488,15 +496,15 @@ def generate_markdown_report(predictions, eval_report, output_path):
 """
 
         patch_analysis = analyze_patch(patch)
-        if not patch_analysis['empty']:
+        if not patch_analysis["empty"]:
             md += f"""### Estadísticas del Patch
-- **Archivos modificados**: {patch_analysis['files_changed']}
-- **Líneas agregadas**: {patch_analysis['lines_added']}
-- **Líneas eliminadas**: {patch_analysis['lines_removed']}
-- **Cambios totales**: {patch_analysis['total_changes']}
+- **Archivos modificados**: {patch_analysis["files_changed"]}
+- **Líneas agregadas**: {patch_analysis["lines_added"]}
+- **Líneas eliminadas**: {patch_analysis["lines_removed"]}
+- **Cambios totales**: {patch_analysis["total_changes"]}
 
 """
-            if patch_analysis['files']:
+            if patch_analysis["files"]:
                 md += f"**Archivos**: `{'`, `'.join(patch_analysis['files'])}`\n\n"
 
         if patch and patch.strip():
@@ -512,7 +520,7 @@ def generate_markdown_report(predictions, eval_report, output_path):
 
         md += "---\n\n"
 
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(md)
 
     print(f"✓ Reporte Markdown generado: {output_path}")
@@ -527,8 +535,8 @@ def main():
 
     # Rutas
     base_dir = Path(__file__).parent
-    predictions_path = base_dir / 'predictions.jsonl'
-    report_path = base_dir / 'CodeAgent-v1.evaluacion_prueba_v1.json'
+    predictions_path = base_dir / "predictions.jsonl"
+    report_path = base_dir / "CodeAgent-v1.evaluacion_prueba_v1.json"
 
     # Cargar datos
     print("📥 Cargando datos...")
@@ -543,11 +551,11 @@ def main():
     print("📝 Generando reportes...")
 
     # Reporte HTML
-    html_output = base_dir / f'reporte_detallado_{datetime.now().strftime("%Y%m%d_%H%M%S")}.html'
+    html_output = base_dir / f"reporte_detallado_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
     generate_html_report(predictions, eval_report, html_output)
 
     # Reporte Markdown
-    md_output = base_dir / f'reporte_detallado_{datetime.now().strftime("%Y%m%d_%H%M%S")}.md'
+    md_output = base_dir / f"reporte_detallado_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
     generate_markdown_report(predictions, eval_report, md_output)
 
     print()
@@ -559,5 +567,5 @@ def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

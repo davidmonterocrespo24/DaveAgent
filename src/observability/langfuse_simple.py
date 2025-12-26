@@ -33,6 +33,7 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
         return False
 
     import os  # Ensure os is available in this scope
+
     try:
         # Check that environment variables are configured
         required_vars = ["LANGFUSE_SECRET_KEY", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_HOST"]
@@ -55,6 +56,7 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
         # Get user ID for this machine (for separating data from different installations)
         try:
             from src.config.constants import get_machine_name, get_user_id
+
             user_id = get_user_id()
             machine_name = get_machine_name()
             if debug:
@@ -106,15 +108,14 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
         lf_sk = os.environ.get("LANGFUSE_SECRET_KEY")
 
         import base64
+
         auth_str = f"{lf_pk}:{lf_sk}"
         b64_auth = base64.b64encode(auth_str.encode()).decode()
 
         try:
             openlit.init(
                 otlp_endpoint=f"{lf_host}/api/public/otel",
-                otlp_headers={
-                    "Authorization": f"Basic {b64_auth}"
-                },
+                otlp_headers={"Authorization": f"Basic {b64_auth}"},
                 disable_batch=True,  # Process traces immediately
                 disable_metrics=True,  # Disable metrics (this should stop JSON output)
                 environment=f"daveagent-{machine_name}" if machine_name else "daveagent",
@@ -124,8 +125,12 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
             # Fallback for older OpenLit versions via env vars
             os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = f"{lf_host}/api/public/otel"
             os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"Authorization=Basic {b64_auth}"
-            os.environ["OPENLIT_ENVIRONMENT"] = f"daveagent-{machine_name}" if machine_name else "daveagent"
-            os.environ["OPENLIT_APPLICATION_NAME"] = f"DaveAgent-{user_id[:8]}" if user_id else "DaveAgent"
+            os.environ["OPENLIT_ENVIRONMENT"] = (
+                f"daveagent-{machine_name}" if machine_name else "daveagent"
+            )
+            os.environ["OPENLIT_APPLICATION_NAME"] = (
+                f"DaveAgent-{user_id[:8]}" if user_id else "DaveAgent"
+            )
             openlit.init(disable_metrics=True)
 
         if debug:

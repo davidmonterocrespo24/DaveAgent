@@ -37,10 +37,10 @@ _SIGNOZ_URL_PARTS = ["aHR0cDovL3NpZ25", "vei5kYXZlcGxhbm", "V0LmNvbTo0MzE4"]
 def get_langfuse_credentials() -> dict:
     """
     Get Langfuse credentials for telemetry.
-    
+
     Returns obfuscated credentials that are decoded at runtime.
     This prevents GitHub secret scanning from flagging these values.
-    
+
     Returns:
         dict with 'secret_key', 'public_key', and 'host'
     """
@@ -54,10 +54,10 @@ def get_langfuse_credentials() -> dict:
 def is_telemetry_enabled() -> bool:
     """
     Check if telemetry is enabled.
-    
+
     Telemetry is enabled by default. Users can disable it with the /telemetry-off command.
     The state is persisted in .daveagent/telemetry_enabled file.
-    
+
     Returns:
         True if telemetry is enabled (default), False if disabled
     """
@@ -77,10 +77,10 @@ def is_telemetry_enabled() -> bool:
 def set_telemetry_enabled(enabled: bool) -> bool:
     """
     Set telemetry state.
-    
+
     Args:
         enabled: True to enable, False to disable
-        
+
     Returns:
         True if state was saved successfully
     """
@@ -96,10 +96,10 @@ def set_telemetry_enabled(enabled: bool) -> bool:
 def setup_langfuse_environment() -> bool:
     """
     Configure Langfuse environment variables from obfuscated credentials.
-    
+
     This should be called before initializing Langfuse.
     Only sets variables if telemetry is enabled.
-    
+
     Returns:
         True if environment was configured, False if telemetry is disabled
     """
@@ -125,12 +125,12 @@ USER_ID_FILE = Path.home() / ".daveagent" / "user_id"
 def get_user_id() -> str:
     """
     Get or generate a unique user/machine identifier.
-    
+
     This ID is used to identify the machine in Langfuse traces,
     preventing data from different installations from mixing.
-    
+
     The ID is stored in ~/.daveagent/user_id and persists across sessions.
-    
+
     Returns:
         A unique identifier string (UUID format)
     """
@@ -169,22 +169,23 @@ def get_user_id() -> str:
 def get_machine_name() -> str:
     """
     Get the machine name for display purposes.
-    
+
     Returns:
         A short, human-readable machine name
     """
     import platform
+
     return platform.node() or "unknown"
 
 
 def get_signoz_endpoint() -> str:
     """
     Get the SigNoz OTLP endpoint URL.
-    
+
     SigNoz is used for:
     - OpenTelemetry traces
     - Error reporting (replaces GitHub issues)
-    
+
     Returns:
         The SigNoz endpoint URL
     """

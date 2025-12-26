@@ -30,6 +30,7 @@ from src.skills.parser import (
 # PARSER TESTS
 # =============================================================================
 
+
 class TestSkillParser:
     """Tests for SKILL.md parsing functions."""
 
@@ -196,6 +197,7 @@ class TestAllowedToolsParsing:
 # SKILL MODEL TESTS
 # =============================================================================
 
+
 class TestSkillModel:
     """Tests for the Skill dataclass."""
 
@@ -206,7 +208,7 @@ class TestSkillModel:
             description="A test skill",
             path=Path("/tmp/test-skill"),
             instructions="# Test\n\nInstructions here.",
-            source="project"
+            source="project",
         )
 
         assert skill.name == "test-skill"
@@ -221,7 +223,7 @@ class TestSkillModel:
             description="Process PDF files",
             path=Path("/tmp/pdf"),
             instructions="Instructions",
-            source="project"
+            source="project",
         )
 
         metadata = skill.to_metadata_string()
@@ -236,7 +238,7 @@ class TestSkillModel:
             path=Path("/tmp/test"),
             instructions="# Instructions\n\nDo something.",
             source="personal",
-            allowed_tools=["Read", "Write"]
+            allowed_tools=["Read", "Write"],
         )
 
         context = skill.to_context_string()
@@ -255,7 +257,7 @@ class TestSkillModel:
             # Create root reference
             (skill_dir / "forms.md").write_text("Form info")
             (skill_dir / "random.txt").write_text("Info")
-            (skill_dir / "SKILL.md").write_text("---") # Should be ignored in refs
+            (skill_dir / "SKILL.md").write_text("---")  # Should be ignored in refs
 
             # Create subdir reference
             (skill_dir / "references").mkdir()
@@ -270,7 +272,7 @@ class TestSkillModel:
                 description="Test",
                 path=skill_dir,
                 instructions="Instructions",
-                source="test"
+                source="test",
             )
 
             assert skill.has_references
@@ -294,6 +296,7 @@ class TestSkillModel:
 # =============================================================================
 # SKILL MANAGER TESTS
 # =============================================================================
+
 
 class TestSkillManager:
     """Tests for the SkillManager class."""
@@ -348,12 +351,10 @@ More instructions.
     def test_discover_skills(self, temp_skills_dir):
         """Test discovering skills from a directory."""
         manager = SkillManager(
-            personal_skills_dir=temp_skills_dir,
-            project_skills_dir=Path("/nonexistent")
+            personal_skills_dir=temp_skills_dir, project_skills_dir=Path("/nonexistent")
         )
 
         count = manager.discover_skills()
-
 
         assert count == 2
         assert "test-skill" in manager
@@ -365,7 +366,7 @@ More instructions.
         manager = SkillManager(
             rag_manager=mock_rag,
             personal_skills_dir=temp_skills_dir,
-            project_skills_dir=Path("/nonexistent")
+            project_skills_dir=Path("/nonexistent"),
         )
 
         count = manager.discover_skills()
@@ -375,18 +376,13 @@ More instructions.
         assert mock_rag.add_document.call_count == 2
         # Check call args for one of them
         mock_rag.add_document.assert_any_call(
-            collection_name="agent_skills",
-            text=ANY,
-            metadata=ANY,
-            source_id="skill-test-skill"
+            collection_name="agent_skills", text=ANY, metadata=ANY, source_id="skill-test-skill"
         )
-
 
     def test_get_skill(self, temp_skills_dir):
         """Test getting a skill by name."""
         manager = SkillManager(
-            personal_skills_dir=temp_skills_dir,
-            project_skills_dir=Path("/nonexistent")
+            personal_skills_dir=temp_skills_dir, project_skills_dir=Path("/nonexistent")
         )
         manager.discover_skills()
 
@@ -399,8 +395,7 @@ More instructions.
     def test_get_all_skills(self, temp_skills_dir):
         """Test getting all loaded skills."""
         manager = SkillManager(
-            personal_skills_dir=temp_skills_dir,
-            project_skills_dir=Path("/nonexistent")
+            personal_skills_dir=temp_skills_dir, project_skills_dir=Path("/nonexistent")
         )
         manager.discover_skills()
 
@@ -414,8 +409,7 @@ More instructions.
     def test_get_skills_metadata(self, temp_skills_dir):
         """Test generating metadata string for prompt injection."""
         manager = SkillManager(
-            personal_skills_dir=temp_skills_dir,
-            project_skills_dir=Path("/nonexistent")
+            personal_skills_dir=temp_skills_dir, project_skills_dir=Path("/nonexistent")
         )
         manager.discover_skills()
 
@@ -428,8 +422,7 @@ More instructions.
     def test_find_relevant_skills(self, temp_skills_dir):
         """Test finding skills relevant to a query."""
         manager = SkillManager(
-            personal_skills_dir=temp_skills_dir,
-            project_skills_dir=Path("/nonexistent")
+            personal_skills_dir=temp_skills_dir, project_skills_dir=Path("/nonexistent")
         )
         manager.discover_skills()
 
@@ -444,15 +437,12 @@ More instructions.
         manager = SkillManager(
             rag_manager=mock_rag,
             personal_skills_dir=temp_skills_dir,
-            project_skills_dir=Path("/nonexistent")
+            project_skills_dir=Path("/nonexistent"),
         )
         manager.discover_skills()
 
         # Mock RAG returning a result
-        mock_rag.search.return_value = [{
-            "metadata": {"skill_name": "test-skill"},
-            "score": 0.9
-        }]
+        mock_rag.search.return_value = [{"metadata": {"skill_name": "test-skill"}, "score": 0.9}]
 
         relevant = manager.find_relevant_skills("some difficult query", max_results=1)
 
@@ -460,12 +450,10 @@ More instructions.
         assert relevant[0].name == "test-skill"
         mock_rag.search.assert_called_once()
 
-
     def test_skill_not_found(self, temp_skills_dir):
         """Test getting a non-existent skill returns None."""
         manager = SkillManager(
-            personal_skills_dir=temp_skills_dir,
-            project_skills_dir=Path("/nonexistent")
+            personal_skills_dir=temp_skills_dir, project_skills_dir=Path("/nonexistent")
         )
         manager.discover_skills()
 
@@ -476,8 +464,7 @@ More instructions.
     def test_allowed_tools_loaded(self, temp_skills_dir):
         """Test that allowed-tools are properly loaded."""
         manager = SkillManager(
-            personal_skills_dir=temp_skills_dir,
-            project_skills_dir=Path("/nonexistent")
+            personal_skills_dir=temp_skills_dir, project_skills_dir=Path("/nonexistent")
         )
         manager.discover_skills()
 
@@ -491,6 +478,7 @@ More instructions.
 # INTEGRATION WITH ANTHROPIC SKILLS
 # =============================================================================
 
+
 class TestAnthropicSkillsCompatibility:
     """Tests for compatibility with Anthropic's skills repository."""
 
@@ -503,15 +491,14 @@ class TestAnthropicSkillsCompatibility:
         return None
 
     @pytest.mark.skipif(
-        not Path("docs/skills/skills").is_dir(),
-        reason="Anthropic skills repository not cloned"
+        not Path("docs/skills/skills").is_dir(), reason="Anthropic skills repository not cloned"
     )
     def test_load_anthropic_pdf_skill(self, anthropic_skills_dir):
         """Test loading the PDF skill from Anthropic's repository."""
         manager = SkillManager(
             personal_skills_dir=Path("/nonexistent"),
             project_skills_dir=Path("/nonexistent"),
-            additional_dirs=[anthropic_skills_dir]
+            additional_dirs=[anthropic_skills_dir],
         )
         manager.discover_skills()
 
@@ -521,15 +508,14 @@ class TestAnthropicSkillsCompatibility:
         assert "PDF" in pdf_skill.description or "pdf" in pdf_skill.description.lower()
 
     @pytest.mark.skipif(
-        not Path("docs/skills/skills").is_dir(),
-        reason="Anthropic skills repository not cloned"
+        not Path("docs/skills/skills").is_dir(), reason="Anthropic skills repository not cloned"
     )
     def test_load_multiple_anthropic_skills(self, anthropic_skills_dir):
         """Test loading multiple skills from Anthropic's repository."""
         manager = SkillManager(
             personal_skills_dir=Path("/nonexistent"),
             project_skills_dir=Path("/nonexistent"),
-            additional_dirs=[anthropic_skills_dir]
+            additional_dirs=[anthropic_skills_dir],
         )
         count = manager.discover_skills()
 

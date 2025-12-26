@@ -4,13 +4,13 @@ from unittest.mock import MagicMock
 # MOCK RESOURCE MODULE FOR WINDOWS
 # swebench imports 'resource' which is Unix-only.
 # We mock it before importing swebench to bypass the ModuleNotFoundError.
-if sys.platform == 'win32':
+if sys.platform == "win32":
     print("🪟 Windows detected: Mocking 'resource' module...")
     resource_mock = MagicMock()
     # these constants are often used, so we mock them just in case
     resource_mock.RLIMIT_AS = 9
     resource_mock.RLIMIT_CPU = 0
-    sys.modules['resource'] = resource_mock
+    sys.modules["resource"] = resource_mock
 
 # Now we can import the harness
 try:
@@ -41,5 +41,5 @@ except ImportError as e:
         predictions_path=predictions_path,
         run_id=run_id,
         max_workers=4,
-        split='test'  # explicit split usually needed
+        split="test",  # explicit split usually needed
     )

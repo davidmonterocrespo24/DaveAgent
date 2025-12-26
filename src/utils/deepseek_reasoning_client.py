@@ -59,8 +59,6 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
         super().__init__(*args, **kwargs)
 
-
-
     async def create(
         self,
         messages: Sequence[LLMMessage],
@@ -102,10 +100,12 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             # DeepSeek API forbids the last message from being 'assistant'.
             # If the last message is from the assistant, we must append a user message.
             if oai_messages and oai_messages[-1].get("role") == "assistant":
-                oai_messages.append({
-                    "role": "user",
-                    "content": "Continue",
-                })
+                oai_messages.append(
+                    {
+                        "role": "user",
+                        "content": "Continue",
+                    }
+                )
 
             # Prepare API request parameters
             request_params = {
@@ -126,8 +126,13 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                 # Log detailed message dump on BadRequestError to help debug
                 if "BadRequestError" in str(type(e)) or "400" in str(e):
                     import json
-                    self.logger.error("❌ BadRequestError detected! Dumping messages for debugging:")
-                    self.logger.error(json.dumps(request_params.get("messages", []), indent=2, default=str))
+
+                    self.logger.error(
+                        "❌ BadRequestError detected! Dumping messages for debugging:"
+                    )
+                    self.logger.error(
+                        json.dumps(request_params.get("messages", []), indent=2, default=str)
+                    )
                 raise e
 
             # Extract and store the response
@@ -275,7 +280,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             # DeepSeek Fix: Strip 'name' from user messages to prevent role confusion
             # The API might treat named user messages (e.g. name='Coder') as assistant-like
             if msg.get("role") == "user" and "name" in msg:
-                 del msg["name"]
+                del msg["name"]
 
             if not normalized:
                 normalized.append(msg)
@@ -301,7 +306,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                 if tc2:
                     # If last_msg had no tool_calls, initialize it
                     if not tc1:
-                        last_msg["tool_calls"] = list(tc2) # Copy to be safe
+                        last_msg["tool_calls"] = list(tc2)  # Copy to be safe
                     else:
                         # Append new tool calls
                         last_msg["tool_calls"].extend(tc2)
@@ -326,11 +331,11 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
     def _fix_broken_tool_chains(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
-        Fix broken tool chains where A(tool_calls) is followed by a user message 
-        instead of a tool output. This happens when the system interrupts 
+        Fix broken tool chains where A(tool_calls) is followed by a user message
+        instead of a tool output. This happens when the system interrupts
         execution (e.g. for approval).
-        
-        Strategy: Strip 'tool_calls' from the assistant message, making it a 
+
+        Strategy: Strip 'tool_calls' from the assistant message, making it a
         pure text message.
         """
         if not messages:
@@ -343,9 +348,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             current_msg = msg.copy()
 
             # Check if this is an assistant message with tool calls
-            if (current_msg.get("role") == "assistant" and
-                current_msg.get("tool_calls")):
-
+            if current_msg.get("role") == "assistant" and current_msg.get("tool_calls"):
                 # Look ahead to the next message
                 if i + 1 < len(messages):
                     next_msg = messages[i + 1]
@@ -373,7 +376,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
             # 3. Handle messages with empty content
             if not current_msg.get("content") and "tool_calls" not in current_msg:
-                 current_msg["content"] = ""
+                current_msg["content"] = ""
 
             fixed_messages.append(current_msg)
 

@@ -86,9 +86,7 @@ def get_provider_choice() -> tuple[str | None, str | None, str | None]:
         return None, None, None
 
 
-def ask_save_to_env(
-    api_key: str, base_url: str | None = None, model: str | None = None
-) -> bool:
+def ask_save_to_env(api_key: str, base_url: str | None = None, model: str | None = None) -> bool:
     """
     Asks if they want to save the configuration to .env
 

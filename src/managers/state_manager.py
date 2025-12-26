@@ -412,7 +412,6 @@ class StateManager:
         if self._auto_save_task is None or self._auto_save_task.done():
             self._auto_save_task = asyncio.create_task(self._auto_save_loop())
 
-
     def disable_auto_save(self):
         """Disable auto-save"""
         self.auto_save_enabled = False

@@ -13,10 +13,10 @@ from pathlib import Path
 class Skill:
     """
     Represents an Agent Skill.
-    
+
     Skills are modular capabilities that extend agent functionality through
     organized folders containing instructions, scripts, and resources.
-    
+
     Attributes:
         name: Skill identifier in hyphen-case (e.g., "pdf-processing")
         description: What the skill does and when to use it (max 1024 chars)
@@ -27,6 +27,7 @@ class Skill:
         metadata: Optional custom key-value pairs
         source: Origin of the skill ("personal", "project", or "plugin")
     """
+
     name: str
     description: str
     path: Path
@@ -56,8 +57,8 @@ class Skill:
             return True
         # Check for root level md/txt files (excluding SKILL.md, LICENSE)
         for item in self.path.iterdir():
-            if item.is_file() and item.suffix.lower() in ['.md', '.txt']:
-                if item.name.lower() not in ['skill.md', 'license.txt', 'license']:
+            if item.is_file() and item.suffix.lower() in [".md", ".txt"]:
+                if item.name.lower() not in ["skill.md", "license.txt", "license"]:
                     return True
         return False
 
@@ -87,8 +88,8 @@ class Skill:
 
         # 2. Root level documentation
         for item in self.path.iterdir():
-            if item.is_file() and item.suffix.lower() in ['.md', '.txt']:
-                if item.name.lower() not in ['skill.md', 'license.txt', 'license']:
+            if item.is_file() and item.suffix.lower() in [".md", ".txt"]:
+                if item.name.lower() not in ["skill.md", "license.txt", "license"]:
                     refs.append(item)
 
         return sorted(list(set(refs)), key=lambda p: p.name)
@@ -96,10 +97,10 @@ class Skill:
     def get_reference_content(self, filename: str) -> str | None:
         """
         Read content of a reference file.
-        
+
         Args:
             filename: Name of the reference file (e.g., "forms.md")
-            
+
         Returns:
             File content as string, or None if file doesn't exist
         """
@@ -115,7 +116,7 @@ class Skill:
     def to_metadata_string(self) -> str:
         """
         Generate metadata string for prompt injection.
-        
+
         Returns:
             Formatted string with skill name and description
         """
@@ -124,7 +125,7 @@ class Skill:
     def to_context_string(self) -> str:
         """
         Generate full context string for active skill injection.
-        
+
         Returns:
             Formatted string with skill name, description, and instructions
         """

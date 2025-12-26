@@ -1,4 +1,3 @@
-
 from src.utils.linter import lint_code_check
 from src.utils.llm_edit_fixer import _llm_fix_edit
 
@@ -153,8 +152,7 @@ async def edit_file(
     diff_preview = f"FILE: {target_file}\n\nRunning edit_file:\n<<<<<< OLD\n{old_string}\n======\n{new_string}\n>>>>>> NEW"
 
     approval_result = await ask_for_approval(
-        action_description=f"EDIT FILE: {target_file}",
-        context=f"```diff\n{diff_preview}\n```"
+        action_description=f"EDIT FILE: {target_file}", context=f"```diff\n{diff_preview}\n```"
     )
     if approval_result:
         return approval_result

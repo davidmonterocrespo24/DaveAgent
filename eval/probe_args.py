@@ -2,8 +2,8 @@ import sys
 from unittest.mock import MagicMock
 
 # Mock resource
-if sys.platform == 'win32':
-    sys.modules['resource'] = MagicMock()
+if sys.platform == "win32":
+    sys.modules["resource"] = MagicMock()
 
 try:
     import inspect

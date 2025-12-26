@@ -66,7 +66,9 @@ class ContextManager:
 
         context_parts = []
         context_parts.append("\n\n<project_context>")
-        context_parts.append("The following context is automatically loaded from DAVEAGENT.md files:\n")
+        context_parts.append(
+            "The following context is automatically loaded from DAVEAGENT.md files:\n"
+        )
 
         for file_path in files:
             try:
