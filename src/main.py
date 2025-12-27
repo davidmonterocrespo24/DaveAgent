@@ -411,7 +411,7 @@ class DaveAgentCLI:
 
         NOTE: Agents DO NOT use the parameter 'memory' de AutoGen para evitar
         errors with "multiple system messages" in models like DeepSeek.
-        Instead, they use RAG tools (query_*_memory, save_*).
+        Session persistence is handled via StateManager instead.
         """
 
         if self.current_mode == "agent":
@@ -445,9 +445,9 @@ class DaveAgentCLI:
         # DeepSeek and other LLMs do not support multiple system messages.
         # The parameter 'memory' in AutoGen injects additional system messages.
         #
-        # SOLUTION: Use RAG tools instead (query_*_memory, save_*)
-        # RAG tools are available in coder_tools and do not cause
-        # conflicts with system messages.
+        # SOLUTION: Session persistence is handled via StateManager instead,
+        # using AutoGen's save_state/load_state functionality.
+        # This avoids conflicts with system messages.
         # =====================================================================
 
         # Create separate wrappers for each agent (for logging with correct names)
