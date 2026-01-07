@@ -86,7 +86,7 @@ You: create a REST API with FastAPI for user management
 
 ## Community
 
-- **Discord**: https://discord.gg/2dRTd4Cv
+- **Discord**: https://discord.gg/pufRfBeQ
 - **GitHub**: https://github.com/davidmonterocrespo24/DaveAgent
 - **Issues**: https://github.com/davidmonterocrespo24/DaveAgent/issues
 
