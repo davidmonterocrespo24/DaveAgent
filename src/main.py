@@ -92,6 +92,12 @@ class DaveAgentCLI:
         # Create custom HTTP client with SSL configuration
         import httpx
 
+        # Log SSL configuration status
+        if not self.settings.ssl_verify:
+            self.logger.warning("⚠️  SSL verification is DISABLED. This is a security risk!")
+            self.logger.warning("   Only use this behind a corporate proxy with self-signed certificates.")
+            print("⚠️  [WARNING] SSL verification is DISABLED")
+        
         http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
 
         # Complete JSON logging system (ALWAYS active, independent of Langfuse)
@@ -111,7 +117,7 @@ class DaveAgentCLI:
             base_url=self.settings.base_url,
             api_key=self.settings.api_key,
             model_info=self.settings.get_model_capabilities(),
-            custom_http_client=http_client,
+            http_client=http_client,  # Use http_client (OpenAI standard name)
         )
 
         # 2. Strong Client (Reasoning/Powerful) - Usually deepseek-reasoner or gpt-4o
@@ -129,7 +135,7 @@ class DaveAgentCLI:
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
                 model_info=self.settings.get_model_capabilities(),
-                custom_http_client=http_client,
+                http_client=http_client,  # Use http_client (OpenAI standard name)
                 enable_thinking=None,  # Auto detect
             )
 
@@ -139,7 +145,7 @@ class DaveAgentCLI:
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
                 model_info=self.settings.get_model_capabilities(),
-                custom_http_client=http_client,
+                http_client=http_client,  # Use http_client (OpenAI standard name)
             )
 
         # Wrappers for Logging

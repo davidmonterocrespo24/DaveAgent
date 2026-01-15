@@ -8,25 +8,37 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load environment variables from .daveagent/.env if it exists
-# Priority: .daveagent/.env > .env (for compatibility)
-# Search from project root (where src/ is), not from cwd
-# This ensures it works even when executed from subdirectories (e.g. eval/)
+# Load environment variables with priority:
+# 1. User's home directory (~/.daveagent/.env) - GLOBAL configuration
+# 2. Project directory (.daveagent/.env) - LOCAL configuration
+# 3. Project root (.env) - LEGACY compatibility
+# 4. System environment variables
+user_home = Path.home()
 project_root = Path(__file__).resolve().parent.parent.parent
-daveagent_env = project_root / ".daveagent" / ".env"
+
+# Global user configuration (highest priority)
+user_daveagent_env = user_home / ".daveagent" / ".env"
+# Local project configuration
+project_daveagent_env = project_root / ".daveagent" / ".env"
+# Legacy compatibility
 legacy_env = project_root / ".env"
 
-if daveagent_env.exists():
-    load_dotenv(daveagent_env)
-elif legacy_env.exists():
+# Load in reverse priority order (later files override earlier ones)
+if legacy_env.exists():
     load_dotenv(legacy_env)
+    print(f"[Config] Loaded legacy .env from: {legacy_env}")
+if project_daveagent_env.exists():
+    load_dotenv(project_daveagent_env, override=True)
+    print(f"[Config] Loaded project .env from: {project_daveagent_env}")
+if user_daveagent_env.exists():
+    load_dotenv(user_daveagent_env, override=True)
+    print(f"[Config] Loaded global .env from: {user_daveagent_env}")
 
 
 class DaveAgentSettings:
     """Centralized DaveAgent configuration"""
 
     # Valores por defecto
-    DEFAULT_BASE_URL = "https://api.deepseek.com"
     DEFAULT_BASE_URL = "https://api.deepseek.com"
     DEFAULT_MODEL = "deepseek-reasoner"  # Used as fallback or specific selection
     DEFAULT_BASE_MODEL = "deepseek-chat"  # Default base model
@@ -60,16 +72,13 @@ class DaveAgentSettings:
         self.api_key = (
             api_key
             or os.getenv("DAVEAGENT_API_KEY")
-            or os.getenv("CODEAGENT_API_KEY")  # Compatibility
             or os.getenv("OPENAI_API_KEY")  # Compatibility
-            or os.getenv("DEEPSEEK_API_KEY")  # Compatibility
         )
 
         # Base URL (optional, with default value)
         self.base_url = (
             base_url
             or os.getenv("DAVEAGENT_BASE_URL")
-            or os.getenv("CODEAGENT_BASE_URL")  # Compatibility
             or os.getenv("OPENAI_BASE_URL")  # Compatibility
             or self.DEFAULT_BASE_URL
         )
@@ -78,7 +87,6 @@ class DaveAgentSettings:
         self.model = (
             model
             or os.getenv("DAVEAGENT_MODEL")
-            or os.getenv("CODEAGENT_MODEL")  # Compatibility
             or os.getenv("OPENAI_MODEL")  # Compatibility
             or self.DEFAULT_MODEL
         )
@@ -113,8 +121,10 @@ class DaveAgentSettings:
             env_ssl = os.getenv("DAVEAGENT_SSL_VERIFY") or os.getenv("SSL_VERIFY")
             if env_ssl:
                 self.ssl_verify = env_ssl.lower() in ("true", "1", "yes", "on")
+                print(f"[Config] SSL_VERIFY from env: '{env_ssl}' -> {self.ssl_verify}")
             else:
                 self.ssl_verify = self.DEFAULT_SSL_VERIFY
+                print(f"[Config] SSL_VERIFY using default: {self.ssl_verify}")
 
     def validate(self, interactive: bool = True) -> tuple[bool, str | None]:
         """

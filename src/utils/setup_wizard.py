@@ -102,32 +102,50 @@ def ask_save_to_env(api_key: str, base_url: str | None = None, model: str | None
     print("💾 Save Configuration")
     print("-" * 70)
     print()
-    print("Do you want to save this configuration to an .env file?")
+    print("Where do you want to save this configuration?")
     print()
-    print("Advantages:")
-    print("  ✓ You won't have to configure every time you use DaveAgent")
-    print("  ✓ Configuration applies automatically to this directory")
-    print("  ✓ It's safe (.daveagent/.env file is not uploaded to Git)")
+    print("Options:")
+    print("  1. User folder (GLOBAL) - Recommended")
+    print("     All DaveAgent projects will use this configuration")
+    print(f"     Location: {Path.home() / '.daveagent' / '.env'}")
+    print()
+    print("  2. Project folder (LOCAL)")
+    print("     Only this project will use this configuration")
+    print(f"     Location: {Path(__file__).resolve().parent.parent.parent / '.daveagent' / '.env'}")
+    print()
+    print("  3. Don't save")
     print()
 
-    save = input("Save to .daveagent/.env? (Y/n): ").strip().lower()
+    while True:
+        choice = input("Select option (1/2/3): ").strip()
+        
+        if choice == "3":
+            print()
+            print("⚠️  Configuration NOT saved.")
+            print("   You will need to configure the API key each time you use DaveAgent.")
+            print()
+            print("   You can configure it with:")
+            print(f'     daveagent --api-key "{api_key[:10]}..."')
+            print()
+            return False
+        
+        if choice in ["1", "2"]:
+            break
+        
+        print("❌ Invalid option. Please enter 1, 2, or 3.")
 
-    if save == "n" or save == "no":
-        print()
-        print("⚠️  Configuration NOT saved.")
-        print("   You will need to configure the API key each time you use DaveAgent.")
-        print()
-        print("   You can configure it with:")
-        print(f'     daveagent --api-key "{api_key[:10]}..."')
-        print()
-        return False
-
-    # Save to .daveagent/.env
-    # Use the same project root resolution as settings.py
+    # Determine save location
     try:
-        # Get project root (where src/ is located)
-        project_root = Path(__file__).resolve().parent.parent.parent
-        daveagent_dir = project_root / ".daveagent"
+        if choice == "1":
+            # Global user configuration
+            daveagent_dir = Path.home() / ".daveagent"
+            location_name = "user folder (GLOBAL)"
+        else:
+            # Local project configuration
+            project_root = Path(__file__).resolve().parent.parent.parent
+            daveagent_dir = project_root / ".daveagent"
+            location_name = "project folder (LOCAL)"
+        
         daveagent_dir.mkdir(exist_ok=True)
         env_path = daveagent_dir / ".env"
 
@@ -142,7 +160,8 @@ def ask_save_to_env(api_key: str, base_url: str | None = None, model: str | None
 
         # Create .env content
         env_content = "# DaveAgent Configuration\n"
-        env_content += "# Generated automatically\n\n"
+        env_content += f"# Generated automatically - {location_name}\n"
+        env_content += "# Edit this file to change your configuration\n\n"
         env_content += f"DAVEAGENT_API_KEY={api_key}\n"
 
         if base_url:
@@ -150,6 +169,11 @@ def ask_save_to_env(api_key: str, base_url: str | None = None, model: str | None
 
         if model:
             env_content += f"DAVEAGENT_MODEL={model}\n"
+        
+        # Add SSL configuration with default value
+        env_content += "\n# SSL Configuration\n"
+        env_content += "# Set to false if you have SSL certificate issues\n"
+        env_content += "# DAVEAGENT_SSL_VERIFY=false\n"
 
         # Save file
         env_path.write_text(env_content, encoding="utf-8")
@@ -161,7 +185,16 @@ def ask_save_to_env(api_key: str, base_url: str | None = None, model: str | None
 
         print()
         print("✅ Configuration saved successfully!")
+        print(f"   Location: {location_name}")
         print(f"   File: {env_path}")
+        print()
+        if choice == "1":
+            print("🌍 This configuration will be used globally for all DaveAgent projects.")
+            print("   To use a different config for a specific project, create")
+            print("   a .daveagent/.env file in that project.")
+        else:
+            print("📁 This configuration will only be used for this project.")
+            print("   To create a global configuration, run the setup again.")
         print()
         print("🎉 All set! You can now use DaveAgent simply with:")
         print("   daveagent")
@@ -211,14 +244,20 @@ def should_run_setup(api_key: str | None) -> bool:
     if api_key:
         return False
 
-    # Check if .env exists in .daveagent directory
-    # Use the same project root resolution as settings.py
+    # Check if .env exists in user's home directory (global)
+    user_env_path = Path.home() / ".daveagent" / ".env"
+    if user_env_path.exists():
+        # .env exists but doesn't have DAVEAGENT_API_KEY
+        # Probably misconfigured
+        return True
+    
+    # Check if .env exists in project directory (local)
     project_root = Path(__file__).resolve().parent.parent.parent
-    env_path = project_root / ".daveagent" / ".env"
-    if env_path.exists():
+    project_env_path = project_root / ".daveagent" / ".env"
+    if project_env_path.exists():
         # .env exists but doesn't have DAVEAGENT_API_KEY
         # Probably misconfigured
         return True
 
-    # No API key and no .env
+    # No API key and no .env anywhere
     return True

@@ -214,12 +214,54 @@ class AdvancedEmbeddingFunction:
             try:
                 # Importación Lazy de SentenceTransformer (Heavy import)
                 import time
+                import os
+                import ssl
 
                 from sentence_transformers import SentenceTransformer
+
+                # Disable SSL verification if configured
+                if not self.settings.ssl_verify:
+                    logger.warning("SSL verification is DISABLED for HuggingFace downloads. This is a security risk!")
+                    # Disable SSL verification globally for urllib (used by HuggingFace Hub)
+                    import urllib.request
+                    ssl._create_default_https_context = ssl._create_unverified_context
+                    
+                    # Also set environment variable for all HTTP libraries
+                    os.environ['CURL_CA_BUNDLE'] = ''
+                    os.environ['REQUESTS_CA_BUNDLE'] = ''
+                    os.environ['SSL_CERT_FILE'] = ''
+                    
+                    # Disable SSL warnings
+                    import warnings
+                    warnings.filterwarnings('ignore', message='Unverified HTTPS request')
+                    
+                    # For requests library
+                    try:
+                        import urllib3
+                        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                    except ImportError:
+                        pass
 
                 device = "cuda" if self.use_gpu else "cpu"
                 start_time = time.time()
                 logger.info(f"Loading embedding model: {self.model_name} on {device}...")
+                
+                # Try to load with SSL verification disabled for huggingface_hub
+                try:
+                    import huggingface_hub
+                    # Patch the requests session to disable SSL verification
+                    original_get_session = huggingface_hub.utils._http.get_session
+                    
+                    def get_session_no_verify():
+                        session = original_get_session()
+                        session.verify = False
+                        return session
+                    
+                    if not self.settings.ssl_verify:
+                        huggingface_hub.utils._http.get_session = get_session_no_verify
+                except Exception as e:
+                    logger.debug(f"Could not patch huggingface_hub SSL: {e}")
+                
                 self.model = SentenceTransformer(self.model_name, device=device)
                 load_time = time.time() - start_time
                 logger.info(f"Embedding model loaded successfully in {load_time:.2f} seconds.")
