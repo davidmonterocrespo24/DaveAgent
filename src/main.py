@@ -117,7 +117,8 @@ class DaveAgentCLI:
             base_url=self.settings.base_url,
             api_key=self.settings.api_key,
             model_info=self.settings.get_model_capabilities(),
-            http_client=http_client,  # Use http_client (OpenAI standard name)
+            http_client=http_client, 
+            max_tokens=8000,  
         )
 
         # 2. Strong Client (Reasoning/Powerful) - Usually deepseek-reasoner or gpt-4o
@@ -135,8 +136,9 @@ class DaveAgentCLI:
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
                 model_info=self.settings.get_model_capabilities(),
-                http_client=http_client,  # Use http_client (OpenAI standard name)
-                enable_thinking=None,  # Auto detect
+                http_client=http_client, 
+                enable_thinking=None, 
+                max_tokens=64000,  
             )
 
         else:
@@ -145,7 +147,8 @@ class DaveAgentCLI:
                 base_url=self.settings.base_url,
                 api_key=self.settings.api_key,
                 model_info=self.settings.get_model_capabilities(),
-                http_client=http_client,  # Use http_client (OpenAI standard name)
+                http_client=http_client,  
+                max_tokens=64000,  
             )
 
         # Wrappers for Logging
@@ -166,6 +169,7 @@ class DaveAgentCLI:
             api_key=self.settings.api_key,
             model_capabilities=self.settings.get_model_capabilities(),
             http_client=http_client,
+            max_tokens=8000,  
         )
         print(f"[Startup] Model clients initialized in {time.time() - t0:.4f}s")
 
