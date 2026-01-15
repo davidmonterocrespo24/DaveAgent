@@ -195,7 +195,7 @@ class StateManager:
 
     async def load_agent_state(self, agent_name: str, agent: Any) -> bool:
         """
-        Load state into an agent
+        Load state into an agent (only last 30 messages)
 
         Args:
             agent_name: Name/identifier for the agent
@@ -210,12 +210,24 @@ class StateManager:
                 return False
 
             agent_data = self._agent_states[agent_name]
-            agent_state = agent_data["state"]
+            agent_state = agent_data["state"].copy()
+
+            # Limit to last 30 messages
+            if "llm_context" in agent_state and "messages" in agent_state["llm_context"]:
+                messages = agent_state["llm_context"]["messages"]
+                if len(messages) > 30:
+                    agent_state["llm_context"]["messages"] = messages[-30:]
+                    self.logger.debug(
+                        f"📂 Agent state loaded: {agent_name} (limited to last 30 of {len(messages)} messages)"
+                    )
+                else:
+                    self.logger.debug(f"📂 Agent state loaded: {agent_name} ({len(messages)} messages)")
+            else:
+                self.logger.debug(f"📂 Agent state loaded: {agent_name}")
 
             # Call AutoGen's load_state
             await agent.load_state(agent_state)
 
-            self.logger.debug(f"📂 Agent state loaded: {agent_name}")
             return True
 
         except Exception as e:
