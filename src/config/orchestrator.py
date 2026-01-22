@@ -11,15 +11,13 @@ warnings.filterwarnings(
     "ignore", category=DeprecationWarning, module="chromadb.api.collection_configuration"
 )
 
-import asyncio
 import logging
 import os
 import sys
 import threading
-from typing import Sequence
+from collections.abc import Sequence
 
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.base import TaskResult
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, TextMessage
 from autogen_agentchat.teams import SelectorGroupChat
@@ -29,18 +27,18 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 # Ensure we use local src files over installed packages
 sys.path.insert(0, os.getcwd())
 
-# Import from new structure
-from src.config import (
+# Import from new structure - import directly from prompts to avoid circular import
+from src.config.prompts import (
+    AGENT_SYSTEM_PROMPT,
+    CHAT_SYSTEM_PROMPT,
     CODER_AGENT_DESCRIPTION,
     PLANNING_AGENT_DESCRIPTION,
     PLANNING_AGENT_SYSTEM_MESSAGE,
 )
-from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
 from src.interfaces import CLIInterface
 
 # Managers moved to __init__
 from src.utils import HistoryViewer, LoggingModelClientWrapper, get_conversation_tracker, get_logger
-from src.utils.errors import UserCancelledError
 
 
 class AgentOrchestrator:
@@ -59,9 +57,9 @@ class AgentOrchestrator:
         """
         Initialize all agent components
         """
-       
+
         log_level = logging.DEBUG if debug else logging.INFO
-        self.logger = get_logger(log_file=None, level=log_level)  # Use default path      
+        self.logger = get_logger(log_file=None, level=log_level)  # Use default path
         self.conversation_tracker = get_conversation_tracker()
         # Mode system: "agent" (with tools) or "chat" (without modification tools)
         self.current_mode = "agent"  # Default mode
@@ -177,7 +175,6 @@ class AgentOrchestrator:
         )
 
         # Start background warmup to load heavy models
-        import threading
 
         if hasattr(self.rag_manager, "warmup"):
             threading.Thread(target=self.rag_manager.warmup, daemon=True).start()
@@ -193,7 +190,7 @@ class AgentOrchestrator:
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
         else:
             self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
-        
+
 
         # Context Manager (DAVEAGENT.md)
         from src.managers import ContextManager
@@ -204,7 +201,7 @@ class AgentOrchestrator:
             self.logger.info(f"✓ Found {len(context_files)} DAVEAGENT.md context file(s)")
         else:
             self.logger.debug("No DAVEAGENT.md context files found")
-        
+
         # Error Reporter (sends errors to SigNoz instead of creating GitHub issues)
         from src.managers import ErrorReporter
 
@@ -384,7 +381,7 @@ class AgentOrchestrator:
         self._initialize_agents_for_mode()
 
 
-    
+
 
     def _initialize_agents_for_mode(self):
         """
@@ -501,10 +498,10 @@ class AgentOrchestrator:
             if not messages:
                 return "Coder"
 
-            last_message = messages[-1]            
+            last_message = messages[-1]
 
             if last_message.source == "Planner":
-                
+
                 return "Coder"
 
             # If Coder just spoke
@@ -524,7 +521,7 @@ class AgentOrchestrator:
             if type(last_message).__name__ == "FunctionExecutionResultMessage":
                 # Tool finished, give control back to Coder to handle the output
                 return "Coder"
-          
+
             return "Coder"
 
         self.main_team = SelectorGroupChat(
@@ -556,4 +553,4 @@ class AgentOrchestrator:
         # Agents will use RAG tools instead of memory parameter
         self._initialize_agents_for_mode()
 
-    
+

@@ -42,7 +42,7 @@ class DaveAgentCLI(AgentOrchestrator):
         """
         import time
         t_start = time.time()
-        
+
         # Initialize the orchestrator (handles all agent setup)
         super().__init__(
             debug=debug,
@@ -52,7 +52,7 @@ class DaveAgentCLI(AgentOrchestrator):
             ssl_verify=ssl_verify,
             headless=headless,
         )
-        
+
         self.logger.info(f"✨ DaveAgent initialized in {time.time() - t_start:.2f}s")
 
     # =========================================================================

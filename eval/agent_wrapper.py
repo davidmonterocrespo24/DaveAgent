@@ -144,7 +144,7 @@ START NOW: Use list_dir to explore, read_file to find the bug, edit_file to fix 
                 else:
                     print(f"[SUCCESS] Patch generated ({len(diff_check)} characters)")
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 print("[TIMEOUT] Task exceeded 20 minutes. Moving to next task.")
             except Exception as e:
                 print(f"[ERROR] Error during agent execution: {e}")
