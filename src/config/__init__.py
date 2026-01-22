@@ -9,6 +9,7 @@ from src.config.constants import (
     set_telemetry_enabled,
     setup_langfuse_environment,
 )
+from src.config.orchestrator import AgentOrchestrator
 from src.config.prompts import (
     AGENT_SYSTEM_PROMPT,
     CHAT_SYSTEM_PROMPT,
@@ -20,6 +21,7 @@ from src.config.settings import DaveAgentSettings, get_settings
 
 __all__ = [
     "AGENT_SYSTEM_PROMPT",
+    "AgentOrchestrator",
     "CHAT_SYSTEM_PROMPT",
     "DaveAgentSettings",
     "get_settings",
