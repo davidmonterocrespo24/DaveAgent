@@ -165,9 +165,17 @@ os.environ["GOOGLE_API_KEY"] = "your-gemini-api-key"
 
 # Define a simple tool
 def execute_code(code: str) -> str:
-    """Execute Python code safely (limited)."""
+    """Execute Python code safely (limited).
+    
+    ⚠️ SECURITY WARNING: NEVER USE IN PRODUCTION!
+    This uses eval() which is extremely dangerous.
+    For real implementation, use:
+    - Vertex AI Code Execution Sandbox
+    - Docker containers with resource limits
+    - Properly sandboxed execution environments
+    """
     try:
-        # WARNING: This is for demo only - real implementation needs sandbox
+        # ⚠️ DEMO ONLY - eval() is dangerous!
         result = eval(code)
         return f"Result: {result}"
     except Exception as e:
@@ -282,8 +290,14 @@ class DeepSeekModelAdapter:
 
 # Test function
 def calculate(expression: str) -> str:
-    """Calculate a mathematical expression."""
+    """Calculate a mathematical expression.
+    
+    ⚠️ SECURITY WARNING: NEVER USE IN PRODUCTION!
+    This uses eval() for POC demonstration only.
+    Use ast.literal_eval() or a proper math parser in production.
+    """
     try:
+        # ⚠️ DEMO ONLY - eval() is dangerous!
         result = eval(expression)
         return f"Result: {result}"
     except Exception as e:
