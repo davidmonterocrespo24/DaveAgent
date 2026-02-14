@@ -14,6 +14,7 @@ warnings.filterwarnings(
 import asyncio
 import logging
 import os
+import signal
 import sys
 
 from autogen_agentchat.agents import AssistantAgent
@@ -70,6 +71,11 @@ class DaveAgentCLI:
 
         # Mode system: "agent" (with tools) or "chat" (without modification tools)
         self.current_mode = "agent"  # Default mode
+
+        # Ctrl+C interrupt handling
+        self.interrupt_count = 0
+        self.current_task = None  # Track current running task
+        self.should_exit = False
 
         t0 = time.time()
         # Load configuration (API key, URL, model)
@@ -1311,6 +1317,43 @@ TITLE:"""
     # USER REQUEST PROCESSING
     # =========================================================================
 
+    async def _run_team_stream(self, task: str):
+        """
+        Helper method to run team stream (can be cancelled)
+
+        Args:
+            task: The task/query for the team
+
+        Returns:
+            AsyncIterator of messages from the team
+        """
+        return self.main_team.run_stream(task=task)
+
+    def _handle_interrupt(self, signum, frame):
+        """
+        Handle Ctrl+C interrupts (SIGINT)
+
+        First interrupt: Cancel current agent task
+        Second interrupt: Exit DaveAgent completely
+        """
+        self.interrupt_count += 1
+
+        if self.interrupt_count == 1:
+            # First Ctrl+C: Try to cancel current task
+            if self.current_task and not self.current_task.done():
+                self.logger.info("⚠️  First interrupt: Cancelling current agent task...")
+                print("\n⚠️  Stopping agent task... (Press Ctrl+C again to exit completely)")
+                self.current_task.cancel()
+            else:
+                # No task running, treat as exit
+                print("\n⚠️  Exiting DaveAgent...")
+                self.should_exit = True
+        else:
+            # Second Ctrl+C: Force exit
+            self.logger.info("⚠️  Second interrupt: Forcing exit...")
+            print("\n⚠️  Forcing exit...")
+            self.should_exit = True
+
     async def process_user_request(self, user_input: str):
         """
         Process a user request using the single ROUTER TEAM.
@@ -1413,8 +1456,13 @@ TITLE:"""
             tools_called = []
 
             # Process messages with streaming using the ROUTER TEAM
-            async for msg in self.main_team.run_stream(task=full_input):
-                message_count += 1
+            # Create the stream task so it can be cancelled
+            stream_task = asyncio.create_task(self._run_team_stream(full_input))
+            self.current_task = stream_task
+
+            try:
+                async for msg in await stream_task:
+                    message_count += 1
                 msg_type = type(msg).__name__
                 self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
 
@@ -1734,28 +1782,47 @@ TITLE:"""
                             # Other message types (for debugging)
                             self.logger.debug(f"Message type {msg_type} not shown in CLI")
 
-            self.logger.debug(f"✅ Stream completed. Total messages processed: {message_count}")
+                self.logger.debug(f"✅ Stream completed. Total messages processed: {message_count}")
 
-            # Ensure spinner is stopped
+                # Ensure spinner is stopped
+                self.cli.stop_thinking()
+
+                # Log interaction to JSON
+                self._log_interaction_to_json(
+                    user_input=user_input,
+                    agent_responses=all_agent_responses,
+                    agents_used=agents_used,
+                    tools_called=tools_called,
+                )
+
+                # Generate task completion summary
+                await self._generate_task_summary(user_input)
+
+                # 💾 AUTO-SAVE: Save agent states automatically after each response
+                await self._auto_save_agent_states()
+
+                # ============= END JSON LOGGING SESSION =============
+                # Save all captured events to timestamped JSON file
+                self.json_logger.end_session(summary="Request completed successfully")
+
+            finally:
+                # Always reset current task when stream finishes
+                self.current_task = None
+
+        except asyncio.CancelledError:
+            # Stop spinner on cancellation
             self.cli.stop_thinking()
 
-            # Log interaction to JSON
-            self._log_interaction_to_json(
-                user_input=user_input,
-                agent_responses=all_agent_responses,
-                agents_used=agents_used,
-                tools_called=tools_called,
-            )
+            # Show cancellation message
+            self.cli.print_warning("\n\n⚠️  Agent task stopped (Ctrl+C)")
+            self.cli.print_info("ℹ️  Press Ctrl+C again to exit DaveAgent completely.")
+            self.logger.info("Agent task cancelled by user interrupt")
 
-            # Generate task completion summary
-            await self._generate_task_summary(user_input)
+            # End JSON logging session
+            self.json_logger.end_session(summary="Task cancelled by interrupt")
 
-            # 💾 AUTO-SAVE: Save agent states automatically after each response
-            await self._auto_save_agent_states()
-
-            # ============= END JSON LOGGING SESSION =============
-            # Save all captured events to timestamped JSON file
-            self.json_logger.end_session(summary="Request completed successfully")
+            # Reset current task
+            self.current_task = None
 
         except UserCancelledError:
             # Stop spinner on user cancellation
@@ -1968,6 +2035,9 @@ TITLE:"""
 
     async def run(self):
         """Execute the main CLI loop"""
+        # Setup signal handler for Ctrl+C
+        signal.signal(signal.SIGINT, self._handle_interrupt)
+
         self.cli.print_banner()
 
         # Check for previous sessions and offer to resume
@@ -1975,6 +2045,14 @@ TITLE:"""
 
         try:
             while self.running:
+                # Check if should exit (from Ctrl+C handler)
+                if self.should_exit:
+                    self.logger.info("⚠️  Exiting due to user interrupt")
+                    break
+
+                # Reset interrupt counter when waiting for new input
+                self.interrupt_count = 0
+
                 user_input = await self.cli.get_user_input()
 
                 if not user_input:
@@ -1993,8 +2071,9 @@ TITLE:"""
                 await self.process_user_request(user_input)
 
         except KeyboardInterrupt:
-            self.logger.warning("⚠️ Keyboard interrupt (Ctrl+C)")
-            self.cli.print_warning("\nInterrupted by user")
+            # This should not happen often with signal handler
+            self.logger.warning("⚠️ Keyboard interrupt (Ctrl+C) - caught in exception handler")
+            self.cli.print_warning("\n\n⚠️  Exiting DaveAgent...")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "main loop")
