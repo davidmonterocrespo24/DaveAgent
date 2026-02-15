@@ -752,18 +752,10 @@ TITLE:"""
 
                 self.state_manager.start_session(session_id=session_id, title=title)
 
-            # Save state of each agent
-            await self.state_manager.save_agent_state(
-                "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
-            )
+            # Save team state
+            await self.state_manager.save_team_state(self.main_team)
 
-            await self.state_manager.save_agent_state(
-                "planning",
-                self.planning_agent,
-                metadata={"description": "Planning and task management agent"},
-            )
-
-            # Save to disk
+            # Save session metadata to disk
             await self.state_manager.save_to_disk()
 
             self.logger.debug("💾 Auto-save: State saved automatically")
@@ -809,18 +801,10 @@ TITLE:"""
                 # Update existing session
                 session_id = self.state_manager.session_id
 
-            # Save state of each agent
-            await self.state_manager.save_agent_state(
-                "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
-            )
+            # Save team state
+            await self.state_manager.save_team_state(self.main_team)
 
-            await self.state_manager.save_agent_state(
-                "planning",
-                self.planning_agent,
-                metadata={"description": "Planning and task management agent"},
-            )
-
-            # Save to disk
+            # Save session metadata to disk
             state_path = await self.state_manager.save_to_disk(session_id)
 
             self.cli.stop_thinking()
@@ -882,14 +866,8 @@ TITLE:"""
                 self.cli.print_error(f"Session not found: {session_id}")
                 return
 
-            # Load state into each agent
-            agents_loaded = 0
-
-            if await self.state_manager.load_agent_state("coder", self.coder_agent):
-                agents_loaded += 1
-
-            if await self.state_manager.load_agent_state("planning", self.planning_agent):
-                agents_loaded += 1
+            # Load team state
+            team_loaded = await self.state_manager.load_team_state(self.main_team)
 
             self.cli.stop_thinking()
 
@@ -902,7 +880,7 @@ TITLE:"""
                 self.history_viewer.display_session_loaded(
                     session_id=session_id,
                     total_messages=len(messages),
-                    agents_restored=agents_loaded,
+                    agents_restored=1 if team_loaded else 0,
                 )
 
                 # Display session metadata

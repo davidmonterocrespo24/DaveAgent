@@ -475,38 +475,57 @@ class AgentOrchestrator:
         self.logger.debug("[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(50)")
 
         def selector_func(messages: Sequence[BaseAgentEvent | BaseChatMessage]) -> str | None:
-            # No messages yet or last message is from the user:
-            # let the LLM router decide (Planner vs Coder) based on task complexity
+            # If no messages, start with Coder
             if not messages:
-                return None
+                return "Coder"
 
             last_message = messages[-1]
+            self.logger.debug.info(f"🔄 [Selector] Last message from: {last_message.source}, type: {type(last_message).__name__}")
 
-            # User just sent a message — let LLM router decide who goes first
-            if last_message.source == "user":
-                return None
-
-            # Planner just spoke — hand off to Coder for execution
+            # CRITICAL: If Planner just spoke, it's ALWAYS Coder's turn (never terminate after Planner)
             if last_message.source == "Planner":
+                self.logger.debug.info("🔄 [Selector] Planner just spoke -> Selecting Coder (MANDATORY)")
                 return "Coder"
 
-            # Coder just spoke — check for explicit routing signals
+            # If Coder just spoke
             if last_message.source == "Coder":
+                # Check for explicit signals in TextMessage
                 if isinstance(last_message, TextMessage):
                     if "TERMINATE" in last_message.content:
+                        self.logger.debug.info("🔄 [Selector] Coder said TERMINATE -> Ending conversation")
                         return None  # Let termination condition handle it
                     if "DELEGATE_TO_PLANNER" in last_message.content:
+                        self.logger.debug.info("🔄 [Selector] Coder delegating to Planner")
                         return "Planner"
                     if "SUBTASK_DONE" in last_message.content:
+                        self.logger.debug.info("🔄 [Selector] Coder subtask done -> Back to Planner")
                         return "Planner"
+
+                # If Coder just sent a tool call (AssistantMessage with tool calls)
+                # We usually want Coder to receive the result.
+                # But here we assume the runtime executes the tool and appends the result.
+                # We want to ensure Coder gets the next turn to read the result.
+                self.logger.debug.info("🔄 [Selector] Coder waiting for tool result -> Keep Coder")
                 return "Coder"
 
-            # Tool result — give control back to Coder to handle the output
+            # If the last message was a tool execution result
+            # (FunctionExecutionResultMessage usually has source='user' or the tool name, but definitely not 'Coder'/'Planner')
+            # We must verify the type to be sure.
             if type(last_message).__name__ == "FunctionExecutionResultMessage":
+                # Tool finished, give control back to Coder to handle the output
+                self.logger.debug.info("🔄 [Selector] Tool result received -> Back to Coder")
                 return "Coder"
 
-            # Default: let LLM router decide
-            return None
+            # If the last message is from the User
+            if last_message.source == "user":               
+                # Default to Planner for normal requests
+                self.logger.debug.info("[Selector] User message -> Starting with Planner")
+                return "Planner"
+
+            # FALLBACK: Never return None unless we explicitly want to terminate
+            # If we don't recognize the source, default to Coder to continue
+            self.logger.debug.warning(f"⚠️ [Selector] Unknown message source: {last_message.source} -> Defaulting to Coder")
+            return "Coder"
 
         self.main_team = SelectorGroupChat(
             participants=[self.planning_agent, self.coder_agent],
