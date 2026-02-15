@@ -54,7 +54,8 @@ class DaveAgentCLI(AgentOrchestrator):
             ssl_verify=ssl_verify,
             headless=headless,
         )
-        print(f"[Startup] Model clients initialized in {time.time() - t0:.4f}s")
+        print(f"[Startup] Model clients initialized in {time.time() - t_start:.4f}s")
+        self.should_exit = False
 
         t0 = time.time()
         # State management system (AutoGen save_state/load_state)
