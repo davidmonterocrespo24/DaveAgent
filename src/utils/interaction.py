@@ -38,12 +38,17 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
         perm_mgr = get_permission_manager()
 
         # 1. Construct Action String for Permissions
-        # Normalize to Bash(...) or Read(...) based on description
+        # Normalize to Bash(...), Read(...), or WriteFile(...) based on description.
+        # IMPORTANT: never include file contents in the permission key - only identifiers.
         action_string = f"{action_description}({context})"
         if "Run terminal command" in action_description or "Execute command" in action_description:
             action_string = f"Bash({context.strip()})"
         elif "Read file" in action_description:
             action_string = f"Read({context.strip()})"
+        elif "WRITE FILE:" in action_description:
+            # Extract just the filename from "WRITE FILE: filename"
+            filename = action_description.replace("WRITE FILE:", "").strip()
+            action_string = f"WriteFile({filename})"
 
         # 2. Check Persistent Permissions
         perm_status = perm_mgr.check_permission(action_string)

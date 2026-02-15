@@ -1163,6 +1163,18 @@ TITLE:"""
             stream_task = asyncio.create_task(self._run_team_stream(full_input))
             self.current_task = stream_task
 
+            # Silence autogen internal loggers to avoid leaking raw tracebacks.
+            # Auth errors are handled cleanly by our except block below.
+            import logging as _logging
+            _autogen_loggers = [
+                _logging.getLogger("autogen_core"),
+                _logging.getLogger("autogen_agentchat"),
+                _logging.getLogger("autogen_ext"),
+            ]
+            _autogen_saved_levels = [(l, l.level) for l in _autogen_loggers]
+            for l in _autogen_loggers:
+                l.setLevel(_logging.CRITICAL)
+
             try:
                 async for msg in await stream_task:
                     message_count += 1
@@ -1509,6 +1521,9 @@ TITLE:"""
                 self.json_logger.end_session(summary="Request completed successfully")
 
             finally:
+                # Restore autogen log levels
+                for _l, _lvl in _autogen_saved_levels:
+                    _l.setLevel(_lvl)
                 # Always reset current task when stream finishes
                 self.current_task = None
 
