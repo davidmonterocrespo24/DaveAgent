@@ -64,6 +64,7 @@ class DaveAgentCLI(AgentOrchestrator):
         self.state_manager = StateManager(
             auto_save_enabled=True,
             auto_save_interval=300,  # Auto-save every 5 minutes
+            state_dir=os.path.join(os.getcwd(), ".daveagent", "state"),
         )
         print(f"[Startup] StateManager initialized in {time.time() - t0:.4f}s")
 

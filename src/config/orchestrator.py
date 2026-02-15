@@ -159,6 +159,7 @@ class AgentOrchestrator:
         self.state_manager = StateManager(
             auto_save_enabled=True,
             auto_save_interval=300,  # Auto-save every 5 minutes
+            state_dir=os.path.join(os.getcwd(), ".daveagent", "state"),
         )
 
         # Agent Skills system
@@ -474,19 +475,23 @@ class AgentOrchestrator:
         self.logger.debug("[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(50)")
 
         def selector_func(messages: Sequence[BaseAgentEvent | BaseChatMessage]) -> str | None:
-            # If no messages, start with Coder
+            # No messages yet or last message is from the user:
+            # let the LLM router decide (Planner vs Coder) based on task complexity
             if not messages:
-                return "Coder"
+                return None
 
             last_message = messages[-1]
 
-            if last_message.source == "Planner":
+            # User just sent a message — let LLM router decide who goes first
+            if last_message.source == "user":
+                return None
 
+            # Planner just spoke — hand off to Coder for execution
+            if last_message.source == "Planner":
                 return "Coder"
 
-            # If Coder just spoke
+            # Coder just spoke — check for explicit routing signals
             if last_message.source == "Coder":
-                # Check for explicit signals in TextMessage
                 if isinstance(last_message, TextMessage):
                     if "TERMINATE" in last_message.content:
                         return None  # Let termination condition handle it
@@ -494,15 +499,14 @@ class AgentOrchestrator:
                         return "Planner"
                     if "SUBTASK_DONE" in last_message.content:
                         return "Planner"
-
                 return "Coder"
 
-
+            # Tool result — give control back to Coder to handle the output
             if type(last_message).__name__ == "FunctionExecutionResultMessage":
-                # Tool finished, give control back to Coder to handle the output
                 return "Coder"
 
-            return "Coder"
+            # Default: let LLM router decide
+            return None
 
         self.main_team = SelectorGroupChat(
             participants=[self.planning_agent, self.coder_agent],

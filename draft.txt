@@ -1,0 +1,9 @@
+
+quiero hacer un juegod e auto 3D para un esp32 S3 con 8 megas de psram. debe usar los dos nucles del esp32 S3.
+en la carpeta assets hay modelos 3D de autos, elige uno con el mejor formato  y conviertelo a codigo C  para que el
+esp32 S3 lo pueda renderizar mas rapido, usa un codigo python para convertir el modelo en codigo C . el juego debe
+tener pista 3D tambien con textura. en la carpeta assets/Buildings Prebuild  hay edificios, road  etc etc, analiza
+el formato y conviertelo a C par el esp32 S3 .Este esp32 S3 es una version mejorada y muy potente, tiene
+limitaciones pero la idea es llevarlo al limite asi sea unos pocos frames por segundo. En la carpeta emualtor hay un
+ejemplo de como poder compilar el codigo del arduino en windons para proder probarlo y saber si compila , analiza
+ese codigo del elmulador y modificalo si es necesario para este proyecto. el archivo principal del codigo arduino
