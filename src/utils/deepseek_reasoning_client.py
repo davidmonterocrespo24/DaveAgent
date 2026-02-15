@@ -186,7 +186,15 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             )
 
         except Exception as e:
-            self.logger.error(f"❌ DeepSeek call failed: {e}")
+            # Don't log authentication errors verbosely - they are handled upstream
+            error_str = str(e)
+            is_auth = (
+                "401" in error_str
+                or "Authentication Fails" in error_str
+                or "AuthenticationError" in type(e).__name__
+            )
+            if not is_auth:
+                self.logger.error(f"❌ DeepSeek call failed: {e}")
             raise
 
     def _inject_reasoning_content(self, oai_messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

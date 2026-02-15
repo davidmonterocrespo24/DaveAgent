@@ -161,30 +161,10 @@ class AgentOrchestrator:
             auto_save_interval=300,  # Auto-save every 5 minutes
         )
 
-        # RAG Manager (Advanced retrieval system)
-        print("[Startup] Importing RAGManager...")
-
-        from src.managers.rag_manager import RAGManager
-
-        # Used for ContextManager search and SkillManager indexing
-        # Initialize RAG Manager first
-        # Use current working directory for rag_data persistence
-        work_dir = os.getcwd()
-        self.rag_manager = RAGManager(
-            settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data"
-        )
-
-        # Start background warmup to load heavy models
-
-        if hasattr(self.rag_manager, "warmup"):
-            threading.Thread(target=self.rag_manager.warmup, daemon=True).start()
-        else:
-            print("[Startup] Warning: RAGManager warmup method missing (using stale version?)")
-
-        # Agent Skills system (Claude-compatible and RAG-enhanced)
+        # Agent Skills system
         from src.skills import SkillManager
 
-        self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger.logger)
+        self.skill_manager = SkillManager(logger=self.logger.logger)
         skill_count = self.skill_manager.discover_skills()
         if skill_count > 0:
             self.logger.info(f"✓ Loaded {skill_count} agent skills")

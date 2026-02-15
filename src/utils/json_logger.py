@@ -188,7 +188,15 @@ class JSONLogger:
         }
         self.events.append(event)
         self.stats["errors"] += 1
-        self.logger.error(f"📝 Logged error: {error}")
+        # Don't log authentication errors verbosely - they are handled upstream
+        error_str = str(error)
+        is_auth = (
+            "401" in error_str
+            or "Authentication Fails" in error_str
+            or "AuthenticationError" in type(error).__name__
+        )
+        if not is_auth:
+            self.logger.error(f"📝 Logged error: {error}")
 
     def log_llm_call(
         self,

@@ -145,13 +145,20 @@ class LoggingModelClientWrapper:
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
-            # Record error
-            if self._json_logger:
-                self._json_logger.log_error(e, context=f"LLM call failed for {self._agent_name}")
-
-            self.logger.error(
-                f"❌ LLM call failed: {self._agent_name}, {duration:.2f}s, error: {e}"
+            # Don't log authentication errors verbosely - they are handled upstream
+            error_str = str(e)
+            is_auth = (
+                "401" in error_str
+                or "Authentication Fails" in error_str
+                or "AuthenticationError" in type(e).__name__
             )
+            if not is_auth:
+                # Record error
+                if self._json_logger:
+                    self._json_logger.log_error(e, context=f"LLM call failed for {self._agent_name}")
+                self.logger.error(
+                    f"❌ LLM call failed: {self._agent_name}, {duration:.2f}s, error: {e}"
+                )
             raise
 
     def _get_role(self, message: LLMMessage) -> str:

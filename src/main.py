@@ -68,35 +68,10 @@ class DaveAgentCLI(AgentOrchestrator):
         print(f"[Startup] StateManager initialized in {time.time() - t0:.4f}s")
 
         t0 = time.time()
-        # RAG Manager (Advanced retrieval system)
-        print("[Startup] Importing RAGManager...")
-        t_rag_import = time.time()
-        from src.managers.rag_manager import RAGManager
-
-        print(f"[Startup] RAGManager imported in {time.time() - t_rag_import:.4f}s")
-
-        # Used for ContextManager search and SkillManager indexing
-        # Initialize RAG Manager first
-        # Use current working directory for rag_data persistence
-        work_dir = os.getcwd()
-        self.rag_manager = RAGManager(
-            settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data"
-        )
-        print(f"[Startup] RAGManager initialized in {time.time() - t0:.4f}s")
-
-        # Start background warmup to load heavy models
-        import threading
-
-        if hasattr(self.rag_manager, "warmup"):
-            threading.Thread(target=self.rag_manager.warmup, daemon=True).start()
-        else:
-            print("[Startup] Warning: RAGManager warmup method missing (using stale version?)")
-
-        t0 = time.time()
-        # Agent Skills system (Claude-compatible and RAG-enhanced)
+        # Agent Skills system
         from src.skills import SkillManager
 
-        self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger.logger)
+        self.skill_manager = SkillManager(logger=self.logger.logger)
         skill_count = self.skill_manager.discover_skills()
         if skill_count > 0:
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
@@ -122,6 +97,8 @@ class DaveAgentCLI(AgentOrchestrator):
         self.error_reporter = ErrorReporter(logger=self.logger)
 
         # Observability system with Langfuse (simple method with OpenLit)
+        import threading
+
         # Observability system with Langfuse (simple method with OpenLit)
         # MOVED TO BACKGROUND COMPONENT (THREAD) to avoid blocking startup (40s delay)
         self.langfuse_enabled = False  # Will be set to True by background thread eventually
@@ -1567,6 +1544,34 @@ TITLE:"""
             # Stop spinner on error
             self.cli.stop_thinking()
 
+            # Handle authentication errors (401) by prompting reconfiguration
+            error_str = str(e)
+            is_auth_error = (
+                "401" in error_str
+                or "authentication" in error_str.lower()
+                or "AuthenticationError" in type(e).__name__
+                or "invalid_api_key" in error_str.lower()
+                or "Authentication Fails" in error_str
+            )
+            if is_auth_error:
+                self.cli.print_error(
+                    "❌ Authentication failed: your API key is invalid or missing."
+                )
+                self.cli.print_info(
+                    "🔧 Let's reconfigure your provider and API key."
+                )
+                try:
+                    await self._reconfigure_from_setup_wizard()
+                    self.cli.print_success(
+                        "✅ Configuration updated. Please retry your request."
+                    )
+                except Exception as setup_err:
+                    self.logger.error(f"Reconfiguration failed: {setup_err}")
+                    self.cli.print_error(
+                        f"Failed to reconfigure: {setup_err}"
+                    )
+                return
+
             # JSON Logger: Capture error
             self.json_logger.log_error(e, context="process_user_request")
             self.json_logger.end_session(summary=f"Request failed with error: {str(e)}")
@@ -1588,6 +1593,80 @@ TITLE:"""
                 )
             except Exception as report_err:
                 self.logger.error(f"Failed to report error: {report_err}")
+
+    # =========================================================================
+    # AUTHENTICATION RECONFIGURATION
+    # =========================================================================
+
+    async def _reconfigure_from_setup_wizard(self):
+        """
+        Runs the interactive setup wizard and updates all model clients
+        with the new API key, base URL and model.
+        """
+        import asyncio
+        from src.utils.setup_wizard import run_interactive_setup
+        import httpx
+
+        # Run setup wizard in executor to avoid blocking the event loop
+        loop = asyncio.get_event_loop()
+        api_key, base_url, model = await loop.run_in_executor(
+            None, run_interactive_setup
+        )
+
+        # Update settings
+        self.settings.api_key = api_key
+        if base_url:
+            self.settings.base_url = base_url
+        if model:
+            self.settings.model = model
+            self.settings.base_model = model
+            self.settings.strong_model = model
+
+        # Rebuild HTTP client
+        http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
+
+        # Rebuild model clients with new credentials
+        from autogen_ext.models.openai import OpenAIChatCompletionClient
+
+        self.client_base = OpenAIChatCompletionClient(
+            model=self.settings.base_model,
+            base_url=self.settings.base_url,
+            api_key=self.settings.api_key,
+            model_info=self.settings.get_model_capabilities(),
+            custom_http_client=http_client,
+        )
+
+        is_deepseek_reasoner = (
+            "deepseek-reasoner" in self.settings.strong_model.lower()
+            and "deepseek" in self.settings.base_url.lower()
+        )
+        if is_deepseek_reasoner:
+            from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
+
+            self.client_strong = DeepSeekReasoningClient(
+                model=self.settings.strong_model,
+                base_url=self.settings.base_url,
+                api_key=self.settings.api_key,
+                model_info=self.settings.get_model_capabilities(),
+                custom_http_client=http_client,
+                enable_thinking=None,
+            )
+        else:
+            self.client_strong = OpenAIChatCompletionClient(
+                model=self.settings.strong_model,
+                base_url=self.settings.base_url,
+                api_key=self.settings.api_key,
+                model_info=self.settings.get_model_capabilities(),
+                custom_http_client=http_client,
+            )
+
+        # Update the wrapped model_client reference
+        if hasattr(self.model_client, "_wrapped"):
+            self.model_client._wrapped = self.client_strong
+
+        self.logger.info(
+            f"Reconfigured: provider={self.settings.base_url}, model={self.settings.strong_model}"
+        )
 
     # =========================================================================
     # CONVERSATION TRACKING - Log to JSON
