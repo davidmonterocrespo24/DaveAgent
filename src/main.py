@@ -14,6 +14,7 @@ warnings.filterwarnings(
 import asyncio
 import logging
 import os
+import signal
 import sys
 
 # Ensure we use local src files over installed packages
@@ -41,6 +42,7 @@ class DaveAgentCLI(AgentOrchestrator):
         Initialize all agent components by calling parent AgentOrchestrator
         """
         import time
+
         t_start = time.time()
 
         # Initialize the orchestrator (handles all agent setup)
@@ -52,6 +54,213 @@ class DaveAgentCLI(AgentOrchestrator):
             ssl_verify=ssl_verify,
             headless=headless,
         )
+        print(f"[Startup] Model clients initialized in {time.time() - t0:.4f}s")
+
+        t0 = time.time()
+        # State management system (AutoGen save_state/load_state)
+        from src.managers import StateManager
+
+        self.state_manager = StateManager(
+            auto_save_enabled=True,
+            auto_save_interval=300,  # Auto-save every 5 minutes
+        )
+        print(f"[Startup] StateManager initialized in {time.time() - t0:.4f}s")
+
+        t0 = time.time()
+        # RAG Manager (Advanced retrieval system)
+        print("[Startup] Importing RAGManager...")
+        t_rag_import = time.time()
+        from src.managers.rag_manager import RAGManager
+
+        print(f"[Startup] RAGManager imported in {time.time() - t_rag_import:.4f}s")
+
+        # Used for ContextManager search and SkillManager indexing
+        # Initialize RAG Manager first
+        # Use current working directory for rag_data persistence
+        work_dir = os.getcwd()
+        self.rag_manager = RAGManager(
+            settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data"
+        )
+        print(f"[Startup] RAGManager initialized in {time.time() - t0:.4f}s")
+
+        # Start background warmup to load heavy models
+        import threading
+
+        if hasattr(self.rag_manager, "warmup"):
+            threading.Thread(target=self.rag_manager.warmup, daemon=True).start()
+        else:
+            print("[Startup] Warning: RAGManager warmup method missing (using stale version?)")
+
+        t0 = time.time()
+        # Agent Skills system (Claude-compatible and RAG-enhanced)
+        from src.skills import SkillManager
+
+        self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger.logger)
+        skill_count = self.skill_manager.discover_skills()
+        if skill_count > 0:
+            self.logger.info(f"✓ Loaded {skill_count} agent skills")
+        else:
+            self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
+        print(f"[Startup] SkillManager initialized in {time.time() - t0:.4f}s")
+
+        t0 = time.time()
+        # Context Manager (DAVEAGENT.md)
+        from src.managers import ContextManager
+
+        self.context_manager = ContextManager(logger=self.logger)
+        context_files = self.context_manager.discover_context_files()
+        if context_files:
+            self.logger.info(f"✓ Found {len(context_files)} DAVEAGENT.md context file(s)")
+        else:
+            self.logger.debug("No DAVEAGENT.md context files found")
+        print(f"[Startup] ContextManager initialized in {time.time() - t0:.4f}s")
+
+        # Error Reporter (sends errors to SigNoz instead of creating GitHub issues)
+        from src.managers import ErrorReporter
+
+        self.error_reporter = ErrorReporter(logger=self.logger)
+
+        # Observability system with Langfuse (simple method with OpenLit)
+        # Observability system with Langfuse (simple method with OpenLit)
+        # MOVED TO BACKGROUND COMPONENT (THREAD) to avoid blocking startup (40s delay)
+        self.langfuse_enabled = False  # Will be set to True by background thread eventually
+
+        def init_telemetry_background():
+            try:
+                # Setup Langfuse environment from obfuscated credentials
+                from src.config import is_telemetry_enabled, setup_langfuse_environment
+
+                if is_telemetry_enabled():
+                    # Check first if we should even proceed, to avoid heavy imports
+                    setup_langfuse_environment()
+
+                    # Initialize Langfuse with OpenLit (automatic AutoGen tracking)
+                    from src.observability import init_langfuse_tracing
+
+                    if init_langfuse_tracing(enabled=True, debug=debug):
+                        self.langfuse_enabled = True
+                        # Use print because logger might not be thread-safe or visible yet
+                        # but we want to confirm it loaded
+                        if debug:
+                            print("[Background] ✓ Telemetry enabled - Langfuse + OpenLit active")
+                    else:
+                        if debug:
+                            print(
+                                "[Background] ✗ Langfuse not available - continuing without tracking"
+                            )
+            except Exception as e:
+                if debug:
+                    print(f"[Background] ✗ Error initializing Langfuse: {e}")
+
+        # Start telemetry in background
+        threading.Thread(target=init_telemetry_background, daemon=True).start()
+
+        t0 = time.time()
+        # Import all tools from the new structure
+        from src.tools import (
+            # Analysis
+            analyze_python_file,
+            csv_info,
+            csv_to_json,
+            delete_file,
+            edit_file,
+            file_search,
+            filter_csv,
+            find_function_definition,
+            format_json,
+            git_add,
+            git_branch,
+            git_commit,
+            git_diff,
+            git_log,
+            git_pull,
+            git_push,
+            # Git
+            git_status,
+            glob_search,
+            grep_search,
+            json_get_value,
+            json_set_value,
+            json_to_text,
+            list_all_functions,
+            list_dir,
+            merge_csv_files,
+            merge_json_files,
+            # CSV
+            read_csv,
+            # Filesystem
+            read_file,
+            # JSON
+            read_json,
+            run_terminal_cmd,
+            sort_csv,
+            validate_json,
+            web_search,
+            wiki_content,
+            wiki_page_info,
+            wiki_random,
+            # Web
+            wiki_search,
+            wiki_set_language,
+            wiki_summary,
+            write_csv,
+            write_file,
+            write_json,
+        )
+
+        self.logger.info(f"[Startup] Tools imported in {time.time() - t0:.4f}s")
+
+        # Store all tools to filter them according to mode
+        self.all_tools = {
+            # READ-ONLY tools (available in both modes)
+            "read_only": [
+                read_file,
+                list_dir,
+                file_search,
+                glob_search,
+                git_status,
+                git_log,
+                git_branch,
+                git_diff,
+                read_json,
+                validate_json,
+                json_get_value,
+                json_to_text,
+                read_csv,
+                csv_info,
+                filter_csv,
+                wiki_search,
+                wiki_summary,
+                wiki_content,
+                wiki_page_info,
+                wiki_random,
+                wiki_set_language,
+                web_search,
+                analyze_python_file,
+                find_function_definition,
+                list_all_functions,
+                grep_search,
+            ],
+            # MODIFICATION tools (only in agent mode)
+            "modification": [
+                write_file,
+                edit_file,
+                delete_file,
+                git_add,
+                git_commit,
+                git_push,
+                git_pull,
+                write_json,
+                merge_json_files,
+                format_json,
+                json_set_value,
+                write_csv,
+                merge_csv_files,
+                csv_to_json,
+                sort_csv,
+                run_terminal_cmd,
+            ],
+        }
 
         self.logger.info(f"✨ DaveAgent initialized in {time.time() - t_start:.2f}s")
 
@@ -833,6 +1042,43 @@ TITLE:"""
     # USER REQUEST PROCESSING
     # =========================================================================
 
+    async def _run_team_stream(self, task: str):
+        """
+        Helper method to run team stream (can be cancelled)
+
+        Args:
+            task: The task/query for the team
+
+        Returns:
+            AsyncIterator of messages from the team
+        """
+        return self.main_team.run_stream(task=task)
+
+    def _handle_interrupt(self, signum, frame):
+        """
+        Handle Ctrl+C interrupts (SIGINT)
+
+        First interrupt: Cancel current agent task
+        Second interrupt: Exit DaveAgent completely
+        """
+        self.interrupt_count += 1
+
+        if self.interrupt_count == 1:
+            # First Ctrl+C: Try to cancel current task
+            if self.current_task and not self.current_task.done():
+                self.logger.info("⚠️  First interrupt: Cancelling current agent task...")
+                print("\n⚠️  Stopping agent task... (Press Ctrl+C again to exit completely)")
+                self.current_task.cancel()
+            else:
+                # No task running, treat as exit
+                print("\n⚠️  Exiting DaveAgent...")
+                self.should_exit = True
+        else:
+            # Second Ctrl+C: Force exit
+            self.logger.info("⚠️  Second interrupt: Forcing exit...")
+            print("\n⚠️  Forcing exit...")
+            self.should_exit = True
+
     async def process_user_request(self, user_input: str):
         """
         Process a user request using the single ROUTER TEAM.
@@ -935,8 +1181,13 @@ TITLE:"""
             tools_called = []
 
             # Process messages with streaming using the ROUTER TEAM
-            async for msg in self.main_team.run_stream(task=full_input):
-                message_count += 1
+            # Create the stream task so it can be cancelled
+            stream_task = asyncio.create_task(self._run_team_stream(full_input))
+            self.current_task = stream_task
+
+            try:
+                async for msg in await stream_task:
+                    message_count += 1
                 msg_type = type(msg).__name__
                 self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
 
@@ -1256,28 +1507,47 @@ TITLE:"""
                             # Other message types (for debugging)
                             self.logger.debug(f"Message type {msg_type} not shown in CLI")
 
-            self.logger.debug(f"✅ Stream completed. Total messages processed: {message_count}")
+                self.logger.debug(f"✅ Stream completed. Total messages processed: {message_count}")
 
-            # Ensure spinner is stopped
+                # Ensure spinner is stopped
+                self.cli.stop_thinking()
+
+                # Log interaction to JSON
+                self._log_interaction_to_json(
+                    user_input=user_input,
+                    agent_responses=all_agent_responses,
+                    agents_used=agents_used,
+                    tools_called=tools_called,
+                )
+
+                # Generate task completion summary
+                await self._generate_task_summary(user_input)
+
+                # 💾 AUTO-SAVE: Save agent states automatically after each response
+                await self._auto_save_agent_states()
+
+                # ============= END JSON LOGGING SESSION =============
+                # Save all captured events to timestamped JSON file
+                self.json_logger.end_session(summary="Request completed successfully")
+
+            finally:
+                # Always reset current task when stream finishes
+                self.current_task = None
+
+        except asyncio.CancelledError:
+            # Stop spinner on cancellation
             self.cli.stop_thinking()
 
-            # Log interaction to JSON
-            self._log_interaction_to_json(
-                user_input=user_input,
-                agent_responses=all_agent_responses,
-                agents_used=agents_used,
-                tools_called=tools_called,
-            )
+            # Show cancellation message
+            self.cli.print_warning("\n\n⚠️  Agent task stopped (Ctrl+C)")
+            self.cli.print_info("ℹ️  Press Ctrl+C again to exit DaveAgent completely.")
+            self.logger.info("Agent task cancelled by user interrupt")
 
-            # Generate task completion summary
-            await self._generate_task_summary(user_input)
+            # End JSON logging session
+            self.json_logger.end_session(summary="Task cancelled by interrupt")
 
-            # 💾 AUTO-SAVE: Save agent states automatically after each response
-            await self._auto_save_agent_states()
-
-            # ============= END JSON LOGGING SESSION =============
-            # Save all captured events to timestamped JSON file
-            self.json_logger.end_session(summary="Request completed successfully")
+            # Reset current task
+            self.current_task = None
 
         except UserCancelledError:
             # Stop spinner on user cancellation
@@ -1490,6 +1760,9 @@ TITLE:"""
 
     async def run(self):
         """Execute the main CLI loop"""
+        # Setup signal handler for Ctrl+C
+        signal.signal(signal.SIGINT, self._handle_interrupt)
+
         self.cli.print_banner()
 
         # Check for previous sessions and offer to resume
@@ -1497,6 +1770,14 @@ TITLE:"""
 
         try:
             while self.running:
+                # Check if should exit (from Ctrl+C handler)
+                if self.should_exit:
+                    self.logger.info("⚠️  Exiting due to user interrupt")
+                    break
+
+                # Reset interrupt counter when waiting for new input
+                self.interrupt_count = 0
+
                 user_input = await self.cli.get_user_input()
 
                 if not user_input:
@@ -1515,8 +1796,9 @@ TITLE:"""
                 await self.process_user_request(user_input)
 
         except KeyboardInterrupt:
-            self.logger.warning("⚠️ Keyboard interrupt (Ctrl+C)")
-            self.cli.print_warning("\nInterrupted by user")
+            # This should not happen often with signal handler
+            self.logger.warning("⚠️ Keyboard interrupt (Ctrl+C) - caught in exception handler")
+            self.cli.print_warning("\n\n⚠️  Exiting DaveAgent...")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "main loop")
