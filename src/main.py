@@ -14,34 +14,19 @@ warnings.filterwarnings(
 import asyncio
 import logging
 import os
+import signal
 import sys
-
-from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
-
-# Imports added for the new flow
-from autogen_agentchat.teams import SelectorGroupChat
-from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 # Ensure we use local src files over installed packages
 sys.path.insert(0, os.getcwd())
 
-# Import from new structure
-from src.config import (
-    CODER_AGENT_DESCRIPTION,
-    PLANNING_AGENT_DESCRIPTION,
-    PLANNING_AGENT_SYSTEM_MESSAGE,
-)
-from src.config.prompts import AGENT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT
-from src.interfaces import CLIInterface
-
-# Managers moved to __init__
-from src.utils import HistoryViewer, LoggingModelClientWrapper, get_conversation_tracker, get_logger
+# Import the orchestrator that handles all agent initialization
+from src.config.orchestrator import AgentOrchestrator
 from src.utils.errors import UserCancelledError
 
 
-class DaveAgentCLI:
-    """Main CLI application for the code agent"""
+class DaveAgentCLI(AgentOrchestrator):
+    """Main CLI application for the code agent - extends AgentOrchestrator"""
 
     def __init__(
         self,
@@ -54,112 +39,20 @@ class DaveAgentCLI:
         headless: bool = False,
     ):
         """
-        Initialize all agent components
+        Initialize all agent components by calling parent AgentOrchestrator
         """
         import time
 
         t_start = time.time()
 
-        # Configure logging (now in .daveagent/logs/)
-        log_level = logging.DEBUG if debug else logging.INFO
-        self.logger = get_logger(log_file=None, level=log_level)  # Use default path
-
-        t0 = time.time()
-        # Configure conversation tracker (logs to .daveagent/conversations.json)
-        self.conversation_tracker = get_conversation_tracker()
-
-        # Mode system: "agent" (with tools) or "chat" (without modification tools)
-        self.current_mode = "agent"  # Default mode
-
-        t0 = time.time()
-        # Load configuration (API key, URL, model)
-        from src.config import get_settings
-
-        self.settings = get_settings(
-            api_key=api_key, base_url=base_url, model=model, ssl_verify=ssl_verify
-        )
-
-        # Validate configuration (without interactivity in headless mode)
-        is_valid, error_msg = self.settings.validate(interactive=not headless)
-        if not is_valid:
-            self.logger.error(f"[ERROR] Invalid configuration: {error_msg}")
-            print(error_msg)
-            raise ValueError("Invalid configuration")
-
-        # DEEPSEEK REASONER SUPPORT
-        # Use DeepSeekReasoningClient for models with thinking mode
-
-        # Create custom HTTP client with SSL configuration
-        import httpx
-
-        http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
-
-        # Complete JSON logging system (ALWAYS active, independent of Langfuse)
-        # IMPORTANT: Initialize JSONLogger BEFORE creating the model_client wrapper
-        from src.utils.json_logger import JSONLogger
-
-        self.json_logger = JSONLogger()
-
-        # =====================================================================
-        # DYNAMIC MODEL CLIENTS (Base vs Strong)
-        # =====================================================================
-
-        # 1. Base Client (lighter/faster) - Usually deepseek-chat or gpt-4o-mini
-        # For base model we typically use standard client (no reasoning usually needed)
-        self.client_base = OpenAIChatCompletionClient(
-            model=self.settings.base_model,
-            base_url=self.settings.base_url,
-            api_key=self.settings.api_key,
-            model_info=self.settings.get_model_capabilities(),
-            custom_http_client=http_client,
-        )
-
-        # 2. Strong Client (Reasoning/Powerful) - Usually deepseek-reasoner or gpt-4o
-        from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
-
-        # Check if strong model needs reasoning client
-        is_deepseek_reasoner = (
-            "deepseek-reasoner" in self.settings.strong_model.lower()
-            and "deepseek" in self.settings.base_url.lower()
-        )
-
-        if is_deepseek_reasoner:
-            self.client_strong = DeepSeekReasoningClient(
-                model=self.settings.strong_model,
-                base_url=self.settings.base_url,
-                api_key=self.settings.api_key,
-                model_info=self.settings.get_model_capabilities(),
-                custom_http_client=http_client,
-                enable_thinking=None,  # Auto detect
-            )
-
-        else:
-            self.client_strong = OpenAIChatCompletionClient(
-                model=self.settings.strong_model,
-                base_url=self.settings.base_url,
-                api_key=self.settings.api_key,
-                model_info=self.settings.get_model_capabilities(),
-                custom_http_client=http_client,
-            )
-
-        # Wrappers for Logging
-        # Note: We will wrap them again with specific agent names later,
-        # but here we set up the default 'model_client' for compatibility with rest of init
-
-        # Default model client (starts as Strong for compatibility)
-        self.model_client = LoggingModelClientWrapper(
-            wrapped_client=self.client_strong,
-            json_logger=self.json_logger,
-            agent_name="SystemRouter",
-        )
-
-        # ROUTER CLIENT: Always use Base Model for routing/planning
-        self.router_client = OpenAIChatCompletionClient(
-            model=self.settings.base_model,  # Use base model for router
-            base_url=self.settings.base_url,
-            api_key=self.settings.api_key,
-            model_capabilities=self.settings.get_model_capabilities(),
-            http_client=http_client,
+        # Initialize the orchestrator (handles all agent setup)
+        super().__init__(
+            debug=debug,
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            ssl_verify=ssl_verify,
+            headless=headless,
         )
         print(f"[Startup] Model clients initialized in {time.time() - t0:.4f}s")
 
@@ -371,171 +264,9 @@ class DaveAgentCLI:
 
         self.logger.info(f"✨ DaveAgent initialized in {time.time() - t_start:.2f}s")
 
-        # System components
-        if headless:
-            # Headless mode: without interactive CLI (for evaluations)
-            self.cli = type(
-                "DummyCLI",
-                (),
-                {
-                    "print_success": lambda *args, **kwargs: None,
-                    "print_error": lambda *args, **kwargs: None,
-                    "print_info": lambda *args, **kwargs: None,
-                    "print_thinking": lambda *args, **kwargs: None,
-                    "print_agent_message": lambda *args, **kwargs: None,
-                    "start_thinking": lambda *args, **kwargs: None,
-                    "stop_thinking": lambda *args, **kwargs: None,
-                    "mentioned_files": [],
-                    "get_mentioned_files_content": lambda: "",
-                    "print_mentioned_files": lambda: None,
-                    "console": None,
-                },
-            )()
-            self.history_viewer = None
-        else:
-            # Normal interactive mode
-            self.cli = CLIInterface()
-            self.history_viewer = HistoryViewer(console=self.cli.console)
-
-        self.running = True
-
-        # Initialize agents and main_team for the current mode
-        self._initialize_agents_for_mode()
-
-    def _initialize_agents_for_mode(self):
-        """
-        Initialize all system agents according to current mode
-
-        AGENT mode: Coder with all tools + AGENT_SYSTEM_PROMPT
-        CHAT mode: Coder with read-only + CHAT_SYSTEM_PROMPT (more conversational)
-
-        NOTE: Agents DO NOT use the parameter 'memory' de AutoGen para evitar
-        errors with "multiple system messages" in models like DeepSeek.
-        Session persistence is handled via StateManager instead.
-        """
-
-        if self.current_mode == "agent":
-            # AGENT mode: all tools + technical prompt
-            coder_tools = self.all_tools["read_only"] + self.all_tools["modification"]
-            system_prompt = AGENT_SYSTEM_PROMPT
-        else:
-            # CHAT mode: read-only + conversational prompt
-            coder_tools = self.all_tools["read_only"]
-            system_prompt = CHAT_SYSTEM_PROMPT
-
-        # =====================================================================
-        # SKILL METADATA IS NOW INJECTED DYNAMICALLY VIA RAG
-        # =====================================================================
-        # See process_user_request() where finding_relevant_skills is called
-        # =====================================================================
-
-        # =====================================================================
-        # INJECT PROJECT CONTEXT (DAVEAGENT.md)
-        # =====================================================================
-        # Load specific instructions, commands, and guidelines from DAVEAGENT.md
-        # =====================================================================
-        project_context = self.context_manager.get_combined_context()
-        if project_context:
-            system_prompt = system_prompt + project_context
-            self.logger.info("✓ Injected project context from DAVEAGENT.md")
-
-        # =====================================================================
-        # IMPORTANT: DO NOT use parameter 'memory' - CAUSES ERROR WITH DEEPSEEK
-        # =====================================================================
-        # DeepSeek and other LLMs do not support multiple system messages.
-        # The parameter 'memory' in AutoGen injects additional system messages.
-        #
-        # SOLUTION: Session persistence is handled via StateManager instead,
-        # using AutoGen's save_state/load_state functionality.
-        # This avoids conflicts with system messages.
-        # =====================================================================
-
-        # Create separate wrappers for each agent (for logging with correct names)
-
-        # Create separate wrappers for each agent (for logging with correct names)
-        # 1. Coder (Defaulting to Strong client, but will be switched dynamically)
-        coder_client = LoggingModelClientWrapper(
-            wrapped_client=self.client_strong,
-            json_logger=self.json_logger,
-            agent_name="Coder",
-        )
-
-        # 2. Planner (Always Base client)
-        planner_client = LoggingModelClientWrapper(
-            wrapped_client=self.client_base,
-            json_logger=self.json_logger,
-            agent_name="Planner",
-        )
-
-        # Create code agent with RAG tools (without memory parameter)
-        self.coder_agent = AssistantAgent(
-            name="Coder",
-            description=CODER_AGENT_DESCRIPTION,
-            system_message=system_prompt,
-            model_client=coder_client,
-            tools=coder_tools,  # Includes memory RAG tools
-            max_tool_iterations=25,
-            reflect_on_tool_use=False,
-            # NO memory parameter - uses RAG tools instead
-        )
-
-        # PlanningAgent (without tools, without memory)
-        self.planning_agent = AssistantAgent(
-            name="Planner",
-            description=PLANNING_AGENT_DESCRIPTION,
-            system_message=PLANNING_AGENT_SYSTEM_MESSAGE,
-            model_client=planner_client,
-            tools=[],  # Planner has no tools, only plans
-            # NO memory parameter
-        )
-
-        # =====================================================================
-        # ROUTER TEAM: Single SelectorGroupChat that routes automatically
-        # =====================================================================
-        # This team automatically decides which agent to use according to context:
-        # - Planner: For complex multi-step tasks
-        # - Coder: For code modifications and analysis
-        #
-        # Advantages:
-        # - Does not need manual complexity detection
-        # - Single team that persists (not recreated on each request)
-        # - The LLM router decides intelligently
-        # - Eliminates "multiple system messages" problem
-        # =====================================================================
-
-        termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(50)
-
-        self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
-        self.logger.debug("[SELECTOR] Participants: Planner, Coder")
-        self.logger.debug("[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(50)")
-
-        self.main_team = SelectorGroupChat(
-            participants=[self.planning_agent, self.coder_agent],
-            model_client=self.router_client,
-            termination_condition=termination_condition,
-            allow_repeated_speaker=True,  # Allows the same agent to speak multiple times
-        )
-
-        self.logger.debug(
-            f"[SELECTOR] Router team created with {len(self.main_team._participants)} agents"
-        )
-
-    async def _update_agent_tools_for_mode(self):
-        """
-        Completely reinitialize the agent system according to current mode
-
-        This creates new instances of all agents with the correct
-        configuration for the mode (tools + system prompt).
-        """
-
-        # STEP 1: Clean current StateManager session
-        if self.state_manager.session_id:
-            self.logger.debug("🧹 Cleaning StateManager session...")
-            self.state_manager.clear_current_session()
-
-        # STEP 2: Reinitialize agents
-        # Agents will use RAG tools instead of memory parameter
-        self._initialize_agents_for_mode()
+    # =========================================================================
+    # COMMAND HANDLING
+    # =========================================================================
 
     async def handle_command(self, command: str) -> bool:
         """Handles special user commands"""
@@ -1311,6 +1042,43 @@ TITLE:"""
     # USER REQUEST PROCESSING
     # =========================================================================
 
+    async def _run_team_stream(self, task: str):
+        """
+        Helper method to run team stream (can be cancelled)
+
+        Args:
+            task: The task/query for the team
+
+        Returns:
+            AsyncIterator of messages from the team
+        """
+        return self.main_team.run_stream(task=task)
+
+    def _handle_interrupt(self, signum, frame):
+        """
+        Handle Ctrl+C interrupts (SIGINT)
+
+        First interrupt: Cancel current agent task
+        Second interrupt: Exit DaveAgent completely
+        """
+        self.interrupt_count += 1
+
+        if self.interrupt_count == 1:
+            # First Ctrl+C: Try to cancel current task
+            if self.current_task and not self.current_task.done():
+                self.logger.info("⚠️  First interrupt: Cancelling current agent task...")
+                print("\n⚠️  Stopping agent task... (Press Ctrl+C again to exit completely)")
+                self.current_task.cancel()
+            else:
+                # No task running, treat as exit
+                print("\n⚠️  Exiting DaveAgent...")
+                self.should_exit = True
+        else:
+            # Second Ctrl+C: Force exit
+            self.logger.info("⚠️  Second interrupt: Forcing exit...")
+            print("\n⚠️  Forcing exit...")
+            self.should_exit = True
+
     async def process_user_request(self, user_input: str):
         """
         Process a user request using the single ROUTER TEAM.
@@ -1413,8 +1181,13 @@ TITLE:"""
             tools_called = []
 
             # Process messages with streaming using the ROUTER TEAM
-            async for msg in self.main_team.run_stream(task=full_input):
-                message_count += 1
+            # Create the stream task so it can be cancelled
+            stream_task = asyncio.create_task(self._run_team_stream(full_input))
+            self.current_task = stream_task
+
+            try:
+                async for msg in await stream_task:
+                    message_count += 1
                 msg_type = type(msg).__name__
                 self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
 
@@ -1734,28 +1507,47 @@ TITLE:"""
                             # Other message types (for debugging)
                             self.logger.debug(f"Message type {msg_type} not shown in CLI")
 
-            self.logger.debug(f"✅ Stream completed. Total messages processed: {message_count}")
+                self.logger.debug(f"✅ Stream completed. Total messages processed: {message_count}")
 
-            # Ensure spinner is stopped
+                # Ensure spinner is stopped
+                self.cli.stop_thinking()
+
+                # Log interaction to JSON
+                self._log_interaction_to_json(
+                    user_input=user_input,
+                    agent_responses=all_agent_responses,
+                    agents_used=agents_used,
+                    tools_called=tools_called,
+                )
+
+                # Generate task completion summary
+                await self._generate_task_summary(user_input)
+
+                # 💾 AUTO-SAVE: Save agent states automatically after each response
+                await self._auto_save_agent_states()
+
+                # ============= END JSON LOGGING SESSION =============
+                # Save all captured events to timestamped JSON file
+                self.json_logger.end_session(summary="Request completed successfully")
+
+            finally:
+                # Always reset current task when stream finishes
+                self.current_task = None
+
+        except asyncio.CancelledError:
+            # Stop spinner on cancellation
             self.cli.stop_thinking()
 
-            # Log interaction to JSON
-            self._log_interaction_to_json(
-                user_input=user_input,
-                agent_responses=all_agent_responses,
-                agents_used=agents_used,
-                tools_called=tools_called,
-            )
+            # Show cancellation message
+            self.cli.print_warning("\n\n⚠️  Agent task stopped (Ctrl+C)")
+            self.cli.print_info("ℹ️  Press Ctrl+C again to exit DaveAgent completely.")
+            self.logger.info("Agent task cancelled by user interrupt")
 
-            # Generate task completion summary
-            await self._generate_task_summary(user_input)
+            # End JSON logging session
+            self.json_logger.end_session(summary="Task cancelled by interrupt")
 
-            # 💾 AUTO-SAVE: Save agent states automatically after each response
-            await self._auto_save_agent_states()
-
-            # ============= END JSON LOGGING SESSION =============
-            # Save all captured events to timestamped JSON file
-            self.json_logger.end_session(summary="Request completed successfully")
+            # Reset current task
+            self.current_task = None
 
         except UserCancelledError:
             # Stop spinner on user cancellation
@@ -1968,6 +1760,9 @@ TITLE:"""
 
     async def run(self):
         """Execute the main CLI loop"""
+        # Setup signal handler for Ctrl+C
+        signal.signal(signal.SIGINT, self._handle_interrupt)
+
         self.cli.print_banner()
 
         # Check for previous sessions and offer to resume
@@ -1975,6 +1770,14 @@ TITLE:"""
 
         try:
             while self.running:
+                # Check if should exit (from Ctrl+C handler)
+                if self.should_exit:
+                    self.logger.info("⚠️  Exiting due to user interrupt")
+                    break
+
+                # Reset interrupt counter when waiting for new input
+                self.interrupt_count = 0
+
                 user_input = await self.cli.get_user_input()
 
                 if not user_input:
@@ -1993,8 +1796,9 @@ TITLE:"""
                 await self.process_user_request(user_input)
 
         except KeyboardInterrupt:
-            self.logger.warning("⚠️ Keyboard interrupt (Ctrl+C)")
-            self.cli.print_warning("\nInterrupted by user")
+            # This should not happen often with signal handler
+            self.logger.warning("⚠️ Keyboard interrupt (Ctrl+C) - caught in exception handler")
+            self.cli.print_warning("\n\n⚠️  Exiting DaveAgent...")
 
         except Exception as e:
             self.logger.log_error_with_context(e, "main loop")
