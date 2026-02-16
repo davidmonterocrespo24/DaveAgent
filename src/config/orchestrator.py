@@ -459,7 +459,7 @@ class AgentOrchestrator:
         # - Eliminates "multiple system messages" problem
         # =====================================================================
 
-        termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(50)
+        termination_condition = TextMentionTermination("TERMINATE") | MaxMessageTermination(50)
 
         self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
         self.logger.debug("[SELECTOR] Participants: Planner, Coder")
@@ -495,11 +495,14 @@ class AgentOrchestrator:
                     if "TERMINATE" in last_message.content:
                         self.logger.debug("🔄 [Selector] Coder said TERMINATE -> Ending conversation")
                         return None  # Let termination condition handle it
-                    if "DELEGATE_TO_PLANNER" in last_message.content:
-                        self.logger.debug("🔄 [Selector] Coder delegating to Planner")
-                        return "Planner"
-                    if "SUBTASK_DONE" in last_message.content:
-                        self.logger.debug("🔄 [Selector] Coder subtask done -> Back to Planner")
+                    content = last_message.content
+                    if any(token in content for token in ("DELEGATE_TO_PLANNER", "SUBTASK_DONE")):
+                        reason = (
+                            "delegating to Planner"
+                            if "DELEGATE_TO_PLANNER" in content
+                            else "subtask done -> Back to Planner"
+                        )
+                        self.logger.debug(f"🔄 [Selector] Coder {reason}")
                         return "Planner"
 
                 # If Coder just sent a tool call (AssistantMessage with tool calls)
@@ -521,7 +524,7 @@ class AgentOrchestrator:
             if last_message.source == "user":
                 # Default to Planner for normal requests
                 self.logger.debug("[Selector] User message -> Starting with Planner")
-                return "Planner"
+                return "Coder"
 
             # FALLBACK: Never return None unless we explicitly want to terminate
             # If we don't recognize the source, default to Coder to continue
