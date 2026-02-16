@@ -150,6 +150,7 @@ class StateManager:
             Path to the saved state file
         """
         state_file = self.state_dir.parent / "agent_state.json"
+        self.logger.debug(f"💾 Saving team state to: {state_file.resolve()}")
         state_file.parent.mkdir(parents=True, exist_ok=True)
 
         team_state = await team.save_state()

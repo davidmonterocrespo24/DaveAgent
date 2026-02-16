@@ -61,10 +61,13 @@ class DaveAgentCLI(AgentOrchestrator):
         # State management system (AutoGen save_state/load_state)
         from src.managers import StateManager
 
+        _state_dir = os.path.join(os.getcwd(), ".daveagent", "state")
+        print(f"[Startup] Working directory: {os.getcwd()}")
+        print(f"[Startup] State directory: {_state_dir}")
         self.state_manager = StateManager(
             auto_save_enabled=True,
             auto_save_interval=300,  # Auto-save every 5 minutes
-            state_dir=os.path.join(os.getcwd(), ".daveagent", "state"),
+            state_dir=_state_dir,
         )
         print(f"[Startup] StateManager initialized in {time.time() - t0:.4f}s")
 
@@ -302,16 +305,19 @@ class DaveAgentCLI(AgentOrchestrator):
         # REMOVED: /load command - Use /load-state instead (AutoGen official)
 
         elif cmd == "/debug":
-            # Change logging level
-            current_level = self.logger.logger.level
-            if current_level == logging.DEBUG:
-                self.logger.logger.setLevel(logging.INFO)
-                self.cli.print_success("🔧 Debug mode DISABLED (level: INFO)")
-                self.logger.info("Logging level changed to INFO")
+            # Change console handler level (file handler always stays at DEBUG)
+            console_handlers = [h for h in self.logger.logger.handlers if isinstance(h, logging.Handler) and not isinstance(h, logging.FileHandler)]
+            current_console_level = console_handlers[0].level if console_handlers else logging.INFO
+            if current_console_level == logging.DEBUG:
+                for h in console_handlers:
+                    h.setLevel(logging.INFO)
+                self.cli.print_success("🔧 Debug mode DISABLED (console: INFO, file: DEBUG)")
+                self.logger.info("Console logging level changed to INFO")
             else:
-                self.logger.logger.setLevel(logging.DEBUG)
-                self.cli.print_success("🐛 Debug mode ENABLED (level: DEBUG)")
-                self.logger.debug("Logging level changed to DEBUG")
+                for h in console_handlers:
+                    h.setLevel(logging.DEBUG)
+                self.cli.print_success("🐛 Debug mode ENABLED (console: DEBUG, file: DEBUG)")
+                self.logger.debug("Console logging level changed to DEBUG")
 
         elif cmd == "/logs":
             # Show log file location
@@ -762,7 +768,8 @@ TITLE:"""
 
         except Exception as e:
             # Don't fail if auto-save fails, just log
-            self.logger.warning(f"⚠️ Auto-save failed: {str(e)}")
+            import traceback
+            self.logger.warning(f"⚠️ Auto-save failed: {str(e)}\n{traceback.format_exc()}")
 
     async def _save_state_command(self, parts: list):
         """
@@ -1492,9 +1499,6 @@ TITLE:"""
                 # Generate task completion summary
                 await self._generate_task_summary(user_input)
 
-                # 💾 AUTO-SAVE: Save agent states automatically after each response
-                await self._auto_save_agent_states()
-
                 # ============= END JSON LOGGING SESSION =============
                 # Save all captured events to timestamped JSON file
                 self.json_logger.end_session(summary="Request completed successfully")
@@ -1505,6 +1509,8 @@ TITLE:"""
                     _l.setLevel(_lvl)
                 # Always reset current task when stream finishes
                 self.current_task = None
+                # 💾 AUTO-SAVE: Always save state after each request, even on error
+                await self._auto_save_agent_states()
 
         except asyncio.CancelledError:
             # Stop spinner on cancellation
@@ -1789,22 +1795,17 @@ TITLE:"""
                 loaded = await self.state_manager.load_from_disk(session_id)
 
                 if loaded:
-                    # Load agents
-                    agents_loaded = 0
-                    if await self.state_manager.load_agent_state("coder", self.coder_agent):
-                        agents_loaded += 1
+                    # Load team state
+                    team_loaded = await self.state_manager.load_team_state(self.main_team)
 
-                    if await self.state_manager.load_agent_state("planning", self.planning_agent):
-                        agents_loaded += 1
-
-                    # Get metadata and messages
+                    # Get metadata
                     metadata = self.state_manager.get_session_metadata()
                     messages = self.state_manager.get_session_history()
 
                     # Display success
                     self.cli.print_success(f"\n✅ Session loaded: {title}")
-                    self.cli.print_info(f"  • Messages restored: {len(messages)}")
-                    self.cli.print_info(f"  • Agents restored: {agents_loaded}")
+                    self.cli.print_info(f"  • Team state restored: {team_loaded}")
+                    self.cli.print_info(f"  • Agents restored: {1 if team_loaded else 0}")
 
                     # Show last few messages
                     if messages:

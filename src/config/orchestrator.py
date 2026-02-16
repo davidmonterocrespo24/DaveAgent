@@ -153,15 +153,6 @@ class AgentOrchestrator:
             custom_http_client=http_client,
         )
 
-        # State management system (AutoGen save_state/load_state)
-        from src.managers import StateManager
-
-        self.state_manager = StateManager(
-            auto_save_enabled=True,
-            auto_save_interval=300,  # Auto-save every 5 minutes
-            state_dir=os.path.join(os.getcwd(), ".daveagent", "state"),
-        )
-
         # Agent Skills system
         from src.skills import SkillManager
 
@@ -480,11 +471,11 @@ class AgentOrchestrator:
                 return "Coder"
 
             last_message = messages[-1]
-            self.logger.debug.info(f"🔄 [Selector] Last message from: {last_message.source}, type: {type(last_message).__name__}")
+            self.logger.debug(f"🔄 [Selector] Last message from: {last_message.source}, type: {type(last_message).__name__}")
 
             # CRITICAL: If Planner just spoke, it's ALWAYS Coder's turn (never terminate after Planner)
             if last_message.source == "Planner":
-                self.logger.debug.info("🔄 [Selector] Planner just spoke -> Selecting Coder (MANDATORY)")
+                self.logger.debug("🔄 [Selector] Planner just spoke -> Selecting Coder (MANDATORY)")
                 return "Coder"
 
             # If Coder just spoke
@@ -492,20 +483,20 @@ class AgentOrchestrator:
                 # Check for explicit signals in TextMessage
                 if isinstance(last_message, TextMessage):
                     if "TERMINATE" in last_message.content:
-                        self.logger.debug.info("🔄 [Selector] Coder said TERMINATE -> Ending conversation")
+                        self.logger.debug("🔄 [Selector] Coder said TERMINATE -> Ending conversation")
                         return None  # Let termination condition handle it
                     if "DELEGATE_TO_PLANNER" in last_message.content:
-                        self.logger.debug.info("🔄 [Selector] Coder delegating to Planner")
+                        self.logger.debug("🔄 [Selector] Coder delegating to Planner")
                         return "Planner"
                     if "SUBTASK_DONE" in last_message.content:
-                        self.logger.debug.info("🔄 [Selector] Coder subtask done -> Back to Planner")
+                        self.logger.debug("🔄 [Selector] Coder subtask done -> Back to Planner")
                         return "Planner"
 
                 # If Coder just sent a tool call (AssistantMessage with tool calls)
                 # We usually want Coder to receive the result.
                 # But here we assume the runtime executes the tool and appends the result.
                 # We want to ensure Coder gets the next turn to read the result.
-                self.logger.debug.info("🔄 [Selector] Coder waiting for tool result -> Keep Coder")
+                self.logger.debug("🔄 [Selector] Coder waiting for tool result -> Keep Coder")
                 return "Coder"
 
             # If the last message was a tool execution result
@@ -513,18 +504,18 @@ class AgentOrchestrator:
             # We must verify the type to be sure.
             if type(last_message).__name__ == "FunctionExecutionResultMessage":
                 # Tool finished, give control back to Coder to handle the output
-                self.logger.debug.info("🔄 [Selector] Tool result received -> Back to Coder")
+                self.logger.debug("🔄 [Selector] Tool result received -> Back to Coder")
                 return "Coder"
 
             # If the last message is from the User
-            if last_message.source == "user":               
+            if last_message.source == "user":
                 # Default to Planner for normal requests
-                self.logger.debug.info("[Selector] User message -> Starting with Planner")
+                self.logger.debug("[Selector] User message -> Starting with Planner")
                 return "Planner"
 
             # FALLBACK: Never return None unless we explicitly want to terminate
             # If we don't recognize the source, default to Coder to continue
-            self.logger.debug.warning(f"⚠️ [Selector] Unknown message source: {last_message.source} -> Defaulting to Coder")
+            self.logger.warning(f"⚠️ [Selector] Unknown message source: {last_message.source} -> Defaulting to Coder")
             return "Coder"
 
         self.main_team = SelectorGroupChat(
