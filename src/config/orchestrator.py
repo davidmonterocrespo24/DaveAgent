@@ -431,7 +431,7 @@ class AgentOrchestrator:
             model_client=coder_client,
             tools=coder_tools,  # Includes memory RAG tools
             max_tool_iterations=25,
-            reflect_on_tool_use=False,
+            reflect_on_tool_use=True,  # Show agent reasoning before tool calls
             model_context=coder_context,  # Limit context to prevent token overflow
         )
 

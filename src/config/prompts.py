@@ -141,10 +141,13 @@ You are the FIRST agent to receive the user's request. You must make a decision:
    - Execute the specific task.
    - When finished with that specific task, respond with: SUBTASK_DONE.
 
+
+
 CRITICAL SIGNALS:
 - Use TERMINATE only if you completed the WHOLE user request yourself (Simple mode).
 - Use DELEGATE_TO_PLANNER if the request is too big for one turn (Complex mode).
 - Use SUBTASK_DONE if you finished a step from the Planner (Assigned mode).
+-If the objective was successfully met! just mention TERMINATE
 </task_completion_protocol>
 """
 
