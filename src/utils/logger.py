@@ -17,7 +17,7 @@ class DaveAgentLogger:
     """Custom logger for DaveAgent with color and file support"""
 
     def __init__(
-        self, name: str = "DaveAgent", log_file: str | None = None, level: int = logging.DEBUG
+        self, name: str = "DaveAgent", log_file: str | None = None, level: int = logging.INFO
     ):
         """
         Initialize the logger
@@ -143,7 +143,7 @@ class DaveAgentLogger:
 _global_logger: DaveAgentLogger | None = None
 
 
-def get_logger(log_file: str | None = None, level: int = logging.DEBUG) -> DaveAgentLogger:
+def get_logger(log_file: str | None = None, level: int = logging.INFO) -> DaveAgentLogger:
     """
     Gets the global logger instance
 

@@ -759,12 +759,13 @@ TITLE:"""
                 self.state_manager.start_session(session_id=session_id, title=title)
 
             # Save team state
-            await self.state_manager.save_team_state(self.main_team)
+            self.logger.debug(f"💾 Auto-save: saving team state, session={self.state_manager.session_id}")
+            await self.state_manager.save_team_state(self.main_team, self.client_strong)
 
             # Save session metadata to disk
             await self.state_manager.save_to_disk()
 
-            self.logger.debug("💾 Auto-save: State saved automatically")
+            self.logger.info("💾 Auto-save: State saved successfully")
 
         except Exception as e:
             # Don't fail if auto-save fails, just log
@@ -809,7 +810,7 @@ TITLE:"""
                 session_id = self.state_manager.session_id
 
             # Save team state
-            await self.state_manager.save_team_state(self.main_team)
+            await self.state_manager.save_team_state(self.main_team, self.client_strong)
 
             # Save session metadata to disk
             state_path = await self.state_manager.save_to_disk(session_id)
@@ -874,7 +875,7 @@ TITLE:"""
                 return
 
             # Load team state
-            team_loaded = await self.state_manager.load_team_state(self.main_team)
+            team_loaded = await self.state_manager.load_team_state(self.main_team, self.client_strong)
 
             self.cli.stop_thinking()
 
@@ -1119,6 +1120,7 @@ TITLE:"""
             full_input = f"{user_input}\n{mentioned_files_content}{skills_context}"
 
             self.logger.debug(f"Input context prepared with {len(skills_context)} chars of skills")
+            self.logger.debug(f"📨 User request length: {len(full_input)} chars")
 
             # =================================================================
             # LET SELECTOR GROUP CHAT HANDLE EVERYTHING
@@ -1150,17 +1152,7 @@ TITLE:"""
             self.current_task = stream_task
 
             # Silence autogen internal loggers to avoid leaking raw tracebacks.
-            # Auth errors are handled cleanly by our except block below.
-            import logging as _logging
-            _autogen_loggers = [
-                _logging.getLogger("autogen_core"),
-                _logging.getLogger("autogen_agentchat"),
-                _logging.getLogger("autogen_ext"),
-            ]
-            _autogen_saved_levels = [(l, l.level) for l in _autogen_loggers]
-            for l in _autogen_loggers:
-                l.setLevel(_logging.CRITICAL)
-
+            self.logger.debug("🚀 Stream task started")
             try:
                 async for msg in await stream_task:
                     message_count += 1
@@ -1504,9 +1496,7 @@ TITLE:"""
                 self.json_logger.end_session(summary="Request completed successfully")
 
             finally:
-                # Restore autogen log levels
-                for _l, _lvl in _autogen_saved_levels:
-                    _l.setLevel(_lvl)
+                self.logger.debug("🏁 Stream finished (finally block)")
                 # Always reset current task when stream finishes
                 self.current_task = None
                 # 💾 AUTO-SAVE: Always save state after each request, even on error
@@ -1524,8 +1514,9 @@ TITLE:"""
             # End JSON logging session
             self.json_logger.end_session(summary="Task cancelled by interrupt")
 
-            # Reset current task
+            # Reset current task and save state
             self.current_task = None
+            await self._auto_save_agent_states()
 
         except UserCancelledError:
             # Stop spinner on user cancellation
@@ -1539,6 +1530,7 @@ TITLE:"""
 
             # End JSON logging session
             self.json_logger.end_session(summary="Task cancelled by user")
+            await self._auto_save_agent_states()
 
         except Exception as e:
             # Stop spinner on error
@@ -1584,6 +1576,9 @@ TITLE:"""
             self.logger.error(f"Full traceback:\n{error_traceback}")
             self.logger.error(f"Full traceback:\n{error_traceback}")
             self.cli.print_error(f"Details:\n{error_traceback}")
+
+            # Save state even on error
+            await self._auto_save_agent_states()
 
             # AUTOMATIC ERROR REPORTING TO SIGNOZ
             self.cli.print_thinking("📊 Reporting error to SigNoz...")
@@ -1768,7 +1763,7 @@ TITLE:"""
 
                     dt = datetime.fromisoformat(last_interaction)
                     formatted_date = dt.strftime("%Y-%m-%d %H:%M")
-                except:
+                except Exception:
                     formatted_date = last_interaction
             else:
                 formatted_date = "Unknown"
@@ -1796,7 +1791,7 @@ TITLE:"""
 
                 if loaded:
                     # Load team state
-                    team_loaded = await self.state_manager.load_team_state(self.main_team)
+                    team_loaded = await self.state_manager.load_team_state(self.main_team, self.client_strong)
 
                     # Get metadata
                     metadata = self.state_manager.get_session_metadata()

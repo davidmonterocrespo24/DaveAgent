@@ -199,7 +199,7 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
                                     current_idx = max(0, current_idx - 1)
                                 elif key == b"P":  # Down
                                     current_idx = min(len(options) - 1, current_idx + 1)
-                            except:
+                            except Exception:
                                 pass
 
                     # Move cursor back up to repaint for next frame
@@ -239,7 +239,7 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             if active_spinner:
                 try:
                     VibeSpinner.resume_spinner(active_spinner)
-                except:
+                except Exception:
                     pass
 
     except ImportError:

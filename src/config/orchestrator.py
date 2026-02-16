@@ -471,7 +471,14 @@ class AgentOrchestrator:
                 return "Coder"
 
             last_message = messages[-1]
-            self.logger.debug(f"🔄 [Selector] Last message from: {last_message.source}, type: {type(last_message).__name__}")
+            content_preview = ""
+            if hasattr(last_message, "content"):
+                c = last_message.content
+                content_preview = str(c)[:120].replace("\n", " ") if c else "(empty)"
+            self.logger.debug(
+                f"🔄 [Selector] msg[{len(messages)-1}] from={last_message.source} "
+                f"type={type(last_message).__name__}: {content_preview}"
+            )
 
             # CRITICAL: If Planner just spoke, it's ALWAYS Coder's turn (never terminate after Planner)
             if last_message.source == "Planner":

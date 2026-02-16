@@ -139,7 +139,7 @@ class StateManager:
     # Team State Management
     # =========================================================================
 
-    async def save_team_state(self, team: Any) -> Path:
+    async def save_team_state(self, team: Any, deepseek_client: Any = None) -> Path:
         """
         Save the main_team state to .daveagent/agent_state.json
 
@@ -155,13 +155,19 @@ class StateManager:
 
         team_state = await team.save_state()
 
+        # Persist DeepSeek reasoning cache alongside team state
+        if deepseek_client is not None and hasattr(deepseek_client, "export_reasoning_cache"):
+            cache = deepseek_client.export_reasoning_cache()
+            team_state["_deepseek_reasoning_cache"] = cache
+            self.logger.debug(f"💭 Saved {len(cache)} reasoning cache entries")
+
         with open(state_file, "w", encoding="utf-8") as f:
             json.dump(team_state, f, indent=2, ensure_ascii=False)
 
         self.logger.info(f"💾 Team state saved to {state_file}")
         return state_file
 
-    async def load_team_state(self, team: Any) -> bool:
+    async def load_team_state(self, team: Any, deepseek_client: Any = None) -> bool:
         """
         Load the main_team state from .daveagent/agent_state.json.
         Truncates message history to 150 messages to prevent token overflow.
@@ -180,6 +186,11 @@ class StateManager:
 
         with open(state_file, "r", encoding="utf-8") as f:
             team_state = json.load(f)
+
+        # Restore DeepSeek reasoning cache before loading team state
+        reasoning_cache = team_state.pop("_deepseek_reasoning_cache", None)
+        if deepseek_client is not None and reasoning_cache and hasattr(deepseek_client, "import_reasoning_cache"):
+            deepseek_client.import_reasoning_cache(reasoning_cache)
 
         # Truncate message history to prevent token overflow
         if "message_thread" in team_state and isinstance(team_state["message_thread"], list):
