@@ -1156,226 +1156,278 @@ TITLE:"""
             try:
                 async for msg in await stream_task:
                     message_count += 1
-                msg_type = type(msg).__name__
-                self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
+                    msg_type = type(msg).__name__
+                    self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
 
-                # Only process messages that are NOT from the user
-                if hasattr(msg, "source") and msg.source != "user":
-                    agent_name = msg.source
+                    # Only process messages that are NOT from the user
+                    if hasattr(msg, "source") and msg.source != "user":
+                        agent_name = msg.source
 
-                    # Track which agents were used
-                    if agent_name not in agents_used:
-                        agents_used.append(agent_name)
+                        # Track which agents were used
+                        if agent_name not in agents_used:
+                            agents_used.append(agent_name)
 
-                    # Determine message content
-                    if hasattr(msg, "content"):
-                        content = msg.content
-                    else:
-                        content = str(msg)
-                        self.logger.warning(
-                            f"Message without 'content' attribute. Using str(): {content[:100]}..."
-                        )
-
-                    # Create unique key to avoid duplicates
-                    # If content is a list (e.g. FunctionCall), convert to string
-                    try:
-                        if isinstance(content, list):
-                            content_str = str(content)
+                        # Determine message content
+                        if hasattr(msg, "content"):
+                            content = msg.content
                         else:
-                            content_str = content
-                        message_key = f"{agent_name}:{hash(content_str)}"
-                    except TypeError:
-                        # If still can't hash, use hash of string
-                        message_key = f"{agent_name}:{hash(str(content))}"
+                            content = str(msg)
+                            self.logger.warning(
+                                f"Message without 'content' attribute. Using str(): {content[:100]}..."
+                            )
 
-                    if message_key not in agent_messages_shown:
-                        # SHOW DIFFERENT MESSAGE TYPES IN CONSOLE IN REAL-TIME
-                        if msg_type == "ThoughtEvent":
-                            # 💭 Show agent thoughts/reflections
-                            # Stop spinner for thoughts to show them clearly
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-                                spinner_active = False
-                            self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
-                            self.logger.debug(f"💭 Thought: {content_str}")
-                            # JSON Logger: Capture thought
-                            self.json_logger.log_thought(agent_name, content_str)
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "ToolCallRequestEvent":
-                            # 🔧 Show tools to be called
-                            # Stop spinner to show tool call, then restart with specific message
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-
+                        # Create unique key to avoid duplicates
+                        # If content is a list (e.g. FunctionCall), convert to string
+                        try:
                             if isinstance(content, list):
-                                tool_names = []
-                                for tool_call in content:
-                                    if hasattr(tool_call, "name"):
-                                        tool_name = tool_call.name
-                                        tool_args = (
-                                            tool_call.arguments
-                                            if hasattr(tool_call, "arguments")
-                                            else {}
-                                        )
+                                content_str = str(content)
+                            else:
+                                content_str = content
+                            message_key = f"{agent_name}:{hash(content_str)}"
+                        except TypeError:
+                            # If still can't hash, use hash of string
+                            message_key = f"{agent_name}:{hash(str(content))}"
 
-                                        # Parse tool_args if it's a JSON string
-                                        if isinstance(tool_args, str):
-                                            try:
-                                                import json
+                        if message_key not in agent_messages_shown:
+                            # SHOW DIFFERENT MESSAGE TYPES IN CONSOLE IN REAL-TIME
+                            if msg_type == "ThoughtEvent":
+                                # 💭 Show agent thoughts/reflections
+                                # Stop spinner for thoughts to show them clearly
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
+                                self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
+                                self.logger.debug(f"💭 Thought: {content_str}")
+                                # JSON Logger: Capture thought
+                                self.json_logger.log_thought(agent_name, content_str)
+                                agent_messages_shown.add(message_key)
 
-                                                tool_args = json.loads(tool_args)
-                                            except (json.JSONDecodeError, TypeError):
-                                                pass  # Keep as string if parsing fails
+                            elif msg_type == "ToolCallRequestEvent":
+                                # 🔧 Show tools to be called
+                                # Stop spinner to show tool call, then restart with specific message
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
 
-                                        # Special formatting for file tools with code content
-                                        if (
-                                            tool_name == "write_file"
-                                            and isinstance(tool_args, dict)
-                                            and "file_content" in tool_args
-                                        ):
-                                            # Show write_file with syntax highlighting
-                                            target_file = tool_args.get("target_file", "unknown")
-                                            file_content = tool_args.get("file_content", "")
-                                            self.cli.print_thinking(
-                                                f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
+                                if isinstance(content, list):
+                                    tool_names = []
+                                    for tool_call in content:
+                                        if hasattr(tool_call, "name"):
+                                            tool_name = tool_call.name
+                                            tool_args = (
+                                                tool_call.arguments
+                                                if hasattr(tool_call, "arguments")
+                                                else {}
                                             )
-                                            self.cli.print_code(
-                                                file_content, target_file, max_lines=50
-                                            )
-                                        elif tool_name == "edit_file" and isinstance(
-                                            tool_args, dict
-                                        ):
-                                            # Show edit_file with unified diff
-                                            import difflib
 
-                                            target_file = tool_args.get("target_file", "unknown")
-                                            old_string = tool_args.get("old_string", "")
-                                            new_string = tool_args.get("new_string", "")
-                                            instructions = tool_args.get("instructions", "")
-                                            self.cli.print_thinking(
-                                                f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
-                                            )
-                                            if instructions:
-                                                self.cli.print_thinking(f"   📝 {instructions}")
-                                            # Generate unified diff
-                                            old_lines = old_string.splitlines(keepends=True)
-                                            new_lines = new_string.splitlines(keepends=True)
-                                            diff = difflib.unified_diff(
-                                                old_lines,
-                                                new_lines,
-                                                fromfile=f"a/{target_file}",
-                                                tofile=f"b/{target_file}",
-                                                lineterm="",
-                                            )
-                                            diff_text = "".join(diff)
-                                            if diff_text:
-                                                self.cli.print_diff(diff_text)
-                                            else:
+                                            # Parse tool_args if it's a JSON string
+                                            if isinstance(tool_args, str):
+                                                try:
+                                                    import json
+
+                                                    tool_args = json.loads(tool_args)
+                                                except (json.JSONDecodeError, TypeError):
+                                                    pass  # Keep as string if parsing fails
+
+                                            # Special formatting for file tools with code content
+                                            if (
+                                                tool_name == "write_file"
+                                                and isinstance(tool_args, dict)
+                                                and "file_content" in tool_args
+                                            ):
+                                                # Show write_file with syntax highlighting
+                                                target_file = tool_args.get("target_file", "unknown")
+                                                file_content = tool_args.get("file_content", "")
                                                 self.cli.print_thinking(
-                                                    "   (no changes detected in diff)"
+                                                    f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
                                                 )
-                                        else:
-                                            # Default: show parameters as JSON (truncate if too long)
-                                            args_str = str(tool_args)
-                                            if len(args_str) > 200:
-                                                args_str = args_str[:200] + "..."
-                                            self.cli.print_info(
-                                                f"🔧 Calling tool: {tool_name} with parameters {args_str}",
-                                                agent_name,
-                                            )
-
-                                        self.logger.debug(f"🔧 Tool call: {tool_name}")
-                                        # JSON Logger: Capture tool call
-                                        self.json_logger.log_tool_call(
-                                            agent_name=agent_name,
-                                            tool_name=tool_name,
-                                            arguments=(
-                                                tool_args if isinstance(tool_args, dict) else {}
-                                            ),
-                                        )
-                                        # Track tools called
-                                        if tool_name not in tools_called:
-                                            tools_called.append(tool_name)
-                                        tool_names.append(tool_name)
-
-                                # Restart spinner ONCE with first tool name (not in loop)
-                                if tool_names:
-                                    self.logger.debug(f"executing {tool_names[0]}")
-                                    spinner_active = True
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "ToolCallExecutionEvent":
-                            # ✅ Show tool results
-                            # Stop spinner to show results
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-                                spinner_active = False
-
-                            if isinstance(content, list):
-                                for execution_result in content:
-                                    if hasattr(execution_result, "name"):
-                                        tool_name = execution_result.name
-                                        result_content = (
-                                            str(execution_result.content)
-                                            if hasattr(execution_result, "content")
-                                            else "OK"
-                                        )
-
-                                        # 🚨 CRITICAL: Detect user cancellation in tool results
-                                        # When a tool is cancelled, ask_for_approval raises UserCancelledError,
-                                        # but AutoGen converts it to a string result. We need to detect this
-                                        # and re-raise the exception to stop the entire workflow.
-                                        if (
-                                            "User selected 'No, cancel'" in result_content
-                                            or "UserCancelledError" in result_content
-                                        ):
-                                            self.logger.info(
-                                                "🚫 User cancelled tool execution - stopping workflow"
-                                            )
-                                            raise UserCancelledError(
-                                                "User cancelled tool execution"
-                                            )
-
-                                        # DEBUG: Log tool result details
-                                        self.logger.debug(
-                                            f"[TOOL_RESULT_DEBUG] tool_name={tool_name}, result_starts_with={result_content[:50] if len(result_content) > 50 else result_content}, has_File={('File:' in result_content)}"
-                                        )
-
-                                        # Check if this is an edit_file result with diff
-                                        if (
-                                            tool_name == "edit_file"
-                                            and "DIFF (Changes Applied)" in result_content
-                                        ):
-                                            # Extract and display the diff
-                                            diff_start = result_content.find(
-                                                "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):"
-                                            )
-                                            diff_end = result_content.find(
-                                                "\n═══════════════════════════════════════════════════════════════",
-                                                diff_start + 100,
-                                            )
-
-                                            if diff_start != -1 and diff_end != -1:
-                                                diff_text = result_content[
-                                                    diff_start : diff_end + 64
-                                                ]
-                                                # Print file info first
-                                                info_end = result_content.find(
-                                                    "\n\n", 0, diff_start
+                                                self.cli.print_code(
+                                                    file_content, target_file, max_lines=50
                                                 )
-                                                if info_end != -1:
-                                                    file_info = result_content[:info_end]
+                                            elif tool_name == "edit_file" and isinstance(
+                                                tool_args, dict
+                                            ):
+                                                # Show edit_file with unified diff
+                                                import difflib
+
+                                                target_file = tool_args.get("target_file", "unknown")
+                                                old_string = tool_args.get("old_string", "")
+                                                new_string = tool_args.get("new_string", "")
+                                                instructions = tool_args.get("instructions", "")
+                                                self.cli.print_thinking(
+                                                    f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
+                                                )
+                                                if instructions:
+                                                    self.cli.print_thinking(f"   📝 {instructions}")
+                                                # Generate unified diff
+                                                old_lines = old_string.splitlines(keepends=True)
+                                                new_lines = new_string.splitlines(keepends=True)
+                                                diff = difflib.unified_diff(
+                                                    old_lines,
+                                                    new_lines,
+                                                    fromfile=f"a/{target_file}",
+                                                    tofile=f"b/{target_file}",
+                                                    lineterm="",
+                                                )
+                                                diff_text = "".join(diff)
+                                                if diff_text:
+                                                    self.cli.print_diff(diff_text)
+                                                else:
                                                     self.cli.print_thinking(
-                                                        f"✅ {agent_name} > {tool_name}: {file_info}"
+                                                        "   (no changes detected in diff)"
                                                     )
-                                                # Display diff with colors
-                                                self.cli.print_diff(diff_text)
+                                            else:
+                                                # Default: show parameters as JSON (truncate if too long)
+                                                args_str = str(tool_args)
+                                                if len(args_str) > 200:
+                                                    args_str = args_str[:200] + "..."
+                                                self.cli.print_info(
+                                                    f"🔧 Calling tool: {tool_name} with parameters {args_str}",
+                                                    agent_name,
+                                                )
+
+                                            self.logger.debug(f"🔧 Tool call: {tool_name}")
+                                            # JSON Logger: Capture tool call
+                                            self.json_logger.log_tool_call(
+                                                agent_name=agent_name,
+                                                tool_name=tool_name,
+                                                arguments=(
+                                                    tool_args if isinstance(tool_args, dict) else {}
+                                                ),
+                                            )
+                                            # Track tools called
+                                            if tool_name not in tools_called:
+                                                tools_called.append(tool_name)
+                                            tool_names.append(tool_name)
+
+                                    # Restart spinner ONCE with first tool name (not in loop)
+                                    if tool_names:
+                                        self.logger.debug(f"executing {tool_names[0]}")
+                                        spinner_active = True
+                                agent_messages_shown.add(message_key)
+
+                            elif msg_type == "ToolCallExecutionEvent":
+                                # ✅ Show tool results
+                                # Stop spinner to show results
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
+
+                                if isinstance(content, list):
+                                    for execution_result in content:
+                                        if hasattr(execution_result, "name"):
+                                            tool_name = execution_result.name
+                                            result_content = (
+                                                str(execution_result.content)
+                                                if hasattr(execution_result, "content")
+                                                else "OK"
+                                            )
+
+                                            # 🚨 CRITICAL: Detect user cancellation in tool results
+                                            # When a tool is cancelled, ask_for_approval raises UserCancelledError,
+                                            # but AutoGen converts it to a string result. We need to detect this
+                                            # and re-raise the exception to stop the entire workflow.
+                                            if (
+                                                "User selected 'No, cancel'" in result_content
+                                                or "UserCancelledError" in result_content
+                                            ):
+                                                self.logger.info(
+                                                    "🚫 User cancelled tool execution - stopping workflow"
+                                                )
+                                                raise UserCancelledError(
+                                                    "User cancelled tool execution"
+                                                )
+
+                                            # DEBUG: Log tool result details
+                                            self.logger.debug(
+                                                f"[TOOL_RESULT_DEBUG] tool_name={tool_name}, result_starts_with={result_content[:50] if len(result_content) > 50 else result_content}, has_File={('File:' in result_content)}"
+                                            )
+
+                                            # Check if this is an edit_file result with diff
+                                            if (
+                                                tool_name == "edit_file"
+                                                and "DIFF (Changes Applied)" in result_content
+                                            ):
+                                                # Extract and display the diff
+                                                diff_start = result_content.find(
+                                                    "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):"
+                                                )
+                                                diff_end = result_content.find(
+                                                    "\n═══════════════════════════════════════════════════════════════",
+                                                    diff_start + 100,
+                                                )
+
+                                                if diff_start != -1 and diff_end != -1:
+                                                    diff_text = result_content[
+                                                        diff_start : diff_end + 64
+                                                    ]
+                                                    # Print file info first
+                                                    info_end = result_content.find(
+                                                        "\n\n", 0, diff_start
+                                                    )
+                                                    if info_end != -1:
+                                                        file_info = result_content[:info_end]
+                                                        self.cli.print_thinking(
+                                                            f"✅ {agent_name} > {tool_name}: {file_info}"
+                                                        )
+                                                    # Display diff with colors
+                                                    self.cli.print_diff(diff_text)
+                                                    self.logger.debug(
+                                                        f"✅ Tool result: {tool_name} -> DIFF displayed"
+                                                    )
+                                                else:
+                                                    # Fallback to showing preview
+                                                    result_preview = result_content[:100]
+                                                    self.cli.print_thinking(
+                                                        f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                    )
+                                                    self.logger.debug(
+                                                        f"✅ Tool result: {tool_name} -> {result_preview}"
+                                                    )
+                                            elif tool_name == "read_file" and "File:" in result_content:
+                                                # Special handling for read_file - show with syntax highlighting
+                                                # Extract filename from result
+                                                try:
+                                                    # Result format: "File: <path>\n<content>"
+                                                    first_line = result_content.split("\n")[0]
+                                                    if first_line.startswith("File:"):
+                                                        filename = first_line.replace(
+                                                            "File:", ""
+                                                        ).strip()
+                                                        # Get code content (everything after first line)
+                                                        code_content = "\n".join(
+                                                            result_content.split("\n")[1:]
+                                                        )
+                                                        # Display with syntax highlighting
+                                                        self.cli.print_code(
+                                                            code_content, filename, max_lines=50
+                                                        )
+                                                        self.logger.debug(
+                                                            f"✅ Tool result: {tool_name} -> {filename} (displayed with syntax highlighting)"
+                                                        )
+                                                    else:
+                                                        # Fallback
+                                                        result_preview = result_content[:100]
+                                                        self.cli.print_thinking(
+                                                            f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                        )
+                                                except Exception:
+                                                    result_preview = result_content[:100]
+                                                    self.cli.print_thinking(
+                                                        f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                    )
+                                            elif (
+                                                tool_name == "write_file"
+                                                and "Successfully wrote" in result_content
+                                            ):
+                                                # Special handling for write_file - show success message
+                                                self.cli.print_success(
+                                                    f"{agent_name} > {tool_name}: {result_content}"
+                                                )
                                                 self.logger.debug(
-                                                    f"✅ Tool result: {tool_name} -> DIFF displayed"
+                                                    f"✅ Tool result: {tool_name} -> {result_content}"
                                                 )
                                             else:
-                                                # Fallback to showing preview
+                                                # Regular tool result
                                                 result_preview = result_content[:100]
                                                 self.cli.print_thinking(
                                                     f"✅ {agent_name} > {tool_name}: {result_preview}..."
@@ -1383,97 +1435,48 @@ TITLE:"""
                                                 self.logger.debug(
                                                     f"✅ Tool result: {tool_name} -> {result_preview}"
                                                 )
-                                        elif tool_name == "read_file" and "File:" in result_content:
-                                            # Special handling for read_file - show with syntax highlighting
-                                            # Extract filename from result
-                                            try:
-                                                # Result format: "File: <path>\n<content>"
-                                                first_line = result_content.split("\n")[0]
-                                                if first_line.startswith("File:"):
-                                                    filename = first_line.replace(
-                                                        "File:", ""
-                                                    ).strip()
-                                                    # Get code content (everything after first line)
-                                                    code_content = "\n".join(
-                                                        result_content.split("\n")[1:]
-                                                    )
-                                                    # Display with syntax highlighting
-                                                    self.cli.print_code(
-                                                        code_content, filename, max_lines=50
-                                                    )
-                                                    self.logger.debug(
-                                                        f"✅ Tool result: {tool_name} -> {filename} (displayed with syntax highlighting)"
-                                                    )
-                                                else:
-                                                    # Fallback
-                                                    result_preview = result_content[:100]
-                                                    self.cli.print_thinking(
-                                                        f"✅ {agent_name} > {tool_name}: {result_preview}..."
-                                                    )
-                                            except Exception:
-                                                result_preview = result_content[:100]
-                                                self.cli.print_thinking(
-                                                    f"✅ {agent_name} > {tool_name}: {result_preview}..."
-                                                )
-                                        elif (
-                                            tool_name == "write_file"
-                                            and "Successfully wrote" in result_content
-                                        ):
-                                            # Special handling for write_file - show success message
-                                            self.cli.print_success(
-                                                f"{agent_name} > {tool_name}: {result_content}"
-                                            )
-                                            self.logger.debug(
-                                                f"✅ Tool result: {tool_name} -> {result_content}"
-                                            )
-                                        else:
-                                            # Regular tool result
-                                            result_preview = result_content[:100]
-                                            self.cli.print_thinking(
-                                                f"✅ {agent_name} > {tool_name}: {result_preview}..."
-                                            )
-                                            self.logger.debug(
-                                                f"✅ Tool result: {tool_name} -> {result_preview}"
+
+                                            # JSON Logger: Capture tool result
+                                            self.json_logger.log_tool_result(
+                                                agent_name=agent_name,
+                                                tool_name=tool_name,
+                                                result=result_content,
+                                                success=True,
                                             )
 
-                                        # JSON Logger: Capture tool result
-                                        self.json_logger.log_tool_result(
-                                            agent_name=agent_name,
-                                            tool_name=tool_name,
-                                            result=result_content,
-                                            success=True,
-                                        )
+                                # Restart spinner for next action
+                                self.cli.start_thinking()
+                                spinner_active = True
+                                agent_messages_shown.add(message_key)
 
-                            # Restart spinner for next action
-                            self.cli.start_thinking()
-                            spinner_active = True
-                            agent_messages_shown.add(message_key)
+                            elif msg_type == "TextMessage":
+                                # 💬 Show final agent response
+                                # Stop spinner for final response
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
 
-                        elif msg_type == "TextMessage":
-                            # 💬 Show final agent response
-                            # Stop spinner for final response
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-                                spinner_active = False
+                                preview = content_str[:100] if len(content_str) > 100 else content_str
+                                self.logger.log_message_processing(msg_type, agent_name, preview)
+                                self.cli.print_agent_message(content_str, agent_name)
+                                # JSON Logger: Capture agent message
+                                self.json_logger.log_agent_message(
+                                    agent_name=agent_name, content=content_str, message_type="text"
+                                )
+                                # Collect agent responses for logging
+                                all_agent_responses.append(f"[{agent_name}] {content_str}")
+                                agent_messages_shown.add(message_key)
 
-                            preview = content_str[:100] if len(content_str) > 100 else content_str
-                            self.logger.log_message_processing(msg_type, agent_name, preview)
-                            self.cli.print_agent_message(content_str, agent_name)
-                            # JSON Logger: Capture agent message
-                            self.json_logger.log_agent_message(
-                                agent_name=agent_name, content=content_str, message_type="text"
-                            )
-                            # Collect agent responses for logging
-                            all_agent_responses.append(f"[{agent_name}] {content_str}")
-                            agent_messages_shown.add(message_key)
+                                # After agent finishes, start spinner waiting for next agent
+                                self.cli.start_thinking(message="waiting for next action")
+                                spinner_active = True
 
-                            # After agent finishes, start spinner waiting for next agent
-                            self.cli.start_thinking(message="waiting for next action")
-                            spinner_active = True
+                                # 💾 AUTO-SAVE after each agent TextMessage
+                                await self._auto_save_agent_states()
 
-                        else:
-                            # Other message types (for debugging)
-                            self.logger.debug(f"Message type {msg_type} not shown in CLI")
+                            else:
+                                # Other message types (for debugging)
+                                self.logger.debug(f"Message type {msg_type} not shown in CLI")
 
                 self.logger.debug(f"✅ Stream completed. Total messages processed: {message_count}")
 
