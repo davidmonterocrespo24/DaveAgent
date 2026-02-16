@@ -298,6 +298,11 @@ mypy src/
 - [File Mentions Guide](docs/FILE_MENTIONS.md) - 📎 Mention files with @
 - [Logging Guide](LOGGING_GUIDE.md) - Logging system
 
+### Framework & Migration
+- [Migration Analysis: AutoGen to Google ADK](docs/MIGRATION_SUMMARY.md) - 🔄 Comprehensive analysis for migrating to Google's Agent Development Kit
+- [AutoGen vs ADK Comparison](docs/AUTOGEN_VS_ADK_COMPARISON.md) - 📊 Side-by-side feature comparison
+- [ADK Proof of Concept Guide](docs/ADK_POC_EXAMPLE.md) - 🧪 Test Google ADK with runnable examples
+
 ## 🧪 Evaluation with SWE-bench (Linux)
 
 To evaluate the agent's performance using the **SWE-bench Verified** standard, we have included an automated script that works in Linux environments (or WSL2).
