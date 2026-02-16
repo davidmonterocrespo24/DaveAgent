@@ -463,7 +463,6 @@ class AgentOrchestrator:
 
         self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
         self.logger.debug("[SELECTOR] Participants: Planner, Coder")
-        self.logger.debug("[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(50)")
 
         def selector_func(messages: Sequence[BaseAgentEvent | BaseChatMessage]) -> str | None:
             # If no messages, start with Coder
@@ -482,6 +481,10 @@ class AgentOrchestrator:
 
             # CRITICAL: If Planner just spoke, it's ALWAYS Coder's turn (never terminate after Planner)
             if last_message.source == "Planner":
+                if isinstance(last_message, TextMessage):
+                    if "TERMINATE" in last_message.content:
+                        self.logger.debug("🔄 [Selector] Planner said TERMINATE -> Ending conversation")
+                        return None  # Let termination condition handle it
                 self.logger.debug("🔄 [Selector] Planner just spoke -> Selecting Coder (MANDATORY)")
                 return "Coder"
 

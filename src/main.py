@@ -1,9 +1,7 @@
 """
 Main file - Complete CLI interface for the code agent
-NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 """
 
-# IMPORTANTE: Filtros de warnings ANTES de todos los imports
 import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="autogen.import_utils")
@@ -760,7 +758,18 @@ TITLE:"""
 
             # Save team state
             self.logger.debug(f"💾 Auto-save: saving team state, session={self.state_manager.session_id}")
-            await self.state_manager.save_team_state(self.main_team, self.client_strong)
+            await self.state_manager.save_agent_state(
+                "Coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
+            )
+
+            await self.state_manager.save_agent_state(
+                "Planner",
+                self.planning_agent,
+                metadata={"description": "Planning and task management agent"},
+            )
+
+            # Save to disk
+            await self.state_manager.save_to_disk()
 
             # Save session metadata to disk
             await self.state_manager.save_to_disk()
@@ -1448,6 +1457,9 @@ TITLE:"""
                                 self.cli.start_thinking()
                                 spinner_active = True
                                 agent_messages_shown.add(message_key)
+
+                                # 💾 AUTO-SAVE after each tool execution
+                                await self._auto_save_agent_states()
 
                             elif msg_type == "TextMessage":
                                 # 💬 Show final agent response
