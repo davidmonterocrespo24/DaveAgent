@@ -50,6 +50,10 @@ from src.tools.json_tools import (
 # Filesystem tools
 from src.tools.read_file import read_file
 from src.tools.search_file import file_search
+
+# Subagent tools
+from src.tools.spawn_subagent import spawn_subagent
+from src.tools.check_subagent_results import check_subagent_results
 from src.tools.terminal import run_terminal_cmd
 from src.tools.web_search import web_search
 
@@ -113,4 +117,7 @@ __all__ = [
     "list_all_functions",
     "grep_search",
     "run_terminal_cmd",
+    # Subagents
+    "spawn_subagent",
+    "check_subagent_results",
 ]

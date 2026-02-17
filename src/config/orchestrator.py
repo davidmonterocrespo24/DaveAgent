@@ -321,6 +321,45 @@ class AgentOrchestrator:
         }
 
 
+        # =====================================================================
+        # SUBAGENT SYSTEM INITIALIZATION
+        # =====================================================================
+        # Initialize parallel subagent execution system
+        # This allows the agent to spawn background tasks that run concurrently
+        # =====================================================================
+        from src.subagents import SubagentEventBus, SubAgentManager
+        from src.tools import spawn_subagent, check_subagent_results
+        import sys
+
+        self.subagent_event_bus = SubagentEventBus()
+        self.subagent_manager = SubAgentManager(
+            event_bus=self.subagent_event_bus,
+            orchestrator_factory=self._create_subagent_orchestrator,
+            base_tools=self.all_tools["read_only"] + self.all_tools["modification"],
+        )
+
+        # Initialize spawn tool with manager
+        # Access the module from sys.modules to call set_subagent_manager
+        spawn_module = sys.modules['src.tools.spawn_subagent']
+        spawn_module.set_subagent_manager(self.subagent_manager, task_id="main")
+
+        # Add spawn tool to available tools
+        self.all_tools["modification"].append(spawn_subagent)
+
+        # Queue for pending subagent announcements (Nanobot-style)
+        self._subagent_announcements = []
+
+        # Initialize check_subagent_results tool with orchestrator reference
+        check_results_module = sys.modules['src.tools.check_subagent_results']
+        check_results_module.set_orchestrator(self)
+
+        # Add check results tool to read-only tools (doesn't modify state)
+        self.all_tools["read_only"].append(check_subagent_results)
+
+        # Subscribe to subagent events
+        self.subagent_event_bus.subscribe("completed", self._on_subagent_completed)
+        self.subagent_event_bus.subscribe("failed", self._on_subagent_failed)
+
         # System components
         if headless:
             # Headless mode: without interactive CLI (for evaluations)
@@ -559,5 +598,183 @@ class AgentOrchestrator:
         # STEP 2: Reinitialize agents
         # Agents will use RAG tools instead of memory parameter
         self._initialize_agents_for_mode()
+
+    # =========================================================================
+    # SUBAGENT SYSTEM METHODS
+    # =========================================================================
+
+    def _create_subagent_orchestrator(
+        self,
+        tools: list,
+        max_iterations: int,
+        mode: str = "subagent",
+        task: str = ""  # Task description for subagent prompt
+    ):
+        """Factory method to create isolated AgentOrchestrator for subagents.
+
+        This creates a new instance of AgentOrchestrator with:
+        - Isolated tool set (no spawn_subagent to prevent recursion)
+        - Limited max iterations (15 vs 25 for main agent)
+        - Simplified execution mode (no full UI)
+        - Custom system prompt specific to subagents
+
+        Args:
+            tools: Filtered list of tools for the subagent
+            max_iterations: Maximum iterations allowed
+            mode: Execution mode (should be "subagent")
+            task: Task description for the subagent (used in system prompt)
+
+        Returns:
+            New AgentOrchestrator instance configured for subagent use
+        """
+        # Create new instance with same config but isolated state
+        subagent_orch = AgentOrchestrator(
+            api_key=self.settings.api_key,
+            base_url=self.settings.base_url,
+            model=self.settings.model,
+            ssl_verify=self.settings.ssl_verify,
+            headless=True,  # Subagents run in headless mode (no CLI)
+        )
+
+        # Mark as subagent mode
+        subagent_orch._is_subagent = True
+        subagent_orch._subagent_max_iterations = max_iterations
+
+        # Override coder agent tools with filtered set
+        subagent_orch.coder_agent._tools = tools
+        subagent_orch.coder_agent.max_tool_iterations = max_iterations
+
+        # IMPORTANT: Override system prompt with subagent-specific prompt
+        if task:
+            from src.config.prompts import SUBAGENT_SYSTEM_PROMPT
+            from pathlib import Path
+            workspace = Path.cwd()
+            subagent_prompt = SUBAGENT_SYSTEM_PROMPT(task=task, workspace_path=str(workspace))
+            # Update the system_message attribute (singular, not plural)
+            subagent_orch.coder_agent._system_message = subagent_prompt
+
+        return subagent_orch
+
+    async def run_task(self, task: str) -> str:
+        """Run a task using the agent team.
+
+        This method is used both by the main task and by subagents.
+        For subagents, it uses simplified execution (no full UI).
+
+        Args:
+            task: Task description to execute
+
+        Returns:
+            Result string from the agent execution
+        """
+        if hasattr(self, '_is_subagent') and self._is_subagent:
+            # Simplified execution for subagents
+            return await self._run_task_simple(task)
+        else:
+            # This shouldn't be called for main task - use process_user_request instead
+            self.logger.warning("run_task called on main orchestrator - use process_user_request instead")
+            return await self._run_task_simple(task)
+
+    async def _run_task_simple(self, task: str) -> str:
+        """Simplified task execution for subagents (no full UI).
+
+        Args:
+            task: Task to execute
+
+        Returns:
+            Collected result from agent execution
+        """
+        # Run through main_team
+        stream = self.main_team.run_stream(task=[TextMessage(content=task, source="user")])
+
+        # Collect result
+        result_parts = []
+        async for msg in stream:
+            if hasattr(msg, 'content') and isinstance(msg.content, str):
+                # Only collect TextMessage content from agents
+                if hasattr(msg, 'source') and msg.source in ["Coder", "Planner"]:
+                    result_parts.append(msg.content)
+
+        return "\n".join(result_parts) if result_parts else "Task completed"
+
+    async def _on_subagent_completed(self, event) -> None:
+        """Handle subagent completion event.
+
+        Nanobot-style: Queue the result for announcement to the main agent.
+        The result will be summarized naturally in the next agent response.
+
+        Args:
+            event: SubagentEvent with completion data
+        """
+        label = event.content.get('label', 'unknown')
+        result = event.content.get('result', '')
+        task = event.content.get('task', '')
+        result_preview = result[:200] + "..." if len(result) > 200 else result
+
+        # Show notification in CLI
+        self.cli.print_success(f"✓ Subagent '{label}' completed")
+        self.logger.info(f"Subagent {event.subagent_id} ({label}) completed successfully")
+
+        # NANOBOT-STYLE: Create announcement message
+        announce_content = f"""[Background Task Completed: '{label}']
+
+Task: {task if task else 'Unspecified task'}
+
+Result:
+{result}
+
+---
+Please summarize this result naturally for the user in 1-2 sentences.
+Focus on the key findings or actions taken.
+Do not mention technical terms like "subagent" or IDs."""
+
+        # Queue announcement for display
+        if hasattr(self, '_subagent_announcements'):
+            self._subagent_announcements.append({
+                'label': label,
+                'task': task,
+                'result': result,
+                'preview': result_preview,
+                'announcement': announce_content
+            })
+            self.logger.debug(f"Queued subagent announcement for '{label}'")
+
+    async def _on_subagent_failed(self, event) -> None:
+        """Handle subagent failure event.
+
+        Nanobot-style: Queue the failure for announcement to the main agent.
+
+        Args:
+            event: SubagentEvent with failure data
+        """
+        label = event.content.get('label', 'unknown')
+        task = event.content.get('task', '')
+        error = event.content.get('error', 'Unknown error')
+
+        self.cli.print_error(f"✗ Subagent '{label}' failed")
+        self.logger.error(f"Subagent {event.subagent_id} ({label}) failed: {error}")
+
+        # NANOBOT-STYLE: Create failure announcement
+        announce_content = f"""[Background Task Failed: '{label}']
+
+Task: {task if task else 'Unspecified task'}
+
+Error:
+{error}
+
+---
+Please inform the user about this failure in a clear way.
+Suggest possible next steps or alternatives if appropriate."""
+
+        # Queue announcement
+        if hasattr(self, '_subagent_announcements'):
+            self._subagent_announcements.append({
+                'label': label,
+                'task': task,
+                'error': error,
+                'announcement': announce_content,
+                'failed': True
+            })
+            self.logger.debug(f"Queued subagent failure announcement for '{label}'")
 
 

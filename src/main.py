@@ -490,6 +490,18 @@ class DaveAgentCLI(AgentOrchestrator):
             else:
                 self.cli.print_info("ℹ️  Use /telemetry-off to disable telemetry")
 
+        elif cmd == "/subagents":
+            # List active subagents
+            await self._list_subagents_command()
+
+        elif cmd == "/subagent-status":
+            # Show status of specific subagent
+            if len(parts) < 2:
+                self.cli.print_error("Usage: /subagent-status <subagent-id>")
+                self.cli.print_info("Use /subagents to see active subagents")
+            else:
+                await self._subagent_status_command(parts[1])
+
         else:
             self.cli.print_error(f"Unknown command: {cmd}")
             self.cli.print_info("Use /help to see available commands")
@@ -1011,6 +1023,173 @@ TITLE:"""
         except Exception as e:
             self.logger.log_error_with_context(e, "_show_history_command")
             self.cli.print_error(f"Error showing history: {str(e)}")
+
+    async def _list_subagents_command(self):
+        """
+        Command /subagents: List all active subagents
+
+        Shows currently running subagents with their IDs, labels, and status.
+        """
+        try:
+            if not hasattr(self.orchestrator, 'subagent_manager'):
+                self.cli.print_warning("Subagent system not initialized")
+                return
+
+            manager = self.orchestrator.subagent_manager
+            running_tasks = manager._running_tasks
+
+            if not running_tasks:
+                self.cli.print_info("No active subagents")
+                return
+
+            # Create table data
+            from rich.table import Table
+            from rich import box
+
+            table = Table(
+                title="[bold cyan]Active Subagents[/bold cyan]",
+                box=box.ROUNDED,
+                show_header=True,
+                header_style="bold magenta"
+            )
+
+            table.add_column("ID", style="cyan", no_wrap=True)
+            table.add_column("Status", style="yellow")
+            table.add_column("Started", style="dim")
+
+            # Get event history to find labels and start times
+            event_bus = manager.event_bus
+            spawned_events = [e for e in event_bus._event_history if e.event_type == "spawned"]
+
+            for subagent_id, task in running_tasks.items():
+                status = "Running" if not task.done() else "Completed"
+
+                # Find spawn event for this subagent
+                spawn_event = next((e for e in spawned_events if e.subagent_id == subagent_id), None)
+                if spawn_event:
+                    from datetime import datetime
+                    start_time = datetime.fromtimestamp(spawn_event.timestamp).strftime("%H:%M:%S")
+                else:
+                    start_time = "Unknown"
+
+                table.add_row(subagent_id, status, start_time)
+
+            self.cli.console.print()
+            self.cli.console.print(table)
+            self.cli.console.print()
+            self.cli.print_info(f"Total active subagents: {len(running_tasks)}")
+            self.cli.print_info("Use /subagent-status <id> to see detailed status")
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_list_subagents_command")
+            self.cli.print_error(f"Error listing subagents: {str(e)}")
+
+    async def _subagent_status_command(self, subagent_id: str):
+        """
+        Command /subagent-status: Show detailed status of a specific subagent
+
+        Args:
+            subagent_id: The ID of the subagent to check
+        """
+        try:
+            if not hasattr(self.orchestrator, 'subagent_manager'):
+                self.cli.print_warning("Subagent system not initialized")
+                return
+
+            manager = self.orchestrator.subagent_manager
+
+            # Check if subagent exists
+            if subagent_id not in manager._running_tasks and subagent_id not in manager._results:
+                self.cli.print_error(f"Subagent '{subagent_id}' not found")
+                self.cli.print_info("Use /subagents to see active subagents")
+                return
+
+            # Get all events for this subagent
+            event_bus = manager.event_bus
+            subagent_events = [e for e in event_bus._event_history if e.subagent_id == subagent_id]
+
+            if not subagent_events:
+                self.cli.print_warning(f"No events found for subagent '{subagent_id}'")
+                return
+
+            # Display subagent information
+            from rich.panel import Panel
+            from rich.markdown import Markdown
+            from datetime import datetime
+
+            # Get spawn event
+            spawn_event = next((e for e in subagent_events if e.event_type == "spawned"), None)
+            if spawn_event:
+                label = spawn_event.content.get('label', 'Unknown')
+                task = spawn_event.content.get('task', 'Unknown')
+                start_time = datetime.fromtimestamp(spawn_event.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                label = "Unknown"
+                task = "Unknown"
+                start_time = "Unknown"
+
+            # Check status
+            is_running = subagent_id in manager._running_tasks
+            has_result = subagent_id in manager._results
+
+            # Get completion/failure info
+            completed_event = next((e for e in subagent_events if e.event_type == "completed"), None)
+            failed_event = next((e for e in subagent_events if e.event_type == "failed"), None)
+
+            if completed_event:
+                status = "Completed"
+                end_time = datetime.fromtimestamp(completed_event.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                result = completed_event.content.get('result', 'No result')
+                result_preview = result[:200] + "..." if len(result) > 200 else result
+            elif failed_event:
+                status = "Failed"
+                end_time = datetime.fromtimestamp(failed_event.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                result_preview = f"Error: {failed_event.content.get('error', 'Unknown error')}"
+            elif is_running:
+                status = "Running"
+                end_time = "N/A"
+                result_preview = "Still executing..."
+            else:
+                status = "Unknown"
+                end_time = "N/A"
+                result_preview = "No result available"
+
+            # Create markdown content
+            status_text = f"""
+**Subagent Status Report**
+
+**ID:** `{subagent_id}`
+**Label:** {label}
+**Status:** {status}
+**Started:** {start_time}
+**Ended:** {end_time}
+
+**Task:**
+```
+{task}
+```
+
+**Result:**
+```
+{result_preview}
+```
+
+**Events:** {len(subagent_events)} total
+            """
+
+            self.cli.console.print()
+            self.cli.console.print(
+                Panel(
+                    Markdown(status_text),
+                    title=f"[bold cyan]Subagent {subagent_id}[/bold cyan]",
+                    border_style="cyan"
+                )
+            )
+            self.cli.console.print()
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_subagent_status_command")
+            self.cli.print_error(f"Error showing subagent status: {str(e)}")
 
     # =========================================================================
     # USER REQUEST PROCESSING

@@ -592,6 +592,10 @@ DAVEAGENT_MODEL=deepseek-reasoner
 • `/logs` - Show log file location
 • `/exit` or `/quit` - Exit the agent
 
+**Subagents (Parallel Execution):**
+• `/subagents` - List all active subagents
+• `/subagent-status <id>` - Show detailed status of a specific subagent
+
 **Mention Specific Files:**
 
 • Write `@` followed by the file name to include it with high priority
