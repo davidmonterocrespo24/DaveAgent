@@ -17,7 +17,7 @@ class DaveAgentLogger:
     """Custom logger for DaveAgent with color and file support"""
 
     def __init__(
-        self, name: str = "DaveAgent", log_file: str | None = None, level: int = logging.DEBUG
+        self, name: str = "DaveAgent", log_file: str | None = None, level: int = logging.INFO
     ):
         """
         Initialize the logger
@@ -28,7 +28,7 @@ class DaveAgentLogger:
             level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
+        self.logger.setLevel(logging.DEBUG)  # Always DEBUG at logger level so file handler receives everything
         self.logger.handlers.clear()  # Clear existing handlers
 
         # Silenciar loggers de terceros para evitar spam
@@ -143,7 +143,7 @@ class DaveAgentLogger:
 _global_logger: DaveAgentLogger | None = None
 
 
-def get_logger(log_file: str | None = None, level: int = logging.DEBUG) -> DaveAgentLogger:
+def get_logger(log_file: str | None = None, level: int = logging.INFO) -> DaveAgentLogger:
     """
     Gets the global logger instance
 
@@ -170,7 +170,8 @@ def set_log_level(level: int):
         level: New level (logging.DEBUG, INFO, WARNING, ERROR, CRITICAL)
     """
     logger = get_logger()
-    logger.logger.setLevel(level)
+    # Keep logger root at DEBUG so file handler always receives everything
+    # Only change the console (Rich) handler level
     for handler in logger.logger.handlers:
         if isinstance(handler, RichHandler):
             handler.setLevel(level)

@@ -64,7 +64,7 @@ class HistoryViewer:
                 try:
                     dt = datetime.fromisoformat(last_interaction)
                     formatted_date = dt.strftime("%Y-%m-%d %H:%M")
-                except:
+                except Exception:
                     formatted_date = last_interaction
 
             table.add_row(
@@ -111,7 +111,7 @@ class HistoryViewer:
                 dt = datetime.fromisoformat(created_at)
                 formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
                 info_table.add_row("Created", formatted)
-            except:
+            except Exception:
                 info_table.add_row("Created", created_at)
 
         last_interaction = metadata.get("last_interaction", "")
@@ -120,7 +120,7 @@ class HistoryViewer:
                 dt = datetime.fromisoformat(last_interaction)
                 formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
                 info_table.add_row("Last interaction", formatted)
-            except:
+            except Exception:
                 info_table.add_row("Last interaction", last_interaction)
 
         # Display in panel

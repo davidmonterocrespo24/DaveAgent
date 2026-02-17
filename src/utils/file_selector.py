@@ -28,7 +28,7 @@ def _setup_utf8_output():
 
             kernel32 = ctypes.windll.kernel32
             kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-        except:
+        except Exception:
             pass
 
 
@@ -93,7 +93,7 @@ class FileSelector:
                             decoded = key.decode("utf-8", errors="ignore")
                             if decoded and decoded.isprintable():
                                 return decoded
-                        except:
+                        except Exception:
                             pass
         return ""
 

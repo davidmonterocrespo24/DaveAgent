@@ -107,6 +107,15 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                     }
                 )
 
+            # Log full OAI message list before sending
+            self.logger.debug(f"📤 Sending {len(oai_messages)} messages to DeepSeek API:")
+            for i, m in enumerate(oai_messages):
+                role = m.get("role", "?")
+                has_tc = "✓tool_calls" if m.get("tool_calls") else ""
+                has_rc = "✓reasoning" if m.get("reasoning_content") else ""
+                content_preview = str(m.get("content", ""))[:120]
+                self.logger.debug(f"  [{i}] {role} {has_tc}{has_rc}: {content_preview}")
+
             # Prepare API request parameters
             request_params = {
                 "model": self._create_args["model"],
@@ -186,7 +195,15 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
             )
 
         except Exception as e:
-            self.logger.error(f"❌ DeepSeek call failed: {e}")
+            # Don't log authentication errors verbosely - they are handled upstream
+            error_str = str(e)
+            is_auth = (
+                "401" in error_str
+                or "Authentication Fails" in error_str
+                or "AuthenticationError" in type(e).__name__
+            )
+            if not is_auth:
+                self.logger.error(f"❌ DeepSeek call failed: {e}")
             raise
 
     def _inject_reasoning_content(self, oai_messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -196,9 +213,6 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         This is the critical fix: DeepSeek requires reasoning_content in assistant
         messages when using tool calls.
         """
-        if not self._raw_responses:
-            return oai_messages
-
         modified_messages = []
         for msg in oai_messages:
             modified_msg = dict(msg)
@@ -213,6 +227,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                     continue
 
                 # Try to match this message with a raw response
+                matched = False
                 for raw_resp in reversed(self._raw_responses):
                     # Match by tool_calls ONLY (since content matching is risky for history)
                     if self._messages_match_tools(msg, raw_resp):
@@ -220,7 +235,17 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                         if reasoning:
                             modified_msg["reasoning_content"] = reasoning
                             self.logger.debug("💭 Injected reasoning_content for tool call")
+                        matched = True
                         break
+
+                if not matched:
+                    # No cache entry found (e.g. state loaded from disk before cache was persisted).
+                    # Add empty reasoning_content — DeepSeek requires the field to exist,
+                    # but accepts an empty string for historical messages.
+                    modified_msg["reasoning_content"] = ""
+                    self.logger.debug(
+                        "⚠️ No reasoning_content cache for tool_call — using empty placeholder"
+                    )
 
             modified_messages.append(modified_msg)
 
@@ -249,6 +274,17 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         count = len(self._raw_responses)
         self._raw_responses.clear()
         self.logger.debug(f"🧹 Cleared {count} raw responses")
+
+    def export_reasoning_cache(self) -> list[dict[str, Any]]:
+        """Export _raw_responses for persistence across restarts."""
+        import copy
+        return copy.deepcopy(self._raw_responses)
+
+    def import_reasoning_cache(self, cache: list[dict[str, Any]]) -> None:
+        """Restore _raw_responses from saved state."""
+        import copy
+        self._raw_responses = copy.deepcopy(cache)
+        self.logger.info(f"💭 Restored {len(cache)} reasoning cache entries")
 
     def get_cache_stats(self) -> dict[str, Any]:
         """Get statistics about stored reasoning_content."""

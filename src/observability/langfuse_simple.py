@@ -84,7 +84,7 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
         import logging
         import sys
 
-        # Silenciar todos los loggers relacionados con telemetría
+        # Reduce noise from telemetry libraries (keep WARNING+ so errors still surface)
         for logger_name in [
             "openlit",
             "opentelemetry",
@@ -92,14 +92,7 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
             "opentelemetry.exporter",
             "opentelemetry.metrics",
         ]:
-            logging.getLogger(logger_name).setLevel(logging.CRITICAL)
-            logging.getLogger(logger_name).propagate = False
-
-        # Suppress OpenTelemetry stdout
-        import os
-
-        os.environ["OTEL_LOG_LEVEL"] = "CRITICAL"
-        os.environ["OTEL_PYTHON_LOG_LEVEL"] = "CRITICAL"
+            logging.getLogger(logger_name).setLevel(logging.WARNING)
 
         # Initialize OpenLit with user identification metadata
         # Using OTLP direct endpoint for Langfuse v3 compatibility

@@ -77,6 +77,13 @@ class LoggingModelClientWrapper:
             f"🤖 LLM call started: {self._agent_name}, {len(processed_messages)} messages"
         )
 
+        # Log full input messages at DEBUG level
+        for i, msg in enumerate(input_messages):
+            role = msg.get("role", "?")
+            content = msg.get("content", "")
+            content_preview = str(content)[:200] if content else "(empty)"
+            self.logger.debug(f"  ↑ msg[{i}] role={role}: {content_preview}")
+
         start_time = datetime.now()
 
         try:
@@ -139,19 +146,30 @@ class LoggingModelClientWrapper:
                     f"✅ LLM call logged: {self._agent_name}, {duration:.2f}s, tokens={tokens_used.get('total_tokens', 0) if tokens_used else 0}"
                 )
 
+            # Log full response at DEBUG level
+            response_preview = str(response_content)[:300] if response_content else "(empty)"
+            self.logger.debug(f"  ↓ response ({duration:.2f}s): {response_preview}")
+
             return result
 
         except Exception as e:
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
-            # Record error
-            if self._json_logger:
-                self._json_logger.log_error(e, context=f"LLM call failed for {self._agent_name}")
-
-            self.logger.error(
-                f"❌ LLM call failed: {self._agent_name}, {duration:.2f}s, error: {e}"
+            # Don't log authentication errors verbosely - they are handled upstream
+            error_str = str(e)
+            is_auth = (
+                "401" in error_str
+                or "Authentication Fails" in error_str
+                or "AuthenticationError" in type(e).__name__
             )
+            if not is_auth:
+                # Record error
+                if self._json_logger:
+                    self._json_logger.log_error(e, context=f"LLM call failed for {self._agent_name}")
+                self.logger.error(
+                    f"❌ LLM call failed: {self._agent_name}, {duration:.2f}s, error: {e}"
+                )
             raise
 
     def _get_role(self, message: LLMMessage) -> str:

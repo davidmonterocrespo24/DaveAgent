@@ -38,12 +38,17 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
         perm_mgr = get_permission_manager()
 
         # 1. Construct Action String for Permissions
-        # Normalize to Bash(...) or Read(...) based on description
+        # Normalize to Bash(...), Read(...), or WriteFile(...) based on description.
+        # IMPORTANT: never include file contents in the permission key - only identifiers.
         action_string = f"{action_description}({context})"
         if "Run terminal command" in action_description or "Execute command" in action_description:
             action_string = f"Bash({context.strip()})"
         elif "Read file" in action_description:
             action_string = f"Read({context.strip()})"
+        elif "WRITE FILE:" in action_description:
+            # Extract just the filename from "WRITE FILE: filename"
+            filename = action_description.replace("WRITE FILE:", "").strip()
+            action_string = f"WriteFile({filename})"
 
         # 2. Check Persistent Permissions
         perm_status = perm_mgr.check_permission(action_string)
@@ -62,16 +67,68 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
         sys.stdout.flush()
 
         try:
-            # Format the context
-            if "\n" in context or len(context) > 50:
-                context_display = context
-            else:
-                context_display = f"`{context}`"
+            from rich.syntax import Syntax
 
             warning_text = Text("WARNING: This action requires approval.", style="bold yellow")
 
-            # Use Group to correctly render Markdown + Text inside Panel
-            panel_content = Group(Markdown(context_display), Text("\n"), warning_text)
+            # Detect content type for best rendering
+            # Strip markdown code fences if present
+            raw_context = context.strip()
+            if raw_context.startswith("```"):
+                # Extract language hint and inner content
+                first_line_end = raw_context.find("\n")
+                lang_hint = raw_context[3:first_line_end].strip() if first_line_end != -1 else ""
+                inner = raw_context[first_line_end + 1:] if first_line_end != -1 else raw_context[3:]
+                if inner.endswith("```"):
+                    inner = inner[: inner.rfind("```")]
+                raw_context = inner.strip()
+            else:
+                lang_hint = ""
+
+            # Check if this looks like a diff (has <<<<<< OLD / >>>>>> NEW markers or +/- lines)
+            is_diff = (
+                "<<<<<< OLD" in raw_context
+                or ">>>>>> NEW" in raw_context
+                or raw_context.startswith("---")
+                or raw_context.startswith("+++")
+            )
+
+            if is_diff:
+                # Convert internal diff markers to unified diff format for Rich
+                diff_lines = []
+                in_old = False
+                in_new = False
+                for line in raw_context.splitlines():
+                    if line.strip() == "<<<<<< OLD":
+                        in_old = True
+                        in_new = False
+                        continue
+                    elif line.strip() == "======":
+                        in_old = False
+                        in_new = True
+                        continue
+                    elif line.strip() == ">>>>>> NEW":
+                        in_new = False
+                        continue
+                    if in_old:
+                        diff_lines.append(f"-{line}")
+                    elif in_new:
+                        diff_lines.append(f"+{line}")
+                    else:
+                        diff_lines.append(f" {line}")
+                content_renderable = Syntax(
+                    "\n".join(diff_lines), "diff", theme="monokai", word_wrap=True
+                )
+            elif lang_hint:
+                content_renderable = Syntax(
+                    raw_context, lang_hint, theme="monokai", word_wrap=True
+                )
+            elif "\n" in raw_context or len(raw_context) > 50:
+                content_renderable = Markdown(raw_context)
+            else:
+                content_renderable = Text(f"`{raw_context}`")
+
+            panel_content = Group(content_renderable, Text(""), warning_text)
 
             panel = Panel(
                 panel_content,
@@ -81,7 +138,6 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             )
 
             console.print(panel)
-            print(f"[dim]Permission Key: {action_string}[/dim]")
 
             # Force blocking input using executor to guarantee wait on Windows/Agent environments
             loop = asyncio.get_running_loop()
@@ -143,7 +199,7 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
                                     current_idx = max(0, current_idx - 1)
                                 elif key == b"P":  # Down
                                     current_idx = min(len(options) - 1, current_idx + 1)
-                            except:
+                            except Exception:
                                 pass
 
                     # Move cursor back up to repaint for next frame
@@ -183,7 +239,7 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             if active_spinner:
                 try:
                     VibeSpinner.resume_spinner(active_spinner)
-                except:
+                except Exception:
                     pass
 
     except ImportError:

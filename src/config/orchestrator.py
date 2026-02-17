@@ -153,38 +153,10 @@ class AgentOrchestrator:
             custom_http_client=http_client,
         )
 
-        # State management system (AutoGen save_state/load_state)
-        from src.managers import StateManager
-
-        self.state_manager = StateManager(
-            auto_save_enabled=True,
-            auto_save_interval=300,  # Auto-save every 5 minutes
-        )
-
-        # RAG Manager (Advanced retrieval system)
-        print("[Startup] Importing RAGManager...")
-
-        from src.managers.rag_manager import RAGManager
-
-        # Used for ContextManager search and SkillManager indexing
-        # Initialize RAG Manager first
-        # Use current working directory for rag_data persistence
-        work_dir = os.getcwd()
-        self.rag_manager = RAGManager(
-            settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data"
-        )
-
-        # Start background warmup to load heavy models
-
-        if hasattr(self.rag_manager, "warmup"):
-            threading.Thread(target=self.rag_manager.warmup, daemon=True).start()
-        else:
-            print("[Startup] Warning: RAGManager warmup method missing (using stale version?)")
-
-        # Agent Skills system (Claude-compatible and RAG-enhanced)
+        # Agent Skills system
         from src.skills import SkillManager
 
-        self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger.logger)
+        self.skill_manager = SkillManager(logger=self.logger.logger)
         skill_count = self.skill_manager.discover_skills()
         if skill_count > 0:
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
@@ -459,7 +431,7 @@ class AgentOrchestrator:
             model_client=coder_client,
             tools=coder_tools,  # Includes memory RAG tools
             max_tool_iterations=25,
-            reflect_on_tool_use=False,
+            reflect_on_tool_use=True,  # Show agent reasoning before tool calls
             model_context=coder_context,  # Limit context to prevent token overflow
         )
 
@@ -487,11 +459,10 @@ class AgentOrchestrator:
         # - Eliminates "multiple system messages" problem
         # =====================================================================
 
-        termination_condition = TextMentionTermination("TASK_COMPLETED") | MaxMessageTermination(50)
+        termination_condition = TextMentionTermination("TERMINATE") | MaxMessageTermination(50)
 
         self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
         self.logger.debug("[SELECTOR] Participants: Planner, Coder")
-        self.logger.debug("[SELECTOR] Termination: TASK_COMPLETED or MaxMessages(50)")
 
         def selector_func(messages: Sequence[BaseAgentEvent | BaseChatMessage]) -> str | None:
             # If no messages, start with Coder
@@ -499,9 +470,22 @@ class AgentOrchestrator:
                 return "Coder"
 
             last_message = messages[-1]
+            content_preview = ""
+            if hasattr(last_message, "content"):
+                c = last_message.content
+                content_preview = str(c)[:120].replace("\n", " ") if c else "(empty)"
+            self.logger.debug(
+                f"🔄 [Selector] msg[{len(messages)-1}] from={last_message.source} "
+                f"type={type(last_message).__name__}: {content_preview}"
+            )
 
+            # CRITICAL: If Planner just spoke, it's ALWAYS Coder's turn (never terminate after Planner)
             if last_message.source == "Planner":
-
+                if isinstance(last_message, TextMessage):
+                    if "TERMINATE" in last_message.content:
+                        self.logger.debug("🔄 [Selector] Planner said TERMINATE -> Ending conversation")
+                        return None  # Let termination condition handle it
+                self.logger.debug("🔄 [Selector] Planner just spoke -> Selecting Coder (MANDATORY)")
                 return "Coder"
 
             # If Coder just spoke
@@ -509,19 +493,42 @@ class AgentOrchestrator:
                 # Check for explicit signals in TextMessage
                 if isinstance(last_message, TextMessage):
                     if "TERMINATE" in last_message.content:
+                        self.logger.debug("🔄 [Selector] Coder said TERMINATE -> Ending conversation")
                         return None  # Let termination condition handle it
-                    if "DELEGATE_TO_PLANNER" in last_message.content:
-                        return "Planner"
-                    if "SUBTASK_DONE" in last_message.content:
+                    content = last_message.content
+                    if any(token in content for token in ("DELEGATE_TO_PLANNER", "SUBTASK_DONE")):
+                        reason = (
+                            "delegating to Planner"
+                            if "DELEGATE_TO_PLANNER" in content
+                            else "subtask done -> Back to Planner"
+                        )
+                        self.logger.debug(f"🔄 [Selector] Coder {reason}")
                         return "Planner"
 
+                # If Coder just sent a tool call (AssistantMessage with tool calls)
+                # We usually want Coder to receive the result.
+                # But here we assume the runtime executes the tool and appends the result.
+                # We want to ensure Coder gets the next turn to read the result.
+                self.logger.debug("🔄 [Selector] Coder waiting for tool result -> Keep Coder")
                 return "Coder"
 
-
+            # If the last message was a tool execution result
+            # (FunctionExecutionResultMessage usually has source='user' or the tool name, but definitely not 'Coder'/'Planner')
+            # We must verify the type to be sure.
             if type(last_message).__name__ == "FunctionExecutionResultMessage":
                 # Tool finished, give control back to Coder to handle the output
+                self.logger.debug("🔄 [Selector] Tool result received -> Back to Coder")
                 return "Coder"
 
+            # If the last message is from the User
+            if last_message.source == "user":
+                # Default to Planner for normal requests
+                self.logger.debug("[Selector] User message -> Starting with Planner")
+                return "Coder"
+
+            # FALLBACK: Never return None unless we explicitly want to terminate
+            # If we don't recognize the source, default to Coder to continue
+            self.logger.warning(f"⚠️ [Selector] Unknown message source: {last_message.source} -> Defaulting to Coder")
             return "Coder"
 
         self.main_team = SelectorGroupChat(

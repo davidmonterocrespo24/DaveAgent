@@ -567,6 +567,257 @@ class StateManager:
             return {}
 
     # =========================================================================
+    # Tool Reflection Analysis
+    # =========================================================================
+
+    def extract_tool_reflections(self, session_id: str | None = None) -> list[dict[str, Any]]:
+        """
+        Extract all tool calls and their reflections from a session.
+
+        This analyzes the saved state to extract:
+        - Tool calls made by agents
+        - Reasoning/thoughts before tool calls
+        - Tool execution results
+        - Success/failure status
+
+        Args:
+            session_id: Session ID to analyze (defaults to current)
+
+        Returns:
+            List of tool reflection dicts with structure:
+            {
+                "agent": str,
+                "tool_name": str,
+                "arguments": dict,
+                "thought": str | None,
+                "result": str | None,
+                "is_error": bool,
+                "timestamp_index": int
+            }
+        """
+        try:
+            # Load state
+            if session_id is None:
+                agent_states = self._agent_states
+                team_states = self._team_states
+            else:
+                state_path = self.get_session_path(session_id)
+                if not state_path.exists():
+                    return []
+
+                with open(state_path) as f:
+                    data = json.load(f)
+                agent_states = data.get("agent_states", {})
+                team_states = data.get("team_states", {})
+
+            reflections = []
+
+            # Process team states (which contain agent messages)
+            for team_name, team_data in team_states.items():
+                team_state = team_data.get("state", {})
+                agent_states_in_team = team_state.get("agent_states", {})
+
+                for agent_key, agent_container in agent_states_in_team.items():
+                    agent_name = agent_key.split("/")[0]
+
+                    # Navigate to agent state
+                    agent_state = agent_container.get("agent_state", {})
+                    llm_messages = agent_state.get("llm_messages", [])
+
+                    # Process messages
+                    for i, msg in enumerate(llm_messages):
+                        msg_type = msg.get("type")
+
+                        if msg_type == "AssistantMessage":
+                            content = msg.get("content")
+                            thought = msg.get("thought")
+
+                            # Check if this message contains tool calls
+                            if isinstance(content, list):
+                                for tool_call in content:
+                                    if isinstance(tool_call, dict) and "name" in tool_call:
+                                        tool_name = tool_call.get("name")
+                                        tool_args = tool_call.get("arguments", {})
+
+                                        # Parse arguments if JSON string
+                                        if isinstance(tool_args, str):
+                                            try:
+                                                tool_args = json.loads(tool_args)
+                                            except json.JSONDecodeError:
+                                                pass
+
+                                        # Look for result in next message
+                                        result = None
+                                        is_error = False
+                                        if i + 1 < len(llm_messages):
+                                            next_msg = llm_messages[i + 1]
+                                            if next_msg.get("type") == "FunctionExecutionResultMessage":
+                                                results = next_msg.get("content", [])
+                                                for res in results:
+                                                    if isinstance(res, dict):
+                                                        result = res.get("content", "")
+                                                        is_error = res.get("is_error", False)
+                                                        break
+
+                                        reflections.append({
+                                            "agent": agent_name,
+                                            "tool_name": tool_name,
+                                            "arguments": tool_args if isinstance(tool_args, dict) else {},
+                                            "thought": thought,
+                                            "result": result,
+                                            "is_error": is_error,
+                                            "timestamp_index": i,
+                                        })
+
+            # Also process individual agent states (not in teams)
+            for agent_name, agent_data in agent_states.items():
+                state = agent_data.get("state", {})
+                llm_context = state.get("llm_context", {})
+                messages = llm_context.get("messages", [])
+
+                for i, msg in enumerate(messages):
+                    msg_type = msg.get("type")
+
+                    if msg_type == "AssistantMessage":
+                        content = msg.get("content")
+                        thought = msg.get("thought")
+
+                        if isinstance(content, list):
+                            for tool_call in content:
+                                if isinstance(tool_call, dict) and "name" in tool_call:
+                                    tool_name = tool_call.get("name")
+                                    tool_args = tool_call.get("arguments", {})
+
+                                    # Parse arguments if JSON string
+                                    if isinstance(tool_args, str):
+                                        try:
+                                            tool_args = json.loads(tool_args)
+                                        except json.JSONDecodeError:
+                                            pass
+
+                                    # Look for result
+                                    result = None
+                                    is_error = False
+                                    if i + 1 < len(messages):
+                                        next_msg = messages[i + 1]
+                                        if next_msg.get("type") == "FunctionExecutionResultMessage":
+                                            results = next_msg.get("content", [])
+                                            for res in results:
+                                                if isinstance(res, dict):
+                                                    result = res.get("content", "")
+                                                    is_error = res.get("is_error", False)
+                                                    break
+
+                                    reflections.append({
+                                        "agent": agent_name,
+                                        "tool_name": tool_name,
+                                        "arguments": tool_args if isinstance(tool_args, dict) else {},
+                                        "thought": thought,
+                                        "result": result,
+                                        "is_error": is_error,
+                                        "timestamp_index": i,
+                                    })
+
+            return reflections
+
+        except Exception as e:
+            self.logger.error(f"Failed to extract tool reflections: {e}")
+            return []
+
+    def get_tool_usage_stats(self, session_id: str | None = None) -> dict[str, Any]:
+        """
+        Get statistics about tool usage and reflection quality.
+
+        Args:
+            session_id: Session ID to analyze (defaults to current)
+
+        Returns:
+            Dictionary with tool usage statistics including:
+            - total_tools_called: Total number of tool invocations
+            - tools_with_reflection: Count of tools with reasoning
+            - tools_without_reflection: Count without reasoning
+            - reflection_rate: Percentage of tools with reflections
+            - tool_frequency: Dict of tool names to call counts
+            - error_rate: Percentage of failed tool calls
+            - agents_using_tools: List of agents that used tools
+        """
+        reflections = self.extract_tool_reflections(session_id)
+
+        if not reflections:
+            return {
+                "total_tools_called": 0,
+                "tools_with_reflection": 0,
+                "tools_without_reflection": 0,
+                "reflection_rate": 0.0,
+                "tool_frequency": {},
+                "error_rate": 0.0,
+                "agents_using_tools": [],
+            }
+
+        total = len(reflections)
+        with_thought = sum(1 for r in reflections if r.get("thought"))
+        without_thought = total - with_thought
+        errors = sum(1 for r in reflections if r.get("is_error"))
+
+        # Tool frequency
+        tool_freq = {}
+        for r in reflections:
+            tool_name = r.get("tool_name", "unknown")
+            tool_freq[tool_name] = tool_freq.get(tool_name, 0) + 1
+
+        # Unique agents
+        agents = list(set(r.get("agent", "unknown") for r in reflections))
+
+        return {
+            "total_tools_called": total,
+            "tools_with_reflection": with_thought,
+            "tools_without_reflection": without_thought,
+            "reflection_rate": (with_thought / total * 100) if total > 0 else 0.0,
+            "tool_frequency": tool_freq,
+            "error_rate": (errors / total * 100) if total > 0 else 0.0,
+            "agents_using_tools": agents,
+        }
+
+    def save_tool_reflection_report(
+        self, session_id: str | None = None, output_path: Path | None = None
+    ) -> Path:
+        """
+        Generate and save a detailed tool reflection report.
+
+        Args:
+            session_id: Session ID to analyze (defaults to current)
+            output_path: Path to save report (defaults to state_dir/reflections/)
+
+        Returns:
+            Path to saved report file
+        """
+        session_id = session_id or self.session_id or "default"
+
+        if output_path is None:
+            reflections_dir = self.state_dir / "reflections"
+            reflections_dir.mkdir(parents=True, exist_ok=True)
+            output_path = reflections_dir / f"reflection_report_{session_id}.json"
+
+        # Extract data
+        reflections = self.extract_tool_reflections(session_id)
+        stats = self.get_tool_usage_stats(session_id)
+
+        # Build report
+        report = {
+            "session_id": session_id,
+            "generated_at": datetime.now().isoformat(),
+            "statistics": stats,
+            "tool_reflections": reflections,
+        }
+
+        # Save report
+        with open(output_path, "w") as f:
+            json.dump(report, f, indent=2, default=str)
+
+        self.logger.info(f"📊 Tool reflection report saved to: {output_path}")
+        return output_path
+
+    # =========================================================================
     # Statistics
     # =========================================================================
 

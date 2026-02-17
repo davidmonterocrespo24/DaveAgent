@@ -1,12 +1,14 @@
 """
 Skill Manager
 
-Discovers, loads, and manages Agent Skills from configured directories.
+Discovers and loads Agent Skills from configured directories.
 Compatible with Claude Code skill format.
-Uses RAG for semantic skill discovery.
+Skills are matched by keyword search on their descriptions.
 """
 
 import logging
+import os
+import shutil
 from pathlib import Path
 
 from src.skills.models import Skill
@@ -25,43 +27,27 @@ class SkillManager:
     Manages Agent Skills discovery, loading, and access.
 
     Scans configured directories for skill folders containing SKILL.md files,
-    parses them, and provides access to skill metadata and instructions.
-
-    Uses RAG (Retrieval-Augmented Generation) to semantic search for relevant
-    skills based on user queries, ensuring efficient context usage.
+    parses them, and provides keyword-based skill discovery.
 
     Skill directories (in order of precedence):
     1. Personal skills: ~/.daveagent/skills/
     2. Project skills: .daveagent/skills/ (relative to working directory)
     """
 
-    # Default skill directory names
     SKILLS_DIRNAME = "skills"
     DAVEAGENT_DIRNAME = ".daveagent"
-    RAG_COLLECTION = "agent_skills"
 
     def __init__(
         self,
-        rag_manager=None,
         personal_skills_dir: Path | None = None,
         project_skills_dir: Path | None = None,
         additional_dirs: list[Path] | None = None,
         logger: logging.Logger | None = None,
+        # kept for backwards compat - ignored
+        rag_manager=None,
     ):
-        """
-        Initialize the SkillManager.
-
-        Args:
-            rag_manager: RAGManager instance for skill indexing/retrieval
-            personal_skills_dir: Override personal skills directory
-            project_skills_dir: Override project skills directory
-            additional_dirs: Additional directories to scan for skills
-            logger: Optional logger instance
-        """
         self.logger = logger or logging.getLogger(__name__)
-        self.rag_manager = rag_manager
 
-        # Configure skill directories
         self.personal_skills_dir = personal_skills_dir or (
             Path.home() / self.DAVEAGENT_DIRNAME / self.SKILLS_DIRNAME
         )
@@ -70,15 +56,12 @@ class SkillManager:
         )
         self.additional_dirs = additional_dirs or []
 
-        # Skills storage (name -> Skill)
         self._skills: dict[str, Skill] = {}
-
-        # Track load errors for debugging
         self._load_errors: list[dict] = []
 
     def discover_skills(self) -> int:
         """
-        Discover, load, and index all skills from configured directories.
+        Discover and load all skills from configured directories.
 
         Returns:
             Number of skills successfully loaded
@@ -86,25 +69,18 @@ class SkillManager:
         self._skills.clear()
         self._load_errors.clear()
 
-        # Scan directories in order of precedence (later overrides earlier)
         directories = [
             (self.personal_skills_dir, "personal"),
             (self.project_skills_dir, "project"),
         ]
-
         for additional_dir in self.additional_dirs:
             directories.append((additional_dir, "plugin"))
 
-        # 1. Load all skills into memory
         for skill_dir, source in directories:
             if skill_dir.is_dir():
                 self._scan_directory(skill_dir, source)
             else:
                 self.logger.debug(f"Skill directory does not exist: {skill_dir}")
-
-        # 2. Index skills in RAG if manager available
-        if self.rag_manager and self._skills:
-            self._index_skills()
 
         self.logger.info(f"Discovered {len(self._skills)} skills")
         if self._load_errors:
@@ -162,172 +138,26 @@ class SkillManager:
             self.logger.warning(f"Failed to load skill at {skill_path}: {e}")
             return None
 
-    def _index_skills(self):
-        """Index loaded skills into RAG system for semantic retrieval."""
-        try:
-            # Load existing hashes to check for changes
-            hashes = self._load_hashes()
-            new_hashes = {}
-            skills_to_index = []
-            skipped_count = 0
-
-            for skill in self._skills.values():
-                # Content includes description and full instructions for matching
-                search_content = (
-                    f"Skill: {skill.name}\nDescription: {skill.description}\n\n{skill.instructions}"
-                )
-
-                # Deterministic ID based on skill name
-                source_id = f"skill-{skill.name}"
-
-                # Compute hash of the content (for change detection, not security)
-                import hashlib
-
-                content_hash = hashlib.sha256(search_content.encode("utf-8")).hexdigest()
-                new_hashes[source_id] = content_hash
-
-                # Check if changed
-                if source_id in hashes and hashes[source_id] == content_hash:
-                    skipped_count += 1
-                    self.logger.debug(f"Skipping indexing for unchanging skill: {skill.name}")
-                    continue
-
-                metadata = {"skill_name": skill.name, "source": skill.source, "type": "agent_skill"}
-
-                skills_to_index.append(
-                    {
-                        "collection_name": self.RAG_COLLECTION,
-                        "text": search_content,
-                        "metadata": metadata,
-                        "source_id": source_id,
-                    }
-                )
-
-            # Perform indexing only for new/changed skills
-            if skills_to_index:
-                self.logger.info(f"Indexing {len(skills_to_index)} new/modified skills in RAG...")
-                for item in skills_to_index:
-                    self.rag_manager.add_document(**item)
-
-            if skipped_count > 0:
-                self.logger.info(f"Skipped {skipped_count} unchanged skills")
-
-            # Save new hashes if we successfully processed everything
-            self._save_hashes(new_hashes)
-
-            self.logger.info("✓ Skills indexing completed")
-
-        except Exception as e:
-            self.logger.error(f"Error indexing skills: {e}")
-
-    def _get_hashes_file(self) -> Path:
-        """Get path to skills hash file."""
-        return self.personal_skills_dir.parent / "skills_hashes.json"
-
-    def _load_hashes(self) -> dict[str, str]:
-        """Load stored skill hashes."""
-        hash_file = self._get_hashes_file()
-        if not hash_file.exists():
-            return {}
-        try:
-            import json
-
-            return json.loads(hash_file.read_text(encoding="utf-8"))
-        except Exception as e:
-            self.logger.warning(f"Failed to load skill hashes: {e}")
-            return {}
-
-    def _save_hashes(self, hashes: dict[str, str]):
-        """Save skill hashes."""
-        try:
-            import json
-
-            hash_file = self._get_hashes_file()
-            # Ensure directory exists (it should, but just in case)
-            hash_file.parent.mkdir(parents=True, exist_ok=True)
-            text = json.dumps(hashes, indent=2)
-            hash_file.write_text(text, encoding="utf-8")
-        except Exception as e:
-            self.logger.error(f"Failed to save skill hashes: {e}")
-
     def find_relevant_skills(
-        self, user_query: str, max_results: int = 10, min_score: float = 0.5
+        self, user_query: str, max_results: int = 10, min_score: float = 0.0
     ) -> list[Skill]:
         """
-        Find skills relevant to a user query using RAG semantic search.
-        Falls back to keyword matching if RAG is not available.
+        Find skills relevant to a user query using keyword matching on descriptions.
 
         Args:
             user_query: User's input/question
             max_results: Maximum number of skills to return
-            min_score: Minimum relevance score (0.0-1.0). Recommended: 0.5 for skills
-                      to avoid false positives. Only skills with score >= min_score
-                      will be returned.
+            min_score: Minimum keyword match score (ignored if 0)
 
         Returns:
             List of relevant Skill objects, sorted by relevance
         """
         if not self._skills:
             return []
-
-        # 1. Use RAG if available
-        if self.rag_manager:
-            try:
-                results = self.rag_manager.search(
-                    collection_name=self.RAG_COLLECTION,
-                    query=user_query,
-                    top_k=max_results,
-                    min_score=min_score,  # Umbral de relevancia
-                )
-
-                found_skills = []
-                seen_names = set()
-
-                for res in results:
-                    # Get skill name from metadata if available, or infer from id
-                    meta = res.get("metadata", {})
-                    skill_name = meta.get("skill_name")
-                    score = res.get("score", 0.0)
-
-                    # If not in metadata (e.g. child chunk), parsed from content or fallback
-                    if not skill_name and "skill-" in str(res.get("id", "")):
-                        # Try to extract from ID logic (skill-name-...)
-                        # But simpler: just look up in our loaded skills which one matches
-                        pass
-
-                    if skill_name and skill_name in self._skills and skill_name not in seen_names:
-                        found_skills.append(self._skills[skill_name])
-                        seen_names.add(skill_name)
-                        self.logger.debug(
-                            f"  - Skill '{skill_name}' matched with score {score:.4f}"
-                        )
-
-                if found_skills:
-                    self.logger.info(
-                        f"RAG found {len(found_skills)} relevant skill(s) with score >= {min_score}"
-                    )
-                    return found_skills
-                else:
-                    self.logger.debug(f"RAG found no skills with score >= {min_score}")
-                    return []
-
-            except Exception as e:
-                # Log detallado del error real para debugging
-                import traceback
-
-                self.logger.debug(f"RAG search exception: {type(e).__name__}: {e}")
-                self.logger.debug(f"Traceback: {traceback.format_exc()}")
-                # Solo mostrar warning si es un error inesperado (no por falta de resultados)
-                if "index out of range" not in str(e).lower():
-                    self.logger.warning(f"RAG skill search failed: {e}. Falling back to keywords.")
-                else:
-                    self.logger.debug("RAG search returned no results, using keyword fallback.")
-
-        # 2. Keywork fallback (or if RAG returned nothing/failed)
         return self._find_skills_by_keyword(user_query, max_results)
 
     def _find_skills_by_keyword(self, user_query: str, max_results: int) -> list[Skill]:
-        """Simple keyword matching fallback."""
+        """Keyword matching on skill name and description."""
         query_lower = user_query.lower()
         query_words = set(query_lower.split())
         scored_skills = []
@@ -345,6 +175,34 @@ class SkillManager:
         scored_skills.sort(key=lambda x: x[0], reverse=True)
         return [skill for _, skill in scored_skills[:max_results]]
 
+    def build_skills_summary(self) -> str:
+        """
+        Build an XML summary of all skills (name + description only).
+        Used for agent context injection - no full instructions loaded.
+
+        Returns:
+            XML-formatted skills summary
+        """
+        if not self._skills:
+            return ""
+
+        def escape_xml(s: str) -> str:
+            return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+        lines = ["<skills>"]
+        for skill in sorted(self._skills.values(), key=lambda s: s.name):
+            name = escape_xml(skill.name)
+            desc = escape_xml(skill.description)
+            path = str(skill.path)
+            lines.append(f"  <skill>")
+            lines.append(f"    <name>{name}</name>")
+            lines.append(f"    <description>{desc}</description>")
+            lines.append(f"    <location>{path}</location>")
+            lines.append(f"  </skill>")
+        lines.append("</skills>")
+
+        return "\n".join(lines)
+
     # -------------------------------------------------------------------------
     # Accessors
     # -------------------------------------------------------------------------
@@ -356,7 +214,7 @@ class SkillManager:
         return list(self._skills.values())
 
     def get_skills_metadata(self) -> str:
-        """Get list of ALL skills metadata (legacy/fallback usage)."""
+        """Get list of ALL skills as metadata strings."""
         if not self._skills:
             return ""
         lines = [
@@ -369,7 +227,6 @@ class SkillManager:
         return skill.to_context_string() if skill else None
 
     def get_skill_names(self) -> list[str]:
-        """Get names of all loaded skills."""
         return list(self._skills.keys())
 
     def get_load_errors(self) -> list[dict]:

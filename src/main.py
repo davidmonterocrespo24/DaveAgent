@@ -1,9 +1,7 @@
 """
 Main file - Complete CLI interface for the code agent
-NEW REORGANIZED STRUCTURE (FIXED WITH LOGGING)
 """
 
-# IMPORTANTE: Filtros de warnings ANTES de todos los imports
 import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="autogen.import_utils")
@@ -61,42 +59,21 @@ class DaveAgentCLI(AgentOrchestrator):
         # State management system (AutoGen save_state/load_state)
         from src.managers import StateManager
 
+        _state_dir = os.path.join(os.getcwd(), ".daveagent", "state")
+        print(f"[Startup] Working directory: {os.getcwd()}")
+        print(f"[Startup] State directory: {_state_dir}")
         self.state_manager = StateManager(
             auto_save_enabled=True,
             auto_save_interval=300,  # Auto-save every 5 minutes
+            state_dir=_state_dir,
         )
         print(f"[Startup] StateManager initialized in {time.time() - t0:.4f}s")
 
         t0 = time.time()
-        # RAG Manager (Advanced retrieval system)
-        print("[Startup] Importing RAGManager...")
-        t_rag_import = time.time()
-        from src.managers.rag_manager import RAGManager
-
-        print(f"[Startup] RAGManager imported in {time.time() - t_rag_import:.4f}s")
-
-        # Used for ContextManager search and SkillManager indexing
-        # Initialize RAG Manager first
-        # Use current working directory for rag_data persistence
-        work_dir = os.getcwd()
-        self.rag_manager = RAGManager(
-            settings=self.settings, persist_dir=f"{work_dir}/.daveagent/rag_data"
-        )
-        print(f"[Startup] RAGManager initialized in {time.time() - t0:.4f}s")
-
-        # Start background warmup to load heavy models
-        import threading
-
-        if hasattr(self.rag_manager, "warmup"):
-            threading.Thread(target=self.rag_manager.warmup, daemon=True).start()
-        else:
-            print("[Startup] Warning: RAGManager warmup method missing (using stale version?)")
-
-        t0 = time.time()
-        # Agent Skills system (Claude-compatible and RAG-enhanced)
+        # Agent Skills system
         from src.skills import SkillManager
 
-        self.skill_manager = SkillManager(rag_manager=self.rag_manager, logger=self.logger.logger)
+        self.skill_manager = SkillManager(logger=self.logger.logger)
         skill_count = self.skill_manager.discover_skills()
         if skill_count > 0:
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
@@ -122,6 +99,8 @@ class DaveAgentCLI(AgentOrchestrator):
         self.error_reporter = ErrorReporter(logger=self.logger)
 
         # Observability system with Langfuse (simple method with OpenLit)
+        import threading
+
         # Observability system with Langfuse (simple method with OpenLit)
         # MOVED TO BACKGROUND COMPONENT (THREAD) to avoid blocking startup (40s delay)
         self.langfuse_enabled = False  # Will be set to True by background thread eventually
@@ -324,16 +303,19 @@ class DaveAgentCLI(AgentOrchestrator):
         # REMOVED: /load command - Use /load-state instead (AutoGen official)
 
         elif cmd == "/debug":
-            # Change logging level
-            current_level = self.logger.logger.level
-            if current_level == logging.DEBUG:
-                self.logger.logger.setLevel(logging.INFO)
-                self.cli.print_success("🔧 Debug mode DISABLED (level: INFO)")
-                self.logger.info("Logging level changed to INFO")
+            # Change console handler level (file handler always stays at DEBUG)
+            console_handlers = [h for h in self.logger.logger.handlers if isinstance(h, logging.Handler) and not isinstance(h, logging.FileHandler)]
+            current_console_level = console_handlers[0].level if console_handlers else logging.INFO
+            if current_console_level == logging.DEBUG:
+                for h in console_handlers:
+                    h.setLevel(logging.INFO)
+                self.cli.print_success("🔧 Debug mode DISABLED (console: INFO, file: DEBUG)")
+                self.logger.info("Console logging level changed to INFO")
             else:
-                self.logger.logger.setLevel(logging.DEBUG)
-                self.cli.print_success("🐛 Debug mode ENABLED (level: DEBUG)")
-                self.logger.debug("Logging level changed to DEBUG")
+                for h in console_handlers:
+                    h.setLevel(logging.DEBUG)
+                self.cli.print_success("🐛 Debug mode ENABLED (console: DEBUG, file: DEBUG)")
+                self.logger.debug("Console logging level changed to DEBUG")
 
         elif cmd == "/logs":
             # Show log file location
@@ -774,13 +756,14 @@ TITLE:"""
 
                 self.state_manager.start_session(session_id=session_id, title=title)
 
-            # Save state of each agent
+            # Save team state
+            self.logger.debug(f"💾 Auto-save: saving team state, session={self.state_manager.session_id}")
             await self.state_manager.save_agent_state(
-                "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
+                "Coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
             )
 
             await self.state_manager.save_agent_state(
-                "planning",
+                "Planner",
                 self.planning_agent,
                 metadata={"description": "Planning and task management agent"},
             )
@@ -788,11 +771,15 @@ TITLE:"""
             # Save to disk
             await self.state_manager.save_to_disk()
 
-            self.logger.debug("💾 Auto-save: State saved automatically")
+            # Save session metadata to disk
+            await self.state_manager.save_to_disk()
+
+            self.logger.info("💾 Auto-save: State saved successfully")
 
         except Exception as e:
             # Don't fail if auto-save fails, just log
-            self.logger.warning(f"⚠️ Auto-save failed: {str(e)}")
+            import traceback
+            self.logger.warning(f"⚠️ Auto-save failed: {str(e)}\n{traceback.format_exc()}")
 
     async def _save_state_command(self, parts: list):
         """
@@ -831,18 +818,10 @@ TITLE:"""
                 # Update existing session
                 session_id = self.state_manager.session_id
 
-            # Save state of each agent
-            await self.state_manager.save_agent_state(
-                "coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
-            )
+            # Save team state
+            await self.state_manager.save_team_state(self.main_team, self.client_strong)
 
-            await self.state_manager.save_agent_state(
-                "planning",
-                self.planning_agent,
-                metadata={"description": "Planning and task management agent"},
-            )
-
-            # Save to disk
+            # Save session metadata to disk
             state_path = await self.state_manager.save_to_disk(session_id)
 
             self.cli.stop_thinking()
@@ -904,14 +883,8 @@ TITLE:"""
                 self.cli.print_error(f"Session not found: {session_id}")
                 return
 
-            # Load state into each agent
-            agents_loaded = 0
-
-            if await self.state_manager.load_agent_state("coder", self.coder_agent):
-                agents_loaded += 1
-
-            if await self.state_manager.load_agent_state("planning", self.planning_agent):
-                agents_loaded += 1
+            # Load team state
+            team_loaded = await self.state_manager.load_team_state(self.main_team, self.client_strong)
 
             self.cli.stop_thinking()
 
@@ -924,7 +897,7 @@ TITLE:"""
                 self.history_viewer.display_session_loaded(
                     session_id=session_id,
                     total_messages=len(messages),
-                    agents_restored=agents_loaded,
+                    agents_restored=1 if team_loaded else 0,
                 )
 
                 # Display session metadata
@@ -1156,6 +1129,7 @@ TITLE:"""
             full_input = f"{user_input}\n{mentioned_files_content}{skills_context}"
 
             self.logger.debug(f"Input context prepared with {len(skills_context)} chars of skills")
+            self.logger.debug(f"📨 User request length: {len(full_input)} chars")
 
             # =================================================================
             # LET SELECTOR GROUP CHAT HANDLE EVERYTHING
@@ -1186,229 +1160,283 @@ TITLE:"""
             stream_task = asyncio.create_task(self._run_team_stream(full_input))
             self.current_task = stream_task
 
+            # Silence autogen internal loggers to avoid leaking raw tracebacks.
+            self.logger.debug("🚀 Stream task started")
             try:
                 async for msg in await stream_task:
                     message_count += 1
-                msg_type = type(msg).__name__
-                self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
+                    msg_type = type(msg).__name__
+                    self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
 
-                # Only process messages that are NOT from the user
-                if hasattr(msg, "source") and msg.source != "user":
-                    agent_name = msg.source
+                    # Only process messages that are NOT from the user
+                    if hasattr(msg, "source") and msg.source != "user":
+                        agent_name = msg.source
 
-                    # Track which agents were used
-                    if agent_name not in agents_used:
-                        agents_used.append(agent_name)
+                        # Track which agents were used
+                        if agent_name not in agents_used:
+                            agents_used.append(agent_name)
 
-                    # Determine message content
-                    if hasattr(msg, "content"):
-                        content = msg.content
-                    else:
-                        content = str(msg)
-                        self.logger.warning(
-                            f"Message without 'content' attribute. Using str(): {content[:100]}..."
-                        )
-
-                    # Create unique key to avoid duplicates
-                    # If content is a list (e.g. FunctionCall), convert to string
-                    try:
-                        if isinstance(content, list):
-                            content_str = str(content)
+                        # Determine message content
+                        if hasattr(msg, "content"):
+                            content = msg.content
                         else:
-                            content_str = content
-                        message_key = f"{agent_name}:{hash(content_str)}"
-                    except TypeError:
-                        # If still can't hash, use hash of string
-                        message_key = f"{agent_name}:{hash(str(content))}"
+                            content = str(msg)
+                            self.logger.warning(
+                                f"Message without 'content' attribute. Using str(): {content[:100]}..."
+                            )
 
-                    if message_key not in agent_messages_shown:
-                        # SHOW DIFFERENT MESSAGE TYPES IN CONSOLE IN REAL-TIME
-                        if msg_type == "ThoughtEvent":
-                            # 💭 Show agent thoughts/reflections
-                            # Stop spinner for thoughts to show them clearly
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-                                spinner_active = False
-                            self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
-                            self.logger.debug(f"💭 Thought: {content_str}")
-                            # JSON Logger: Capture thought
-                            self.json_logger.log_thought(agent_name, content_str)
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "ToolCallRequestEvent":
-                            # 🔧 Show tools to be called
-                            # Stop spinner to show tool call, then restart with specific message
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-
+                        # Create unique key to avoid duplicates
+                        # If content is a list (e.g. FunctionCall), convert to string
+                        try:
                             if isinstance(content, list):
-                                tool_names = []
-                                for tool_call in content:
-                                    if hasattr(tool_call, "name"):
-                                        tool_name = tool_call.name
-                                        tool_args = (
-                                            tool_call.arguments
-                                            if hasattr(tool_call, "arguments")
-                                            else {}
-                                        )
+                                content_str = str(content)
+                            else:
+                                content_str = content
+                            message_key = f"{agent_name}:{hash(content_str)}"
+                        except TypeError:
+                            # If still can't hash, use hash of string
+                            message_key = f"{agent_name}:{hash(str(content))}"
 
-                                        # Parse tool_args if it's a JSON string
-                                        if isinstance(tool_args, str):
-                                            try:
-                                                import json
+                        if message_key not in agent_messages_shown:
+                            # SHOW DIFFERENT MESSAGE TYPES IN CONSOLE IN REAL-TIME
+                            if msg_type == "ThoughtEvent":
+                                # 💭 Show agent thoughts/reflections
+                                # Stop spinner for thoughts to show them clearly
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
+                                self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
+                                self.logger.debug(f"💭 Thought: {content_str}")
+                                # JSON Logger: Capture thought
+                                self.json_logger.log_thought(agent_name, content_str)
+                                agent_messages_shown.add(message_key)
 
-                                                tool_args = json.loads(tool_args)
-                                            except (json.JSONDecodeError, TypeError):
-                                                pass  # Keep as string if parsing fails
+                            elif msg_type == "ToolCallRequestEvent":
+                                # 🔧 Show tools to be called
+                                # Stop spinner to show tool call, then restart with specific message
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
 
-                                        # Special formatting for file tools with code content
-                                        if (
-                                            tool_name == "write_file"
-                                            and isinstance(tool_args, dict)
-                                            and "file_content" in tool_args
-                                        ):
-                                            # Show write_file with syntax highlighting
-                                            target_file = tool_args.get("target_file", "unknown")
-                                            file_content = tool_args.get("file_content", "")
-                                            self.cli.print_thinking(
-                                                f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
+                                if isinstance(content, list):
+                                    tool_names = []
+                                    for tool_call in content:
+                                        if hasattr(tool_call, "name"):
+                                            tool_name = tool_call.name
+                                            tool_args = (
+                                                tool_call.arguments
+                                                if hasattr(tool_call, "arguments")
+                                                else {}
                                             )
-                                            self.cli.print_code(
-                                                file_content, target_file, max_lines=50
-                                            )
-                                        elif tool_name == "edit_file" and isinstance(
-                                            tool_args, dict
-                                        ):
-                                            # Show edit_file with unified diff
-                                            import difflib
 
-                                            target_file = tool_args.get("target_file", "unknown")
-                                            old_string = tool_args.get("old_string", "")
-                                            new_string = tool_args.get("new_string", "")
-                                            instructions = tool_args.get("instructions", "")
-                                            self.cli.print_thinking(
-                                                f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
-                                            )
-                                            if instructions:
-                                                self.cli.print_thinking(f"   📝 {instructions}")
-                                            # Generate unified diff
-                                            old_lines = old_string.splitlines(keepends=True)
-                                            new_lines = new_string.splitlines(keepends=True)
-                                            diff = difflib.unified_diff(
-                                                old_lines,
-                                                new_lines,
-                                                fromfile=f"a/{target_file}",
-                                                tofile=f"b/{target_file}",
-                                                lineterm="",
-                                            )
-                                            diff_text = "".join(diff)
-                                            if diff_text:
-                                                self.cli.print_diff(diff_text)
-                                            else:
+                                            # Parse tool_args if it's a JSON string
+                                            if isinstance(tool_args, str):
+                                                try:
+                                                    import json
+
+                                                    tool_args = json.loads(tool_args)
+                                                except (json.JSONDecodeError, TypeError):
+                                                    pass  # Keep as string if parsing fails
+
+                                            # Special formatting for file tools with code content
+                                            if (
+                                                tool_name == "write_file"
+                                                and isinstance(tool_args, dict)
+                                                and "file_content" in tool_args
+                                            ):
+                                                # Show write_file with syntax highlighting
+                                                target_file = tool_args.get("target_file", "unknown")
+                                                file_content = tool_args.get("file_content", "")
                                                 self.cli.print_thinking(
-                                                    "   (no changes detected in diff)"
+                                                    f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
                                                 )
-                                        else:
-                                            # Default: show parameters as JSON (truncate if too long)
-                                            args_str = str(tool_args)
-                                            if len(args_str) > 200:
-                                                args_str = args_str[:200] + "..."
-                                            self.cli.print_info(
-                                                f"🔧 Calling tool: {tool_name} with parameters {args_str}",
-                                                agent_name,
-                                            )
-
-                                        self.logger.debug(f"🔧 Tool call: {tool_name}")
-                                        # JSON Logger: Capture tool call
-                                        self.json_logger.log_tool_call(
-                                            agent_name=agent_name,
-                                            tool_name=tool_name,
-                                            arguments=(
-                                                tool_args if isinstance(tool_args, dict) else {}
-                                            ),
-                                        )
-                                        # Track tools called
-                                        if tool_name not in tools_called:
-                                            tools_called.append(tool_name)
-                                        tool_names.append(tool_name)
-
-                                # Restart spinner ONCE with first tool name (not in loop)
-                                if tool_names:
-                                    self.logger.debug(f"executing {tool_names[0]}")
-                                    spinner_active = True
-                            agent_messages_shown.add(message_key)
-
-                        elif msg_type == "ToolCallExecutionEvent":
-                            # ✅ Show tool results
-                            # Stop spinner to show results
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-                                spinner_active = False
-
-                            if isinstance(content, list):
-                                for execution_result in content:
-                                    if hasattr(execution_result, "name"):
-                                        tool_name = execution_result.name
-                                        result_content = (
-                                            str(execution_result.content)
-                                            if hasattr(execution_result, "content")
-                                            else "OK"
-                                        )
-
-                                        # 🚨 CRITICAL: Detect user cancellation in tool results
-                                        # When a tool is cancelled, ask_for_approval raises UserCancelledError,
-                                        # but AutoGen converts it to a string result. We need to detect this
-                                        # and re-raise the exception to stop the entire workflow.
-                                        if (
-                                            "User selected 'No, cancel'" in result_content
-                                            or "UserCancelledError" in result_content
-                                        ):
-                                            self.logger.info(
-                                                "🚫 User cancelled tool execution - stopping workflow"
-                                            )
-                                            raise UserCancelledError(
-                                                "User cancelled tool execution"
-                                            )
-
-                                        # DEBUG: Log tool result details
-                                        self.logger.debug(
-                                            f"[TOOL_RESULT_DEBUG] tool_name={tool_name}, result_starts_with={result_content[:50] if len(result_content) > 50 else result_content}, has_File={('File:' in result_content)}"
-                                        )
-
-                                        # Check if this is an edit_file result with diff
-                                        if (
-                                            tool_name == "edit_file"
-                                            and "DIFF (Changes Applied)" in result_content
-                                        ):
-                                            # Extract and display the diff
-                                            diff_start = result_content.find(
-                                                "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):"
-                                            )
-                                            diff_end = result_content.find(
-                                                "\n═══════════════════════════════════════════════════════════════",
-                                                diff_start + 100,
-                                            )
-
-                                            if diff_start != -1 and diff_end != -1:
-                                                diff_text = result_content[
-                                                    diff_start : diff_end + 64
-                                                ]
-                                                # Print file info first
-                                                info_end = result_content.find(
-                                                    "\n\n", 0, diff_start
+                                                self.cli.print_code(
+                                                    file_content, target_file, max_lines=50
                                                 )
-                                                if info_end != -1:
-                                                    file_info = result_content[:info_end]
+                                            elif tool_name == "edit_file" and isinstance(
+                                                tool_args, dict
+                                            ):
+                                                # Show edit_file with unified diff
+                                                import difflib
+
+                                                target_file = tool_args.get("target_file", "unknown")
+                                                old_string = tool_args.get("old_string", "")
+                                                new_string = tool_args.get("new_string", "")
+                                                instructions = tool_args.get("instructions", "")
+                                                self.cli.print_thinking(
+                                                    f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
+                                                )
+                                                if instructions:
+                                                    self.cli.print_thinking(f"   📝 {instructions}")
+                                                # Generate unified diff
+                                                old_lines = old_string.splitlines(keepends=True)
+                                                new_lines = new_string.splitlines(keepends=True)
+                                                diff = difflib.unified_diff(
+                                                    old_lines,
+                                                    new_lines,
+                                                    fromfile=f"a/{target_file}",
+                                                    tofile=f"b/{target_file}",
+                                                    lineterm="",
+                                                )
+                                                diff_text = "".join(diff)
+                                                if diff_text:
+                                                    self.cli.print_diff(diff_text)
+                                                else:
                                                     self.cli.print_thinking(
-                                                        f"✅ {agent_name} > {tool_name}: {file_info}"
+                                                        "   (no changes detected in diff)"
                                                     )
-                                                # Display diff with colors
-                                                self.cli.print_diff(diff_text)
+                                            else:
+                                                # Default: show parameters as JSON (truncate if too long)
+                                                args_str = str(tool_args)
+                                                if len(args_str) > 200:
+                                                    args_str = args_str[:200] + "..."
+                                                self.cli.print_info(
+                                                    f"🔧 Calling tool: {tool_name} with parameters {args_str}",
+                                                    agent_name,
+                                                )
+
+                                            self.logger.debug(f"🔧 Tool call: {tool_name}")
+                                            # JSON Logger: Capture tool call
+                                            self.json_logger.log_tool_call(
+                                                agent_name=agent_name,
+                                                tool_name=tool_name,
+                                                arguments=(
+                                                    tool_args if isinstance(tool_args, dict) else {}
+                                                ),
+                                            )
+                                            # Track tools called
+                                            if tool_name not in tools_called:
+                                                tools_called.append(tool_name)
+                                            tool_names.append(tool_name)
+
+                                    # Restart spinner ONCE with first tool name (not in loop)
+                                    if tool_names:
+                                        self.logger.debug(f"executing {tool_names[0]}")
+                                        spinner_active = True
+                                agent_messages_shown.add(message_key)
+
+                            elif msg_type == "ToolCallExecutionEvent":
+                                # ✅ Show tool results
+                                # Stop spinner to show results
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
+
+                                if isinstance(content, list):
+                                    for execution_result in content:
+                                        if hasattr(execution_result, "name"):
+                                            tool_name = execution_result.name
+                                            result_content = (
+                                                str(execution_result.content)
+                                                if hasattr(execution_result, "content")
+                                                else "OK"
+                                            )
+
+                                            # 🚨 CRITICAL: Detect user cancellation in tool results
+                                            # When a tool is cancelled, ask_for_approval raises UserCancelledError,
+                                            # but AutoGen converts it to a string result. We need to detect this
+                                            # and re-raise the exception to stop the entire workflow.
+                                            if (
+                                                "User selected 'No, cancel'" in result_content
+                                                or "UserCancelledError" in result_content
+                                            ):
+                                                self.logger.info(
+                                                    "🚫 User cancelled tool execution - stopping workflow"
+                                                )
+                                                raise UserCancelledError(
+                                                    "User cancelled tool execution"
+                                                )
+
+                                            # DEBUG: Log tool result details
+                                            self.logger.debug(
+                                                f"[TOOL_RESULT_DEBUG] tool_name={tool_name}, result_starts_with={result_content[:50] if len(result_content) > 50 else result_content}, has_File={('File:' in result_content)}"
+                                            )
+
+                                            # Check if this is an edit_file result with diff
+                                            if (
+                                                tool_name == "edit_file"
+                                                and "DIFF (Changes Applied)" in result_content
+                                            ):
+                                                # Extract and display the diff
+                                                diff_start = result_content.find(
+                                                    "═══════════════════════════════════════════════════════════════\n📋 DIFF (Changes Applied):"
+                                                )
+                                                diff_end = result_content.find(
+                                                    "\n═══════════════════════════════════════════════════════════════",
+                                                    diff_start + 100,
+                                                )
+
+                                                if diff_start != -1 and diff_end != -1:
+                                                    diff_text = result_content[
+                                                        diff_start : diff_end + 64
+                                                    ]
+                                                    # Print file info first
+                                                    info_end = result_content.find(
+                                                        "\n\n", 0, diff_start
+                                                    )
+                                                    if info_end != -1:
+                                                        file_info = result_content[:info_end]
+                                                        self.cli.print_thinking(
+                                                            f"✅ {agent_name} > {tool_name}: {file_info}"
+                                                        )
+                                                    # Display diff with colors
+                                                    self.cli.print_diff(diff_text)
+                                                    self.logger.debug(
+                                                        f"✅ Tool result: {tool_name} -> DIFF displayed"
+                                                    )
+                                                else:
+                                                    # Fallback to showing preview
+                                                    result_preview = result_content[:100]
+                                                    self.cli.print_thinking(
+                                                        f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                    )
+                                                    self.logger.debug(
+                                                        f"✅ Tool result: {tool_name} -> {result_preview}"
+                                                    )
+                                            elif tool_name == "read_file" and "File:" in result_content:
+                                                # Special handling for read_file - show with syntax highlighting
+                                                # Extract filename from result
+                                                try:
+                                                    # Result format: "File: <path>\n<content>"
+                                                    first_line = result_content.split("\n")[0]
+                                                    if first_line.startswith("File:"):
+                                                        filename = first_line.replace(
+                                                            "File:", ""
+                                                        ).strip()
+                                                        # Get code content (everything after first line)
+                                                        code_content = "\n".join(
+                                                            result_content.split("\n")[1:]
+                                                        )
+                                                        # Display with syntax highlighting
+                                                        self.cli.print_code(
+                                                            code_content, filename, max_lines=50
+                                                        )
+                                                        self.logger.debug(
+                                                            f"✅ Tool result: {tool_name} -> {filename} (displayed with syntax highlighting)"
+                                                        )
+                                                    else:
+                                                        # Fallback
+                                                        result_preview = result_content[:100]
+                                                        self.cli.print_thinking(
+                                                            f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                        )
+                                                except Exception:
+                                                    result_preview = result_content[:100]
+                                                    self.cli.print_thinking(
+                                                        f"✅ {agent_name} > {tool_name}: {result_preview}..."
+                                                    )
+                                            elif (
+                                                tool_name == "write_file"
+                                                and "Successfully wrote" in result_content
+                                            ):
+                                                # Special handling for write_file - show success message
+                                                self.cli.print_success(
+                                                    f"{agent_name} > {tool_name}: {result_content}"
+                                                )
                                                 self.logger.debug(
-                                                    f"✅ Tool result: {tool_name} -> DIFF displayed"
+                                                    f"✅ Tool result: {tool_name} -> {result_content}"
                                                 )
                                             else:
-                                                # Fallback to showing preview
+                                                # Regular tool result
                                                 result_preview = result_content[:100]
                                                 self.cli.print_thinking(
                                                     f"✅ {agent_name} > {tool_name}: {result_preview}..."
@@ -1416,97 +1444,51 @@ TITLE:"""
                                                 self.logger.debug(
                                                     f"✅ Tool result: {tool_name} -> {result_preview}"
                                                 )
-                                        elif tool_name == "read_file" and "File:" in result_content:
-                                            # Special handling for read_file - show with syntax highlighting
-                                            # Extract filename from result
-                                            try:
-                                                # Result format: "File: <path>\n<content>"
-                                                first_line = result_content.split("\n")[0]
-                                                if first_line.startswith("File:"):
-                                                    filename = first_line.replace(
-                                                        "File:", ""
-                                                    ).strip()
-                                                    # Get code content (everything after first line)
-                                                    code_content = "\n".join(
-                                                        result_content.split("\n")[1:]
-                                                    )
-                                                    # Display with syntax highlighting
-                                                    self.cli.print_code(
-                                                        code_content, filename, max_lines=50
-                                                    )
-                                                    self.logger.debug(
-                                                        f"✅ Tool result: {tool_name} -> {filename} (displayed with syntax highlighting)"
-                                                    )
-                                                else:
-                                                    # Fallback
-                                                    result_preview = result_content[:100]
-                                                    self.cli.print_thinking(
-                                                        f"✅ {agent_name} > {tool_name}: {result_preview}..."
-                                                    )
-                                            except Exception:
-                                                result_preview = result_content[:100]
-                                                self.cli.print_thinking(
-                                                    f"✅ {agent_name} > {tool_name}: {result_preview}..."
-                                                )
-                                        elif (
-                                            tool_name == "write_file"
-                                            and "Successfully wrote" in result_content
-                                        ):
-                                            # Special handling for write_file - show success message
-                                            self.cli.print_success(
-                                                f"{agent_name} > {tool_name}: {result_content}"
-                                            )
-                                            self.logger.debug(
-                                                f"✅ Tool result: {tool_name} -> {result_content}"
-                                            )
-                                        else:
-                                            # Regular tool result
-                                            result_preview = result_content[:100]
-                                            self.cli.print_thinking(
-                                                f"✅ {agent_name} > {tool_name}: {result_preview}..."
-                                            )
-                                            self.logger.debug(
-                                                f"✅ Tool result: {tool_name} -> {result_preview}"
+
+                                            # JSON Logger: Capture tool result
+                                            self.json_logger.log_tool_result(
+                                                agent_name=agent_name,
+                                                tool_name=tool_name,
+                                                result=result_content,
+                                                success=True,
                                             )
 
-                                        # JSON Logger: Capture tool result
-                                        self.json_logger.log_tool_result(
-                                            agent_name=agent_name,
-                                            tool_name=tool_name,
-                                            result=result_content,
-                                            success=True,
-                                        )
+                                # Restart spinner for next action
+                                self.cli.start_thinking()
+                                spinner_active = True
+                                agent_messages_shown.add(message_key)
 
-                            # Restart spinner for next action
-                            self.cli.start_thinking()
-                            spinner_active = True
-                            agent_messages_shown.add(message_key)
+                                # 💾 AUTO-SAVE after each tool execution
+                                await self._auto_save_agent_states()
 
-                        elif msg_type == "TextMessage":
-                            # 💬 Show final agent response
-                            # Stop spinner for final response
-                            if spinner_active:
-                                self.cli.stop_thinking(clear=True)
-                                spinner_active = False
+                            elif msg_type == "TextMessage":
+                                # 💬 Show final agent response
+                                # Stop spinner for final response
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
 
-                            preview = content_str[:100] if len(content_str) > 100 else content_str
-                            self.logger.log_message_processing(msg_type, agent_name, preview)
-                            self.cli.print_agent_message(content_str, agent_name)
-                            # JSON Logger: Capture agent message
-                            self.json_logger.log_agent_message(
-                                agent_name=agent_name, content=content_str, message_type="text"
-                            )
-                            # Collect agent responses for logging
-                            all_agent_responses.append(f"[{agent_name}] {content_str}")
-                            agent_messages_shown.add(message_key)
+                                preview = content_str[:100] if len(content_str) > 100 else content_str
+                                self.logger.log_message_processing(msg_type, agent_name, preview)
+                                self.cli.print_agent_message(content_str, agent_name)
+                                # JSON Logger: Capture agent message
+                                self.json_logger.log_agent_message(
+                                    agent_name=agent_name, content=content_str, message_type="text"
+                                )
+                                # Collect agent responses for logging
+                                all_agent_responses.append(f"[{agent_name}] {content_str}")
+                                agent_messages_shown.add(message_key)
 
-                            # After agent finishes, start spinner waiting for next agent
-                            self.cli.start_thinking(message="waiting for next action")
-                            spinner_active = True
+                                # After agent finishes, start spinner waiting for next agent
+                                self.cli.start_thinking(message="waiting for next action")
+                                spinner_active = True
 
-                        else:
-                            # Other message types (for debugging)
-                            self.logger.debug(f"Message type {msg_type} not shown in CLI")
+                                # 💾 AUTO-SAVE after each agent TextMessage
+                                await self._auto_save_agent_states()
+
+                            else:
+                                # Other message types (for debugging)
+                                self.logger.debug(f"Message type {msg_type} not shown in CLI")
 
                 self.logger.debug(f"✅ Stream completed. Total messages processed: {message_count}")
 
@@ -1524,16 +1506,16 @@ TITLE:"""
                 # Generate task completion summary
                 await self._generate_task_summary(user_input)
 
-                # 💾 AUTO-SAVE: Save agent states automatically after each response
-                await self._auto_save_agent_states()
-
                 # ============= END JSON LOGGING SESSION =============
                 # Save all captured events to timestamped JSON file
                 self.json_logger.end_session(summary="Request completed successfully")
 
             finally:
+                self.logger.debug("🏁 Stream finished (finally block)")
                 # Always reset current task when stream finishes
                 self.current_task = None
+                # 💾 AUTO-SAVE: Always save state after each request, even on error
+                await self._auto_save_agent_states()
 
         except asyncio.CancelledError:
             # Stop spinner on cancellation
@@ -1547,8 +1529,9 @@ TITLE:"""
             # End JSON logging session
             self.json_logger.end_session(summary="Task cancelled by interrupt")
 
-            # Reset current task
+            # Reset current task and save state
             self.current_task = None
+            await self._auto_save_agent_states()
 
         except UserCancelledError:
             # Stop spinner on user cancellation
@@ -1562,10 +1545,39 @@ TITLE:"""
 
             # End JSON logging session
             self.json_logger.end_session(summary="Task cancelled by user")
+            await self._auto_save_agent_states()
 
         except Exception as e:
             # Stop spinner on error
             self.cli.stop_thinking()
+
+            # Handle authentication errors (401) by prompting reconfiguration
+            error_str = str(e)
+            is_auth_error = (
+                "401" in error_str
+                or "authentication" in error_str.lower()
+                or "AuthenticationError" in type(e).__name__
+                or "invalid_api_key" in error_str.lower()
+                or "Authentication Fails" in error_str
+            )
+            if is_auth_error:
+                self.cli.print_error(
+                    "❌ Authentication failed: your API key is invalid or missing."
+                )
+                self.cli.print_info(
+                    "🔧 Let's reconfigure your provider and API key."
+                )
+                try:
+                    await self._reconfigure_from_setup_wizard()
+                    self.cli.print_success(
+                        "✅ Configuration updated. Please retry your request."
+                    )
+                except Exception as setup_err:
+                    self.logger.error(f"Reconfiguration failed: {setup_err}")
+                    self.cli.print_error(
+                        f"Failed to reconfigure: {setup_err}"
+                    )
+                return
 
             # JSON Logger: Capture error
             self.json_logger.log_error(e, context="process_user_request")
@@ -1580,6 +1592,9 @@ TITLE:"""
             self.logger.error(f"Full traceback:\n{error_traceback}")
             self.cli.print_error(f"Details:\n{error_traceback}")
 
+            # Save state even on error
+            await self._auto_save_agent_states()
+
             # AUTOMATIC ERROR REPORTING TO SIGNOZ
             self.cli.print_thinking("📊 Reporting error to SigNoz...")
             try:
@@ -1588,6 +1603,80 @@ TITLE:"""
                 )
             except Exception as report_err:
                 self.logger.error(f"Failed to report error: {report_err}")
+
+    # =========================================================================
+    # AUTHENTICATION RECONFIGURATION
+    # =========================================================================
+
+    async def _reconfigure_from_setup_wizard(self):
+        """
+        Runs the interactive setup wizard and updates all model clients
+        with the new API key, base URL and model.
+        """
+        import asyncio
+        from src.utils.setup_wizard import run_interactive_setup
+        import httpx
+
+        # Run setup wizard in executor to avoid blocking the event loop
+        loop = asyncio.get_event_loop()
+        api_key, base_url, model = await loop.run_in_executor(
+            None, run_interactive_setup
+        )
+
+        # Update settings
+        self.settings.api_key = api_key
+        if base_url:
+            self.settings.base_url = base_url
+        if model:
+            self.settings.model = model
+            self.settings.base_model = model
+            self.settings.strong_model = model
+
+        # Rebuild HTTP client
+        http_client = httpx.AsyncClient(verify=self.settings.ssl_verify)
+
+        # Rebuild model clients with new credentials
+        from autogen_ext.models.openai import OpenAIChatCompletionClient
+
+        self.client_base = OpenAIChatCompletionClient(
+            model=self.settings.base_model,
+            base_url=self.settings.base_url,
+            api_key=self.settings.api_key,
+            model_info=self.settings.get_model_capabilities(),
+            custom_http_client=http_client,
+        )
+
+        is_deepseek_reasoner = (
+            "deepseek-reasoner" in self.settings.strong_model.lower()
+            and "deepseek" in self.settings.base_url.lower()
+        )
+        if is_deepseek_reasoner:
+            from src.utils.deepseek_reasoning_client import DeepSeekReasoningClient
+
+            self.client_strong = DeepSeekReasoningClient(
+                model=self.settings.strong_model,
+                base_url=self.settings.base_url,
+                api_key=self.settings.api_key,
+                model_info=self.settings.get_model_capabilities(),
+                custom_http_client=http_client,
+                enable_thinking=None,
+            )
+        else:
+            self.client_strong = OpenAIChatCompletionClient(
+                model=self.settings.strong_model,
+                base_url=self.settings.base_url,
+                api_key=self.settings.api_key,
+                model_info=self.settings.get_model_capabilities(),
+                custom_http_client=http_client,
+            )
+
+        # Update the wrapped model_client reference
+        if hasattr(self.model_client, "_wrapped"):
+            self.model_client._wrapped = self.client_strong
+
+        self.logger.info(
+            f"Reconfigured: provider={self.settings.base_url}, model={self.settings.strong_model}"
+        )
 
     # =========================================================================
     # CONVERSATION TRACKING - Log to JSON
@@ -1689,7 +1778,7 @@ TITLE:"""
 
                     dt = datetime.fromisoformat(last_interaction)
                     formatted_date = dt.strftime("%Y-%m-%d %H:%M")
-                except:
+                except Exception:
                     formatted_date = last_interaction
             else:
                 formatted_date = "Unknown"
@@ -1716,22 +1805,17 @@ TITLE:"""
                 loaded = await self.state_manager.load_from_disk(session_id)
 
                 if loaded:
-                    # Load agents
-                    agents_loaded = 0
-                    if await self.state_manager.load_agent_state("coder", self.coder_agent):
-                        agents_loaded += 1
+                    # Load team state
+                    team_loaded = await self.state_manager.load_team_state(self.main_team, self.client_strong)
 
-                    if await self.state_manager.load_agent_state("planning", self.planning_agent):
-                        agents_loaded += 1
-
-                    # Get metadata and messages
+                    # Get metadata
                     metadata = self.state_manager.get_session_metadata()
                     messages = self.state_manager.get_session_history()
 
                     # Display success
                     self.cli.print_success(f"\n✅ Session loaded: {title}")
-                    self.cli.print_info(f"  • Messages restored: {len(messages)}")
-                    self.cli.print_info(f"  • Agents restored: {agents_loaded}")
+                    self.cli.print_info(f"  • Team state restored: {team_loaded}")
+                    self.cli.print_info(f"  • Agents restored: {1 if team_loaded else 0}")
 
                     # Show last few messages
                     if messages:
