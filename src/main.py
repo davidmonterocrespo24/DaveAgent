@@ -502,6 +502,21 @@ class DaveAgentCLI(AgentOrchestrator):
             else:
                 await self._subagent_status_command(parts[1])
 
+        elif cmd == "/cron":
+            # Cron management commands
+            if len(parts) < 2:
+                self.cli.print_error("Usage: /cron <add|list|enable|disable|remove|run>")
+                self.cli.print_info("Examples:")
+                self.cli.print_info("  /cron add at 2026-02-20T15:30 Review PRs")
+                self.cli.print_info("  /cron add every 1h Check build status")
+                self.cli.print_info("  /cron add cron '0 9 * * *' Daily standup")
+                self.cli.print_info("  /cron list")
+                self.cli.print_info("  /cron enable <job-id>")
+                self.cli.print_info("  /cron run <job-id>")
+            else:
+                subcmd = parts[1]
+                await self._cron_command(subcmd, parts[2:])
+
         else:
             self.cli.print_error(f"Unknown command: {cmd}")
             self.cli.print_info("Use /help to see available commands")
@@ -1190,6 +1205,255 @@ TITLE:"""
         except Exception as e:
             self.logger.log_error_with_context(e, "_subagent_status_command")
             self.cli.print_error(f"Error showing subagent status: {str(e)}")
+
+    # =========================================================================
+    # CRON MANAGEMENT
+    # =========================================================================
+
+    async def _cron_command(self, subcmd: str, args: list):
+        """Handle cron subcommands."""
+        if not hasattr(self, 'cron_service') or self.cron_service is None:
+            self.cli.print_error("Cron service not initialized")
+            return
+
+        try:
+            if subcmd == "list":
+                await self._cron_list_command()
+            elif subcmd == "add":
+                await self._cron_add_command(args)
+            elif subcmd == "enable":
+                await self._cron_enable_command(args, enabled=True)
+            elif subcmd == "disable":
+                await self._cron_enable_command(args, enabled=False)
+            elif subcmd == "remove":
+                await self._cron_remove_command(args)
+            elif subcmd == "run":
+                await self._cron_run_command(args)
+            else:
+                self.cli.print_error(f"Unknown cron command: {subcmd}")
+                self.cli.print_info("Use /cron without arguments to see usage")
+        except Exception as e:
+            self.logger.log_error_with_context(e, f"_cron_command_{subcmd}")
+            self.cli.print_error(f"Error in cron command: {str(e)}")
+
+    async def _cron_list_command(self):
+        """List all cron jobs."""
+        from rich.table import Table
+
+        jobs = self.cron_service.list_jobs()
+
+        if not jobs:
+            self.cli.print_info("\n⏰ No cron jobs scheduled")
+            self.cli.print_info("\nAdd a job with:")
+            self.cli.print_info("  /cron add at 2026-02-20T15:30 Review PRs")
+            self.cli.print_info("  /cron add every 1h Check build status")
+            self.cli.print_info("  /cron add cron '0 9 * * *' Daily standup")
+            return
+
+        table = Table(title=f"\n⏰ Scheduled Cron Jobs ({len(jobs)} total)")
+        table.add_column("ID", style="cyan")
+        table.add_column("Name", style="yellow")
+        table.add_column("Enabled", style="green")
+        table.add_column("Schedule", style="magenta")
+        table.add_column("Next Run", style="blue")
+        table.add_column("Runs", justify="right")
+        table.add_column("Status")
+
+        for job in jobs:
+            enabled = "✓" if job["enabled"] else "✗"
+            status_color = "green" if job["last_status"] == "ok" else "red" if job["last_status"] == "error" else "dim"
+
+            table.add_row(
+                job["id"],
+                job["name"][:30],
+                enabled,
+                job["schedule"],
+                job["next_run"],
+                str(job["run_count"]),
+                f"[{status_color}]{job['last_status']}[/{status_color}]"
+            )
+
+        self.cli.console.print(table)
+        self.cli.console.print()
+
+    async def _cron_add_command(self, args: list):
+        """Add a new cron job."""
+        from src.cron.types import CronSchedule
+        from datetime import datetime
+
+        if len(args) < 2:
+            self.cli.print_error("Usage: /cron add <at|every|cron> <time/interval/expr> <task>")
+            self.cli.print_info("Examples:")
+            self.cli.print_info("  /cron add at 2026-02-20T15:30 Review PRs")
+            self.cli.print_info("  /cron add every 1h Check build status")
+            self.cli.print_info("  /cron add cron '0 9 * * *' Daily standup")
+            return
+
+        schedule_type = args[0]
+
+        if schedule_type == "at":
+            # Parse: /cron add at 2026-02-20T15:30 Task description
+            if len(args) < 3:
+                self.cli.print_error("Usage: /cron add at <datetime> <task>")
+                self.cli.print_info("Example: /cron add at 2026-02-20T15:30 Review PRs")
+                return
+
+            time_str = args[1]
+            task = " ".join(args[2:])
+
+            try:
+                # Parse datetime
+                dt = datetime.fromisoformat(time_str)
+                at_ms = int(dt.timestamp() * 1000)
+
+                schedule = CronSchedule(kind="at", at_ms=at_ms)
+                job_id = self.cron_service.add_job(
+                    name=task[:50],
+                    schedule=schedule,
+                    task=task
+                )
+
+                self.cli.print_success(f"✓ Added one-time job {job_id}")
+                self.cli.print_info(f"  Will run at: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
+                self.cli.print_info(f"  Task: {task}")
+            except ValueError as e:
+                self.cli.print_error(f"Invalid datetime format: {e}")
+                self.cli.print_info("Use ISO format: YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS")
+
+        elif schedule_type == "every":
+            # Parse: /cron add every 1h Task description
+            if len(args) < 3:
+                self.cli.print_error("Usage: /cron add every <interval> <task>")
+                self.cli.print_info("Example: /cron add every 1h Check build status")
+                self.cli.print_info("Intervals: 30s, 5m, 1h, 2d (s=seconds, m=minutes, h=hours, d=days)")
+                return
+
+            interval_str = args[1]
+            task = " ".join(args[2:])
+
+            try:
+                # Parse interval (e.g., "1h", "30m", "2d")
+                import re
+                match = re.match(r'^(\d+)([smhd])$', interval_str)
+                if not match:
+                    raise ValueError("Invalid interval format")
+
+                value = int(match.group(1))
+                unit = match.group(2)
+
+                # Convert to milliseconds
+                multipliers = {'s': 1000, 'm': 60000, 'h': 3600000, 'd': 86400000}
+                every_ms = value * multipliers[unit]
+
+                schedule = CronSchedule(kind="every", every_ms=every_ms)
+                job_id = self.cron_service.add_job(
+                    name=task[:50],
+                    schedule=schedule,
+                    task=task
+                )
+
+                self.cli.print_success(f"✓ Added recurring job {job_id}")
+                self.cli.print_info(f"  Interval: {interval_str}")
+                self.cli.print_info(f"  Task: {task}")
+            except ValueError as e:
+                self.cli.print_error(f"Invalid interval: {e}")
+                self.cli.print_info("Use format: <number><unit> where unit is s/m/h/d")
+                self.cli.print_info("Examples: 30s, 5m, 1h, 2d")
+
+        elif schedule_type == "cron":
+            # Parse: /cron add cron '0 9 * * *' Task description
+            if len(args) < 3:
+                self.cli.print_error("Usage: /cron add cron '<expression>' <task>")
+                self.cli.print_info("Example: /cron add cron '0 9 * * *' Daily standup")
+                return
+
+            cron_expr = args[1]
+            task = " ".join(args[2:])
+
+            try:
+                # Validate cron expression
+                from croniter import croniter
+                if not croniter.is_valid(cron_expr):
+                    raise ValueError("Invalid cron expression")
+
+                schedule = CronSchedule(kind="cron", expr=cron_expr)
+                job_id = self.cron_service.add_job(
+                    name=task[:50],
+                    schedule=schedule,
+                    task=task
+                )
+
+                # Show next run times
+                from croniter import croniter as CronIter
+                from datetime import datetime
+                now = datetime.now()
+                cron = CronIter(cron_expr, now)
+                next_3 = [cron.get_next(datetime).strftime('%Y-%m-%d %H:%M') for _ in range(3)]
+
+                self.cli.print_success(f"✓ Added cron job {job_id}")
+                self.cli.print_info(f"  Expression: {cron_expr}")
+                self.cli.print_info(f"  Task: {task}")
+                self.cli.print_info(f"  Next runs: {', '.join(next_3)}")
+            except ImportError:
+                self.cli.print_error("croniter library not installed")
+                self.cli.print_info("Install with: pip install croniter")
+            except ValueError as e:
+                self.cli.print_error(f"Invalid cron expression: {e}")
+                self.cli.print_info("Use standard cron format: '0 9 * * *'")
+
+        else:
+            self.cli.print_error(f"Unknown schedule type: {schedule_type}")
+            self.cli.print_info("Supported types: at, every, cron")
+
+    async def _cron_enable_command(self, args: list, enabled: bool):
+        """Enable or disable a cron job."""
+        if len(args) < 1:
+            action = "enable" if enabled else "disable"
+            self.cli.print_error(f"Usage: /cron {action} <job-id>")
+            self.cli.print_info("Use /cron list to see job IDs")
+            return
+
+        job_id = args[0]
+        success = self.cron_service.enable_job(job_id, enabled)
+
+        if success:
+            action = "enabled" if enabled else "disabled"
+            self.cli.print_success(f"✓ Job {job_id} {action}")
+        else:
+            self.cli.print_error(f"Job {job_id} not found")
+            self.cli.print_info("Use /cron list to see available jobs")
+
+    async def _cron_remove_command(self, args: list):
+        """Remove a cron job."""
+        if len(args) < 1:
+            self.cli.print_error("Usage: /cron remove <job-id>")
+            self.cli.print_info("Use /cron list to see job IDs")
+            return
+
+        job_id = args[0]
+        success = self.cron_service.remove_job(job_id)
+
+        if success:
+            self.cli.print_success(f"✓ Job {job_id} removed")
+        else:
+            self.cli.print_error(f"Job {job_id} not found")
+            self.cli.print_info("Use /cron list to see available jobs")
+
+    async def _cron_run_command(self, args: list):
+        """Manually run a cron job now."""
+        if len(args) < 1:
+            self.cli.print_error("Usage: /cron run <job-id>")
+            self.cli.print_info("Use /cron list to see job IDs")
+            return
+
+        job_id = args[0]
+        success = await self.cron_service.run_job_now(job_id)
+
+        if success:
+            self.cli.print_success(f"✓ Job {job_id} triggered")
+        else:
+            self.cli.print_error(f"Job {job_id} not found")
+            self.cli.print_info("Use /cron list to see available jobs")
 
     # =========================================================================
     # USER REQUEST PROCESSING
@@ -2029,6 +2293,13 @@ TITLE:"""
 
         self.cli.print_banner()
 
+        # Start cron service
+        await self.cron_service.start()
+        self.logger.info("⏰ Cron service started")
+
+        # Start system message detector (FASE 3: Auto-Injection)
+        await self.orchestrator.start_system_message_detector()
+
         # Check for previous sessions and offer to resume
         await self._check_and_resume_session()
 
@@ -2079,6 +2350,19 @@ TITLE:"""
         finally:
             self.logger.info("🔚 Closing DaveAgent CLI")
             self.cli.print_goodbye()
+
+            # Stop system message detector (FASE 3: Auto-Injection)
+            try:
+                await self.orchestrator.stop_system_message_detector()
+            except Exception as e:
+                self.logger.error(f"Error stopping system message detector: {e}")
+
+            # Stop cron service
+            try:
+                await self.cron_service.stop()
+                self.logger.info("⏰ Cron service stopped")
+            except Exception as e:
+                self.logger.error(f"Error stopping cron service: {e}")
 
             # Close state system (saves final state automatically)
             try:

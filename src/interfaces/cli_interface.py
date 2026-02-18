@@ -3,13 +3,18 @@ Interactive CLI interface in the style of Claude Code
 """
 
 import asyncio
+import os
 import random
+import signal
+import sys
 import time
 from pathlib import Path
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
+from prompt_toolkit.patch_stdout import patch_stdout
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
@@ -19,6 +24,13 @@ from rich.table import Table
 from rich.text import Text
 
 from src.utils import FileIndexer, VibeSpinner, select_file_interactive
+
+# Platform-specific imports
+try:
+    import termios
+    TERMIOS_AVAILABLE = True
+except ImportError:
+    TERMIOS_AVAILABLE = False  # Windows doesn't have termios
 
 
 class CLIInterface:
@@ -41,6 +53,84 @@ class CLIInterface:
         self.mentioned_files: list[str] = []  # Track files mentioned with @
         self.vibe_spinner: VibeSpinner | None = None  # Spinner for thinking animation
         self.current_mode = "agent"  # Track current mode for display
+
+        # Terminal state management (Nanobot-style)
+        self._saved_term_attrs = None
+        self._save_terminal_state()
+
+        # Setup signal handlers for graceful cleanup
+        signal.signal(signal.SIGINT, self._handle_interrupt)
+        if hasattr(signal, 'SIGTERM'):
+            signal.signal(signal.SIGTERM, self._handle_terminate)
+
+    # =========================================================================
+    # TERMINAL STATE MANAGEMENT (Nanobot-style)
+    # =========================================================================
+
+    def _save_terminal_state(self):
+        """Save terminal attributes for later recovery."""
+        if not TERMIOS_AVAILABLE:
+            return  # Skip on Windows
+
+        try:
+            if os.isatty(sys.stdin.fileno()):
+                self._saved_term_attrs = termios.tcgetattr(sys.stdin.fileno())
+        except Exception:
+            # Silently fail if we can't save terminal state
+            pass
+
+    def _restore_terminal_state(self):
+        """Restore terminal to original state."""
+        if not TERMIOS_AVAILABLE or not self._saved_term_attrs:
+            return
+
+        try:
+            termios.tcsetattr(
+                sys.stdin.fileno(),
+                termios.TCSADRAIN,
+                self._saved_term_attrs
+            )
+        except Exception:
+            pass
+
+    def _flush_pending_tty_input(self):
+        """
+        Drop unread keypresses typed while model was generating.
+
+        This prevents "ghost characters" from appearing after long outputs.
+        Inspired by Nanobot's implementation.
+        """
+        if not TERMIOS_AVAILABLE:
+            return  # Skip on Windows
+
+        try:
+            fd = sys.stdin.fileno()
+            if not os.isatty(fd):
+                return
+
+            # Flush input buffer
+            termios.tcflush(fd, termios.TCIFLUSH)
+        except Exception:
+            pass
+
+    def _handle_interrupt(self, signum, frame):
+        """Handle Ctrl+C gracefully."""
+        self._restore_terminal_state()
+        self.console.print("\n\n[yellow]👋 Interrupted by user[/yellow]")
+        sys.exit(0)
+
+    def _handle_terminate(self, signum, frame):
+        """Handle termination signal."""
+        self._restore_terminal_state()
+        sys.exit(0)
+
+    def __del__(self):
+        """Cleanup on destruction."""
+        self._restore_terminal_state()
+
+    # =========================================================================
+    # CLI INTERFACE METHODS
+    # =========================================================================
 
     def print_banner(self):
         """Shows the welcome banner with a 'particles' animation"""
@@ -145,26 +235,35 @@ class CLIInterface:
 
     async def get_user_input(self, prompt: str = "") -> str:
         """
-        Gets user input asynchronously
-        Detects @ for file selection
+        Gets user input asynchronously with HTML formatted prompt.
+        Detects @ for file selection.
+        Uses patch_stdout to prevent output conflicts.
 
         Args:
-            prompt: Prompt text
+            prompt: Prompt text (plain string or HTML)
 
         Returns:
             User input
         """
+        # Flush any pending TTY input before prompting
+        self._flush_pending_tty_input()
+
         if not prompt:
-            # Create prompt with mode indicator
+            # Create HTML formatted prompt with mode indicator (Nanobot-style)
             mode_indicator = "🔧" if self.current_mode == "agent" else "💬"
             mode_text = self.current_mode.upper()
-            prompt = f"[{mode_indicator} {mode_text}] You: "
+            prompt = HTML(f"<b fg='ansibrightcyan'>[{mode_indicator} {mode_text}]</b> <b fg='ansiyellow'>You:</b> ")
+        elif isinstance(prompt, str):
+            # Convert plain string to HTML if needed
+            prompt = HTML(f"<ansiyellow>{prompt}</ansiyellow>")
 
         try:
-            # Ejecutar el prompt en un executor para no bloquear el loop
-            loop = asyncio.get_event_loop()
-            user_input = await loop.run_in_executor(None, lambda: self.session.prompt(prompt))
-            user_input = user_input.strip()
+            # Use patch_stdout to prevent conflicts with Rich output
+            with patch_stdout():
+                # Ejecutar el prompt en un executor para no bloquear el loop
+                loop = asyncio.get_event_loop()
+                user_input = await loop.run_in_executor(None, lambda: self.session.prompt(prompt))
+                user_input = user_input.strip()
 
             # Check for @ mentions
             if "@" in user_input:
@@ -172,7 +271,14 @@ class CLIInterface:
 
             return user_input
         except (EOFError, KeyboardInterrupt):
+            # Restore terminal state on interrupt
+            self._restore_terminal_state()
             return "/exit"
+        except Exception as e:
+            # Restore terminal state on any error
+            self._restore_terminal_state()
+            self.console.print(f"[red]Error getting input: {e}[/red]")
+            return ""
 
     async def _process_file_mentions(self, user_input: str) -> str:
         """
@@ -595,6 +701,16 @@ DAVEAGENT_MODEL=deepseek-reasoner
 **Subagents (Parallel Execution):**
 • `/subagents` - List all active subagents
 • `/subagent-status <id>` - Show detailed status of a specific subagent
+
+**Cron (Scheduled Tasks):**
+• `/cron list` - List all scheduled jobs
+• `/cron add at <time> <task>` - Schedule one-time task (e.g., 2026-02-20T15:30)
+• `/cron add every <interval> <task>` - Schedule recurring task (e.g., 1h, 30m, 2d)
+• `/cron add cron '<expr>' <task>` - Schedule with cron expression (e.g., '0 9 * * *')
+• `/cron enable <id>` - Enable a disabled job
+• `/cron disable <id>` - Disable a job temporarily
+• `/cron remove <id>` - Delete a job permanently
+• `/cron run <id>` - Manually trigger a job now
 
 **Mention Specific Files:**
 

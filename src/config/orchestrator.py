@@ -11,6 +11,7 @@ warnings.filterwarnings(
     "ignore", category=DeprecationWarning, module="chromadb.api.collection_configuration"
 )
 
+import asyncio
 import logging
 import os
 import sys
@@ -322,6 +323,20 @@ class AgentOrchestrator:
 
 
         # =====================================================================
+        # MESSAGEBUS SYSTEM INITIALIZATION (FASE 3: Auto-Injection)
+        # =====================================================================
+        # Initialize MessageBus for auto-injection of system messages
+        # Inspired by Nanobot's architecture for automatic result injection
+        # =====================================================================
+        from src.bus import MessageBus
+
+        self.message_bus = MessageBus()
+        self.logger.info("✓ MessageBus initialized for auto-injection")
+
+        # System message detector (background task for auto-injection)
+        self._detector_running = False
+        self._detector_task = None
+
         # SUBAGENT SYSTEM INITIALIZATION
         # =====================================================================
         # Initialize parallel subagent execution system
@@ -336,6 +351,7 @@ class AgentOrchestrator:
             event_bus=self.subagent_event_bus,
             orchestrator_factory=self._create_subagent_orchestrator,
             base_tools=self.all_tools["read_only"] + self.all_tools["modification"],
+            message_bus=self.message_bus,  # NEW: Pass MessageBus for auto-injection
         )
 
         # Initialize spawn tool with manager
@@ -359,6 +375,17 @@ class AgentOrchestrator:
         # Subscribe to subagent events
         self.subagent_event_bus.subscribe("completed", self._on_subagent_completed)
         self.subagent_event_bus.subscribe("failed", self._on_subagent_failed)
+
+        # Cron system initialization
+        from pathlib import Path
+        from src.cron import CronService
+
+        cron_storage = Path(os.getcwd()) / ".daveagent" / "cron_jobs.json"
+        self.cron_service = CronService(
+            storage_path=cron_storage,
+            on_job=self._on_cron_job_triggered
+        )
+        self.logger.info("✓ Cron service initialized")
 
         # System components
         if headless:
@@ -776,5 +803,255 @@ Suggest possible next steps or alternatives if appropriate."""
                 'failed': True
             })
             self.logger.debug(f"Queued subagent failure announcement for '{label}'")
+
+    async def _on_cron_job_triggered(self, job) -> None:
+        """Handle cron job trigger by spawning a subagent.
+
+        When a cron job fires, spawn a subagent to execute the task.
+        The subagent will run in the background and report results via announcements.
+
+        Args:
+            job: CronJob instance that was triggered
+        """
+        self.cli.print_info(f"⏰ Cron job triggered: {job.name}")
+        self.logger.info(f"Cron job {job.id} ({job.name}) triggered at scheduled time")
+
+        # Spawn subagent to execute the cron task
+        if hasattr(self, 'subagent_manager'):
+            try:
+                label = f"cron:{job.name[:30]}"
+                subagent_id = await self.subagent_manager.spawn(
+                    task=job.task,
+                    label=label,
+                    parent_task_id="cron",
+                    max_iterations=15
+                )
+                self.logger.info(f"Spawned subagent {subagent_id} for cron job {job.id}")
+                self.cli.print_success(f"✓ Spawned subagent {subagent_id} for cron task")
+            except Exception as e:
+                self.logger.error(f"Failed to spawn subagent for cron job {job.id}: {e}")
+                self.cli.print_error(f"✗ Failed to execute cron job: {e}")
+        else:
+            self.logger.warning("Subagent manager not available for cron job execution")
+            self.cli.print_warning("⚠️ Cannot execute cron job - subagent system not initialized")
+
+    # =========================================================================
+    # SYSTEM MESSAGE DETECTOR (FASE 3: Auto-Injection)
+    # =========================================================================
+    # Background task that monitors MessageBus and automatically injects
+    # system messages (subagent results, cron results) into agent conversation
+    # =========================================================================
+
+    async def start_system_message_detector(self):
+        """Start the background system message detector.
+
+        This launches a background asyncio task that continuously monitors
+        the MessageBus for system messages and automatically injects them
+        into the agent conversation (Nanobot-style).
+        """
+        if self._detector_running:
+            self.logger.warning("System message detector already running")
+            return
+
+        self._detector_running = True
+        self._detector_task = asyncio.create_task(self._system_message_detector())
+        self.logger.info("✓ System message detector started (auto-injection enabled)")
+
+    async def stop_system_message_detector(self):
+        """Stop the background system message detector.
+
+        Gracefully stops the detector task and waits for it to complete.
+        """
+        if not self._detector_running:
+            return
+
+        self._detector_running = False
+
+        if self._detector_task:
+            try:
+                # Wait for detector to finish with timeout
+                await asyncio.wait_for(self._detector_task, timeout=2.0)
+            except asyncio.TimeoutError:
+                self.logger.warning("System message detector did not stop gracefully, cancelling")
+                self._detector_task.cancel()
+                try:
+                    await self._detector_task
+                except asyncio.CancelledError:
+                    pass
+
+        self.logger.info("✓ System message detector stopped")
+
+    async def _system_message_detector(self):
+        """Background task that detects and processes system announcements.
+
+        This runs continuously in the background, monitoring the MessageBus
+        for pending system messages. When a message arrives, it automatically
+        injects it into the agent conversation as if the user sent it.
+
+        This implements Nanobot-style auto-injection, eliminating the need
+        for the agent to manually call check_subagent_results.
+        """
+        self.logger.debug("System message detector loop started")
+
+        while self._detector_running:
+            try:
+                # Check for pending system messages (non-blocking with timeout)
+                sys_msg = await self.message_bus.consume_inbound(timeout=0.5)
+
+                if sys_msg:
+                    self.logger.info(
+                        f"Detected system message: {sys_msg.message_type} "
+                        f"from {sys_msg.sender_id}"
+                    )
+
+                    try:
+                        # Process the system message
+                        await self._process_system_message(sys_msg)
+                    except Exception as e:
+                        self.logger.error(
+                            f"Error processing system message from {sys_msg.sender_id}: {e}",
+                            exc_info=True
+                        )
+                        # Don't stop the detector on processing errors
+
+            except Exception as e:
+                self.logger.error(f"Error in system message detector: {e}", exc_info=True)
+                # Brief sleep to avoid tight loop on persistent errors
+                await asyncio.sleep(1.0)
+
+        self.logger.debug("System message detector loop stopped")
+
+    async def _process_system_message(self, sys_msg):
+        """Process a system message and inject into agent conversation.
+
+        This method takes a SystemMessage from the MessageBus and injects
+        it into the agent's conversation context as if it were a user message.
+        The agent then processes it naturally and responds to the user.
+
+        This is the core of Nanobot-style auto-injection.
+
+        Args:
+            sys_msg: SystemMessage to process
+        """
+        self.logger.debug(f"Processing system message: {sys_msg.message_type}")
+
+        # Display visual notification to user
+        if sys_msg.message_type == "subagent_result":
+            status = sys_msg.metadata.get("status", "ok")
+            label = sys_msg.metadata.get("label", "unknown")
+
+            if status == "ok":
+                self.cli.print_success(f"📥 Subagent '{label}' completed - processing results...")
+            else:
+                self.cli.print_warning(f"📥 Subagent '{label}' failed - processing error...")
+        elif sys_msg.message_type == "cron_result":
+            self.cli.print_info(f"📥 Cron job result received - processing...")
+        else:
+            self.cli.print_info(f"📥 System message received: {sys_msg.message_type}")
+
+        # Log to conversation tracker for persistence (always, regardless of team)
+        if hasattr(self, 'conversation_tracker'):
+            try:
+                self.conversation_tracker.add_message(
+                    role="system",
+                    content=sys_msg.content,
+                    metadata={
+                        "type": "subagent_result",
+                        "message_type": sys_msg.message_type,
+                        "sender_id": sys_msg.sender_id,
+                        "timestamp": sys_msg.timestamp.isoformat() if hasattr(sys_msg.timestamp, 'isoformat') else str(sys_msg.timestamp),
+                        **sys_msg.metadata
+                    }
+                )
+                self.logger.debug("System message logged to conversation tracker")
+            except Exception as log_error:
+                self.logger.warning(f"Failed to log system message to tracker: {log_error}")
+
+        # Check if we have an active team to process the message
+        if not hasattr(self, 'main_team') or self.main_team is None:
+            # Fallback: just display the content if no team is active
+            self.logger.warning("No active team - displaying system message directly")
+            self.cli.print_info(f"\n{sys_msg.content}\n")
+            return
+
+        # Process message through LLM for natural response
+        try:
+            # Start thinking indicator
+            self.cli.start_thinking()
+
+            # Track for logging
+            agent_messages_shown = set()
+            spinner_active = True
+
+            # Run team stream with the system message content
+            stream_task = asyncio.create_task(self.main_team.run_stream(task=sys_msg.content))
+
+            try:
+                async for msg in await stream_task:
+                    # Only process messages that are NOT from the user
+                    if hasattr(msg, "source") and msg.source != "user":
+                        agent_name = msg.source
+                        msg_type = type(msg).__name__
+
+                        # Determine message content
+                        if hasattr(msg, "content"):
+                            content = msg.content
+                        else:
+                            content = str(msg)
+
+                        # Create unique key to avoid duplicates
+                        try:
+                            if isinstance(content, list):
+                                content_str = str(content)
+                            else:
+                                content_str = content
+                            message_key = f"{agent_name}:{hash(content_str)}"
+                        except TypeError:
+                            message_key = f"{agent_name}:{hash(str(content))}"
+
+                        if message_key not in agent_messages_shown:
+                            # Handle different message types
+                            if msg_type == "ThoughtEvent":
+                                # Show agent thoughts
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
+                                self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
+
+                            elif msg_type == "ToolCallRequestEvent":
+                                # Show tool calls
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
+                                self.cli.print_info(f"🔧 {agent_name} calling tool...", agent_name)
+
+                            elif msg_type == "ToolCallExecutionEvent":
+                                # Show tool results (brief)
+                                pass  # Don't show to avoid clutter
+
+                            elif msg_type == "TextMessage":
+                                # This is the final agent response
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
+                                self.cli.print_agent_message(content_str, agent_name)
+
+                            agent_messages_shown.add(message_key)
+
+            except asyncio.CancelledError:
+                self.logger.info("System message processing cancelled")
+            finally:
+                # Ensure spinner is stopped
+                if spinner_active:
+                    self.cli.stop_thinking(clear=True)
+
+            self.logger.info(f"✓ System message from {sys_msg.sender_id} processed successfully")
+
+        except Exception as e:
+            self.logger.error(f"Error running agent with system message: {e}", exc_info=True)
+            # Fallback: just display the content
+            self.cli.stop_thinking(clear=True)
+            self.cli.print_warning(f"⚠️ Could not process through agent, displaying directly:")
+            self.cli.print_info(f"\n{sys_msg.content}\n")
 
 

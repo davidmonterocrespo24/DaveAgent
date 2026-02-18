@@ -51,6 +51,8 @@ class SubAgentManager:
         event_bus: SubagentEventBus,
         orchestrator_factory: Callable,
         base_tools: list[Callable],
+        message_bus=None,  # Optional MessageBus for auto-injection
+        max_concurrent: int = 10,  # Maximum concurrent subagents
     ):
         """Initialize the SubAgent Manager.
 
@@ -61,10 +63,14 @@ class SubAgentManager:
                 mode (str)
             base_tools: List of all available tools. spawn_subagent will be
                 filtered out for subagents to prevent recursion
+            message_bus: Optional MessageBus for auto-injection of results
+            max_concurrent: Maximum number of concurrent subagents (default: 10)
         """
         self.event_bus = event_bus
         self.orchestrator_factory = orchestrator_factory
         self.base_tools = base_tools
+        self.message_bus = message_bus  # NEW: For auto-injection
+        self.max_concurrent = max_concurrent  # NEW: Limit concurrent subagents
         self._running_tasks: dict[str, asyncio.Task] = {}
         self._results: dict[str, dict] = {}
 
@@ -97,6 +103,14 @@ class SubAgentManager:
             ... )
             "Subagent 'test runner' spawned (ID: 7f3a2b1c)"
         """
+        # Check concurrent limit
+        if len(self._running_tasks) >= self.max_concurrent:
+            raise RuntimeError(
+                f"Maximum concurrent subagents ({self.max_concurrent}) reached. "
+                f"Wait for some to complete before spawning more. "
+                f"Currently running: {len(self._running_tasks)}"
+            )
+
         subagent_id = str(uuid.uuid4())[:8]
         label = label or "background task"
 
@@ -193,6 +207,10 @@ class SubAgentManager:
                 }
             ))
 
+            # NEW: Auto-inject result into conversation via MessageBus (Nanobot-style)
+            if self.message_bus:
+                await self._inject_result(subagent_id, label, task, result, "ok")
+
         except Exception as e:
             # Store error result
             self._results[subagent_id] = {
@@ -212,6 +230,11 @@ class SubAgentManager:
                     "status": "error"
                 }
             ))
+
+            # NEW: Auto-inject failure into conversation via MessageBus (Nanobot-style)
+            if self.message_bus:
+                error_msg = f"Error: {str(e)}"
+                await self._inject_result(subagent_id, label, task, error_msg, "error")
 
     async def get_status(self, subagent_id: str) -> dict:
         """Get current status of a subagent.
@@ -295,3 +318,54 @@ class SubAgentManager:
         # Wait for all cancellations to complete
         if tasks_to_cancel:
             await asyncio.gather(*tasks_to_cancel, return_exceptions=True)
+
+    async def _inject_result(
+        self,
+        subagent_id: str,
+        label: str,
+        task: str,
+        result: str,
+        status: str
+    ) -> None:
+        """
+        Inject subagent result into the conversation via MessageBus (Nanobot-style).
+
+        This is the auto-injection mechanism that makes results appear automatically
+        in the agent conversation without requiring the agent to call check_subagent_results.
+
+        Args:
+            subagent_id: Subagent identifier
+            label: Human-readable label
+            task: Original task description
+            result: Result or error message
+            status: "ok" or "error"
+        """
+        from src.bus import SystemMessage
+
+        # Format announcement similar to Nanobot's style
+        status_text = "completed successfully" if status == "ok" else "failed"
+
+        announce_content = f"""[Background Task '{label}' {status_text}]
+
+Task: {task}
+
+Result:
+{result}
+
+Please summarize this naturally for the user. Keep it brief (1-2 sentences).
+Do not mention technical details like "subagent" or task IDs."""
+
+        # Create system message for injection
+        sys_msg = SystemMessage(
+            message_type="subagent_result",
+            sender_id=f"subagent:{subagent_id}",
+            content=announce_content,
+            metadata={
+                "subagent_id": subagent_id,
+                "label": label,
+                "status": status,
+            }
+        )
+
+        # Inject into MessageBus
+        await self.message_bus.publish_inbound(sys_msg)
