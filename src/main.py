@@ -1050,7 +1050,7 @@ TITLE:"""
                 self.cli.print_warning("Subagent system not initialized")
                 return
 
-            manager = self.orchestrator.subagent_manager
+            manager = self.subagent_manager
             running_tasks = manager._running_tasks
 
             if not running_tasks:
@@ -1111,7 +1111,7 @@ TITLE:"""
                 self.cli.print_warning("Subagent system not initialized")
                 return
 
-            manager = self.orchestrator.subagent_manager
+            manager = self.subagent_manager
 
             # Check if subagent exists
             if subagent_id not in manager._running_tasks and subagent_id not in manager._results:
@@ -1605,14 +1605,57 @@ TITLE:"""
 
             # Silence autogen internal loggers to avoid leaking raw tracebacks.
             self.logger.debug("🚀 Stream task started")
+
+            # Track last message time to detect stuck state
+            last_message_time = asyncio.get_event_loop().time()
+            message_timeout = 600  # 10 minutes without messages = might be stuck (long tasks need time)
+
+            # Log progress every N tool calls
+            last_progress_log = 0
+            progress_log_interval = 10  # Log every 10 tool calls
+
             try:
                 async for msg in await stream_task:
+                    # Update last message time
+                    last_message_time = asyncio.get_event_loop().time()
                     message_count += 1
                     msg_type = type(msg).__name__
-                    self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
+                    msg_source = getattr(msg, "source", "unknown")
+
+                    # DIAGNOSTIC: Log ALL message types with full details
+                    content_preview = ""
+                    if hasattr(msg, "content"):
+                        c = msg.content
+                        if isinstance(c, str):
+                            content_preview = c[:80]
+                        elif isinstance(c, list):
+                            content_preview = f"[list with {len(c)} items]"
+                        else:
+                            content_preview = str(c)[:80]
+
+                    self.logger.debug(
+                        f"📨 Msg #{message_count} | Type: {msg_type:30} | Source: '{msg_source:10}' | "
+                        f"Preview: {content_preview}"
+                    )
 
                     # Only process messages that are NOT from the user
-                    if hasattr(msg, "source") and msg.source != "user":
+                    # UPDATED: Also process messages without source (fallback)
+                    should_process = False
+                    if hasattr(msg, "source"):
+                        if msg.source != "user":
+                            should_process = True
+                        else:
+                            # DIAGNOSTIC: Check if this is actually an agent response incorrectly marked
+                            if msg_type == "TextMessage" and hasattr(msg, "content"):
+                                content = str(msg.content)
+                                # Agent responses typically don't start with user-like phrases
+                                if any(marker in content for marker in ["I'll", "I will", "I've", "Let me", "I have", "Based on", "TERMINATE"]):
+                                    self.logger.warning(
+                                        f"⚠️ TextMessage with source='user' but appears to be agent response! "
+                                        f"Content: {content[:100]}"
+                                    )
+
+                    if should_process:
                         agent_name = msg.source
 
                         # Track which agents were used
@@ -1659,6 +1702,14 @@ TITLE:"""
                                 # Stop spinner to show tool call, then restart with specific message
                                 if spinner_active:
                                     self.cli.stop_thinking(clear=True)
+
+                                # Log progress every N tool calls
+                                if len(tools_called) - last_progress_log >= progress_log_interval:
+                                    self.logger.info(
+                                        f"📊 Progress: {len(tools_called)} tool calls completed, "
+                                        f"{message_count} messages processed"
+                                    )
+                                    last_progress_log = len(tools_called)
 
                                 if isinstance(content, list):
                                     tool_names = []
@@ -2298,7 +2349,7 @@ TITLE:"""
         self.logger.info("⏰ Cron service started")
 
         # Start system message detector (FASE 3: Auto-Injection)
-        await self.orchestrator.start_system_message_detector()
+        await self.start_system_message_detector()
 
         # Check for previous sessions and offer to resume
         await self._check_and_resume_session()
@@ -2353,7 +2404,7 @@ TITLE:"""
 
             # Stop system message detector (FASE 3: Auto-Injection)
             try:
-                await self.orchestrator.stop_system_message_detector()
+                await self.stop_system_message_detector()
             except Exception as e:
                 self.logger.error(f"Error stopping system message detector: {e}")
 

@@ -21,6 +21,12 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
     """
     import asyncio
 
+    # Check if running in headless mode (subagents/background tasks)
+    from src.utils.headless_context import is_headless
+    if is_headless():
+        # Auto-approve in headless mode (no user interaction)
+        return None
+
     try:
         from InquirerPy import inquirer
         from InquirerPy.base.control import Choice

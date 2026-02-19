@@ -15,6 +15,10 @@ from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.patch_stdout import patch_stdout
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
+from prompt_toolkit.completion import Completer, Completion, WordCompleter, merge_completers
+from prompt_toolkit.document import Document
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
@@ -33,6 +37,101 @@ except ImportError:
     TERMIOS_AVAILABLE = False  # Windows doesn't have termios
 
 
+class FileCompleter(Completer):
+    """Custom completer for file paths after @ symbol with fuzzy matching."""
+
+    def __init__(self, base_dir: str = "."):
+        self.base_dir = Path(base_dir)
+        self._file_cache = []
+        self._cache_time = 0
+        self._cache_ttl = 5  # Refresh cache every 5 seconds
+
+    def _refresh_cache(self):
+        """Refresh the file cache if TTL expired."""
+        current_time = time.time()
+        if current_time - self._cache_time > self._cache_ttl:
+            self._file_cache = []
+            try:
+                # Get all files recursively, excluding common directories
+                for path in self.base_dir.rglob("*"):
+                    if path.is_file():
+                        # Skip common excluded directories
+                        parts = path.parts
+                        if any(excluded in parts for excluded in [
+                            '.git', 'node_modules', '__pycache__', '.venv',
+                            'venv', '.pytest_cache', '.mypy_cache', 'dist', 'build'
+                        ]):
+                            continue
+
+                        # Store relative path
+                        try:
+                            rel_path = str(path.relative_to(self.base_dir))
+                            self._file_cache.append(rel_path)
+                        except ValueError:
+                            continue
+            except Exception:
+                pass
+
+            self._cache_time = current_time
+
+    def get_completions(self, document: Document, complete_event):
+        """Generate completions for files after @ symbol."""
+        text = document.text_before_cursor
+
+        # Find the last @ symbol
+        at_pos = text.rfind('@')
+        if at_pos == -1:
+            return
+
+        # Extract the query after @
+        query = text[at_pos + 1:]
+
+        # Don't complete if there's a space after @ (means they finished the mention)
+        if ' ' in query:
+            return
+
+        # Refresh cache if needed
+        self._refresh_cache()
+
+        # Fuzzy match files
+        query_lower = query.lower()
+        matches = []
+
+        for file_path in self._file_cache:
+            file_lower = file_path.lower()
+
+            # Simple fuzzy matching: all query chars must appear in order
+            if self._fuzzy_match(query_lower, file_lower):
+                # Calculate score (shorter paths score higher)
+                score = len(file_path)
+                if file_lower.startswith(query_lower):
+                    score -= 1000  # Prefix matches score much higher
+
+                matches.append((score, file_path))
+
+        # Sort by score and yield top 20
+        matches.sort(key=lambda x: x[0])
+        for _, file_path in matches[:20]:
+            # Show completion starting from the query position
+            yield Completion(
+                file_path,
+                start_position=-len(query),
+                display=f"📄 {file_path}",
+            )
+
+    def _fuzzy_match(self, query: str, text: str) -> bool:
+        """Check if all characters in query appear in text in order."""
+        if not query:
+            return True
+
+        query_idx = 0
+        for char in text:
+            if query_idx < len(query) and char == query[query_idx]:
+                query_idx += 1
+
+        return query_idx == len(query)
+
+
 class CLIInterface:
     """Rich and interactive CLI interface for DaveAgent"""
 
@@ -44,9 +143,51 @@ class CLIInterface:
         history_dir.mkdir(exist_ok=True)
         history_file = history_dir / ".agent_history"
 
+        # Setup key bindings for bracketed paste mode
+        kb = KeyBindings()
+
+        @kb.add(Keys.BracketedPaste)
+        def _(event):
+            """Handle bracketed paste - insert content without executing"""
+            # Get pasted data
+            data = event.data
+            # Insert into buffer as single block (prevents line-by-line execution)
+            event.current_buffer.insert_text(data)
+
+        # Setup command completer (slash commands)
+        command_words = [
+            '/help', '/exit', '/quit',
+            '/agent-mode', '/chat-mode',
+            '/new-session', '/load-session', '/save-session', '/list-sessions',
+            '/config', '/set-model', '/set-url',
+            '/cron', '/cron-list', '/cron-add', '/cron-remove', '/cron-enable',
+            '/subagents', '/subagent-status',
+            '/index', '/index-status', '/index-rebuild',
+            '/memory', '/memory-clear',
+            '/stats', '/clear', '/history',
+            '/debug', '/debug-on', '/debug-off',
+            '/telemetry', '/telemetry-on', '/telemetry-off',
+        ]
+        command_completer = WordCompleter(
+            command_words,
+            ignore_case=True,
+            sentence=True,  # Allow completion in middle of sentence
+        )
+
+        # Setup file completer for @ mentions
+        file_completer = FileCompleter(base_dir=".")
+
+        # Merge completers: commands + files
+        combined_completer = merge_completers([command_completer, file_completer])
+
         self.session = PromptSession(
             history=FileHistory(str(history_file)),
             auto_suggest=AutoSuggestFromHistory(),
+            key_bindings=kb,  # Enable bracketed paste mode
+            completer=combined_completer,  # Enable command and file completion
+            complete_while_typing=True,  # Show completions as you type
+            enable_open_in_editor=False,
+            multiline=False,  # Enter submits (single line mode)
         )
         self.conversation_active = False
         self.file_indexer = None  # Will be initialized on first use
@@ -854,3 +995,86 @@ Simply write what you need the agent to do. The agent will:
                 content_parts.append(f"\n⚠️ Error reading {file_path}: {e}\n")
 
         return "\n".join(content_parts)
+
+    # =========================================================================
+    # SUBAGENT VISUALIZATION (Enhanced Terminal Integration)
+    # =========================================================================
+
+    def print_subagent_spawned(self, subagent_id: str, label: str, task: str):
+        """Show enhanced subagent spawn notification.
+
+        Args:
+            subagent_id: Unique ID of the subagent
+            label: Human-readable label
+            task: Task description
+        """
+        self.console.print(
+            Panel(
+                f"[cyan]Task:[/cyan] {task}\n\n"
+                f"[dim]Subagent ID: {subagent_id}[/dim]\n"
+                f"[dim]This task will run in the background. You'll be notified when it completes.[/dim]",
+                title=f"[bold green]🚀 Subagent Spawned: {label}[/bold green]",
+                border_style="green",
+                padding=(1, 2)
+            )
+        )
+
+    def print_subagent_progress(self, subagent_id: str, label: str, progress_msg: str):
+        """Show subagent progress update.
+
+        Args:
+            subagent_id: Unique ID of the subagent
+            label: Human-readable label
+            progress_msg: Progress message
+        """
+        self.console.print(
+            f"[dim]🔄 Subagent '{label}' ({subagent_id[:8]}): {progress_msg}[/dim]"
+        )
+
+    def print_subagent_completed(self, subagent_id: str, label: str, summary: str):
+        """Show enhanced subagent completion notification.
+
+        Args:
+            subagent_id: Unique ID of the subagent
+            label: Human-readable label
+            summary: Brief summary of results
+        """
+        self.console.print(
+            Panel(
+                f"[green]{summary}[/green]\n\n"
+                f"[dim]Subagent ID: {subagent_id}[/dim]\n"
+                f"[dim]The results are being processed by the agent...[/dim]",
+                title=f"[bold green]✓ Subagent Completed: {label}[/bold green]",
+                border_style="green",
+                padding=(1, 2)
+            )
+        )
+
+    def print_subagent_failed(self, subagent_id: str, label: str, error: str):
+        """Show enhanced subagent failure notification.
+
+        Args:
+            subagent_id: Unique ID of the subagent
+            label: Human-readable label
+            error: Error message
+        """
+        self.console.print(
+            Panel(
+                f"[red]{error}[/red]\n\n"
+                f"[dim]Subagent ID: {subagent_id}[/dim]\n"
+                f"[dim]The agent will handle this failure and suggest alternatives.[/dim]",
+                title=f"[bold red]✗ Subagent Failed: {label}[/bold red]",
+                border_style="red",
+                padding=(1, 2)
+            )
+        )
+
+    def print_background_notification(self, title: str, message: str, style: str = "cyan"):
+        """Show a background notification (non-intrusive).
+
+        Args:
+            title: Notification title
+            message: Notification message
+            style: Color style (cyan, green, yellow, red)
+        """
+        self.console.print(f"[dim][{style}]💬 {title}:[/{style}] {message}[/dim]")

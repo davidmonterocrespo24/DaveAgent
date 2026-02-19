@@ -64,6 +64,12 @@ class AgentOrchestrator:
         self.conversation_tracker = get_conversation_tracker()
         # Mode system: "agent" (with tools) or "chat" (without modification tools)
         self.current_mode = "agent"  # Default mode
+        # Headless mode: disable user prompts (for subagents and background tasks)
+        self.headless = headless
+
+        # Set headless context for current execution context
+        from src.utils.headless_context import set_headless
+        set_headless(headless)
         # Load configuration (API key, URL, model)
         from src.config import get_settings
 
@@ -373,6 +379,7 @@ class AgentOrchestrator:
         self.all_tools["read_only"].append(check_subagent_results)
 
         # Subscribe to subagent events
+        self.subagent_event_bus.subscribe("spawned", self._on_subagent_spawned)
         self.subagent_event_bus.subscribe("completed", self._on_subagent_completed)
         self.subagent_event_bus.subscribe("failed", self._on_subagent_failed)
 
@@ -496,7 +503,7 @@ class AgentOrchestrator:
             system_message=system_prompt,
             model_client=coder_client,
             tools=coder_tools,  # Includes memory RAG tools
-            max_tool_iterations=25,
+            max_tool_iterations=300,  # High limit for long-running tasks
             reflect_on_tool_use=True,  # Show agent reasoning before tool calls
             model_context=coder_context,  # Limit context to prevent token overflow
         )
@@ -525,7 +532,7 @@ class AgentOrchestrator:
         # - Eliminates "multiple system messages" problem
         # =====================================================================
 
-        termination_condition = TextMentionTermination("TERMINATE") | MaxMessageTermination(50)
+        termination_condition = TextMentionTermination("TERMINATE") | MaxMessageTermination(1000)  # High limit for long-running conversations
 
         self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
         self.logger.debug("[SELECTOR] Participants: Planner, Coder")
@@ -589,7 +596,7 @@ class AgentOrchestrator:
             # If the last message is from the User
             if last_message.source == "user":
                 # Default to Planner for normal requests
-                self.logger.debug("[Selector] User message -> Starting with Planner")
+                self.logger.debug("[Selector] User message -> Starting with Coder
                 return "Coder"
 
             # FALLBACK: Never return None unless we explicitly want to terminate
@@ -724,6 +731,21 @@ class AgentOrchestrator:
 
         return "\n".join(result_parts) if result_parts else "Task completed"
 
+    async def _on_subagent_spawned(self, event) -> None:
+        """Handle subagent spawn event.
+
+        Shows enhanced notification when a subagent is spawned.
+
+        Args:
+            event: SubagentEvent with spawn data
+        """
+        label = event.content.get('label', 'unknown')
+        task = event.content.get('task', '')
+
+        # Show enhanced spawn notification
+        self.cli.print_subagent_spawned(event.subagent_id, label, task)
+        self.logger.info(f"Subagent {event.subagent_id} ({label}) spawned for task: {task[:100]}")
+
     async def _on_subagent_completed(self, event) -> None:
         """Handle subagent completion event.
 
@@ -738,8 +760,9 @@ class AgentOrchestrator:
         task = event.content.get('task', '')
         result_preview = result[:200] + "..." if len(result) > 200 else result
 
-        # Show notification in CLI
-        self.cli.print_success(f"✓ Subagent '{label}' completed")
+        # Log completion (don't print directly to avoid ANSI code issues in async context)
+        # The subagent result will be announced via system message injection
+        self.logger.info(f"✓ Subagent '{label}' ({event.subagent_id[:8]}) completed: {result_preview}")
         self.logger.info(f"Subagent {event.subagent_id} ({label}) completed successfully")
 
         # NANOBOT-STYLE: Create announcement message
@@ -778,7 +801,8 @@ Do not mention technical terms like "subagent" or IDs."""
         task = event.content.get('task', '')
         error = event.content.get('error', 'Unknown error')
 
-        self.cli.print_error(f"✗ Subagent '{label}' failed")
+        # Show enhanced failure notification
+        self.cli.print_subagent_failed(event.subagent_id, label, error)
         self.logger.error(f"Subagent {event.subagent_id} ({label}) failed: {error}")
 
         # NANOBOT-STYLE: Create failure announcement
