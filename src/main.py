@@ -2142,8 +2142,58 @@ TITLE:"""
             # Stop spinner on error
             self.cli.stop_thinking()
 
-            # Handle authentication errors (401) by prompting reconfiguration
             error_str = str(e)
+
+            # Handle token limit errors (BadRequestError 400) - should be rare with compression
+            is_token_limit_error = (
+                "maximum context length" in error_str.lower()
+                or "requested" in error_str and "tokens" in error_str
+                or "BadRequestError" in type(e).__name__ and "400" in error_str
+            )
+
+            if is_token_limit_error:
+                self.logger.error(
+                    "🚨 Token limit exceeded! This should have been prevented by compression. "
+                    "Forcing emergency context cleanup..."
+                )
+
+                self.cli.print_error(
+                    "⚠️ Context exceeded maximum tokens. The compression system should have "
+                    "prevented this, but we'll perform emergency cleanup."
+                )
+
+                # Emergency fallback: Reset agent contexts to smaller buffer
+                try:
+                    from autogen_core.model_context import BufferedChatCompletionContext
+
+                    # Reduce buffer size dramatically for emergency recovery
+                    self.coder_agent._model_context = BufferedChatCompletionContext(buffer_size=30)
+                    self.planning_agent._model_context = BufferedChatCompletionContext(buffer_size=30)
+
+                    self.cli.print_warning(
+                        "⚠️ Agent contexts have been reset to keep only recent messages. "
+                        "Some conversation history was lost."
+                    )
+
+                    self.cli.print_info(
+                        "💡 To prevent this, consider starting a new session with /new-session "
+                        "or saving current progress with /save-state"
+                    )
+
+                    self.logger.info("Emergency context reset complete: buffer_size=30")
+
+                except Exception as reset_error:
+                    self.logger.error(f"Failed to reset contexts: {reset_error}")
+                    self.cli.print_error(
+                        "Failed to recover from token limit error. Please start a new session with /new-session"
+                    )
+
+                # Still log the error but don't continue with normal error handling
+                self.json_logger.log_error(e, context="token_limit_exceeded")
+                await self._auto_save_agent_states()
+                return
+
+            # Handle authentication errors (401) by prompting reconfiguration
             is_auth_error = (
                 "401" in error_str
                 or "authentication" in error_str.lower()
