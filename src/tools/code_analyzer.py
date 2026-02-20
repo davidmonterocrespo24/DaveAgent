@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Any
 
 
-async def analyze_python_file(filepath: str) -> str:
+async def analyze_python_file(filepath: str, explanation: str = "") -> str:
     """
     Analyzes a Python file and extracts its structure (functions, classes, imports).
 
     Args:
         filepath: Path to the Python file
+        explanation: Optional description of why this file is being analyzed (shown in terminal)
 
     Returns:
         str: Detailed file analysis
@@ -80,13 +81,14 @@ async def analyze_python_file(filepath: str) -> str:
         return f"ERROR analyzing {filepath}: {str(e)}"
 
 
-async def find_function_definition(filepath: str, function_name: str) -> str:
+async def find_function_definition(filepath: str, function_name: str, explanation: str = "") -> str:
     """
     Finds the definition of a function in a Python file.
 
     Args:
         filepath: Path to the Python file
         function_name: Name of the function to search for
+        explanation: Optional description of why this function is being searched (shown in terminal)
 
     Returns:
         str: Function code or error message
@@ -125,12 +127,13 @@ async def find_function_definition(filepath: str, function_name: str) -> str:
         return f"ERROR: {str(e)}"
 
 
-async def list_all_functions(filepath: str) -> str:
+async def list_all_functions(filepath: str, explanation: str = "") -> str:
     """
     Lists all functions in a Python file.
 
     Args:
         filepath: Path to the Python file
+        explanation: Optional description of why functions are being listed (shown in terminal)
 
     Returns:
         str: List of functions with their signatures

@@ -801,7 +801,7 @@ TITLE:"""
             # Save session metadata to disk
             await self.state_manager.save_to_disk()
 
-            self.logger.info("💾 Auto-save: State saved successfully")
+            
 
         except Exception as e:
             # Don't fail if auto-save fails, just log
@@ -856,15 +856,6 @@ TITLE:"""
             # Get metadata and messages for display
             metadata = self.state_manager.get_session_metadata()
             messages = self.state_manager.get_session_history()
-
-            self.cli.print_success("✅ State saved successfully!")
-            self.cli.print_info(f"  • Title: {metadata.get('title', 'Untitled')}")
-            self.cli.print_info(f"  • Session ID: {session_id}")
-            self.cli.print_info(f"  • Location: {state_path}")
-            self.cli.print_info("  • Agents saved: 3")
-            self.cli.print_info(f"  • Messages saved: {len(messages)}")
-
-            self.logger.info(f"✅ State saved in session: {session_id}")
 
         except Exception as e:
             self.cli.stop_thinking()
@@ -1599,9 +1590,9 @@ TITLE:"""
             tools_called = []
 
             # Process messages with streaming using the ROUTER TEAM
-            # Create the stream task so it can be cancelled
-            stream_task = asyncio.create_task(self._run_team_stream(full_input))
-            self.current_task = stream_task
+            # _run_team_stream is async and returns an async generator
+            # We need to await it first to get the generator
+            stream_generator = await self._run_team_stream(full_input)
 
             # Silence autogen internal loggers to avoid leaking raw tracebacks.
             self.logger.debug("🚀 Stream task started")
@@ -1615,7 +1606,9 @@ TITLE:"""
             progress_log_interval = 10  # Log every 10 tool calls
 
             try:
-                async for msg in await stream_task:
+                # CRITICAL FIX: Iterate over async generator for true streaming
+                # The await above gets the generator, now we iterate over it
+                async for msg in stream_generator:
                     # Update last message time
                     last_message_time = asyncio.get_event_loop().time()
                     message_count += 1
@@ -1637,6 +1630,19 @@ TITLE:"""
                         f"📨 Msg #{message_count} | Type: {msg_type:30} | Source: '{msg_source:10}' | "
                         f"Preview: {content_preview}"
                     )
+
+                    # LOG FULL MESSAGE CONTENT for important types (helps debug missing messages)
+                    if msg_type in ["TextMessage", "ThoughtEvent"]:
+                        full_content = ""
+                        if hasattr(msg, "content"):
+                            full_content = str(msg.content)
+                        self.logger.info(
+                            f"📬 FULL MESSAGE RECEIVED:\n"
+                            f"   Type: {msg_type}\n"
+                            f"   Source: {msg_source}\n"
+                            f"   Content:\n{full_content}\n"
+                            f"   {'='*80}"
+                        )
 
                     # Only process messages that are NOT from the user
                     # UPDATED: Also process messages without source (fallback)
@@ -1661,6 +1667,19 @@ TITLE:"""
                         # Track which agents were used
                         if agent_name not in agents_used:
                             agents_used.append(agent_name)
+                    else:
+                        # Log why message was NOT processed
+                        skip_reason = "unknown"
+                        if hasattr(msg, "source"):
+                            if msg.source == "user":
+                                skip_reason = "source is 'user'"
+                        else:
+                            skip_reason = "no source attribute"
+                        self.logger.debug(
+                            f"⏭️  Skipping message: {msg_type} ({skip_reason})"
+                        )
+
+                    if should_process:
 
                         # Determine message content
                         if hasattr(msg, "content"):
@@ -1684,7 +1703,13 @@ TITLE:"""
                             message_key = f"{agent_name}:{hash(str(content))}"
 
                         if message_key not in agent_messages_shown:
+                            self.logger.debug(f"✅ Processing message (will show in terminal): {msg_type} from {agent_name}")
+
                             # SHOW DIFFERENT MESSAGE TYPES IN CONSOLE IN REAL-TIME
+                        else:
+                            self.logger.debug(f"⏭️  Skipping duplicate message: {msg_type} from {agent_name} (already shown)")
+
+                        if message_key not in agent_messages_shown:
                             if msg_type == "ThoughtEvent":
                                 # 💭 Show agent thoughts/reflections
                                 # Stop spinner for thoughts to show them clearly
@@ -1695,6 +1720,15 @@ TITLE:"""
                                 self.logger.debug(f"💭 Thought: {content_str}")
                                 # JSON Logger: Capture thought
                                 self.json_logger.log_thought(agent_name, content_str)
+                                agent_messages_shown.add(message_key)
+
+                            elif msg_type in ["ModelClientStreamingChunkEvent", "CodeGenerationEvent"]:
+                                # Show streaming chunks and code generation events (agent thinking)
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
+                                self.cli.print_thinking(f"🤔 {agent_name} is thinking...")
+                                self.logger.debug(f"🧠 {msg_type}: {content_str[:200]}")
                                 agent_messages_shown.add(message_key)
 
                             elif msg_type == "ToolCallRequestEvent":
@@ -1743,7 +1777,7 @@ TITLE:"""
                                                 self.cli.print_thinking(
                                                     f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
                                                 )
-                                                self.cli.print_code(
+                                                await self.cli.print_code(
                                                     file_content, target_file, max_lines=50
                                                 )
                                             elif tool_name == "edit_file" and isinstance(
@@ -1779,14 +1813,35 @@ TITLE:"""
                                                         "   (no changes detected in diff)"
                                                     )
                                             else:
-                                                # Default: show parameters as JSON (truncate if too long)
-                                                args_str = str(tool_args)
-                                                if len(args_str) > 200:
-                                                    args_str = args_str[:200] + "..."
-                                                self.cli.print_info(
-                                                    f"🔧 Calling tool: {tool_name} with parameters {args_str}",
-                                                    agent_name,
-                                                )
+                                                # Default: show explanation (if provided) + parameters
+                                                explanation = None
+                                                if isinstance(tool_args, dict):
+                                                    explanation = tool_args.get("explanation")
+
+                                                # Show explanation prominently if available
+                                                if explanation:
+                                                    # Parse tool name to make it more readable
+                                                    tool_display = tool_name.replace("_", " ").title()
+                                                    self.cli.print_info(
+                                                        f"🔧 {tool_display}: {explanation}",
+                                                        agent_name,
+                                                    )
+                                                    # Show compact parameters (without explanation)
+                                                    params_copy = {k: v for k, v in tool_args.items() if k != "explanation"}
+                                                    if params_copy:
+                                                        params_str = str(params_copy)
+                                                        if len(params_str) > 150:
+                                                            params_str = params_str[:150] + "..."
+                                                        self.cli.print_thinking(f"   Parameters: {params_str}")
+                                                else:
+                                                    # No explanation - show old format
+                                                    args_str = str(tool_args)
+                                                    if len(args_str) > 200:
+                                                        args_str = args_str[:200] + "..."
+                                                    self.cli.print_info(
+                                                        f"🔧 Calling tool: {tool_name} with parameters {args_str}",
+                                                        agent_name,
+                                                    )
 
                                             self.logger.debug(f"🔧 Tool call: {tool_name}")
                                             # JSON Logger: Capture tool call
@@ -1804,12 +1859,20 @@ TITLE:"""
 
                                     # Restart spinner ONCE with first tool name (not in loop)
                                     if tool_names:
+                                        self.logger.debug(
+                                            f"🚀 STARTING EXECUTION of {len(tool_names)} tool(s): {', '.join(tool_names)}"
+                                        )
                                         self.logger.debug(f"executing {tool_names[0]}")
+                                        # Start spinner with context about what's executing
+                                        tool_desc = tool_names[0].replace("_", " ")
+                                        self.cli.start_thinking(message=f"executing {tool_desc}")
                                         spinner_active = True
                                 agent_messages_shown.add(message_key)
 
                             elif msg_type == "ToolCallExecutionEvent":
                                 # ✅ Show tool results
+                                self.logger.debug(f"🎯 ToolCallExecutionEvent RECEIVED (results ready)")
+
                                 # Stop spinner to show results
                                 if spinner_active:
                                     self.cli.stop_thinking(clear=True)
@@ -1823,6 +1886,10 @@ TITLE:"""
                                                 str(execution_result.content)
                                                 if hasattr(execution_result, "content")
                                                 else "OK"
+                                            )
+                                            self.logger.debug(
+                                                f"🔧 Tool '{tool_name}' execution completed, "
+                                                f"result length: {len(result_content)} chars"
                                             )
 
                                             # 🚨 CRITICAL: Detect user cancellation in tool results
@@ -1900,8 +1967,8 @@ TITLE:"""
                                                         code_content = "\n".join(
                                                             result_content.split("\n")[1:]
                                                         )
-                                                        # Display with syntax highlighting
-                                                        self.cli.print_code(
+                                                        # Display with syntax highlighting (async to prevent blocking)
+                                                        await self.cli.print_code(
                                                             code_content, filename, max_lines=50
                                                         )
                                                         self.logger.debug(
@@ -1947,38 +2014,68 @@ TITLE:"""
                                                 success=True,
                                             )
 
-                                # Restart spinner for next action
-                                self.cli.start_thinking()
+                                # Restart spinner for next action with better context
+                                self.cli.start_thinking(message=f"{agent_name} analyzing results")
                                 spinner_active = True
                                 agent_messages_shown.add(message_key)
 
-                                # 💾 AUTO-SAVE after each tool execution
-                                await self._auto_save_agent_states()
+                                # 💾 AUTO-SAVE after each tool execution (non-blocking)
+                                asyncio.create_task(self._auto_save_agent_states())
 
                             elif msg_type == "TextMessage":
-                                # 💬 Show final agent response
-                                # Stop spinner for final response
-                                if spinner_active:
-                                    self.cli.stop_thinking(clear=True)
-                                    spinner_active = False
+                                # 💬 TextMessage can be:
+                                # 1. Agent reasoning/reflection BEFORE tool call (when reflect_on_tool_use=True)
+                                # 2. Final agent response
+                                # We need to distinguish between them
 
-                                preview = content_str[:100] if len(content_str) > 100 else content_str
-                                self.logger.log_message_processing(msg_type, agent_name, preview)
-                                self.cli.print_agent_message(content_str, agent_name)
-                                # JSON Logger: Capture agent message
-                                self.json_logger.log_agent_message(
-                                    agent_name=agent_name, content=content_str, message_type="text"
-                                )
-                                # Collect agent responses for logging
-                                all_agent_responses.append(f"[{agent_name}] {content_str}")
-                                agent_messages_shown.add(message_key)
+                                # Check if this looks like reasoning (typically shorter, discusses what to do)
+                                is_reasoning = False
+                                reasoning_indicators = [
+                                    "let me", "i'll", "i will", "first", "now", "next",
+                                    "to do this", "i need to", "i should", "let's",
+                                    "i can", "i must", "going to"
+                                ]
+                                content_lower = content_str.lower()
+                                if any(indicator in content_lower for indicator in reasoning_indicators):
+                                    # Short messages are likely reasoning
+                                    if len(content_str) < 500:
+                                        is_reasoning = True
 
-                                # After agent finishes, start spinner waiting for next agent
-                                self.cli.start_thinking(message="waiting for next action")
-                                spinner_active = True
+                                if is_reasoning:
+                                    # Show as thinking/reasoning (different style)
+                                    if spinner_active:
+                                        self.cli.stop_thinking(clear=True)
+                                        spinner_active = False
+                                    self.logger.debug(f"🖥️  SHOWING IN TERMINAL (reasoning): {content_str[:100]}")
+                                    self.cli.print_thinking(f"💭 {agent_name} is thinking: {content_str}")
+                                    self.logger.debug(f"💭 Reasoning: {content_str}")
+                                    self.json_logger.log_thought(agent_name, content_str)
+                                    agent_messages_shown.add(message_key)
+                                    # Don't restart spinner - let next event handle it
+                                else:
+                                    # Show as final agent response
+                                    if spinner_active:
+                                        self.cli.stop_thinking(clear=True)
+                                        spinner_active = False
 
-                                # 💾 AUTO-SAVE after each agent TextMessage
-                                await self._auto_save_agent_states()
+                                    preview = content_str[:100] if len(content_str) > 100 else content_str
+                                    self.logger.log_message_processing(msg_type, agent_name, preview)
+                                    self.logger.debug(f"🖥️  SHOWING IN TERMINAL (final response): {content_str[:200]}")
+                                    self.cli.print_agent_message(content_str, agent_name)
+                                    # JSON Logger: Capture agent message
+                                    self.json_logger.log_agent_message(
+                                        agent_name=agent_name, content=content_str, message_type="text"
+                                    )
+                                    # Collect agent responses for logging
+                                    all_agent_responses.append(f"[{agent_name}] {content_str}")
+                                    agent_messages_shown.add(message_key)
+
+                                    # After agent finishes, start spinner waiting for next agent
+                                    self.cli.start_thinking(message="waiting for next action")
+                                    spinner_active = True
+
+                                # 💾 AUTO-SAVE after each agent TextMessage (non-blocking)
+                                asyncio.create_task(self._auto_save_agent_states())
 
                             else:
                                 # Other message types (for debugging)

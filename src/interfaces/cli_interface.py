@@ -3,6 +3,7 @@ Interactive CLI interface in the style of Claude Code
 """
 
 import asyncio
+import functools
 import os
 import random
 import signal
@@ -137,6 +138,7 @@ class CLIInterface:
 
     def __init__(self):
         self.console = Console()
+        self._executor = None  # Lazy-initialized thread pool for async rendering
 
         # Ensure .daveagent directory exists
         history_dir = Path(".daveagent")
@@ -268,6 +270,23 @@ class CLIInterface:
     def __del__(self):
         """Cleanup on destruction."""
         self._restore_terminal_state()
+        # Cleanup executor if initialized
+        if self._executor:
+            self._executor.shutdown(wait=False)
+
+    async def _run_in_executor(self, func, *args):
+        """
+        Run a synchronous function in a thread pool to prevent blocking the event loop.
+
+        This is critical for heavy rendering operations (Rich panels, syntax highlighting)
+        that can block for seconds on large files.
+        """
+        if self._executor is None:
+            import concurrent.futures
+            self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self._executor, func, *args)
 
     # =========================================================================
     # CLI INTERFACE METHODS
@@ -639,14 +658,11 @@ class CLIInterface:
                 # Context lines in dim white
                 self.console.print(f"[dim]{line}[/dim]")
 
-    def print_code(self, code: str, filename: str, max_lines: int = 50):
+    def _print_code_sync(self, code: str, filename: str, max_lines: int = 50):
         """
-        Display code with syntax highlighting based on file extension
+        Internal synchronous version of print_code for executor.
 
-        Args:
-            code: The code content to display
-            filename: The filename (used to determine language)
-            max_lines: Maximum lines to display (truncates if longer)
+        DO NOT call directly - use print_code() instead.
         """
         # Map file extensions to language names for syntax highlighting
         extension_map = {
@@ -731,6 +747,18 @@ class CLIInterface:
             self.console.print(
                 Panel(code, title=f"[bold cyan]{filename}[/bold cyan]", border_style="dim")
             )
+
+    async def print_code(self, code: str, filename: str, max_lines: int = 50):
+        """
+        Display code with syntax highlighting (async, non-blocking version).
+
+        Args:
+            code: The code content to display
+            filename: The filename (used to determine language)
+            max_lines: Maximum lines to display (truncates if longer)
+        """
+        # Run heavy rendering in executor to prevent blocking
+        await self._run_in_executor(self._print_code_sync, code, filename, max_lines)
 
     def print_task_summary(self, summary: str):
         """

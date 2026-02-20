@@ -73,9 +73,18 @@ async def glob_search(
     case_sensitive: bool = False,
     respect_git_ignore: bool = True,
     respect_gemini_ignore: bool = True,
+    explanation: str = "",
 ) -> str:
     """
     Efficiently finds files matching specific glob patterns.
+
+    Args:
+        pattern: Glob pattern to search for (e.g., "*.py", "**/*.java")
+        dir_path: Directory to search in (defaults to workspace root)
+        case_sensitive: Whether to use case-sensitive matching
+        respect_git_ignore: Whether to respect .gitignore rules
+        respect_gemini_ignore: Whether to respect .geminiignore rules
+        explanation: Optional description of why this search is being performed (shown in terminal)
     """
     try:
         workspace = get_workspace()

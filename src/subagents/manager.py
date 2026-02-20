@@ -9,6 +9,7 @@ This module manages the lifecycle of spawned subagents, providing:
 """
 
 import asyncio
+import logging
 import uuid
 from typing import Callable, Any
 from datetime import datetime
@@ -73,6 +74,7 @@ class SubAgentManager:
         self.max_concurrent = max_concurrent  # NEW: Limit concurrent subagents
         self._running_tasks: dict[str, asyncio.Task] = {}
         self._results: dict[str, dict] = {}
+        self.logger = logging.getLogger("DaveAgent")  # Initialize logger
 
     async def spawn(
         self,
@@ -113,6 +115,11 @@ class SubAgentManager:
 
         subagent_id = str(uuid.uuid4())[:8]
         label = label or "background task"
+
+        # Log subagent spawn (DEBUG only - detailed logging for files)
+        self.logger.debug(f"[MAIN] Spawning subagent: ID={subagent_id}, label='{label}'")
+        self.logger.debug(f"[MAIN] Subagent task: {task[:200]}{'...' if len(task) > 200 else ''}")
+        self.logger.debug(f"[MAIN] Max iterations: {max_iterations}, Parent task: {parent_task_id}")
 
         # Create background asyncio task
         bg_task = asyncio.create_task(
@@ -168,12 +175,18 @@ class SubAgentManager:
             parent_task_id: Parent task ID for event routing
             max_iterations: Max iterations allowed
         """
+        self.logger.debug(f"[{subagent_id}] Starting subagent execution")
+        self.logger.debug(f"[{subagent_id}] Task: {task}")
+        self.logger.debug(f"[{subagent_id}] Label: '{label}', Max iterations: {max_iterations}")
+
         try:
             # Create isolated tools - remove spawn_subagent to prevent recursion
             isolated_tools = create_tool_subset(
                 self.base_tools,
                 exclude_names=["spawn_subagent"]
             )
+
+            self.logger.debug(f"[{subagent_id}] Created isolated toolset with {len(isolated_tools)} tools")
 
             # Create isolated orchestrator instance using factory pattern
             # This ensures each subagent has its own state
@@ -182,10 +195,17 @@ class SubAgentManager:
                 max_iterations=max_iterations,
                 mode="subagent",  # Signals simplified execution (no full UI)
                 task=task,  # Pass task for subagent-specific system prompt
+                subagent_id=subagent_id,  # Pass unique ID for logging differentiation
             )
+
+            self.logger.debug(f"[{subagent_id}] Orchestrator created, starting task execution...")
 
             # Run the task using existing AgentOrchestrator logic
             result = await orchestrator.run_task(task)
+
+            self.logger.debug(f"[{subagent_id}] Task completed successfully")
+            self.logger.debug(f"[{subagent_id}] Result length: {len(result)} chars")
+            self.logger.debug(f"[{subagent_id}] Result preview: {result[:200]}{'...' if len(result) > 200 else ''}")
 
             # Store successful result
             self._results[subagent_id] = {
@@ -212,6 +232,10 @@ class SubAgentManager:
                 await self._inject_result(subagent_id, label, task, result, "ok")
 
         except Exception as e:
+            # Log error details (DEBUG only)
+            self.logger.error(f"[{subagent_id}] Subagent failed with error: {type(e).__name__}: {str(e)}")
+            self.logger.debug(f"[{subagent_id}] Full traceback:", exc_info=True)
+
             # Store error result
             self._results[subagent_id] = {
                 "status": "error",

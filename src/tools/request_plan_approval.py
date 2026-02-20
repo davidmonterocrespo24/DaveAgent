@@ -5,7 +5,7 @@ Tool for requesting plan approval from the user (Human-in-the-Loop)
 from src.utils.interaction import ask_for_approval
 
 
-async def request_plan_approval(plan: str) -> str:
+async def request_plan_approval(plan: str, explanation: str = "") -> str:
     """
     Request user approval for an execution plan.
 
@@ -13,6 +13,7 @@ async def request_plan_approval(plan: str) -> str:
 
     Args:
         plan: The execution plan in markdown format with numbered steps.
+        explanation: Optional description of why plan approval is being requested (shown in terminal)
 
     Returns:
         Approval result: "APPROVED" or user feedback/cancellation message.

@@ -40,6 +40,7 @@ def set_subagent_manager(manager: "SubAgentManager", task_id: str = "main") -> N
 async def spawn_subagent(
     task: str,
     label: str | None = None,
+    explanation: str = "",
 ) -> str:
     """Spawn a background subagent to handle a task in parallel.
 
@@ -61,6 +62,7 @@ async def spawn_subagent(
         label: Optional short human-readable label for tracking this subagent
             (e.g., "test runner", "docs writer", "code analyzer").
             If not provided, defaults to "background task".
+        explanation: Optional description of why this subagent is being spawned (shown in terminal)
 
     Returns:
         Confirmation message with the spawned subagent's unique ID

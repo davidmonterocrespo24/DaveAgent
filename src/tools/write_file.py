@@ -4,8 +4,14 @@ from src.tools.common import get_workspace
 from src.utils.linter import lint_code_check
 
 
-async def write_file(target_file: str, file_content: str) -> str:
-    """Writes content to a file"""
+async def write_file(target_file: str, file_content: str, explanation: str = "") -> str:
+    """Writes content to a file
+
+    Args:
+        target_file: Path to the file to write
+        file_content: Content to write to the file
+        explanation: Optional description of why this file is being written (shown in terminal)
+    """
     from src.utils.interaction import ask_for_approval
 
     preview = file_content[:500] + "..." if len(file_content) > 500 else file_content

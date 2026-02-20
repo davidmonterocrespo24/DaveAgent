@@ -3,8 +3,13 @@ from pathlib import Path
 from src.tools.common import HIDDEN_DIRS, get_workspace
 
 
-async def list_dir(target_dir: str = ".") -> str:
-    """Lists files in a directory"""
+async def list_dir(target_dir: str = ".", explanation: str = "") -> str:
+    """Lists files in a directory
+
+    Args:
+        target_dir: Directory to list (defaults to current directory)
+        explanation: Optional description of why this directory is being listed (shown in terminal)
+    """
     try:
         workspace = get_workspace()
         target = workspace / target_dir if not Path(target_dir).is_absolute() else Path(target_dir)

@@ -20,8 +20,11 @@ def set_orchestrator(orchestrator) -> None:
     _orchestrator = orchestrator
 
 
-async def check_subagent_results() -> str:
+async def check_subagent_results(explanation: str = "") -> str:
     """Check for pending subagent results and announcements.
+
+    Args:
+        explanation: Optional description of why results are being checked (shown in terminal)
 
     **IMPORTANT**: After spawning subagents, you MUST periodically call this tool
     to check if they have completed and retrieve their results. The results will

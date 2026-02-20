@@ -54,6 +54,7 @@ class AgentOrchestrator:
         model: str = None,
         ssl_verify: bool = None,
         headless: bool = False,
+        agent_id: str = None,  # NEW: Unique identifier for this orchestrator instance
     ):
         """
         Initialize all agent components
@@ -62,10 +63,19 @@ class AgentOrchestrator:
         log_level = logging.DEBUG if debug else logging.INFO
         self.logger = get_logger(log_file=None, level=log_level)  # Use default path
         self.conversation_tracker = get_conversation_tracker()
+
+        # Unique agent identifier (for distinguishing main agent from subagents in logs)
+        import uuid
+        self.agent_id = agent_id if agent_id else "MAIN"
+        self.is_subagent = agent_id is not None  # True if this is a subagent
+
         # Mode system: "agent" (with tools) or "chat" (without modification tools)
         self.current_mode = "agent"  # Default mode
         # Headless mode: disable user prompts (for subagents and background tasks)
         self.headless = headless
+
+        # Log orchestrator initialization with ID
+        self.logger.debug(f"[{self.agent_id}] Orchestrator initialized (headless={headless}, subagent={self.is_subagent})")
 
         # Set headless context for current execution context
         from src.utils.headless_context import set_headless
@@ -378,6 +388,10 @@ class AgentOrchestrator:
         # Add check results tool to read-only tools (doesn't modify state)
         self.all_tools["read_only"].append(check_subagent_results)
 
+        # Initialize terminal tool with orchestrator reference (for real-time output)
+        terminal_module = sys.modules['src.tools.terminal']
+        terminal_module.set_orchestrator(self)
+
         # Subscribe to subagent events
         self.subagent_event_bus.subscribe("spawned", self._on_subagent_spawned)
         self.subagent_event_bus.subscribe("completed", self._on_subagent_completed)
@@ -540,6 +554,7 @@ class AgentOrchestrator:
         def selector_func(messages: Sequence[BaseAgentEvent | BaseChatMessage]) -> str | None:
             # If no messages, start with Coder
             if not messages:
+                self.logger.debug(f"🔄 [{self.agent_id}] [Selector] No messages yet -> Starting with Coder")
                 return "Coder"
 
             last_message = messages[-1]
@@ -547,8 +562,10 @@ class AgentOrchestrator:
             if hasattr(last_message, "content"):
                 c = last_message.content
                 content_preview = str(c)[:120].replace("\n", " ") if c else "(empty)"
+
+            # Enhanced logging with agent_id prefix
             self.logger.debug(
-                f"🔄 [Selector] msg[{len(messages)-1}] from={last_message.source} "
+                f"🔄 [{self.agent_id}] [Selector] msg[{len(messages)-1}] from={last_message.source} "
                 f"type={type(last_message).__name__}: {content_preview}"
             )
 
@@ -556,9 +573,9 @@ class AgentOrchestrator:
             if last_message.source == "Planner":
                 if isinstance(last_message, TextMessage):
                     if "TERMINATE" in last_message.content:
-                        self.logger.debug("🔄 [Selector] Planner said TERMINATE -> Ending conversation")
+                        self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Planner said TERMINATE -> Ending conversation")
                         return None  # Let termination condition handle it
-                self.logger.debug("🔄 [Selector] Planner just spoke -> Selecting Coder (MANDATORY)")
+                self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Planner just spoke -> Selecting Coder (MANDATORY)")
                 return "Coder"
 
             # If Coder just spoke
@@ -566,7 +583,7 @@ class AgentOrchestrator:
                 # Check for explicit signals in TextMessage
                 if isinstance(last_message, TextMessage):
                     if "TERMINATE" in last_message.content:
-                        self.logger.debug("🔄 [Selector] Coder said TERMINATE -> Ending conversation")
+                        self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Coder said TERMINATE -> Ending conversation")
                         return None  # Let termination condition handle it
                     content = last_message.content
                     if any(token in content for token in ("DELEGATE_TO_PLANNER", "SUBTASK_DONE")):
@@ -575,14 +592,14 @@ class AgentOrchestrator:
                             if "DELEGATE_TO_PLANNER" in content
                             else "subtask done -> Back to Planner"
                         )
-                        self.logger.debug(f"🔄 [Selector] Coder {reason}")
+                        self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Coder {reason}")
                         return "Planner"
 
                 # If Coder just sent a tool call (AssistantMessage with tool calls)
                 # We usually want Coder to receive the result.
                 # But here we assume the runtime executes the tool and appends the result.
                 # We want to ensure Coder gets the next turn to read the result.
-                self.logger.debug("🔄 [Selector] Coder waiting for tool result -> Keep Coder")
+                self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Coder waiting for tool result -> Keep Coder")
                 return "Coder"
 
             # If the last message was a tool execution result
@@ -590,18 +607,18 @@ class AgentOrchestrator:
             # We must verify the type to be sure.
             if type(last_message).__name__ == "FunctionExecutionResultMessage":
                 # Tool finished, give control back to Coder to handle the output
-                self.logger.debug("🔄 [Selector] Tool result received -> Back to Coder")
+                self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Tool result received -> Back to Coder")
                 return "Coder"
 
             # If the last message is from the User
             if last_message.source == "user":
                 # Default to Planner for normal requests
-                self.logger.debug("[Selector] User message -> Starting with Coder
-                return "Coder"
+                self.logger.debug(f"[{self.agent_id}] [Selector] User message -> Starting with Planner")
+                return "Planner"
 
             # FALLBACK: Never return None unless we explicitly want to terminate
             # If we don't recognize the source, default to Coder to continue
-            self.logger.warning(f"⚠️ [Selector] Unknown message source: {last_message.source} -> Defaulting to Coder")
+            self.logger.warning(f"⚠️ [{self.agent_id}] [Selector] Unknown message source: {last_message.source} -> Defaulting to Coder")
             return "Coder"
 
         self.main_team = SelectorGroupChat(
@@ -642,7 +659,8 @@ class AgentOrchestrator:
         tools: list,
         max_iterations: int,
         mode: str = "subagent",
-        task: str = ""  # Task description for subagent prompt
+        task: str = "",  # Task description for subagent prompt
+        subagent_id: str = None  # NEW: Unique identifier for logging
     ):
         """Factory method to create isolated AgentOrchestrator for subagents.
 
@@ -651,16 +669,27 @@ class AgentOrchestrator:
         - Limited max iterations (15 vs 25 for main agent)
         - Simplified execution mode (no full UI)
         - Custom system prompt specific to subagents
+        - Unique ID for logging/debugging
 
         Args:
             tools: Filtered list of tools for the subagent
             max_iterations: Maximum iterations allowed
             mode: Execution mode (should be "subagent")
             task: Task description for the subagent (used in system prompt)
+            subagent_id: Unique identifier for this subagent (auto-generated if None)
 
         Returns:
             New AgentOrchestrator instance configured for subagent use
         """
+        # Generate subagent ID if not provided
+        if not subagent_id:
+            import uuid
+            subagent_id = f"SUB-{str(uuid.uuid4())[:8]}"
+
+        # Log subagent creation (DEBUG only - not shown in terminal)
+        self.logger.debug(f"[{self.agent_id}] Creating subagent orchestrator with ID: {subagent_id}")
+        self.logger.debug(f"[{self.agent_id}] Subagent task: {task[:100]}...")
+
         # Create new instance with same config but isolated state
         subagent_orch = AgentOrchestrator(
             api_key=self.settings.api_key,
@@ -668,6 +697,7 @@ class AgentOrchestrator:
             model=self.settings.model,
             ssl_verify=self.settings.ssl_verify,
             headless=True,  # Subagents run in headless mode (no CLI)
+            agent_id=subagent_id,  # Pass unique ID for logging
         )
 
         # Mark as subagent mode
@@ -678,6 +708,11 @@ class AgentOrchestrator:
         subagent_orch.coder_agent._tools = tools
         subagent_orch.coder_agent.max_tool_iterations = max_iterations
 
+        # Log tool configuration (DEBUG only)
+        tool_names = [t.name if hasattr(t, 'name') else str(t) for t in tools]
+        self.logger.debug(f"[{subagent_id}] Configured with tools: {', '.join(tool_names)}")
+        self.logger.debug(f"[{subagent_id}] Max tool iterations: {max_iterations}")
+
         # IMPORTANT: Override system prompt with subagent-specific prompt
         if task:
             from src.config.prompts import SUBAGENT_SYSTEM_PROMPT
@@ -686,7 +721,9 @@ class AgentOrchestrator:
             subagent_prompt = SUBAGENT_SYSTEM_PROMPT(task=task, workspace_path=str(workspace))
             # Update the system_message attribute (singular, not plural)
             subagent_orch.coder_agent._system_message = subagent_prompt
+            self.logger.debug(f"[{subagent_id}] Custom system prompt applied")
 
+        self.logger.debug(f"[{subagent_id}] Subagent orchestrator creation complete")
         return subagent_orch
 
     async def run_task(self, task: str) -> str:
@@ -760,8 +797,10 @@ class AgentOrchestrator:
         task = event.content.get('task', '')
         result_preview = result[:200] + "..." if len(result) > 200 else result
 
-        # Log completion (don't print directly to avoid ANSI code issues in async context)
-        # The subagent result will be announced via system message injection
+        # Show completion notification in terminal IMMEDIATELY
+        self.cli.print_subagent_completed(event.subagent_id, label, result_preview)
+
+        # Log completion
         self.logger.info(f"✓ Subagent '{label}' ({event.subagent_id[:8]}) completed: {result_preview}")
         self.logger.info(f"Subagent {event.subagent_id} ({label}) completed successfully")
 
@@ -1008,10 +1047,12 @@ Suggest possible next steps or alternatives if appropriate."""
             spinner_active = True
 
             # Run team stream with the system message content
-            stream_task = asyncio.create_task(self.main_team.run_stream(task=sys_msg.content))
+            # Get async generator directly for true streaming (don't wrap in Task)
+            stream_generator = self.main_team.run_stream(task=sys_msg.content)
 
             try:
-                async for msg in await stream_task:
+                # CRITICAL FIX: Iterate directly over async generator for streaming
+                async for msg in stream_generator:
                     # Only process messages that are NOT from the user
                     if hasattr(msg, "source") and msg.source != "user":
                         agent_name = msg.source
