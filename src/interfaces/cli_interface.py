@@ -241,18 +241,33 @@ class CLIInterface:
         Drop unread keypresses typed while model was generating.
 
         This prevents "ghost characters" from appearing after long outputs.
-        Inspired by Nanobot's implementation.
+        Uses termios on Unix/Mac, fallback to select on Windows.
+        Inspired by Nanobot's cross-platform implementation.
         """
-        if not TERMIOS_AVAILABLE:
-            return  # Skip on Windows
-
         try:
             fd = sys.stdin.fileno()
             if not os.isatty(fd):
                 return
+        except Exception:
+            return
 
-            # Flush input buffer
-            termios.tcflush(fd, termios.TCIFLUSH)
+        # Try termios first (Unix/Mac)
+        if TERMIOS_AVAILABLE:
+            try:
+                termios.tcflush(fd, termios.TCIFLUSH)
+                return
+            except Exception:
+                pass
+
+        # Fallback for Windows: manual drain using select
+        try:
+            import select
+            while True:
+                ready, _, _ = select.select([fd], [], [], 0)
+                if not ready:
+                    break
+                if not os.read(fd, 4096):
+                    break
         except Exception:
             pass
 
@@ -525,10 +540,18 @@ class CLIInterface:
         self.console.print(f"[bold blue]You:[/bold blue] {message}")
         self.console.print()
 
-    def print_agent_message(self, message: str, agent_name: str = "Agent"):
-        """Shows an agent message"""
+    def print_agent_message(self, message: str, agent_name: str = "Agent", markdown: bool = True):
+        """
+        Shows an agent message.
+
+        Args:
+            message: Message content
+            agent_name: Name of the agent
+            markdown: Render as markdown (True) or plain text (False)
+        """
         self.console.print(f"[bold green]{agent_name}:[/bold green]")
-        self.console.print(Panel(Markdown(message), border_style="green"))
+        content = Markdown(message) if markdown else Text(message)
+        self.console.print(Panel(content, border_style="green"))
         self.console.print()
 
     def print_plan(self, plan_summary: str):
@@ -606,6 +629,32 @@ class CLIInterface:
         if self.vibe_spinner and self.vibe_spinner.is_running():
             self.vibe_spinner.stop(clear_line=clear)
             self.vibe_spinner = None
+
+    def thinking_context(self, message: str | None = None):
+        """
+        Context manager for thinking spinner - auto-cleanup.
+
+        Usage:
+            with cli.thinking_context("Analyzing code..."):
+                result = await analyze_function()
+
+        Args:
+            message: Optional custom message (uses rotating vibes if None)
+
+        Returns:
+            Context manager that starts/stops spinner automatically
+        """
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _context():
+            self.start_thinking(message)
+            try:
+                yield
+            finally:
+                self.stop_thinking()
+
+        return _context()
 
     def print_thinking(self, message: str = "Thinking..."):
         """
