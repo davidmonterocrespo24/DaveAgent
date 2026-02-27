@@ -40,6 +40,7 @@ class DaveAgentCLI(AgentOrchestrator):
         Initialize all agent components by calling parent AgentOrchestrator
         """
         import time
+        import os
 
         t_start = time.time()
 
@@ -1636,13 +1637,7 @@ TITLE:"""
                         full_content = ""
                         if hasattr(msg, "content"):
                             full_content = str(msg.content)
-                        self.logger.info(
-                            f"📬 FULL MESSAGE RECEIVED:\n"
-                            f"   Type: {msg_type}\n"
-                            f"   Source: {msg_source}\n"
-                            f"   Content:\n{full_content}\n"
-                            f"   {'='*80}"
-                        )
+                        
 
                     # Only process messages that are NOT from the user
                     # UPDATED: Also process messages without source (fallback)
@@ -1716,6 +1711,9 @@ TITLE:"""
                                 if spinner_active:
                                     self.cli.stop_thinking(clear=True)
                                     spinner_active = False
+                                    # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                    import time
+                                    time.sleep(0.05)  # 50ms delay
                                 self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
                                 self.logger.debug(f"💭 Thought: {content_str}")
                                 # JSON Logger: Capture thought
@@ -1727,6 +1725,9 @@ TITLE:"""
                                 if spinner_active:
                                     self.cli.stop_thinking(clear=True)
                                     spinner_active = False
+                                    # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                    import time
+                                    time.sleep(0.05)  # 50ms delay
                                 self.cli.print_thinking(f"🤔 {agent_name} is thinking...")
                                 self.logger.debug(f"🧠 {msg_type}: {content_str[:200]}")
                                 agent_messages_shown.add(message_key)
@@ -1734,8 +1735,16 @@ TITLE:"""
                             elif msg_type == "ToolCallRequestEvent":
                                 # 🔧 Show tools to be called
                                 # Stop spinner to show tool call, then restart with specific message
+                                self.logger.debug(f"🔧 [SPINNER_DEBUG] ToolCallRequestEvent received, spinner_active={spinner_active}")
                                 if spinner_active:
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] Stopping spinner before tool call...")
                                     self.cli.stop_thinking(clear=True)
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] Spinner stopped, waiting 50ms...")
+                                    # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                    # and stdout is flushed before Rich Console prints
+                                    import time
+                                    time.sleep(0.05)  # 50ms delay
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] 50ms delay complete, ready to print")
 
                                 # Log progress every N tool calls
                                 if len(tools_called) - last_progress_log >= progress_log_interval:
@@ -1822,10 +1831,12 @@ TITLE:"""
                                                 if explanation:
                                                     # Parse tool name to make it more readable
                                                     tool_display = tool_name.replace("_", " ").title()
+                                                    self.logger.debug(f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} with explanation")
                                                     self.cli.print_info(
                                                         f"🔧 {tool_display}: {explanation}",
                                                         agent_name,
                                                     )
+                                                    self.logger.debug(f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}")
                                                     # Show compact parameters (without explanation)
                                                     params_copy = {k: v for k, v in tool_args.items() if k != "explanation"}
                                                     if params_copy:
@@ -1838,10 +1849,13 @@ TITLE:"""
                                                     args_str = str(tool_args)
                                                     if len(args_str) > 200:
                                                         args_str = args_str[:200] + "..."
+                                                    self.logger.debug(f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} (no explanation)")
+                                                    self.logger.debug(f"🔧 [PRINT_DEBUG] Tool args: {args_str[:100]}")
                                                     self.cli.print_info(
                                                         f"🔧 Calling tool: {tool_name} with parameters {args_str}",
                                                         agent_name,
                                                     )
+                                                    self.logger.debug(f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}")
 
                                             self.logger.debug(f"🔧 Tool call: {tool_name}")
                                             # JSON Logger: Capture tool call
@@ -1865,18 +1879,29 @@ TITLE:"""
                                         self.logger.debug(f"executing {tool_names[0]}")
                                         # Start spinner with context about what's executing
                                         tool_desc = tool_names[0].replace("_", " ")
+                                        self.logger.debug(f"🔧 [SPINNER_DEBUG] About to restart spinner with message: 'executing {tool_desc}'")
                                         self.cli.start_thinking(message=f"executing {tool_desc}")
                                         spinner_active = True
+                                        self.logger.debug(f"🔧 [SPINNER_DEBUG] Spinner restarted, spinner_active={spinner_active}")
+                                    else:
+                                        self.logger.warning(f"🔧 [SPINNER_DEBUG] No tool_names found in ToolCallRequestEvent!")
                                 agent_messages_shown.add(message_key)
 
                             elif msg_type == "ToolCallExecutionEvent":
                                 # ✅ Show tool results
                                 self.logger.debug(f"🎯 ToolCallExecutionEvent RECEIVED (results ready)")
+                                self.logger.debug(f"🔧 [SPINNER_DEBUG] ToolCallExecutionEvent, spinner_active={spinner_active}")
 
                                 # Stop spinner to show results
                                 if spinner_active:
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] Stopping spinner to show results...")
                                     self.cli.stop_thinking(clear=True)
                                     spinner_active = False
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] Spinner stopped, waiting 50ms...")
+                                    # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                    import time
+                                    time.sleep(0.05)  # 50ms delay
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] 50ms delay complete")
 
                                 if isinstance(content, list):
                                     for execution_result in content:
@@ -2046,6 +2071,9 @@ TITLE:"""
                                     if spinner_active:
                                         self.cli.stop_thinking(clear=True)
                                         spinner_active = False
+                                        # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                        import time
+                                        time.sleep(0.05)  # 50ms delay
                                     self.logger.debug(f"🖥️  SHOWING IN TERMINAL (reasoning): {content_str[:100]}")
                                     self.cli.print_thinking(f"💭 {agent_name} is thinking: {content_str}")
                                     self.logger.debug(f"💭 Reasoning: {content_str}")
@@ -2057,6 +2085,9 @@ TITLE:"""
                                     if spinner_active:
                                         self.cli.stop_thinking(clear=True)
                                         spinner_active = False
+                                        # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                        import time
+                                        time.sleep(0.05)  # 50ms delay
 
                                     preview = content_str[:100] if len(content_str) > 100 else content_str
                                     self.logger.log_message_processing(msg_type, agent_name, preview)

@@ -9,7 +9,6 @@ from datetime import datetime
 from typing import Any
 
 from rich import box
-from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -19,14 +18,17 @@ from rich.table import Table
 class HistoryViewer:
     """Conversation history viewer with Rich"""
 
-    def __init__(self, console: Console | None = None):
+    def __init__(self, console=None):
         """
         Initialize HistoryViewer
 
         Args:
-            console: Rich Console instance (creates new if None)
+            console: Rich Console instance (creates new WindowsSafeConsole if None)
         """
-        self.console = console or Console()
+        if console is None:
+            from src.utils.vibe_spinner import WindowsSafeConsole
+            console = WindowsSafeConsole()
+        self.console = console
 
     def display_sessions_list(self, sessions: list[dict[str, Any]]):
         """

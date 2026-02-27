@@ -112,6 +112,7 @@ def select_messages_to_compress(
     - Keep ALL system prompts (role="system") - never compress these
     - Keep recent N messages for immediate context
     - Compress everything else in the middle
+    - CRITICAL: Preserve reasoning_content field for DeepSeek Reasoner compatibility
 
     Args:
         messages: Full message list
@@ -135,6 +136,15 @@ def select_messages_to_compress(
     # Split into old (compress) and recent (keep)
     messages_to_compress = non_system_messages[:-keep_recent]
     messages_to_keep = system_messages + non_system_messages[-keep_recent:]
+
+    # CRITICAL FIX: Ensure reasoning_content is preserved for DeepSeek Reasoner
+    # Per DeepSeek API requirement: assistant messages with tool_calls MUST have reasoning_content
+    # Reference: https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
+    for msg in messages_to_keep:
+        if msg.get("role") == "assistant" and msg.get("tool_calls"):
+            # If reasoning_content is missing, add empty string placeholder
+            if "reasoning_content" not in msg:
+                msg["reasoning_content"] = ""
 
     return messages_to_compress, messages_to_keep
 
@@ -204,6 +214,13 @@ async def compress_context_if_needed(
     recent_messages = [msg for msg in to_keep if msg.get("role") != "system"]
 
     compressed_messages = system_messages + [summary] + recent_messages
+
+    # CRITICAL FIX: Ensure all assistant messages in final list have reasoning_content if needed
+    # This is essential for DeepSeek Reasoner compatibility after compression
+    for msg in compressed_messages:
+        if msg.get("role") == "assistant" and msg.get("tool_calls"):
+            if "reasoning_content" not in msg:
+                msg["reasoning_content"] = ""
 
     if logger:
         tokens_after = count_message_tokens(compressed_messages, model)

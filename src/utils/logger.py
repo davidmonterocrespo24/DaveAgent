@@ -9,7 +9,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
 from rich.logging import RichHandler
 
 
@@ -39,7 +38,9 @@ class DaveAgentLogger:
         logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
         logging.getLogger("huggingface_hub").setLevel(logging.WARNING)
 
-        self.console = Console(stderr=True)
+        # Use WindowsSafeConsole for stderr to ensure VT processing
+        from src.utils.vibe_spinner import WindowsSafeConsole
+        self.console = WindowsSafeConsole(stderr=True)
 
         # Console handler with colors (using Rich)
         console_handler = RichHandler(

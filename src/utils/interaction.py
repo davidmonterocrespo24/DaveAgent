@@ -7,7 +7,7 @@ import sys
 from src.utils.errors import UserCancelledError
 
 
-async def ask_for_approval(action_description: str, context: str = "") -> str | None:
+async def ask_for_approval(action_description: str, context: str = ""):
     """
     Interactively asks the user for approval to execute an action.
 
@@ -19,6 +19,8 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
         None if approved.
         A string message if cancelled or if feedback is provided.
     """
+    import sys
+    import time
     import asyncio
 
     # Check if running in headless mode (subagents/background tasks)
@@ -28,19 +30,18 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
         return None
 
     try:
-        from InquirerPy import inquirer
-        from InquirerPy.base.control import Choice
-        from rich.console import Console, Group
+        from rich.console import Group
         from rich.markdown import Markdown
         from rich.panel import Panel
         from rich.text import Text
 
         from src.utils.permissions import get_permission_manager
 
-        # Import VibeSpinner and PermissionManager
-        from src.utils.vibe_spinner import VibeSpinner
+        # Import VibeSpinner and WindowsSafeConsole
+        from src.utils.vibe_spinner import VibeSpinner, WindowsSafeConsole
 
-        console = Console()
+        # Use WindowsSafeConsole to ensure VT processing is enabled before each print
+        console = WindowsSafeConsole()
         perm_mgr = get_permission_manager()
 
         # 1. Construct Action String for Permissions
@@ -65,11 +66,15 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             return "Action denied by persistent settings."
 
         # Pause any active spinner to prevent interference
-        # Pause active spinner during user interaction
-        active_spinner = VibeSpinner.pause_active_spinner()
+        # Pause active spinner during user interaction and prevent new ones from starting
+        active_spinner = VibeSpinner.suspend_for_interaction()
 
-        # Clear any potential artifacts visually
-        sys.stdout.write("\r" + " " * 120 + "\r")
+        # CRITICAL: Clear spinner artifacts and move to new line
+        # This prevents spinner from overlapping with approval dialog
+        import time
+        time.sleep(0.05)  # Give spinner time to stop
+        sys.stdout.write("\r" + " " * 150 + "\r")  # Clear current line
+        sys.stdout.write("\n")  # Move to new line to ensure clean slate
         sys.stdout.flush()
 
         try:
@@ -145,77 +150,72 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
 
             console.print(panel)
 
-            # Force blocking input using executor to guarantee wait on Windows/Agent environments
+            # Ensure clean separation before menu
+            import sys
+            import time
+
+            # Force all pending output to flush
+            sys.stdout.flush()
+            sys.stderr.flush()
+
+            # Wait for any pending output to complete
+            time.sleep(0.1)
+
+            # CRITICAL FIX: Ensure Windows VT processing is enabled BEFORE questionary
+            # questionary uses prompt_toolkit which requires ANSI escape sequences
+            # Without this, options will be invisible on Windows
+            from src.utils.vibe_spinner import _ensure_windows_vt_processing
+            _ensure_windows_vt_processing()
+
+            # Use questionary instead of pick - much better scroll behavior
+            # questionary doesn't hijack the screen like curses-based pick
+            import questionary
+            from questionary import Style
+
+            # Custom style to ensure visibility on Windows
+            custom_style = Style([
+                ('qmark', 'fg:#673ab7 bold'),       # Question mark
+                ('question', 'bold'),                # Question text
+                ('answer', 'fg:#f44336 bold'),       # Selected answer
+                ('pointer', 'fg:#673ab7 bold'),      # Pointer (>)
+                ('highlighted', 'fg:#673ab7 bold'),  # Highlighted option
+                ('selected', 'fg:#cc5454'),          # Selected checkbox
+                ('separator', 'fg:#cc5454'),         # Separator
+                ('instruction', ''),                 # Instruction text
+                ('text', ''),                        # Plain text
+                ('disabled', 'fg:#858585 italic')    # Disabled options
+            ])
+
+            # Define choices for questionary
+            choices = [
+                questionary.Choice("Yes", value="execute"),
+                questionary.Choice("Yes, and don't ask again for this specific command", value="execute_save"),
+                questionary.Choice("Type feedback to tell the agent what to do differently", value="feedback"),
+                questionary.Choice("No, cancel", value="cancel"),
+            ]
+
+            # Run questionary in executor to avoid blocking async loop
+            def run_questionary():
+                # Ensure VT processing one more time right before questionary runs
+                _ensure_windows_vt_processing()
+
+                return questionary.select(
+                    "Do you want to proceed?",
+                    choices=choices,
+                    style=custom_style,
+                    use_arrow_keys=True,
+                    use_shortcuts=False,
+                    use_indicator=True,
+                ).ask()
+
             loop = asyncio.get_running_loop()
+            choice = await loop.run_in_executor(None, run_questionary)
 
-            def windows_arrow_menu():
-                import msvcrt
-                import sys
-                import time
+            # Re-enable VT processing after questionary (in case it got disabled)
+            _ensure_windows_vt_processing()
 
-                options = [
-                    ("Yes", "execute"),
-                    ("Yes, and don't ask again for this specific command", "execute_save"),
-                    ("Type here to tell the agent what to do differently", "feedback"),
-                    ("No, cancel", "cancel"),
-                ]
-                current_idx = 0
-
-                # ANSI codes
-                gray = "\033[90m"
-                reset = "\033[0m"
-                clear_line = "\033[K"
-                up = "\033[F"
-
-                # Clear any potential spinner artifacts from the current line
-                sys.stdout.write("\n\n")
-                sys.stdout.write("\r" + " " * 120 + "\r")
-                sys.stdout.flush()
-
-                print(f" {gray}Do you want to proceed?{reset}")
-                print(f" {gray}Esc to cancel{reset}\n")
-
-                # Initial render lines (allocate space)
-                for _ in options:
-                    print()
-
-                # Move cursor back up to start of options
-                for _ in options:
-                    sys.stdout.write(up)
-
-                while True:
-                    # Redraw options
-                    for idx, (label, _) in enumerate(options):
-                        prefix = " > " if idx == current_idx else "   "
-                        color = "\033[1m" if idx == current_idx else ""  # Bold for selected
-                        print(f"{prefix}{color}{idx + 1}. {label}{reset}{clear_line}")
-
-                    # Check for input
-                    if msvcrt.kbhit():
-                        key = msvcrt.getch()
-                        if key == b"\x1b":  # Esc
-                            return "cancel"
-                        elif key == b"\r":  # Enter
-                            _, value = options[current_idx]
-                            return value
-                        elif key == b"\xe0":  # Special key (arrows)
-                            try:
-                                key = msvcrt.getch()
-                                if key == b"H":  # Up
-                                    current_idx = max(0, current_idx - 1)
-                                elif key == b"P":  # Down
-                                    current_idx = min(len(options) - 1, current_idx + 1)
-                            except Exception:
-                                pass
-
-                    # Move cursor back up to repaint for next frame
-                    for _ in options:
-                        sys.stdout.write(up)
-
-                    time.sleep(0.05)
-
-            # Execute the menu in the thread executor
-            choice = await loop.run_in_executor(None, windows_arrow_menu)
+            # Questionary doesn't leave artifacts, but ensure clean output
+            sys.stdout.flush()
 
             if choice == "cancel":
                 raise UserCancelledError("User selected 'No, cancel'")
@@ -227,9 +227,11 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
                 return None
 
             if choice == "feedback":
-                # Use standard input for feedback
+                # Clear the line and ask for feedback with standard input
+                console.print("\n[cyan]Enter your feedback for the agent:[/cyan]")
+
                 def get_feedback():
-                    return input("Enter your feedback for the agent: ")
+                    return input("> ")
 
                 loop = asyncio.get_running_loop()
                 feedback = await loop.run_in_executor(None, get_feedback)
@@ -242,11 +244,10 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
 
         finally:
             # Resume spinner if it was active
-            if active_spinner:
-                try:
-                    VibeSpinner.resume_spinner(active_spinner)
-                except Exception:
-                    pass
+            try:
+                VibeSpinner.resume_from_interaction(active_spinner)
+            except Exception:
+                pass
 
     except ImportError:
         # Fallback

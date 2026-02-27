@@ -137,7 +137,12 @@ class CLIInterface:
     """Rich and interactive CLI interface for DaveAgent"""
 
     def __init__(self):
-        self.console = Console()
+        # CRITICAL FIX: Force terminal mode and disable buffering for immediate output
+        # Without force_terminal=True, Rich may buffer output when detecting redirected stdout
+        # force_interactive=True ensures live updates work correctly
+        # Use WindowsSafeConsole to automatically fix VT processing before each print
+        from src.utils.vibe_spinner import WindowsSafeConsole
+        self.console = WindowsSafeConsole(force_terminal=True, force_interactive=True)
         self._executor = None  # Lazy-initialized thread pool for async rendering
 
         # Ensure .daveagent directory exists
@@ -605,19 +610,27 @@ class CLIInterface:
         Args:
             message: Optional custom message (uses rotating vibes if None)
         """
+        import logging
+        logger = logging.getLogger("DaveAgent")
+        logger.debug(f"🔧 [CLI_SPINNER_DEBUG] start_thinking called with message='{message}'")
+
         # Stop any existing spinner first
         self.stop_thinking()
 
         if message:
             # Single custom message
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Creating spinner with custom message: '{message}'")
             self.vibe_spinner = VibeSpinner(
                 messages=[message], spinner_style="dots", color="cyan", language="es"
             )
         else:
             # Rotating vibe messages
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Creating spinner with rotating vibe messages")
             self.vibe_spinner = VibeSpinner(spinner_style="dots", color="cyan", language="es")
 
+        logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Starting spinner...")
         self.vibe_spinner.start()
+        logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner started successfully")
 
     def stop_thinking(self, clear: bool = True):
         """
@@ -626,9 +639,18 @@ class CLIInterface:
         Args:
             clear: Whether to clear the spinner line
         """
+        import logging
+        logger = logging.getLogger("DaveAgent")
+        logger.debug(f"🔧 [CLI_SPINNER_DEBUG] stop_thinking called, clear={clear}")
+
         if self.vibe_spinner and self.vibe_spinner.is_running():
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner is running, stopping it...")
             self.vibe_spinner.stop(clear_line=clear)
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner stopped")
             self.vibe_spinner = None
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner reference cleared")
+        else:
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] No active spinner to stop (vibe_spinner={self.vibe_spinner is not None}, is_running={self.vibe_spinner.is_running() if self.vibe_spinner else 'N/A'})")
 
     def thinking_context(self, message: str | None = None):
         """
@@ -662,6 +684,7 @@ class CLIInterface:
         (Legacy method - consider using start_thinking/stop_thinking instead)
         """
         self.console.print(f"[dim]{message}[/dim]")
+        sys.stdout.flush()  # Force immediate output
 
     def print_error(self, error: str):
         """Shows an error message"""
@@ -678,6 +701,7 @@ class CLIInterface:
         self.console.print(
             Panel(info, title=f"[bold cyan]{title}[/bold cyan]", border_style="cyan")
         )
+        sys.stdout.flush()
 
     def print_success(self, message: str):
         """Shows a success message"""
