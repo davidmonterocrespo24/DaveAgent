@@ -30,7 +30,6 @@ async def ask_for_approval(action_description: str, context: str = ""):
         return None
 
     try:
-        from rich.console import Group
         from rich.markdown import Markdown
         from rich.panel import Panel
         from rich.text import Text
@@ -80,8 +79,6 @@ async def ask_for_approval(action_description: str, context: str = ""):
         try:
             from rich.syntax import Syntax
 
-            warning_text = Text("WARNING: This action requires approval.", style="bold yellow")
-
             # Detect content type for best rendering
             # Strip markdown code fences if present
             raw_context = context.strip()
@@ -103,6 +100,17 @@ async def ask_for_approval(action_description: str, context: str = ""):
                 or raw_context.startswith("---")
                 or raw_context.startswith("+++")
             )
+
+            # Limit content height to prevent panel from being too large
+            # This ensures options stay visible without scrolling
+            max_content_lines = 15
+            content_lines = raw_context.splitlines()
+
+            if len(content_lines) > max_content_lines:
+                # Truncate and add indicator
+                truncated_context = "\n".join(content_lines[:max_content_lines])
+                truncated_context += f"\n... ({len(content_lines) - max_content_lines} more lines)"
+                raw_context = truncated_context
 
             if is_diff:
                 # Convert internal diff markers to unified diff format for Rich
@@ -139,7 +147,8 @@ async def ask_for_approval(action_description: str, context: str = ""):
             else:
                 content_renderable = Text(f"`{raw_context}`")
 
-            panel_content = Group(content_renderable, Text(""), warning_text)
+            # Remove warning text from panel to make it more compact
+            panel_content = content_renderable
 
             panel = Panel(
                 panel_content,
