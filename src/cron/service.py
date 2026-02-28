@@ -182,8 +182,7 @@ class CronService:
         if self._running:
             return
 
-        self._running = True
-        logger.info("Cron service started")
+        self._running = True        
         self._arm_timer()
 
     async def stop(self):

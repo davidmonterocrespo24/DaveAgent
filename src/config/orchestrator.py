@@ -917,8 +917,7 @@ Suggest possible next steps or alternatives if appropriate."""
             return
 
         self._detector_running = True
-        self._detector_task = asyncio.create_task(self._system_message_detector())
-        self.logger.info("✓ System message detector started (auto-injection enabled)")
+        self._detector_task = asyncio.create_task(self._system_message_detector())        
 
     async def stop_system_message_detector(self):
         """Stop the background system message detector.

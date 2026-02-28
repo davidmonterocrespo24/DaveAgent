@@ -53,22 +53,19 @@ class DaveAgentCLI(AgentOrchestrator):
             ssl_verify=ssl_verify,
             headless=headless,
         )
-        print(f"[Startup] Model clients initialized in {time.time() - t_start:.4f}s")
+        
         self.should_exit = False
 
         t0 = time.time()
         # State management system (AutoGen save_state/load_state)
         from src.managers import StateManager
 
-        _state_dir = os.path.join(os.getcwd(), ".daveagent", "state")
-        print(f"[Startup] Working directory: {os.getcwd()}")
-        print(f"[Startup] State directory: {_state_dir}")
+        _state_dir = os.path.join(os.getcwd(), ".daveagent", "state")       
         self.state_manager = StateManager(
             auto_save_enabled=True,
             auto_save_interval=300,  # Auto-save every 5 minutes
             state_dir=_state_dir,
-        )
-        print(f"[Startup] StateManager initialized in {time.time() - t0:.4f}s")
+        )        
 
         t0 = time.time()
         # Agent Skills system
@@ -80,7 +77,7 @@ class DaveAgentCLI(AgentOrchestrator):
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
         else:
             self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
-        print(f"[Startup] SkillManager initialized in {time.time() - t0:.4f}s")
+        
 
         t0 = time.time()
         # Context Manager (DAVEAGENT.md)
@@ -92,7 +89,7 @@ class DaveAgentCLI(AgentOrchestrator):
             self.logger.info(f"✓ Found {len(context_files)} DAVEAGENT.md context file(s)")
         else:
             self.logger.debug("No DAVEAGENT.md context files found")
-        print(f"[Startup] ContextManager initialized in {time.time() - t0:.4f}s")
+        
 
         # Error Reporter (sends errors to SigNoz instead of creating GitHub issues)
         from src.managers import ErrorReporter
@@ -188,8 +185,7 @@ class DaveAgentCLI(AgentOrchestrator):
             write_file,
             write_json,
         )
-
-        self.logger.info(f"[Startup] Tools imported in {time.time() - t0:.4f}s")
+        
 
         # Store all tools to filter them according to mode
         self.all_tools = {
@@ -242,8 +238,7 @@ class DaveAgentCLI(AgentOrchestrator):
                 run_terminal_cmd,
             ],
         }
-
-        self.logger.info(f"✨ DaveAgent initialized in {time.time() - t_start:.2f}s")
+        
 
     # =========================================================================
     # COMMAND HANDLING
@@ -2432,8 +2427,7 @@ TITLE:"""
             sessions = self.state_manager.list_sessions()
 
             if not sessions:
-                # No previous sessions, start fresh
-                self.logger.info("No previous sessions, starting new session")
+                # No previous sessions, start fresh               
                 return
 
             # Get most recent session
@@ -2523,8 +2517,7 @@ TITLE:"""
         self.cli.print_banner()
 
         # Start cron service
-        await self.cron_service.start()
-        self.logger.info("⏰ Cron service started")
+        await self.cron_service.start()        
 
         # Start system message detector (FASE 3: Auto-Injection)
         await self.start_system_message_detector()

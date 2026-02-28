@@ -159,6 +159,32 @@ async def ask_for_approval(action_description: str, context: str = ""):
 
             console.print(panel)
 
+            # Calculate how many lines to add to keep menu visible
+            # Get terminal height to determine optimal spacing
+            import shutil
+            terminal_height = shutil.get_terminal_size().lines
+
+            # Panel uses approximately: title (1) + content (max 15) + borders (2) = ~18 lines
+            # Questionary needs: title (1) + options (4) + spacing (2) = ~7 lines
+            # We want to position the menu in the lower third of the screen
+            # Add spacing to push menu upward if needed
+
+            # Calculate lines used by panel (estimate)
+            panel_lines = min(len(content_lines) + 5, 20)  # Panel + borders + padding
+            questionary_lines = 7  # Menu size
+
+            # If we're close to bottom of terminal, add spacing
+            available_space = terminal_height - panel_lines
+            if available_space < questionary_lines + 2:
+                # Not enough space, add blank lines to create room
+                spacing_needed = max(2, questionary_lines - available_space + 3)
+                print("\n" * min(spacing_needed, 5))  # Cap at 5 lines to avoid too much space
+            else:
+                # Enough space, just add minimal separation
+                print("\n")
+
+            sys.stdout.flush()
+
             # Ensure clean separation before menu
             import sys
             import time

@@ -49,6 +49,13 @@ class LoggingModelClientWrapper:
         self._agent_name = agent_name
         self.logger = logging.getLogger(__name__)
 
+        # Initialize compression state for persistent failure tracking
+        from src.utils.context_compressor import CompressionState
+        self._compression_state = CompressionState(
+            compression_threshold=0.5,  # 50% threshold (more aggressive than old 80%)
+            enable_probe=True,  # Enable verification by default
+        )
+
     async def create(self, messages: Sequence[LLMMessage], **kwargs) -> CreateResult:
         """
         Intercepts the create() method and records input/output
@@ -88,14 +95,13 @@ class LoggingModelClientWrapper:
             f"({(tokens_before/max_tokens)*100:.1f}%)"
         )
 
-        # Compress if needed (threshold: 80% of max)
+        # Compress if needed using persistent compression state
         compressed_messages_dicts = await compress_context_if_needed(
             messages=input_messages,
             model=model,
             model_client=self._wrapped,
             logger=self.logger,
-            compression_threshold=0.80,
-            keep_recent=20
+            state=self._compression_state  # Use persistent state
         )
 
         # Log if compression occurred
