@@ -11,10 +11,9 @@ This module manages the lifecycle of spawned subagents, providing:
 import asyncio
 import logging
 import uuid
-from typing import Callable, Any
-from datetime import datetime
+from collections.abc import Callable
 
-from .events import SubagentEventBus, SubagentEvent
+from .events import SubagentEvent, SubagentEventBus
 from .tool_wrapper import create_tool_subset
 
 
@@ -130,24 +129,24 @@ class SubAgentManager:
                 parent_task_id=parent_task_id,
                 max_iterations=max_iterations,
             ),
-            name=f"subagent_{label}_{subagent_id}"
+            name=f"subagent_{label}_{subagent_id}",
         )
 
         # Store task reference
         self._running_tasks[subagent_id] = bg_task
 
         # Auto-cleanup when done
-        bg_task.add_done_callback(
-            lambda _: self._running_tasks.pop(subagent_id, None)
-        )
+        bg_task.add_done_callback(lambda _: self._running_tasks.pop(subagent_id, None))
 
         # Publish spawn event
-        await self.event_bus.publish(SubagentEvent(
-            subagent_id=subagent_id,
-            parent_task_id=parent_task_id,
-            event_type="spawned",
-            content={"task": task, "label": label}
-        ))
+        await self.event_bus.publish(
+            SubagentEvent(
+                subagent_id=subagent_id,
+                parent_task_id=parent_task_id,
+                event_type="spawned",
+                content={"task": task, "label": label},
+            )
+        )
 
         return f"Subagent '{label}' spawned (ID: {subagent_id})"
 
@@ -181,12 +180,11 @@ class SubAgentManager:
 
         try:
             # Create isolated tools - remove spawn_subagent to prevent recursion
-            isolated_tools = create_tool_subset(
-                self.base_tools,
-                exclude_names=["spawn_subagent"]
-            )
+            isolated_tools = create_tool_subset(self.base_tools, exclude_names=["spawn_subagent"])
 
-            self.logger.debug(f"[{subagent_id}] Created isolated toolset with {len(isolated_tools)} tools")
+            self.logger.debug(
+                f"[{subagent_id}] Created isolated toolset with {len(isolated_tools)} tools"
+            )
 
             # Create isolated orchestrator instance using factory pattern
             # This ensures each subagent has its own state
@@ -205,7 +203,9 @@ class SubAgentManager:
 
             self.logger.debug(f"[{subagent_id}] Task completed successfully")
             self.logger.debug(f"[{subagent_id}] Result length: {len(result)} chars")
-            self.logger.debug(f"[{subagent_id}] Result preview: {result[:200]}{'...' if len(result) > 200 else ''}")
+            self.logger.debug(
+                f"[{subagent_id}] Result preview: {result[:200]}{'...' if len(result) > 200 else ''}"
+            )
 
             # Store successful result
             self._results[subagent_id] = {
@@ -215,17 +215,19 @@ class SubAgentManager:
             }
 
             # Publish completion event
-            await self.event_bus.publish(SubagentEvent(
-                subagent_id=subagent_id,
-                parent_task_id=parent_task_id,
-                event_type="completed",
-                content={
-                    "label": label,
-                    "task": task,  # Include task for better context
-                    "result": result,
-                    "status": "ok"
-                }
-            ))
+            await self.event_bus.publish(
+                SubagentEvent(
+                    subagent_id=subagent_id,
+                    parent_task_id=parent_task_id,
+                    event_type="completed",
+                    content={
+                        "label": label,
+                        "task": task,  # Include task for better context
+                        "result": result,
+                        "status": "ok",
+                    },
+                )
+            )
 
             # NEW: Auto-inject result into conversation via MessageBus (Nanobot-style)
             if self.message_bus:
@@ -233,7 +235,9 @@ class SubAgentManager:
 
         except Exception as e:
             # Log error details (DEBUG only)
-            self.logger.error(f"[{subagent_id}] Subagent failed with error: {type(e).__name__}: {str(e)}")
+            self.logger.error(
+                f"[{subagent_id}] Subagent failed with error: {type(e).__name__}: {str(e)}"
+            )
             self.logger.debug(f"[{subagent_id}] Full traceback:", exc_info=True)
 
             # Store error result
@@ -244,16 +248,14 @@ class SubAgentManager:
             }
 
             # Publish failure event
-            await self.event_bus.publish(SubagentEvent(
-                subagent_id=subagent_id,
-                parent_task_id=parent_task_id,
-                event_type="failed",
-                content={
-                    "label": label,
-                    "error": str(e),
-                    "status": "error"
-                }
-            ))
+            await self.event_bus.publish(
+                SubagentEvent(
+                    subagent_id=subagent_id,
+                    parent_task_id=parent_task_id,
+                    event_type="failed",
+                    content={"label": label, "error": str(e), "status": "error"},
+                )
+            )
 
             # NEW: Auto-inject failure into conversation via MessageBus (Nanobot-style)
             if self.message_bus:
@@ -284,18 +286,12 @@ class SubAgentManager:
         if task is None:
             # Check if we have cached result from completed task
             if subagent_id in self._results:
-                return {
-                    "status": "completed",
-                    **self._results[subagent_id]
-                }
+                return {"status": "completed", **self._results[subagent_id]}
             return {"status": "not_found"}
 
         # Task exists but may or may not be done
         if task.done():
-            return {
-                "status": "completed",
-                **self._results.get(subagent_id, {})
-            }
+            return {"status": "completed", **self._results.get(subagent_id, {})}
 
         return {
             "status": "running",
@@ -344,12 +340,7 @@ class SubAgentManager:
             await asyncio.gather(*tasks_to_cancel, return_exceptions=True)
 
     async def _inject_result(
-        self,
-        subagent_id: str,
-        label: str,
-        task: str,
-        result: str,
-        status: str
+        self, subagent_id: str, label: str, task: str, result: str, status: str
     ) -> None:
         """
         Inject subagent result into the conversation via MessageBus (Nanobot-style).
@@ -388,7 +379,7 @@ Do not mention technical details like "subagent" or task IDs."""
                 "subagent_id": subagent_id,
                 "label": label,
                 "status": status,
-            }
+            },
         )
 
         # Inject into MessageBus

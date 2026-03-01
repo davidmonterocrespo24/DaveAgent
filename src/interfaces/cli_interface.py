@@ -3,7 +3,6 @@ Interactive CLI interface in the style of Claude Code
 """
 
 import asyncio
-import functools
 import os
 import random
 import signal
@@ -13,14 +12,13 @@ from pathlib import Path
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.history import FileHistory
-from prompt_toolkit.patch_stdout import patch_stdout
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.keys import Keys
 from prompt_toolkit.completion import Completer, Completion, WordCompleter, merge_completers
 from prompt_toolkit.document import Document
-from rich.console import Console
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
+from prompt_toolkit.patch_stdout import patch_stdout
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -33,6 +31,7 @@ from src.utils import FileIndexer, VibeSpinner, select_file_interactive
 # Platform-specific imports
 try:
     import termios
+
     TERMIOS_AVAILABLE = True
 except ImportError:
     TERMIOS_AVAILABLE = False  # Windows doesn't have termios
@@ -58,10 +57,20 @@ class FileCompleter(Completer):
                     if path.is_file():
                         # Skip common excluded directories
                         parts = path.parts
-                        if any(excluded in parts for excluded in [
-                            '.git', 'node_modules', '__pycache__', '.venv',
-                            'venv', '.pytest_cache', '.mypy_cache', 'dist', 'build'
-                        ]):
+                        if any(
+                            excluded in parts
+                            for excluded in [
+                                ".git",
+                                "node_modules",
+                                "__pycache__",
+                                ".venv",
+                                "venv",
+                                ".pytest_cache",
+                                ".mypy_cache",
+                                "dist",
+                                "build",
+                            ]
+                        ):
                             continue
 
                         # Store relative path
@@ -80,15 +89,15 @@ class FileCompleter(Completer):
         text = document.text_before_cursor
 
         # Find the last @ symbol
-        at_pos = text.rfind('@')
+        at_pos = text.rfind("@")
         if at_pos == -1:
             return
 
         # Extract the query after @
-        query = text[at_pos + 1:]
+        query = text[at_pos + 1 :]
 
         # Don't complete if there's a space after @ (means they finished the mention)
-        if ' ' in query:
+        if " " in query:
             return
 
         # Refresh cache if needed
@@ -142,6 +151,7 @@ class CLIInterface:
         # force_interactive=True ensures live updates work correctly
         # Use WindowsSafeConsole to automatically fix VT processing before each print
         from src.utils.vibe_spinner import WindowsSafeConsole
+
         self.console = WindowsSafeConsole(force_terminal=True, force_interactive=True)
         self._executor = None  # Lazy-initialized thread pool for async rendering
 
@@ -163,17 +173,39 @@ class CLIInterface:
 
         # Setup command completer (slash commands)
         command_words = [
-            '/help', '/exit', '/quit',
-            '/agent-mode', '/chat-mode',
-            '/new-session', '/load-session', '/save-session', '/list-sessions',
-            '/config', '/set-model', '/set-url',
-            '/cron', '/cron-list', '/cron-add', '/cron-remove', '/cron-enable',
-            '/subagents', '/subagent-status',
-            '/index', '/index-status', '/index-rebuild',
-            '/memory', '/memory-clear',
-            '/stats', '/clear', '/history',
-            '/debug', '/debug-on', '/debug-off',
-            '/telemetry', '/telemetry-on', '/telemetry-off',
+            "/help",
+            "/exit",
+            "/quit",
+            "/agent-mode",
+            "/chat-mode",
+            "/new-session",
+            "/load-session",
+            "/save-session",
+            "/list-sessions",
+            "/config",
+            "/set-model",
+            "/set-url",
+            "/cron",
+            "/cron-list",
+            "/cron-add",
+            "/cron-remove",
+            "/cron-enable",
+            "/subagents",
+            "/subagent-status",
+            "/index",
+            "/index-status",
+            "/index-rebuild",
+            "/memory",
+            "/memory-clear",
+            "/stats",
+            "/clear",
+            "/history",
+            "/debug",
+            "/debug-on",
+            "/debug-off",
+            "/telemetry",
+            "/telemetry-on",
+            "/telemetry-off",
         ]
         command_completer = WordCompleter(
             command_words,
@@ -208,7 +240,7 @@ class CLIInterface:
 
         # Setup signal handlers for graceful cleanup
         signal.signal(signal.SIGINT, self._handle_interrupt)
-        if hasattr(signal, 'SIGTERM'):
+        if hasattr(signal, "SIGTERM"):
             signal.signal(signal.SIGTERM, self._handle_terminate)
 
     # =========================================================================
@@ -233,11 +265,7 @@ class CLIInterface:
             return
 
         try:
-            termios.tcsetattr(
-                sys.stdin.fileno(),
-                termios.TCSADRAIN,
-                self._saved_term_attrs
-            )
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self._saved_term_attrs)
         except Exception:
             pass
 
@@ -267,6 +295,7 @@ class CLIInterface:
         # Fallback for Windows: manual drain using select
         try:
             import select
+
             while True:
                 ready, _, _ = select.select([fd], [], [], 0)
                 if not ready:
@@ -303,6 +332,7 @@ class CLIInterface:
         """
         if self._executor is None:
             import concurrent.futures
+
             self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
         loop = asyncio.get_event_loop()
@@ -432,7 +462,9 @@ class CLIInterface:
             # Create HTML formatted prompt with mode indicator (Nanobot-style)
             mode_indicator = "🔧" if self.current_mode == "agent" else "💬"
             mode_text = self.current_mode.upper()
-            prompt = HTML(f"<b fg='ansibrightcyan'>[{mode_indicator} {mode_text}]</b> <b fg='ansiyellow'>You:</b> ")
+            prompt = HTML(
+                f"<b fg='ansibrightcyan'>[{mode_indicator} {mode_text}]</b> <b fg='ansiyellow'>You:</b> "
+            )
         elif isinstance(prompt, str):
             # Convert plain string to HTML if needed
             prompt = HTML(f"<ansiyellow>{prompt}</ansiyellow>")
@@ -611,6 +643,7 @@ class CLIInterface:
             message: Optional custom message (uses rotating vibes if None)
         """
         import logging
+
         logger = logging.getLogger("DaveAgent")
         logger.debug(f"🔧 [CLI_SPINNER_DEBUG] start_thinking called with message='{message}'")
 
@@ -619,18 +652,20 @@ class CLIInterface:
 
         if message:
             # Single custom message
-            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Creating spinner with custom message: '{message}'")
+            logger.debug(
+                f"🔧 [CLI_SPINNER_DEBUG] Creating spinner with custom message: '{message}'"
+            )
             self.vibe_spinner = VibeSpinner(
                 messages=[message], spinner_style="dots", color="cyan", language="es"
             )
         else:
             # Rotating vibe messages
-            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Creating spinner with rotating vibe messages")
+            logger.debug("🔧 [CLI_SPINNER_DEBUG] Creating spinner with rotating vibe messages")
             self.vibe_spinner = VibeSpinner(spinner_style="dots", color="cyan", language="es")
 
-        logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Starting spinner...")
+        logger.debug("🔧 [CLI_SPINNER_DEBUG] Starting spinner...")
         self.vibe_spinner.start()
-        logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner started successfully")
+        logger.debug("🔧 [CLI_SPINNER_DEBUG] Spinner started successfully")
 
     def stop_thinking(self, clear: bool = True):
         """
@@ -640,17 +675,20 @@ class CLIInterface:
             clear: Whether to clear the spinner line
         """
         import logging
+
         logger = logging.getLogger("DaveAgent")
         logger.debug(f"🔧 [CLI_SPINNER_DEBUG] stop_thinking called, clear={clear}")
 
         if self.vibe_spinner and self.vibe_spinner.is_running():
-            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner is running, stopping it...")
+            logger.debug("🔧 [CLI_SPINNER_DEBUG] Spinner is running, stopping it...")
             self.vibe_spinner.stop(clear_line=clear)
-            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner stopped")
+            logger.debug("🔧 [CLI_SPINNER_DEBUG] Spinner stopped")
             self.vibe_spinner = None
-            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner reference cleared")
+            logger.debug("🔧 [CLI_SPINNER_DEBUG] Spinner reference cleared")
         else:
-            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] No active spinner to stop (vibe_spinner={self.vibe_spinner is not None}, is_running={self.vibe_spinner.is_running() if self.vibe_spinner else 'N/A'})")
+            logger.debug(
+                f"🔧 [CLI_SPINNER_DEBUG] No active spinner to stop (vibe_spinner={self.vibe_spinner is not None}, is_running={self.vibe_spinner.is_running() if self.vibe_spinner else 'N/A'})"
+            )
 
     def thinking_context(self, message: str | None = None):
         """
@@ -1116,7 +1154,7 @@ Simply write what you need the agent to do. The agent will:
                 f"[dim]This task will run in the background. You'll be notified when it completes.[/dim]",
                 title=f"[bold green]🚀 Subagent Spawned: {label}[/bold green]",
                 border_style="green",
-                padding=(1, 2)
+                padding=(1, 2),
             )
         )
 
@@ -1128,9 +1166,7 @@ Simply write what you need the agent to do. The agent will:
             label: Human-readable label
             progress_msg: Progress message
         """
-        self.console.print(
-            f"[dim]🔄 Subagent '{label}' ({subagent_id[:8]}): {progress_msg}[/dim]"
-        )
+        self.console.print(f"[dim]🔄 Subagent '{label}' ({subagent_id[:8]}): {progress_msg}[/dim]")
 
     def print_subagent_completed(self, subagent_id: str, label: str, summary: str):
         """Show enhanced subagent completion notification.
@@ -1147,7 +1183,7 @@ Simply write what you need the agent to do. The agent will:
                 f"[dim]The results are being processed by the agent...[/dim]",
                 title=f"[bold green]✓ Subagent Completed: {label}[/bold green]",
                 border_style="green",
-                padding=(1, 2)
+                padding=(1, 2),
             )
         )
 
@@ -1166,7 +1202,7 @@ Simply write what you need the agent to do. The agent will:
                 f"[dim]The agent will handle this failure and suggest alternatives.[/dim]",
                 title=f"[bold red]✗ Subagent Failed: {label}[/bold red]",
                 border_style="red",
-                padding=(1, 2)
+                padding=(1, 2),
             )
         )
 

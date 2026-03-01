@@ -153,7 +153,10 @@ async def git_commit(message: str, path: str | None = None, explanation: str = "
 
 
 async def git_push(
-    remote: str = "origin", branch: str | None = None, path: str | None = None, explanation: str = ""
+    remote: str = "origin",
+    branch: str | None = None,
+    path: str | None = None,
+    explanation: str = "",
 ) -> str:
     """
     Pushes commits to the remote repository.
@@ -192,7 +195,10 @@ async def git_push(
 
 
 async def git_pull(
-    remote: str = "origin", branch: str | None = None, path: str | None = None, explanation: str = ""
+    remote: str = "origin",
+    branch: str | None = None,
+    path: str | None = None,
+    explanation: str = "",
 ) -> str:
     """
     Pulls changes from the remote repository.
@@ -267,7 +273,10 @@ async def git_log(limit: int = 10, path: str | None = None, explanation: str = "
 
 
 async def git_branch(
-    operation: str = "list", branch_name: str | None = None, path: str | None = None, explanation: str = ""
+    operation: str = "list",
+    branch_name: str | None = None,
+    path: str | None = None,
+    explanation: str = "",
 ) -> str:
     """
     Manages git branches.

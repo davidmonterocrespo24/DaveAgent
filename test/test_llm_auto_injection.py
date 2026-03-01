@@ -9,8 +9,8 @@ Tests the complete flow:
 5. Message logged to conversation tracker
 """
 
-import sys
 import asyncio
+import sys
 from pathlib import Path
 
 # Add src to path
@@ -19,14 +19,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 def test_imports():
     """Test that all components can be imported."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 1: Import all components")
-    print("="*70)
+    print("=" * 70)
 
     try:
         from src.bus import MessageBus, SystemMessage
         from src.config.orchestrator import AgentOrchestrator
         from src.subagents.manager import SubAgentManager
+
         print("[OK] All components imported successfully")
         return True
     except ImportError as e:
@@ -36,13 +37,13 @@ def test_imports():
 
 async def test_concurrent_limit():
     """Test that concurrent subagent limit works."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 2: Concurrent subagent limit")
-    print("="*70)
+    print("=" * 70)
 
-    from src.subagents.manager import SubAgentManager
-    from src.subagents.events import SubagentEventBus
     from src.bus import MessageBus
+    from src.subagents.events import SubagentEventBus
+    from src.subagents.manager import SubAgentManager
 
     try:
         event_bus = SubagentEventBus()
@@ -54,7 +55,7 @@ async def test_concurrent_limit():
             orchestrator_factory=lambda **kwargs: None,  # Dummy factory
             base_tools=[],
             message_bus=message_bus,
-            max_concurrent=2  # Only allow 2 concurrent
+            max_concurrent=2,  # Only allow 2 concurrent
         )
 
         # Create 2 dummy tasks to fill the limit
@@ -64,10 +65,7 @@ async def test_concurrent_limit():
 
         # Try to spawn a third one - should raise error
         try:
-            await manager.spawn(
-                task="This should fail",
-                label="test_overflow"
-            )
+            await manager.spawn(task="This should fail", label="test_overflow")
             print("[FAIL] Should have raised RuntimeError for exceeding limit")
             # Cleanup
             dummy_task.cancel()
@@ -99,18 +97,20 @@ async def test_concurrent_limit():
     except Exception as e:
         print(f"[FAIL] Unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 async def test_message_logging():
     """Test that system messages are logged to conversation tracker."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 3: Message logging to conversation tracker")
-    print("="*70)
+    print("=" * 70)
+
+    from datetime import datetime
 
     from src.bus import MessageBus, SystemMessage
-    from datetime import datetime
 
     try:
         # Create a mock conversation tracker
@@ -119,11 +119,7 @@ async def test_message_logging():
                 self.messages = []
 
             def add_message(self, role, content, metadata=None):
-                self.messages.append({
-                    "role": role,
-                    "content": content,
-                    "metadata": metadata or {}
-                })
+                self.messages.append({"role": role, "content": content, "metadata": metadata or {}})
 
         # Create a mock orchestrator
         class MockOrchestrator:
@@ -133,17 +129,25 @@ async def test_message_logging():
                 self.main_team = None  # No team for this test
                 self._detector_running = False
                 self._detector_task = None
-                self.logger = type('obj', (object,), {
-                    'debug': lambda *args: None,
-                    'info': lambda *args: None,
-                    'warning': lambda *args: None,
-                    'error': lambda *args: None
-                })()
-                self.cli = type('obj', (object,), {
-                    'print_success': lambda *args: None,
-                    'print_info': lambda *args: None,
-                    'print_warning': lambda *args: None
-                })()
+                self.logger = type(
+                    "obj",
+                    (object,),
+                    {
+                        "debug": lambda *args: None,
+                        "info": lambda *args: None,
+                        "warning": lambda *args: None,
+                        "error": lambda *args: None,
+                    },
+                )()
+                self.cli = type(
+                    "obj",
+                    (object,),
+                    {
+                        "print_success": lambda *args: None,
+                        "print_info": lambda *args: None,
+                        "print_warning": lambda *args: None,
+                    },
+                )()
 
             async def start_system_message_detector(self):
                 pass
@@ -153,6 +157,7 @@ async def test_message_logging():
 
             # Import the actual _process_system_message method
             from src.config.orchestrator import AgentOrchestrator
+
             _process_system_message = AgentOrchestrator._process_system_message
 
         mock_orch = MockOrchestrator()
@@ -162,7 +167,7 @@ async def test_message_logging():
             message_type="subagent_result",
             sender_id="subagent:test123",
             content="Test result content",
-            metadata={"subagent_id": "test123", "label": "test", "status": "ok"}
+            metadata={"subagent_id": "test123", "label": "test", "status": "ok"},
         )
 
         # Process it (should fall back to display mode since no team)
@@ -183,19 +188,20 @@ async def test_message_logging():
     except Exception as e:
         print(f"[FAIL] Error in logging test: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 async def test_integration_flow():
     """Test the complete integration flow (without actual LLM)."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 4: Complete integration flow")
-    print("="*70)
+    print("=" * 70)
 
     from src.bus import MessageBus, SystemMessage
-    from src.subagents.manager import SubAgentManager
     from src.subagents.events import SubagentEventBus
+    from src.subagents.manager import SubAgentManager
 
     try:
         # Setup components
@@ -208,7 +214,7 @@ async def test_integration_flow():
             orchestrator_factory=lambda **kwargs: None,
             base_tools=[],
             message_bus=message_bus,
-            max_concurrent=10
+            max_concurrent=10,
         )
 
         assert manager.max_concurrent == 10
@@ -219,7 +225,7 @@ async def test_integration_flow():
             message_type="subagent_result",
             sender_id="subagent:abc123",
             content="[Background Task 'analyzer' completed successfully]\n\nTask: Analyze files\n\nResult: Found 42 files",
-            metadata={"subagent_id": "abc123", "label": "analyzer", "status": "ok"}
+            metadata={"subagent_id": "abc123", "label": "analyzer", "status": "ok"},
         )
 
         await message_bus.publish_inbound(sys_msg)
@@ -236,15 +242,16 @@ async def test_integration_flow():
     except Exception as e:
         print(f"[FAIL] Error in integration flow: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def main():
     """Run all tests."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("LLM AUTO-INJECTION - INTEGRATION TEST SUITE")
-    print("="*70)
+    print("=" * 70)
 
     results = []
 
@@ -258,9 +265,9 @@ def main():
     results.append(("Integration Flow", loop.run_until_complete(test_integration_flow())))
 
     # Summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     for name, passed in results:
         status = "[PASS]" if passed else "[FAIL]"
@@ -272,9 +279,9 @@ def main():
     print(f"\nTotal: {passed}/{total} tests passed")
 
     if passed == total:
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("[SUCCESS] LLM AUTO-INJECTION - COMPLETE!")
-        print("="*70)
+        print("=" * 70)
         print("\nImplemented features:")
         print("  [OK] LLM processing of system messages via team.run_stream()")
         print("  [OK] Integration with conversation_tracker")
@@ -287,7 +294,7 @@ def main():
         print("  3. 'Please analyze all Python files and spawn a subagent'")
         print("  4. Wait for subagent to complete")
         print("  5. Should see LLM-generated natural response (not raw text)")
-        print("="*70)
+        print("=" * 70)
         return 0
     else:
         print(f"\n[WARNING] {total - passed} test(s) failed")

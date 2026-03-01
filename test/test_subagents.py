@@ -8,8 +8,8 @@ This script tests:
 """
 
 import asyncio
-import sys
 import os
+import sys
 
 # Windows console compatibility - use ASCII characters
 CHECK = "[OK]"
@@ -21,7 +21,7 @@ sys.path.insert(0, os.getcwd())
 
 async def test_event_bus():
     """Test the event bus"""
-    from src.subagents import SubagentEventBus, SubagentEvent
+    from src.subagents import SubagentEvent, SubagentEventBus
 
     print("Testing Event Bus...")
     bus = SubagentEventBus()
@@ -35,12 +35,14 @@ async def test_event_bus():
     bus.subscribe("test_event", on_event)
 
     # Publish event
-    await bus.publish(SubagentEvent(
-        subagent_id="test123",
-        parent_task_id="main",
-        event_type="test_event",
-        content={"message": "Hello from test"}
-    ))
+    await bus.publish(
+        SubagentEvent(
+            subagent_id="test123",
+            parent_task_id="main",
+            event_type="test_event",
+            content={"message": "Hello from test"},
+        )
+    )
 
     assert len(events_received) == 1, "Should receive 1 event"
     assert events_received[0].subagent_id == "test123"
@@ -87,15 +89,9 @@ async def test_subagent_manager():
 
     # Mock orchestrator factory
     def mock_factory(tools, max_iterations, mode):
-        return type('MockOrchestrator', (), {
-            'run_task': lambda self, task: asyncio.sleep(0.1)
-        })()
+        return type("MockOrchestrator", (), {"run_task": lambda self, task: asyncio.sleep(0.1)})()
 
-    manager = SubAgentManager(
-        event_bus=bus,
-        orchestrator_factory=mock_factory,
-        base_tools=[]
-    )
+    manager = SubAgentManager(event_bus=bus, orchestrator_factory=mock_factory, base_tools=[])
 
     assert manager is not None
     assert len(manager.list_active_subagents()) == 0
@@ -104,8 +100,8 @@ async def test_subagent_manager():
 
 async def test_spawn_tool():
     """Test spawn tool initialization"""
-    from src.tools.spawn_subagent import set_subagent_manager, spawn_subagent
     from src.subagents import SubagentEventBus, SubAgentManager
+    from src.tools.spawn_subagent import set_subagent_manager, spawn_subagent
 
     print("\nTesting Spawn Tool...")
 
@@ -117,21 +113,15 @@ async def test_spawn_tool():
             async def run_task(self, task):
                 await asyncio.sleep(0.05)
                 return f"Completed: {task}"
+
         return MockOrchestrator()
 
-    manager = SubAgentManager(
-        event_bus=bus,
-        orchestrator_factory=mock_factory,
-        base_tools=[]
-    )
+    manager = SubAgentManager(event_bus=bus, orchestrator_factory=mock_factory, base_tools=[])
 
     set_subagent_manager(manager, "test")
 
     # Test spawn
-    result = await spawn_subagent(
-        task="Test task",
-        label="test_agent"
-    )
+    result = await spawn_subagent(task="Test task", label="test_agent")
 
     assert "spawned" in result.lower()
     assert "test_agent" in result
@@ -175,6 +165,7 @@ async def main():
         print("=" * 60)
         print(f"\nError: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

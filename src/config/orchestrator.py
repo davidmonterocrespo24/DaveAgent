@@ -65,7 +65,6 @@ class AgentOrchestrator:
         self.conversation_tracker = get_conversation_tracker()
 
         # Unique agent identifier (for distinguishing main agent from subagents in logs)
-        import uuid
         self.agent_id = agent_id if agent_id else "MAIN"
         self.is_subagent = agent_id is not None  # True if this is a subagent
 
@@ -75,10 +74,13 @@ class AgentOrchestrator:
         self.headless = headless
 
         # Log orchestrator initialization with ID
-        self.logger.debug(f"[{self.agent_id}] Orchestrator initialized (headless={headless}, subagent={self.is_subagent})")
+        self.logger.debug(
+            f"[{self.agent_id}] Orchestrator initialized (headless={headless}, subagent={self.is_subagent})"
+        )
 
         # Set headless context for current execution context
         from src.utils.headless_context import set_headless
+
         set_headless(headless)
         # Load configuration (API key, URL, model)
         from src.config import get_settings
@@ -180,7 +182,6 @@ class AgentOrchestrator:
         else:
             self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
 
-
         # Context Manager (DAVEAGENT.md)
         from src.managers import ContextManager
 
@@ -230,7 +231,6 @@ class AgentOrchestrator:
 
         # Start telemetry in background
         threading.Thread(target=init_telemetry_background, daemon=True).start()
-
 
         # Import all tools from the new structure
         from src.tools import (
@@ -284,7 +284,6 @@ class AgentOrchestrator:
             write_json,
         )
 
-
         # Store all tools to filter them according to mode
         self.all_tools = {
             # READ-ONLY tools (available in both modes)
@@ -337,7 +336,6 @@ class AgentOrchestrator:
             ],
         }
 
-
         # =====================================================================
         # MESSAGEBUS SYSTEM INITIALIZATION (FASE 3: Auto-Injection)
         # =====================================================================
@@ -358,9 +356,10 @@ class AgentOrchestrator:
         # Initialize parallel subagent execution system
         # This allows the agent to spawn background tasks that run concurrently
         # =====================================================================
-        from src.subagents import SubagentEventBus, SubAgentManager
-        from src.tools import spawn_subagent, check_subagent_results
         import sys
+
+        from src.subagents import SubagentEventBus, SubAgentManager
+        from src.tools import check_subagent_results, spawn_subagent
 
         self.subagent_event_bus = SubagentEventBus()
         self.subagent_manager = SubAgentManager(
@@ -372,7 +371,7 @@ class AgentOrchestrator:
 
         # Initialize spawn tool with manager
         # Access the module from sys.modules to call set_subagent_manager
-        spawn_module = sys.modules['src.tools.spawn_subagent']
+        spawn_module = sys.modules["src.tools.spawn_subagent"]
         spawn_module.set_subagent_manager(self.subagent_manager, task_id="main")
 
         # Add spawn tool to available tools
@@ -382,14 +381,14 @@ class AgentOrchestrator:
         self._subagent_announcements = []
 
         # Initialize check_subagent_results tool with orchestrator reference
-        check_results_module = sys.modules['src.tools.check_subagent_results']
+        check_results_module = sys.modules["src.tools.check_subagent_results"]
         check_results_module.set_orchestrator(self)
 
         # Add check results tool to read-only tools (doesn't modify state)
         self.all_tools["read_only"].append(check_subagent_results)
 
         # Initialize terminal tool with orchestrator reference (for real-time output)
-        terminal_module = sys.modules['src.tools.terminal']
+        terminal_module = sys.modules["src.tools.terminal"]
         terminal_module.set_orchestrator(self)
 
         # Subscribe to subagent events
@@ -399,12 +398,12 @@ class AgentOrchestrator:
 
         # Cron system initialization
         from pathlib import Path
+
         from src.cron import CronService
 
         cron_storage = Path(os.getcwd()) / ".daveagent" / "cron_jobs.json"
         self.cron_service = CronService(
-            storage_path=cron_storage,
-            on_job=self._on_cron_job_triggered
+            storage_path=cron_storage, on_job=self._on_cron_job_triggered
         )
         self.logger.info("✓ Cron service initialized")
 
@@ -438,9 +437,6 @@ class AgentOrchestrator:
 
         # Initialize agents and main_team for the current mode
         self._initialize_agents_for_mode()
-
-
-
 
     def _initialize_agents_for_mode(self):
         """
@@ -546,7 +542,9 @@ class AgentOrchestrator:
         # - Eliminates "multiple system messages" problem
         # =====================================================================
 
-        termination_condition = TextMentionTermination("TERMINATE") | MaxMessageTermination(1000)  # High limit for long-running conversations
+        termination_condition = TextMentionTermination("TERMINATE") | MaxMessageTermination(
+            1000
+        )  # High limit for long-running conversations
 
         self.logger.debug("[SELECTOR] Creating SelectorGroupChat...")
         self.logger.debug("[SELECTOR] Participants: Planner, Coder")
@@ -554,7 +552,9 @@ class AgentOrchestrator:
         def selector_func(messages: Sequence[BaseAgentEvent | BaseChatMessage]) -> str | None:
             # If no messages, start with Coder
             if not messages:
-                self.logger.debug(f"🔄 [{self.agent_id}] [Selector] No messages yet -> Starting with Coder")
+                self.logger.debug(
+                    f"🔄 [{self.agent_id}] [Selector] No messages yet -> Starting with Coder"
+                )
                 return "Coder"
 
             last_message = messages[-1]
@@ -565,7 +565,7 @@ class AgentOrchestrator:
 
             # Enhanced logging with agent_id prefix
             self.logger.debug(
-                f"🔄 [{self.agent_id}] [Selector] msg[{len(messages)-1}] from={last_message.source} "
+                f"🔄 [{self.agent_id}] [Selector] msg[{len(messages) - 1}] from={last_message.source} "
                 f"type={type(last_message).__name__}: {content_preview}"
             )
 
@@ -573,9 +573,13 @@ class AgentOrchestrator:
             if last_message.source == "Planner":
                 if isinstance(last_message, TextMessage):
                     if "TERMINATE" in last_message.content:
-                        self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Planner said TERMINATE -> Ending conversation")
+                        self.logger.debug(
+                            f"🔄 [{self.agent_id}] [Selector] Planner said TERMINATE -> Ending conversation"
+                        )
                         return None  # Let termination condition handle it
-                self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Planner just spoke -> Selecting Coder (MANDATORY)")
+                self.logger.debug(
+                    f"🔄 [{self.agent_id}] [Selector] Planner just spoke -> Selecting Coder (MANDATORY)"
+                )
                 return "Coder"
 
             # If Coder just spoke
@@ -583,7 +587,9 @@ class AgentOrchestrator:
                 # Check for explicit signals in TextMessage
                 if isinstance(last_message, TextMessage):
                     if "TERMINATE" in last_message.content:
-                        self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Coder said TERMINATE -> Ending conversation")
+                        self.logger.debug(
+                            f"🔄 [{self.agent_id}] [Selector] Coder said TERMINATE -> Ending conversation"
+                        )
                         return None  # Let termination condition handle it
                     content = last_message.content
                     if any(token in content for token in ("DELEGATE_TO_PLANNER", "SUBTASK_DONE")):
@@ -599,7 +605,9 @@ class AgentOrchestrator:
                 # We usually want Coder to receive the result.
                 # But here we assume the runtime executes the tool and appends the result.
                 # We want to ensure Coder gets the next turn to read the result.
-                self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Coder waiting for tool result -> Keep Coder")
+                self.logger.debug(
+                    f"🔄 [{self.agent_id}] [Selector] Coder waiting for tool result -> Keep Coder"
+                )
                 return "Coder"
 
             # If the last message was a tool execution result
@@ -607,18 +615,24 @@ class AgentOrchestrator:
             # We must verify the type to be sure.
             if type(last_message).__name__ == "FunctionExecutionResultMessage":
                 # Tool finished, give control back to Coder to handle the output
-                self.logger.debug(f"🔄 [{self.agent_id}] [Selector] Tool result received -> Back to Coder")
+                self.logger.debug(
+                    f"🔄 [{self.agent_id}] [Selector] Tool result received -> Back to Coder"
+                )
                 return "Coder"
 
             # If the last message is from the User
             if last_message.source == "user":
                 # Default to Planner for normal requests
-                self.logger.debug(f"[{self.agent_id}] [Selector] User message -> Starting with Planner")
+                self.logger.debug(
+                    f"[{self.agent_id}] [Selector] User message -> Starting with Planner"
+                )
                 return "Planner"
 
             # FALLBACK: Never return None unless we explicitly want to terminate
             # If we don't recognize the source, default to Coder to continue
-            self.logger.warning(f"⚠️ [{self.agent_id}] [Selector] Unknown message source: {last_message.source} -> Defaulting to Coder")
+            self.logger.warning(
+                f"⚠️ [{self.agent_id}] [Selector] Unknown message source: {last_message.source} -> Defaulting to Coder"
+            )
             return "Coder"
 
         self.main_team = SelectorGroupChat(
@@ -660,7 +674,7 @@ class AgentOrchestrator:
         max_iterations: int,
         mode: str = "subagent",
         task: str = "",  # Task description for subagent prompt
-        subagent_id: str = None  # NEW: Unique identifier for logging
+        subagent_id: str = None,  # NEW: Unique identifier for logging
     ):
         """Factory method to create isolated AgentOrchestrator for subagents.
 
@@ -684,10 +698,13 @@ class AgentOrchestrator:
         # Generate subagent ID if not provided
         if not subagent_id:
             import uuid
+
             subagent_id = f"SUB-{str(uuid.uuid4())[:8]}"
 
         # Log subagent creation (DEBUG only - not shown in terminal)
-        self.logger.debug(f"[{self.agent_id}] Creating subagent orchestrator with ID: {subagent_id}")
+        self.logger.debug(
+            f"[{self.agent_id}] Creating subagent orchestrator with ID: {subagent_id}"
+        )
         self.logger.debug(f"[{self.agent_id}] Subagent task: {task[:100]}...")
 
         # Create new instance with same config but isolated state
@@ -709,14 +726,16 @@ class AgentOrchestrator:
         subagent_orch.coder_agent.max_tool_iterations = max_iterations
 
         # Log tool configuration (DEBUG only)
-        tool_names = [t.name if hasattr(t, 'name') else str(t) for t in tools]
+        tool_names = [t.name if hasattr(t, "name") else str(t) for t in tools]
         self.logger.debug(f"[{subagent_id}] Configured with tools: {', '.join(tool_names)}")
         self.logger.debug(f"[{subagent_id}] Max tool iterations: {max_iterations}")
 
         # IMPORTANT: Override system prompt with subagent-specific prompt
         if task:
-            from src.config.prompts import SUBAGENT_SYSTEM_PROMPT
             from pathlib import Path
+
+            from src.config.prompts import SUBAGENT_SYSTEM_PROMPT
+
             workspace = Path.cwd()
             subagent_prompt = SUBAGENT_SYSTEM_PROMPT(task=task, workspace_path=str(workspace))
             # Update the system_message attribute (singular, not plural)
@@ -738,12 +757,14 @@ class AgentOrchestrator:
         Returns:
             Result string from the agent execution
         """
-        if hasattr(self, '_is_subagent') and self._is_subagent:
+        if hasattr(self, "_is_subagent") and self._is_subagent:
             # Simplified execution for subagents
             return await self._run_task_simple(task)
         else:
             # This shouldn't be called for main task - use process_user_request instead
-            self.logger.warning("run_task called on main orchestrator - use process_user_request instead")
+            self.logger.warning(
+                "run_task called on main orchestrator - use process_user_request instead"
+            )
             return await self._run_task_simple(task)
 
     async def _run_task_simple(self, task: str) -> str:
@@ -761,9 +782,9 @@ class AgentOrchestrator:
         # Collect result
         result_parts = []
         async for msg in stream:
-            if hasattr(msg, 'content') and isinstance(msg.content, str):
+            if hasattr(msg, "content") and isinstance(msg.content, str):
                 # Only collect TextMessage content from agents
-                if hasattr(msg, 'source') and msg.source in ["Coder", "Planner"]:
+                if hasattr(msg, "source") and msg.source in ["Coder", "Planner"]:
                     result_parts.append(msg.content)
 
         return "\n".join(result_parts) if result_parts else "Task completed"
@@ -776,8 +797,8 @@ class AgentOrchestrator:
         Args:
             event: SubagentEvent with spawn data
         """
-        label = event.content.get('label', 'unknown')
-        task = event.content.get('task', '')
+        label = event.content.get("label", "unknown")
+        task = event.content.get("task", "")
 
         # Show enhanced spawn notification
         self.cli.print_subagent_spawned(event.subagent_id, label, task)
@@ -792,22 +813,24 @@ class AgentOrchestrator:
         Args:
             event: SubagentEvent with completion data
         """
-        label = event.content.get('label', 'unknown')
-        result = event.content.get('result', '')
-        task = event.content.get('task', '')
+        label = event.content.get("label", "unknown")
+        result = event.content.get("result", "")
+        task = event.content.get("task", "")
         result_preview = result[:200] + "..." if len(result) > 200 else result
 
         # Show completion notification in terminal IMMEDIATELY
         self.cli.print_subagent_completed(event.subagent_id, label, result_preview)
 
         # Log completion
-        self.logger.info(f"✓ Subagent '{label}' ({event.subagent_id[:8]}) completed: {result_preview}")
+        self.logger.info(
+            f"✓ Subagent '{label}' ({event.subagent_id[:8]}) completed: {result_preview}"
+        )
         self.logger.info(f"Subagent {event.subagent_id} ({label}) completed successfully")
 
         # NANOBOT-STYLE: Create announcement message
         announce_content = f"""[Background Task Completed: '{label}']
 
-Task: {task if task else 'Unspecified task'}
+Task: {task if task else "Unspecified task"}
 
 Result:
 {result}
@@ -818,14 +841,16 @@ Focus on the key findings or actions taken.
 Do not mention technical terms like "subagent" or IDs."""
 
         # Queue announcement for display
-        if hasattr(self, '_subagent_announcements'):
-            self._subagent_announcements.append({
-                'label': label,
-                'task': task,
-                'result': result,
-                'preview': result_preview,
-                'announcement': announce_content
-            })
+        if hasattr(self, "_subagent_announcements"):
+            self._subagent_announcements.append(
+                {
+                    "label": label,
+                    "task": task,
+                    "result": result,
+                    "preview": result_preview,
+                    "announcement": announce_content,
+                }
+            )
             self.logger.debug(f"Queued subagent announcement for '{label}'")
 
     async def _on_subagent_failed(self, event) -> None:
@@ -836,9 +861,9 @@ Do not mention technical terms like "subagent" or IDs."""
         Args:
             event: SubagentEvent with failure data
         """
-        label = event.content.get('label', 'unknown')
-        task = event.content.get('task', '')
-        error = event.content.get('error', 'Unknown error')
+        label = event.content.get("label", "unknown")
+        task = event.content.get("task", "")
+        error = event.content.get("error", "Unknown error")
 
         # Show enhanced failure notification
         self.cli.print_subagent_failed(event.subagent_id, label, error)
@@ -847,7 +872,7 @@ Do not mention technical terms like "subagent" or IDs."""
         # NANOBOT-STYLE: Create failure announcement
         announce_content = f"""[Background Task Failed: '{label}']
 
-Task: {task if task else 'Unspecified task'}
+Task: {task if task else "Unspecified task"}
 
 Error:
 {error}
@@ -857,14 +882,16 @@ Please inform the user about this failure in a clear way.
 Suggest possible next steps or alternatives if appropriate."""
 
         # Queue announcement
-        if hasattr(self, '_subagent_announcements'):
-            self._subagent_announcements.append({
-                'label': label,
-                'task': task,
-                'error': error,
-                'announcement': announce_content,
-                'failed': True
-            })
+        if hasattr(self, "_subagent_announcements"):
+            self._subagent_announcements.append(
+                {
+                    "label": label,
+                    "task": task,
+                    "error": error,
+                    "announcement": announce_content,
+                    "failed": True,
+                }
+            )
             self.logger.debug(f"Queued subagent failure announcement for '{label}'")
 
     async def _on_cron_job_triggered(self, job) -> None:
@@ -880,14 +907,11 @@ Suggest possible next steps or alternatives if appropriate."""
         self.logger.info(f"Cron job {job.id} ({job.name}) triggered at scheduled time")
 
         # Spawn subagent to execute the cron task
-        if hasattr(self, 'subagent_manager'):
+        if hasattr(self, "subagent_manager"):
             try:
                 label = f"cron:{job.name[:30]}"
                 subagent_id = await self.subagent_manager.spawn(
-                    task=job.task,
-                    label=label,
-                    parent_task_id="cron",
-                    max_iterations=15
+                    task=job.task, label=label, parent_task_id="cron", max_iterations=15
                 )
                 self.logger.info(f"Spawned subagent {subagent_id} for cron job {job.id}")
                 self.cli.print_success(f"✓ Spawned subagent {subagent_id} for cron task")
@@ -917,7 +941,7 @@ Suggest possible next steps or alternatives if appropriate."""
             return
 
         self._detector_running = True
-        self._detector_task = asyncio.create_task(self._system_message_detector())        
+        self._detector_task = asyncio.create_task(self._system_message_detector())
 
     async def stop_system_message_detector(self):
         """Stop the background system message detector.
@@ -933,7 +957,7 @@ Suggest possible next steps or alternatives if appropriate."""
             try:
                 # Wait for detector to finish with timeout
                 await asyncio.wait_for(self._detector_task, timeout=2.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.logger.warning("System message detector did not stop gracefully, cancelling")
                 self._detector_task.cancel()
                 try:
@@ -962,8 +986,7 @@ Suggest possible next steps or alternatives if appropriate."""
 
                 if sys_msg:
                     self.logger.info(
-                        f"Detected system message: {sys_msg.message_type} "
-                        f"from {sys_msg.sender_id}"
+                        f"Detected system message: {sys_msg.message_type} from {sys_msg.sender_id}"
                     )
 
                     try:
@@ -972,7 +995,7 @@ Suggest possible next steps or alternatives if appropriate."""
                     except Exception as e:
                         self.logger.error(
                             f"Error processing system message from {sys_msg.sender_id}: {e}",
-                            exc_info=True
+                            exc_info=True,
                         )
                         # Don't stop the detector on processing errors
 
@@ -1007,12 +1030,12 @@ Suggest possible next steps or alternatives if appropriate."""
             else:
                 self.cli.print_warning(f"📥 Subagent '{label}' failed - processing error...")
         elif sys_msg.message_type == "cron_result":
-            self.cli.print_info(f"📥 Cron job result received - processing...")
+            self.cli.print_info("📥 Cron job result received - processing...")
         else:
             self.cli.print_info(f"📥 System message received: {sys_msg.message_type}")
 
         # Log to conversation tracker for persistence (always, regardless of team)
-        if hasattr(self, 'conversation_tracker'):
+        if hasattr(self, "conversation_tracker"):
             try:
                 self.conversation_tracker.add_message(
                     role="system",
@@ -1021,16 +1044,18 @@ Suggest possible next steps or alternatives if appropriate."""
                         "type": "subagent_result",
                         "message_type": sys_msg.message_type,
                         "sender_id": sys_msg.sender_id,
-                        "timestamp": sys_msg.timestamp.isoformat() if hasattr(sys_msg.timestamp, 'isoformat') else str(sys_msg.timestamp),
-                        **sys_msg.metadata
-                    }
+                        "timestamp": sys_msg.timestamp.isoformat()
+                        if hasattr(sys_msg.timestamp, "isoformat")
+                        else str(sys_msg.timestamp),
+                        **sys_msg.metadata,
+                    },
                 )
                 self.logger.debug("System message logged to conversation tracker")
             except Exception as log_error:
                 self.logger.warning(f"Failed to log system message to tracker: {log_error}")
 
         # Check if we have an active team to process the message
-        if not hasattr(self, 'main_team') or self.main_team is None:
+        if not hasattr(self, "main_team") or self.main_team is None:
             # Fallback: just display the content if no team is active
             self.logger.warning("No active team - displaying system message directly")
             self.cli.print_info(f"\n{sys_msg.content}\n")
@@ -1115,7 +1140,5 @@ Suggest possible next steps or alternatives if appropriate."""
             self.logger.error(f"Error running agent with system message: {e}", exc_info=True)
             # Fallback: just display the content
             self.cli.stop_thinking(clear=True)
-            self.cli.print_warning(f"⚠️ Could not process through agent, displaying directly:")
+            self.cli.print_warning("⚠️ Could not process through agent, displaying directly:")
             self.cli.print_info(f"\n{sys_msg.content}\n")
-
-

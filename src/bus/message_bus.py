@@ -22,9 +22,10 @@ class SystemMessage:
 
     Similar to Nanobot's InboundMessage but simplified for CodeAgent's needs.
     """
+
     message_type: str  # "subagent_result", "cron_result", etc.
-    sender_id: str     # "subagent", "cron", etc.
-    content: str       # Formatted announcement for the LLM
+    sender_id: str  # "subagent", "cron", etc.
+    content: str  # Formatted announcement for the LLM
 
     # Routing info (optional, for future multi-session support)
     channel: str = "cli"
@@ -98,11 +99,9 @@ class MessageBus:
         """
         try:
             message = await asyncio.wait_for(self.inbound.get(), timeout=timeout)
-            logger.debug(
-                f"Consumed {message.message_type} from {message.sender_id}"
-            )
+            logger.debug(f"Consumed {message.message_type} from {message.sender_id}")
             return message
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
 
     def has_pending_messages(self) -> bool:

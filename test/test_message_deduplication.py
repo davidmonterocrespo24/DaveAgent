@@ -5,17 +5,18 @@ This test checks if the deduplication mechanism might be preventing
 TextMessage responses from showing.
 """
 
-import sys
 import os
+import sys
 
 # Fix encoding for Windows console
-if sys.platform == 'win32':
+if sys.platform == "win32":
     import codecs
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
-    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer, "strict")
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.buffer, "strict")
 
 # Add parent directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from autogen_agentchat.messages import TextMessage
 
@@ -78,9 +79,11 @@ def test_planner_messages_deduplication():
             agent_messages_shown.add(message_key)
 
     print(f"📊 Summary: {len(agent_messages_shown)} unique messages shown")
-    print(f"   Expected: 4 (scenario 2 is duplicate of scenario 1)")
+    print("   Expected: 4 (scenario 2 is duplicate of scenario 1)")
 
-    assert len(agent_messages_shown) == 4, f"Expected 4 unique messages, got {len(agent_messages_shown)}"
+    assert len(agent_messages_shown) == 4, (
+        f"Expected 4 unique messages, got {len(agent_messages_shown)}"
+    )
 
 
 def test_empty_or_whitespace_content():
@@ -176,9 +179,11 @@ def test_message_shown_set_behavior():
         print(f"{i}. {key:20} -> {status:10} ({action})")
 
     print(f"\n📊 Final set size: {len(agent_messages_shown)}")
-    print(f"   Expected: 3 (one duplicate)")
+    print("   Expected: 3 (one duplicate)")
 
-    assert len(agent_messages_shown) == 3, f"Expected 3 unique keys, got {len(agent_messages_shown)}"
+    assert len(agent_messages_shown) == 3, (
+        f"Expected 3 unique keys, got {len(agent_messages_shown)}"
+    )
 
 
 if __name__ == "__main__":

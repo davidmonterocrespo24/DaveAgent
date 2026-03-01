@@ -18,15 +18,15 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.utils.context_compressor import (
+    estimate_compression_ratio,
+    select_messages_to_compress,
+)
 from src.utils.token_counter import (
     count_message_tokens,
     get_model_context_limit,
-    should_compress_context,
     get_token_usage_stats,
-)
-from src.utils.context_compressor import (
-    select_messages_to_compress,
-    estimate_compression_ratio,
+    should_compress_context,
 )
 
 
@@ -51,7 +51,7 @@ def test_token_counting():
     print(f"\n📊 Message count: {len(messages)}")
     print(f"📊 Token count: {token_count}")
     print(f"📊 Model limit: {max_tokens}")
-    print(f"📊 Usage: {(token_count/max_tokens)*100:.2f}%")
+    print(f"📊 Usage: {(token_count / max_tokens) * 100:.2f}%")
 
     # Verify reasonable token count (rough estimate)
     total_chars = sum(len(msg["content"]) for msg in messages)
@@ -88,9 +88,9 @@ def test_compression_threshold():
     should_compress_small = should_compress_context(small_messages, model, threshold=0.8)
     tokens_small = count_message_tokens(small_messages, model)
 
-    print(f"\n📊 Small conversation:")
+    print("\n📊 Small conversation:")
     print(f"   Messages: {len(small_messages)}")
-    print(f"   Tokens: {tokens_small}/{max_tokens} ({(tokens_small/max_tokens)*100:.2f}%)")
+    print(f"   Tokens: {tokens_small}/{max_tokens} ({(tokens_small / max_tokens) * 100:.2f}%)")
     print(f"   Should compress: {should_compress_small}")
 
     if not should_compress_small:
@@ -105,12 +105,10 @@ def test_compression_threshold():
     large_content = "This is a test message. " * 200  # ~500 tokens per message
 
     # Calculate how many messages we need
-    tokens_per_message = count_message_tokens(
-        [{"role": "user", "content": large_content}], model
-    )
+    tokens_per_message = count_message_tokens([{"role": "user", "content": large_content}], model)
     num_messages_needed = target_tokens // tokens_per_message
 
-    print(f"\n📊 Creating large conversation to test threshold...")
+    print("\n📊 Creating large conversation to test threshold...")
     print(f"   Target tokens: {target_tokens} (85% of max)")
     print(f"   Tokens per message: {tokens_per_message}")
     print(f"   Messages needed: {num_messages_needed}")
@@ -123,9 +121,9 @@ def test_compression_threshold():
     should_compress_large = should_compress_context(large_messages, model, threshold=0.8)
     tokens_large = count_message_tokens(large_messages, model)
 
-    print(f"\n📊 Large conversation:")
+    print("\n📊 Large conversation:")
     print(f"   Messages: {len(large_messages)}")
-    print(f"   Tokens: {tokens_large}/{max_tokens} ({(tokens_large/max_tokens)*100:.2f}%)")
+    print(f"   Tokens: {tokens_large}/{max_tokens} ({(tokens_large / max_tokens) * 100:.2f}%)")
     print(f"   Should compress: {should_compress_large}")
 
     if should_compress_large:
@@ -202,7 +200,7 @@ def test_token_usage_stats():
     model = "deepseek-chat"
     stats = get_token_usage_stats(messages, model)
 
-    print(f"\n📊 Token Usage Statistics:")
+    print("\n📊 Token Usage Statistics:")
     print(f"   Current tokens: {stats['current_tokens']}")
     print(f"   Max tokens: {stats['max_tokens']}")
     print(f"   Usage ratio: {stats['usage_ratio']:.2%}")
@@ -210,7 +208,7 @@ def test_token_usage_stats():
     print(f"   Avg tokens/message: {stats['avg_tokens_per_message']:.1f}")
 
     # Calculate derived values
-    remaining_tokens = stats['max_tokens'] - stats['current_tokens']
+    remaining_tokens = stats["max_tokens"] - stats["current_tokens"]
     should_compress = should_compress_context(messages, model, threshold=0.8)
 
     print(f"   Remaining tokens: {remaining_tokens}")
@@ -245,7 +243,7 @@ def test_compression_ratio_estimate():
 
     ratio = estimate_compression_ratio(messages, keep_recent)
 
-    print(f"\n📊 Compression Estimation:")
+    print("\n📊 Compression Estimation:")
     print(f"   Total messages: {len(messages)}")
     print(f"   Keep recent: {keep_recent}")
     print(f"   Estimated compression ratio: {ratio:.2%}")
@@ -282,6 +280,7 @@ def run_all_tests():
         except Exception as e:
             print(f"\n❌ ERROR in {test_name}: {e}")
             import traceback
+
             traceback.print_exc()
             results.append((test_name, False))
 

@@ -9,24 +9,22 @@ This module implements intelligent context compression inspired by gemini-cli:
 - Smart message splitting
 """
 
-from typing import List, Dict, Any, Tuple, Optional
-from autogen_ext.models.openai import OpenAIChatCompletionClient
 from dataclasses import dataclass
-import asyncio
+from typing import Any
 
+from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 # Import new utilities
 from src.utils.compression_prompts import (
+    extract_snapshot_from_history,
+    get_anchor_instruction,
     get_compression_prompt,
     get_probe_prompt,
-    get_anchor_instruction,
-    extract_snapshot_from_history,
 )
 from src.utils.tool_output_truncator import (
-    truncate_tool_output_if_needed,
     cleanup_old_outputs,
+    truncate_tool_output_if_needed,
 )
-
 
 # Configuration constants
 DEFAULT_COMPRESSION_THRESHOLD = 0.5  # 50% of model limit
@@ -46,6 +44,7 @@ class CompressionState:
         enable_probe: Whether to use verification step
         max_summary_tokens: Maximum tokens for summary
     """
+
     has_failed_compression: bool = False
     compression_threshold: float = DEFAULT_COMPRESSION_THRESHOLD
     tool_truncate_threshold: int = DEFAULT_TOOL_TRUNCATE_THRESHOLD
@@ -65,20 +64,21 @@ class CompressionResult:
         failure_reason: Reason for failure (if any)
         tokens_saved: Number of tokens saved
     """
-    compressed_messages: Optional[List[Dict[str, Any]]]
+
+    compressed_messages: list[dict[str, Any]] | None
     original_token_count: int
     new_token_count: int
     compression_failed: bool = False
-    failure_reason: Optional[str] = None
+    failure_reason: str | None = None
     tokens_saved: int = 0
 
 
 async def truncate_tool_outputs_in_messages(
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     tool_counter: dict,
     threshold: int = DEFAULT_TOOL_TRUNCATE_THRESHOLD,
-    logger=None
-) -> List[Dict[str, Any]]:
+    logger=None,
+) -> list[dict[str, Any]]:
     """Truncate large tool outputs in messages, saving full content to disk.
 
     Args:
@@ -107,14 +107,13 @@ async def truncate_tool_outputs_in_messages(
 
                 # Truncate and save
                 truncated_content, was_truncated, saved_path = await truncate_tool_output_if_needed(
-                    content,
-                    tool_name,
-                    f"{tool_id:03d}",
-                    threshold
+                    content, tool_name, f"{tool_id:03d}", threshold
                 )
 
                 if was_truncated and logger:
-                    logger.debug(f"Truncated {tool_name} output: {len(content)} → {len(truncated_content)} chars")
+                    logger.debug(
+                        f"Truncated {tool_name} output: {len(content)} → {len(truncated_content)} chars"
+                    )
                     if saved_path:
                         logger.debug(f"  Full output saved to: {saved_path}")
 
@@ -125,10 +124,7 @@ async def truncate_tool_outputs_in_messages(
     return truncated_messages
 
 
-def find_safe_split_point(
-    messages: List[Dict[str, Any]],
-    target_ratio: float = 0.7
-) -> int:
+def find_safe_split_point(messages: list[dict[str, Any]], target_ratio: float = 0.7) -> int:
     """Find safe point to split messages, avoiding tool call/response breaks.
 
     Args:
@@ -175,11 +171,11 @@ def find_safe_split_point(
 
 
 async def compress_message_block_with_verification(
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     model_client: OpenAIChatCompletionClient,
     model: str,
     state: CompressionState,
-    logger=None
+    logger=None,
 ) -> CompressionResult:
     """Compress messages with XML state_snapshot and verification probe.
 
@@ -202,11 +198,13 @@ async def compress_message_block_with_verification(
     original_tokens = count_message_tokens(messages, model)
 
     # Format messages for summarization
-    conversation_text = "\n\n".join([
-        f"[{msg.get('role', 'unknown')}]: {msg.get('content', '')}"
-        for msg in messages
-        if msg.get('content')
-    ])
+    conversation_text = "\n\n".join(
+        [
+            f"[{msg.get('role', 'unknown')}]: {msg.get('content', '')}"
+            for msg in messages
+            if msg.get("content")
+        ]
+    )
 
     # Check if previous snapshot exists for anchoring
     previous_snapshot = extract_snapshot_from_history(messages)
@@ -220,21 +218,18 @@ async def compress_message_block_with_verification(
         user_prompt = f"Summarize this conversation:\n\n{conversation_text}\n\nFirst, reason in your scratchpad. Then, generate the <state_snapshot>."
 
     # Convert to LLMMessage objects
-    from autogen_core.models import SystemMessage, UserMessage, AssistantMessage
+    from autogen_core.models import AssistantMessage, SystemMessage, UserMessage
 
     summary_messages = [
         SystemMessage(content=get_compression_prompt()),
-        UserMessage(content=user_prompt, source="user")
+        UserMessage(content=user_prompt, source="user"),
     ]
 
     try:
         # PHASE 1: Generate initial state_snapshot
         result = await model_client.create(
             messages=summary_messages,
-            extra_create_args={
-                "temperature": 0.3,
-                "max_tokens": state.max_summary_tokens
-            }
+            extra_create_args={"temperature": 0.3, "max_tokens": state.max_summary_tokens},
         )
 
         summary_content = result.content
@@ -249,7 +244,7 @@ async def compress_message_block_with_verification(
                 original_token_count=original_tokens,
                 new_token_count=original_tokens,
                 compression_failed=True,
-                failure_reason="empty_summary"
+                failure_reason="empty_summary",
             )
 
         # PHASE 2: Verification probe (if enabled)
@@ -259,15 +254,12 @@ async def compress_message_block_with_verification(
 
             verification_messages = summary_messages + [
                 AssistantMessage(content=summary_content, source="assistant"),
-                UserMessage(content=get_probe_prompt(), source="user")
+                UserMessage(content=get_probe_prompt(), source="user"),
             ]
 
             verification_result = await model_client.create(
                 messages=verification_messages,
-                extra_create_args={
-                    "temperature": 0.3,
-                    "max_tokens": state.max_summary_tokens
-                }
+                extra_create_args={"temperature": 0.3, "max_tokens": state.max_summary_tokens},
             )
 
             # Use verified summary if available, otherwise fall back to original
@@ -278,13 +270,13 @@ async def compress_message_block_with_verification(
         # Construct summary message
         summary_msg = {
             "role": "user",  # User role for state_snapshot
-            "content": final_summary
+            "content": final_summary,
         }
 
         # Construct acknowledgment from assistant
         ack_msg = {
             "role": "assistant",
-            "content": "Got it. Thanks for the additional context! I'll continue from here."
+            "content": "Got it. Thanks for the additional context! I'll continue from here.",
         }
 
         # Calculate token count of new summary
@@ -294,8 +286,7 @@ async def compress_message_block_with_verification(
         if new_tokens >= original_tokens:
             if logger:
                 logger.warning(
-                    f"⚠️ Compression rejected: inflated tokens "
-                    f"({original_tokens} → {new_tokens})"
+                    f"⚠️ Compression rejected: inflated tokens ({original_tokens} → {new_tokens})"
                 )
 
             return CompressionResult(
@@ -303,7 +294,7 @@ async def compress_message_block_with_verification(
                 original_token_count=original_tokens,
                 new_token_count=new_tokens,
                 compression_failed=True,
-                failure_reason="token_inflation"
+                failure_reason="token_inflation",
             )
 
         # SUCCESS: Compression reduced tokens
@@ -320,7 +311,7 @@ async def compress_message_block_with_verification(
             original_token_count=original_tokens,
             new_token_count=new_tokens,
             compression_failed=False,
-            tokens_saved=tokens_saved
+            tokens_saved=tokens_saved,
         )
 
     except Exception as e:
@@ -332,14 +323,13 @@ async def compress_message_block_with_verification(
             original_token_count=original_tokens,
             new_token_count=original_tokens,
             compression_failed=True,
-            failure_reason=f"exception: {str(e)}"
+            failure_reason=f"exception: {str(e)}",
         )
 
 
 def select_messages_to_compress(
-    messages: List[Dict[str, Any]],
-    keep_recent: int = DEFAULT_KEEP_RECENT
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    messages: list[dict[str, Any]], keep_recent: int = DEFAULT_KEEP_RECENT
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Select which messages to compress vs keep using smart splitting.
 
     Strategy:
@@ -387,12 +377,12 @@ def select_messages_to_compress(
 
 
 async def compress_context_if_needed(
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     model: str,
     model_client: OpenAIChatCompletionClient,
     logger=None,
-    state: Optional[CompressionState] = None
-) -> List[Dict[str, Any]]:
+    state: CompressionState | None = None,
+) -> list[dict[str, Any]]:
     """Main compression function - compress context if needed.
 
     This is the primary entry point for context compression. It:
@@ -423,7 +413,7 @@ async def compress_context_if_needed(
         ...     state=state
         ... )
     """
-    from src.utils.token_counter import should_compress_context, count_message_tokens
+    from src.utils.token_counter import count_message_tokens, should_compress_context
 
     # Create default state if not provided
     if state is None:
@@ -464,20 +454,14 @@ async def compress_context_if_needed(
     # STEP 1: Truncate tool outputs
     tool_counter = {}
     messages = await truncate_tool_outputs_in_messages(
-        messages,
-        tool_counter,
-        state.tool_truncate_threshold,
-        logger
+        messages, tool_counter, state.tool_truncate_threshold, logger
     )
 
     # Cleanup old tool output files (keep last 100)
     cleanup_old_outputs(max_files=100)
 
     # STEP 2: Select messages for compression
-    to_compress, to_keep = select_messages_to_compress(
-        messages,
-        keep_recent=DEFAULT_KEEP_RECENT
-    )
+    to_compress, to_keep = select_messages_to_compress(messages, keep_recent=DEFAULT_KEEP_RECENT)
 
     if not to_compress:
         if logger:
@@ -486,11 +470,7 @@ async def compress_context_if_needed(
 
     # STEP 3: Compress with verification
     result = await compress_message_block_with_verification(
-        to_compress,
-        model_client,
-        model,
-        state,
-        logger
+        to_compress, model_client, model, state, logger
     )
 
     if result.compression_failed:
@@ -515,11 +495,7 @@ async def compress_context_if_needed(
     system_messages = [msg for msg in to_keep if msg.get("role") == "system"]
     recent_messages = [msg for msg in to_keep if msg.get("role") != "system"]
 
-    compressed_messages = (
-        system_messages +
-        result.compressed_messages +
-        recent_messages
-    )
+    compressed_messages = system_messages + result.compressed_messages + recent_messages
 
     # CRITICAL FIX: Ensure all assistant messages in final list have reasoning_content if needed
     for msg in compressed_messages:
@@ -538,8 +514,7 @@ async def compress_context_if_needed(
 
 
 def estimate_compression_ratio(
-    messages: List[Dict[str, Any]],
-    keep_recent: int = DEFAULT_KEEP_RECENT
+    messages: list[dict[str, Any]], keep_recent: int = DEFAULT_KEEP_RECENT
 ) -> float:
     """Estimate compression ratio if compression were applied.
 

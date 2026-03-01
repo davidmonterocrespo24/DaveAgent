@@ -10,11 +10,11 @@ Supports 3 schedule types inspired by Nanobot:
 import asyncio
 import json
 import logging
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
-from typing import Callable, Awaitable
 
-from .types import CronJob, CronSchedule, CronJobState
+from .types import CronJob, CronJobState, CronSchedule
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +51,7 @@ class CronService:
         self._load_jobs()
 
     def add_job(
-        self,
-        name: str,
-        schedule: CronSchedule,
-        task: str,
-        priority: str = "NORMAL"
+        self, name: str, schedule: CronSchedule, task: str, priority: str = "NORMAL"
     ) -> str:
         """
         Add a new cron job.
@@ -70,6 +66,7 @@ class CronService:
             Job ID (8-character UUID)
         """
         import uuid
+
         job_id = str(uuid.uuid4())[:8]
 
         now_ms = int(datetime.now().timestamp() * 1000)
@@ -182,7 +179,7 @@ class CronService:
         if self._running:
             return
 
-        self._running = True        
+        self._running = True
         self._arm_timer()
 
     async def stop(self):
@@ -231,7 +228,7 @@ class CronService:
             return
 
         try:
-            with open(self.storage_path, 'r', encoding='utf-8') as f:
+            with open(self.storage_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             self._jobs = [CronJob.from_dict(job_data) for job_data in data.get("jobs", [])]
@@ -248,7 +245,7 @@ class CronService:
                 "updated_at": datetime.now().isoformat(),
             }
 
-            with open(self.storage_path, 'w', encoding='utf-8') as f:
+            with open(self.storage_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
 
             logger.debug(f"Saved {len(self._jobs)} cron jobs to {self.storage_path}")
@@ -278,12 +275,14 @@ class CronService:
             # Cron expression - use croniter to compute next run
             try:
                 from croniter import croniter
-                from_dt = datetime.fromtimestamp(from_ms / 1000, tz=timezone.utc)
+
+                from_dt = datetime.fromtimestamp(from_ms / 1000, tz=UTC)
 
                 # Use specified timezone or UTC
                 if schedule.tz:
                     try:
                         import zoneinfo
+
                         tz = zoneinfo.ZoneInfo(schedule.tz)
                         from_dt = from_dt.astimezone(tz)
                     except Exception:
@@ -342,7 +341,8 @@ class CronService:
             # Execute all jobs that are due
             now_ms = int(datetime.now().timestamp() * 1000)
             due_jobs = [
-                j for j in self._jobs
+                j
+                for j in self._jobs
                 if j.enabled and j.state.next_run_at_ms and j.state.next_run_at_ms <= now_ms
             ]
 

@@ -11,12 +11,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 def test_imports():
     """Test that all components can be imported."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 1: Import all components")
-    print("="*70)
+    print("=" * 70)
 
     try:
         from src.tools import check_subagent_results
+
         print("[OK] check_subagent_results imported")
     except ImportError as e:
         print(f"[FAIL] Could not import check_subagent_results: {e}")
@@ -24,6 +25,7 @@ def test_imports():
 
     try:
         from src.config.prompts import SUBAGENT_SYSTEM_PROMPT
+
         print("[OK] SUBAGENT_SYSTEM_PROMPT imported")
     except ImportError as e:
         print(f"[FAIL] Could not import SUBAGENT_SYSTEM_PROMPT: {e}")
@@ -31,6 +33,7 @@ def test_imports():
 
     try:
         from src.subagents import SubagentEventBus, SubAgentManager
+
         print("[OK] SubagentEventBus and SubAgentManager imported")
     except ImportError as e:
         print(f"[FAIL] Could not import subagent components: {e}")
@@ -41,9 +44,9 @@ def test_imports():
 
 def test_system_prompt():
     """Test that subagent system prompt works."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 2: Generate subagent system prompt")
-    print("="*70)
+    print("=" * 70)
 
     try:
         from src.config.prompts import SUBAGENT_SYSTEM_PROMPT
@@ -57,7 +60,9 @@ def test_system_prompt():
         assert "subagent" in prompt.lower(), "Prompt doesn't mention subagent"
         assert task in prompt, "Prompt doesn't include task"
         assert workspace in prompt, "Prompt doesn't include workspace"
-        assert "cannot do" in prompt.lower() or "cannot" in prompt.lower(), "Prompt doesn't have restrictions"
+        assert "cannot do" in prompt.lower() or "cannot" in prompt.lower(), (
+            "Prompt doesn't have restrictions"
+        )
 
         print(f"[OK] Generated prompt ({len(prompt)} chars)")
         print(f"     Contains task: {task in prompt}")
@@ -72,14 +77,14 @@ def test_system_prompt():
 
 def test_tool_registration():
     """Test that check_subagent_results is in tools list."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 3: Verify tool registration")
-    print("="*70)
+    print("=" * 70)
 
     try:
-        from src.tools import check_subagent_results
         from src.config.orchestrator import AgentOrchestrator
         from src.config.settings import get_settings
+        from src.tools import check_subagent_results
 
         settings = get_settings()
         orch = AgentOrchestrator(
@@ -98,33 +103,35 @@ def test_tool_registration():
         assert "spawn_subagent" in tool_names, "spawn_subagent not found"
 
         print(f"[OK] Found {len(tool_names)} tools total")
-        print(f"     check_subagent_results: present")
-        print(f"     spawn_subagent: present")
+        print("     check_subagent_results: present")
+        print("     spawn_subagent: present")
 
         # Check announcement queue
-        assert hasattr(orch, '_subagent_announcements'), "No announcement queue"
-        print(f"     Announcement queue: initialized")
+        assert hasattr(orch, "_subagent_announcements"), "No announcement queue"
+        print("     Announcement queue: initialized")
 
         return True
     except Exception as e:
         print(f"[FAIL] Error checking tool registration: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def test_announcement_queue():
     """Test the announcement queueing system."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 4: Test announcement queue")
-    print("="*70)
+    print("=" * 70)
 
     try:
-        from src.tools import check_subagent_results
-        from src.config.orchestrator import AgentOrchestrator
-        from src.config.settings import get_settings
         import asyncio
         import sys
+
+        from src.config.orchestrator import AgentOrchestrator
+        from src.config.settings import get_settings
+        from src.tools import check_subagent_results
 
         settings = get_settings()
         orch = AgentOrchestrator(
@@ -136,19 +143,21 @@ def test_announcement_queue():
         )
 
         # Manually add a test announcement
-        orch._subagent_announcements.append({
-            'label': 'test-task',
-            'task': 'Test task description',
-            'result': 'Test result output',
-            'preview': 'Test result...',
-            'announcement': '[Background Task Completed: test-task]\n\nTask: Test\n\nResult: Test result'
-        })
+        orch._subagent_announcements.append(
+            {
+                "label": "test-task",
+                "task": "Test task description",
+                "result": "Test result output",
+                "preview": "Test result...",
+                "announcement": "[Background Task Completed: test-task]\n\nTask: Test\n\nResult: Test result",
+            }
+        )
 
-        print(f"[OK] Added test announcement")
+        print("[OK] Added test announcement")
         print(f"     Queue size: {len(orch._subagent_announcements)}")
 
         # Initialize check tool
-        check_module = sys.modules['src.tools.check_subagent_results']
+        check_module = sys.modules["src.tools.check_subagent_results"]
         check_module.set_orchestrator(orch)
 
         # Call check_subagent_results
@@ -161,7 +170,7 @@ def test_announcement_queue():
         assert "Background Task Completed" in result, "Result doesn't contain announcement"
         assert len(orch._subagent_announcements) == 0, "Queue not cleared"
 
-        print(f"[OK] Retrieved announcement")
+        print("[OK] Retrieved announcement")
         print(f"     Queue cleared: {len(orch._subagent_announcements) == 0}")
         print(f"     Result preview: {result[:100]}...")
 
@@ -169,15 +178,16 @@ def test_announcement_queue():
     except Exception as e:
         print(f"[FAIL] Error testing announcement queue: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def main():
     """Run all tests."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("NANOBOT-STYLE INTEGRATION - COMPONENT TESTS")
-    print("="*70)
+    print("=" * 70)
 
     results = []
 
@@ -188,9 +198,9 @@ def main():
     results.append(("Announcement Queue", test_announcement_queue()))
 
     # Summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     for name, passed in results:
         status = "[PASS]" if passed else "[FAIL]"

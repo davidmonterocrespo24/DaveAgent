@@ -9,10 +9,8 @@ Inspired by gemini-cli's approach:
 - Provides clear indication of where to find the full output
 """
 
-import os
 import re
 from pathlib import Path
-from typing import Dict, Tuple, Optional
 
 # Constants matching gemini-cli defaults
 DEFAULT_TRUNCATE_THRESHOLD = 40000  # Characters (≈10K tokens)
@@ -35,9 +33,9 @@ def sanitize_filename(name: str) -> str:
         'read_file_path_to_file_txt'
     """
     # Remove or replace unsafe characters
-    safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)
+    safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
     # Remove leading/trailing whitespace and dots
-    safe = safe.strip('. ')
+    safe = safe.strip(". ")
     # Limit length
     return safe[:200]
 
@@ -98,7 +96,7 @@ async def save_tool_output(
     output_path = outputs_dir / filename
 
     # Write content to file
-    output_path.write_text(content, encoding='utf-8')
+    output_path.write_text(content, encoding="utf-8")
 
     return output_path
 
@@ -163,7 +161,7 @@ async def truncate_tool_output_if_needed(
     tool_name: str,
     tool_id: str,
     threshold: int = DEFAULT_TRUNCATE_THRESHOLD,
-) -> Tuple[str, bool, Optional[Path]]:
+) -> tuple[str, bool, Path | None]:
     """Truncate tool output if it exceeds threshold, saving full content to disk.
 
     This is the main entry point for tool output truncation.
@@ -200,6 +198,7 @@ async def truncate_tool_output_if_needed(
         # If saving fails, return original content to avoid data loss
         # Log the error but don't fail the operation
         import logging
+
         logger = logging.getLogger(__name__)
         logger.warning(f"Failed to save tool output: {e}, using original content")
         return content, False, None
@@ -235,6 +234,7 @@ def should_truncate_content(content: str, token_threshold: int = 10000) -> bool:
 
 # Rotation and cleanup utilities
 
+
 def cleanup_old_outputs(max_files: int = 100) -> int:
     """Remove oldest tool output files if directory exceeds max_files.
 
@@ -247,16 +247,13 @@ def cleanup_old_outputs(max_files: int = 100) -> int:
     outputs_dir = get_tool_outputs_dir()
 
     # Get all .txt files sorted by modification time
-    files = sorted(
-        outputs_dir.glob("*.txt"),
-        key=lambda p: p.stat().st_mtime
-    )
+    files = sorted(outputs_dir.glob("*.txt"), key=lambda p: p.stat().st_mtime)
 
     if len(files) <= max_files:
         return 0
 
     # Delete oldest files
-    files_to_delete = files[:len(files) - max_files]
+    files_to_delete = files[: len(files) - max_files]
     deleted = 0
 
     for file_path in files_to_delete:

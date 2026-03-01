@@ -63,7 +63,7 @@ async def check_subagent_results(explanation: str = "") -> str:
     if _orchestrator is None:
         return "Error: Subagent system not initialized"
 
-    if not hasattr(_orchestrator, '_subagent_announcements'):
+    if not hasattr(_orchestrator, "_subagent_announcements"):
         return "No pending subagent results"
 
     announcements = _orchestrator._subagent_announcements
@@ -74,12 +74,12 @@ async def check_subagent_results(explanation: str = "") -> str:
     # Build combined announcement
     messages = []
     for ann in announcements:
-        messages.append(ann['announcement'])
+        messages.append(ann["announcement"])
 
     # Clear the queue
     _orchestrator._subagent_announcements.clear()
 
     # Return all announcements
-    combined = "\n\n" + "="*60 + "\n\n".join(messages)
+    combined = "\n\n" + "=" * 60 + "\n\n".join(messages)
 
     return combined if messages else "No pending subagent results"

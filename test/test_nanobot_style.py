@@ -22,9 +22,9 @@ from src.config.settings import get_settings
 async def test_nanobot_style():
     """Test Nanobot-style subagent result injection."""
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TESTING NANOBOT-STYLE SUBAGENT RESULT INJECTION")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Initialize orchestrator (headless mode for testing)
     print("[1/5] Initializing orchestrator...")
@@ -40,13 +40,14 @@ async def test_nanobot_style():
 
     # Verify subagent system is initialized
     print("[2/5] Verifying subagent system...")
-    assert hasattr(orch, 'subagent_manager'), "SubAgentManager not initialized"
-    assert hasattr(orch, '_subagent_announcements'), "Announcement queue not initialized"
+    assert hasattr(orch, "subagent_manager"), "SubAgentManager not initialized"
+    assert hasattr(orch, "_subagent_announcements"), "Announcement queue not initialized"
     print("     [OK] Subagent system ready\n")
 
     # Verify check_subagent_results tool is available
     print("[3/5] Verifying check_subagent_results tool...")
     from src.tools import check_subagent_results
+
     all_tools = orch.all_tools["read_only"] + orch.all_tools["modification"]
     tool_names = [t.__name__ for t in all_tools]
     assert "check_subagent_results" in tool_names, "check_subagent_results not in tools"
@@ -67,9 +68,9 @@ async def test_nanobot_style():
     await asyncio.sleep(10)  # Give it time to run
 
     # Check if announcements were queued
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("CHECKING ANNOUNCEMENTS")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     if orch._subagent_announcements:
         print(f"[OK] Found {len(orch._subagent_announcements)} announcement(s)\n")
@@ -103,15 +104,17 @@ async def test_nanobot_style():
         for sa in active:
             print(f"  - {sa['id']}: {sa['status']}")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST COMPLETE")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     print("Summary:")
     print("- Subagent system initialized: [OK]")
     print("- check_subagent_results tool available: [OK]")
     print("- Subagent spawned: [OK]")
-    print(f"- Results queued: {'[OK]' if orch._subagent_announcements or result != 'No pending subagent results' else '[PENDING]'}")
+    print(
+        f"- Results queued: {'[OK]' if orch._subagent_announcements or result != 'No pending subagent results' else '[PENDING]'}"
+    )
 
     # Cleanup
     await orch.subagent_manager.cancel_all()

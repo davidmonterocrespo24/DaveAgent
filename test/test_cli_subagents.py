@@ -38,10 +38,12 @@ async def test_cli_commands():
 
         def mock_orchestrator_factory(tools, max_iterations, mode):
             """Mock orchestrator that returns a simple result"""
+
             class MockOrchestrator:
                 async def run_task(self, task):
                     await asyncio.sleep(0.5)  # Simulate some work
                     return f"Mock result for: {task}"
+
             return MockOrchestrator()
 
         # Mock tools list
@@ -59,21 +61,15 @@ async def test_cli_commands():
         print(f"\n{CHECK} Spawning test subagents...")
 
         subagent_id_1 = await manager.spawn(
-            task="Test task 1 - analyze code",
-            label="code-analyzer",
-            parent_task_id="test"
+            task="Test task 1 - analyze code", label="code-analyzer", parent_task_id="test"
         )
 
         subagent_id_2 = await manager.spawn(
-            task="Test task 2 - run tests",
-            label="test-runner",
-            parent_task_id="test"
+            task="Test task 2 - run tests", label="test-runner", parent_task_id="test"
         )
 
         subagent_id_3 = await manager.spawn(
-            task="Test task 3 - build project",
-            label="builder",
-            parent_task_id="test"
+            task="Test task 3 - build project", label="builder", parent_task_id="test"
         )
 
         print(f"{CHECK} Spawned 3 test subagents")
@@ -118,8 +114,8 @@ async def test_cli_commands():
         # Get spawn event
         spawn_event = next((e for e in subagent_events if e.event_type == "spawned"), None)
         if spawn_event:
-            label = spawn_event.content.get('label', 'Unknown')
-            task = spawn_event.content.get('task', 'Unknown')
+            label = spawn_event.content.get("label", "Unknown")
+            task = spawn_event.content.get("task", "Unknown")
             print(f"  - Label: {label}")
             print(f"  - Task: {task[:50]}...")
             print(f"{CHECK} /subagent-status command data verified")
@@ -140,12 +136,12 @@ async def test_cli_commands():
         completed_event = next((e for e in subagent_events if e.event_type == "completed"), None)
 
         if completed_event:
-            result = completed_event.content.get('result', 'No result')
-            print(f"  - Status: Completed")
+            result = completed_event.content.get("result", "No result")
+            print("  - Status: Completed")
             print(f"  - Result: {result[:50]}...")
             print(f"{CHECK} Completed subagent status verified")
         else:
-            print(f"  - Status: Still running or no completion event yet")
+            print("  - Status: Still running or no completion event yet")
 
         print("\n" + "=" * 60)
         print(f"{CHECK} CLI COMMANDS TEST PASSED!")
@@ -156,6 +152,7 @@ async def test_cli_commands():
     except Exception as e:
         print(f"\n{CROSS} CLI commands test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -182,6 +179,7 @@ async def test_integration():
     except Exception as e:
         print(f"\n{CROSS} Integration test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -218,6 +216,7 @@ async def main():
         print("=" * 70)
         print(f"\nError: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

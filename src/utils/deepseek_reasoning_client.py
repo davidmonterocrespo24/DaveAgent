@@ -248,7 +248,9 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                                 reasoning = raw_resp.get("reasoning_content")
                                 if reasoning:
                                     modified_msg["reasoning_content"] = reasoning
-                                    self.logger.debug("💭 Injected reasoning_content for text message")
+                                    self.logger.debug(
+                                        "💭 Injected reasoning_content for text message"
+                                    )
                                 matched = True
                                 break
 
@@ -256,9 +258,7 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
                 # when thinking mode is enabled. Use empty string as fallback.
                 if "reasoning_content" not in modified_msg:
                     modified_msg["reasoning_content"] = ""
-                    self.logger.debug(
-                        "⚠️ No reasoning_content cache — using empty placeholder"
-                    )
+                    self.logger.debug("⚠️ No reasoning_content cache — using empty placeholder")
 
             modified_messages.append(modified_msg)
 
@@ -291,11 +291,13 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
     def export_reasoning_cache(self) -> list[dict[str, Any]]:
         """Export _raw_responses for persistence across restarts."""
         import copy
+
         return copy.deepcopy(self._raw_responses)
 
     def import_reasoning_cache(self, cache: list[dict[str, Any]]) -> None:
         """Restore _raw_responses from saved state."""
         import copy
+
         self._raw_responses = copy.deepcopy(cache)
         self.logger.info(f"💭 Restored {len(cache)} reasoning cache entries")
 

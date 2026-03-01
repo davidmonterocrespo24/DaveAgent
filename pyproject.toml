@@ -66,7 +66,7 @@ src = ["*.md", "*.txt", "*.py"]
 # Ruff configuration
 [tool.ruff]
 line-length = 100
-target-version = "1.0.11"
+target-version = "py312"
 
 # Enable specific rule sets
 lint.select = [

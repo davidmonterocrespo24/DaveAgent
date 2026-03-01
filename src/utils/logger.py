@@ -27,7 +27,9 @@ class DaveAgentLogger:
             level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)  # Always DEBUG at logger level so file handler receives everything
+        self.logger.setLevel(
+            logging.DEBUG
+        )  # Always DEBUG at logger level so file handler receives everything
         self.logger.handlers.clear()  # Clear existing handlers
 
         # Silenciar loggers de terceros para evitar spam
@@ -40,6 +42,7 @@ class DaveAgentLogger:
 
         # Use WindowsSafeConsole for stderr to ensure VT processing
         from src.utils.vibe_spinner import WindowsSafeConsole
+
         self.console = WindowsSafeConsole(stderr=True)
 
         # Console handler with colors (using Rich)

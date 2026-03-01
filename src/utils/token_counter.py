@@ -5,9 +5,10 @@ them to LLM APIs. This enables proactive context management and compression
 to prevent token limit errors.
 """
 
-import tiktoken
-from typing import List, Dict, Any
 from functools import lru_cache
+from typing import Any
+
+import tiktoken
 
 
 @lru_cache(maxsize=10)
@@ -38,7 +39,7 @@ def get_encoder(model: str):
     return tiktoken.get_encoding(encoding_name)
 
 
-def count_message_tokens(messages: List[Dict[str, Any]], model: str) -> int:
+def count_message_tokens(messages: list[dict[str, Any]], model: str) -> int:
     """Count tokens in message list.
 
     This function approximates the token count that will be sent to the API.
@@ -123,9 +124,7 @@ def get_model_context_limit(model: str) -> int:
 
 
 def should_compress_context(
-    messages: List[Dict[str, Any]],
-    model: str,
-    threshold: float = 0.8
+    messages: list[dict[str, Any]], model: str, threshold: float = 0.8
 ) -> bool:
     """Check if context should be compressed.
 
@@ -149,10 +148,7 @@ def should_compress_context(
     return usage_ratio >= threshold
 
 
-def get_token_usage_stats(
-    messages: List[Dict[str, Any]],
-    model: str
-) -> Dict[str, Any]:
+def get_token_usage_stats(messages: list[dict[str, Any]], model: str) -> dict[str, Any]:
     """Get detailed token usage statistics.
 
     Args:

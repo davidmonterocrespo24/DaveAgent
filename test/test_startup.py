@@ -4,8 +4,8 @@ Quick startup test for DaveAgent with subagents system.
 Tests that the agent can initialize without errors.
 """
 
-import sys
 import asyncio
+import sys
 from pathlib import Path
 
 # Add project root to path
@@ -22,20 +22,23 @@ async def test_startup():
         # Import orchestrator
         print("\n[1/5] Importing AgentOrchestrator...")
         from src.config import AgentOrchestrator
+
         print("      ✓ Import successful")
 
         # Check subagent modules
         print("\n[2/5] Checking subagent modules...")
+        import sys
+
         from src.subagents import SubagentEventBus, SubAgentManager
         from src.tools import spawn_subagent  # Import function to ensure module is loaded
-        import sys
+
         print("      ✓ Subagent modules imported")
 
         # Verify spawn_subagent has set_subagent_manager
         print("\n[3/5] Verifying spawn_subagent structure...")
-        spawn_module = sys.modules['src.tools.spawn_subagent']
-        assert hasattr(spawn_module, 'set_subagent_manager'), "Missing set_subagent_manager"
-        assert hasattr(spawn_module, 'spawn_subagent'), "Missing spawn_subagent function"
+        spawn_module = sys.modules["src.tools.spawn_subagent"]
+        assert hasattr(spawn_module, "set_subagent_manager"), "Missing set_subagent_manager"
+        assert hasattr(spawn_module, "spawn_subagent"), "Missing spawn_subagent function"
         print("      ✓ spawn_subagent module structure correct")
 
         # Try to create a minimal orchestrator (would normally fail without API key)
@@ -48,8 +51,8 @@ async def test_startup():
             print("      ✓ Orchestrator initialized (API key found)")
 
             # Check subagent manager was created
-            assert hasattr(orch, 'subagent_manager'), "Missing subagent_manager"
-            assert hasattr(orch, 'subagent_event_bus'), "Missing subagent_event_bus"
+            assert hasattr(orch, "subagent_manager"), "Missing subagent_manager"
+            assert hasattr(orch, "subagent_event_bus"), "Missing subagent_event_bus"
             print("      ✓ Subagent system initialized in orchestrator")
 
         except Exception as e:
@@ -81,6 +84,7 @@ async def test_startup():
         print("=" * 60)
         print(f"\nError: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

@@ -3,6 +3,7 @@ Agent tools - Organized by category
 """
 
 # Analysis tools
+from src.tools.check_subagent_results import check_subagent_results
 from src.tools.code_analyzer import (
     analyze_python_file,
     find_function_definition,
@@ -53,7 +54,6 @@ from src.tools.search_file import file_search
 
 # Subagent tools
 from src.tools.spawn_subagent import spawn_subagent
-from src.tools.check_subagent_results import check_subagent_results
 from src.tools.terminal import run_terminal_cmd
 from src.tools.web_search import web_search
 

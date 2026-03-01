@@ -6,10 +6,10 @@ parent tasks and spawned subagents. Events are published when subagents
 are spawned, make progress, complete, or fail.
 """
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Awaitable
-import asyncio
 from datetime import datetime
+from typing import Any
 
 
 @dataclass
@@ -23,6 +23,7 @@ class SubagentEvent:
         content: Event-specific data
         timestamp: Unix timestamp when event occurred
     """
+
     subagent_id: str
     parent_task_id: str
     event_type: str
@@ -77,9 +78,7 @@ class SubagentEventBus:
                 print(f"Error in event subscriber for {event.event_type}: {e}")
 
     def subscribe(
-        self,
-        event_type: str,
-        callback: Callable[[SubagentEvent], Awaitable[None]]
+        self, event_type: str, callback: Callable[[SubagentEvent], Awaitable[None]]
     ) -> None:
         """Subscribe to events of a specific type.
 

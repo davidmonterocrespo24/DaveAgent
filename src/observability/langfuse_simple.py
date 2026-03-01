@@ -101,6 +101,7 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
 
         # Also suppress warnings module
         import warnings
+
         warnings.filterwarnings("ignore", message=".*already instrumented.*")
         warnings.filterwarnings("ignore", message=".*DependencyConflict.*")
         warnings.filterwarnings("ignore", message=".*No module named.*conversable_agent.*")
@@ -122,15 +123,18 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
         b64_auth = base64.b64encode(auth_str.encode()).decode()
 
         # Suppress stderr warnings from OpenLit instrumentation failures
-        import io
         import contextlib
+        import io
 
         # Capture both stderr AND stdout to suppress ALL instrumentation noise
         stderr_capture = io.StringIO()
         stdout_capture = io.StringIO()
 
         try:
-            with contextlib.redirect_stderr(stderr_capture), contextlib.redirect_stdout(stdout_capture):
+            with (
+                contextlib.redirect_stderr(stderr_capture),
+                contextlib.redirect_stdout(stdout_capture),
+            ):
                 # Temporarily disable all logging during init
                 old_level = logging.root.level
                 logging.root.setLevel(logging.CRITICAL)
@@ -157,7 +161,10 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
             os.environ["OPENLIT_APPLICATION_NAME"] = (
                 f"DaveAgent-{user_id[:8]}" if user_id else "DaveAgent"
             )
-            with contextlib.redirect_stderr(stderr_capture), contextlib.redirect_stdout(stdout_capture):
+            with (
+                contextlib.redirect_stderr(stderr_capture),
+                contextlib.redirect_stdout(stdout_capture),
+            ):
                 old_level = logging.root.level
                 logging.root.setLevel(logging.CRITICAL)
                 try:
@@ -165,13 +172,15 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
                 finally:
                     logging.root.setLevel(old_level)
 
-        except Exception as e:
+        except Exception:
             # Silently ignore ALL instrumentation errors
             pass  # Completamente silencioso a menos que debug=True
 
         # Solo mostrar en debug mode
         if debug and (stderr_capture.getvalue() or stdout_capture.getvalue()):
-            print(f"[DEBUG] Instrumentation output suppressed: {len(stderr_capture.getvalue())} chars")
+            print(
+                f"[DEBUG] Instrumentation output suppressed: {len(stderr_capture.getvalue())} chars"
+            )
 
         if debug:
             print("[OK] OpenLit instrumentation initialized")

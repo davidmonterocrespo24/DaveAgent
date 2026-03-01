@@ -51,6 +51,7 @@ class LoggingModelClientWrapper:
 
         # Initialize compression state for persistent failure tracking
         from src.utils.context_compressor import CompressionState
+
         self._compression_state = CompressionState(
             compression_threshold=0.5,  # 50% threshold (more aggressive than old 80%)
             enable_probe=True,  # Enable verification by default
@@ -84,7 +85,9 @@ class LoggingModelClientWrapper:
         from src.utils.token_counter import count_message_tokens, get_model_context_limit
 
         # Extract model name (try kwargs first, then wrapped client)
-        model = kwargs.get("model") or (self._wrapped.model if hasattr(self._wrapped, "model") else "deepseek-chat")
+        model = kwargs.get("model") or (
+            self._wrapped.model if hasattr(self._wrapped, "model") else "deepseek-chat"
+        )
 
         # Count tokens before compression
         tokens_before = count_message_tokens(input_messages, model)
@@ -92,7 +95,7 @@ class LoggingModelClientWrapper:
 
         self.logger.debug(
             f"📊 Context tokens: {tokens_before}/{max_tokens} "
-            f"({(tokens_before/max_tokens)*100:.1f}%)"
+            f"({(tokens_before / max_tokens) * 100:.1f}%)"
         )
 
         # Compress if needed using persistent compression state
@@ -101,7 +104,7 @@ class LoggingModelClientWrapper:
             model=model,
             model_client=self._wrapped,
             logger=self.logger,
-            state=self._compression_state  # Use persistent state
+            state=self._compression_state,  # Use persistent state
         )
 
         # Log if compression occurred
@@ -212,7 +215,9 @@ class LoggingModelClientWrapper:
             if not is_auth:
                 # Record error
                 if self._json_logger:
-                    self._json_logger.log_error(e, context=f"LLM call failed for {self._agent_name}")
+                    self._json_logger.log_error(
+                        e, context=f"LLM call failed for {self._agent_name}"
+                    )
                 self.logger.error(
                     f"❌ LLM call failed: {self._agent_name}, {duration:.2f}s, error: {e}"
                 )

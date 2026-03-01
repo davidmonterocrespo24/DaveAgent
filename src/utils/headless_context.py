@@ -8,7 +8,7 @@ Uses contextvars for async-safe context management.
 import contextvars
 
 # Context variable for headless mode (async-safe)
-_headless_mode = contextvars.ContextVar('headless_mode', default=False)
+_headless_mode = contextvars.ContextVar("headless_mode", default=False)
 
 
 def set_headless(enabled: bool) -> None:

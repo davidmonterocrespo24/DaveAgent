@@ -4,20 +4,22 @@ Test for message filtering in stream processing.
 This test diagnoses why TextMessage responses from agents aren't showing in the console.
 """
 
-import sys
 import os
+import sys
 
 # Fix encoding for Windows console
-if sys.platform == 'win32':
+if sys.platform == "win32":
     import codecs
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
-    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer, "strict")
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.buffer, "strict")
 
 # Add parent directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
 from autogen_agentchat.messages import TextMessage
 
 
@@ -51,7 +53,7 @@ def test_message_filtering_logic():
         if source is None:
             # Message without source attribute
             msg = MagicMock()
-            delattr(msg, 'source')
+            delattr(msg, "source")
         else:
             msg = TextMessage(content="Test", source=source)
 
@@ -59,7 +61,9 @@ def test_message_filtering_logic():
         passes_filter = hasattr(msg, "source") and msg.source != "user"
 
         print(f"{'✓' if passes_filter == should_process else '✗'} {description}")
-        print(f"  Source: {getattr(msg, 'source', 'NO ATTRIBUTE')}, Passes filter: {passes_filter}, Expected: {should_process}")
+        print(
+            f"  Source: {getattr(msg, 'source', 'NO ATTRIBUTE')}, Passes filter: {passes_filter}, Expected: {should_process}"
+        )
 
         if passes_filter != should_process:
             print(f"  ⚠️  MISMATCH! Expected {should_process} but got {passes_filter}")
@@ -93,11 +97,11 @@ def test_message_stream_simulation():
         # Apply filter
         if hasattr(msg, "source") and msg.source != "user":
             processed_count += 1
-            print(f"  ✓ PROCESSED (would show in console)")
+            print("  ✓ PROCESSED (would show in console)")
         else:
-            print(f"  ✗ FILTERED (would NOT show in console)")
+            print("  ✗ FILTERED (would NOT show in console)")
 
-    print(f"\n=== Summary ===")
+    print("\n=== Summary ===")
     print(f"Total messages: {message_count}")
     print(f"Processed: {processed_count}")
     print(f"Filtered: {message_count - processed_count}")

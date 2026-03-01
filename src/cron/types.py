@@ -6,8 +6,8 @@ inspired by Nanobot's implementation.
 """
 
 from dataclasses import dataclass, field
-from typing import Literal
 from datetime import datetime
+from typing import Literal
 
 
 @dataclass
@@ -26,11 +26,12 @@ class CronSchedule:
        - expr: Standard cron expression (e.g., "0 9 * * *")
        - tz: Timezone for evaluation (e.g., "America/New_York")
     """
+
     kind: Literal["at", "every", "cron"]
-    at_ms: int | None = None        # Unix timestamp in ms for "at"
-    every_ms: int | None = None     # Interval in ms for "every"
-    expr: str | None = None         # Cron expression for "cron"
-    tz: str | None = None          # Timezone for cron expressions
+    at_ms: int | None = None  # Unix timestamp in ms for "at"
+    every_ms: int | None = None  # Interval in ms for "every"
+    expr: str | None = None  # Cron expression for "cron"
+    tz: str | None = None  # Timezone for cron expressions
 
     def __post_init__(self):
         """Validate schedule configuration."""
@@ -56,11 +57,12 @@ class CronJobState:
 
     Tracks execution status, timing, and error information.
     """
+
     next_run_at_ms: int | None = None  # Next scheduled run time
     last_run_at_ms: int | None = None  # Last execution time
-    last_status: str = "idle"          # "idle", "ok", "error"
-    last_error: str | None = None      # Last error message if any
-    run_count: int = 0                 # Total number of executions
+    last_status: str = "idle"  # "idle", "ok", "error"
+    last_error: str | None = None  # Last error message if any
+    run_count: int = 0  # Total number of executions
 
 
 @dataclass
@@ -70,17 +72,16 @@ class CronJob:
 
     Represents a scheduled task with its configuration and state.
     """
-    id: str                           # Unique job identifier
-    name: str                         # Human-readable name
-    enabled: bool                     # Whether job is active
-    schedule: CronSchedule            # Schedule configuration
-    task: str                         # Task description to execute
-    priority: str = "NORMAL"          # "LOW", "NORMAL", "HIGH"
+
+    id: str  # Unique job identifier
+    name: str  # Human-readable name
+    enabled: bool  # Whether job is active
+    schedule: CronSchedule  # Schedule configuration
+    task: str  # Task description to execute
+    priority: str = "NORMAL"  # "LOW", "NORMAL", "HIGH"
     state: CronJobState = field(default_factory=CronJobState)
-    created_at_ms: int = field(
-        default_factory=lambda: int(datetime.now().timestamp() * 1000)
-    )
-    delete_after_run: bool = False    # Auto-delete after one-time execution
+    created_at_ms: int = field(default_factory=lambda: int(datetime.now().timestamp() * 1000))
+    delete_after_run: bool = False  # Auto-delete after one-time execution
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""

@@ -17,13 +17,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 def test_imports():
     """Test that all CLI improvements can be imported."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 1: Import CLI improvements")
-    print("="*70)
+    print("=" * 70)
 
     try:
-        from src.interfaces.cli_interface import CLIInterface, TERMIOS_AVAILABLE
-        print(f"[OK] CLIInterface imported")
+        from src.interfaces.cli_interface import TERMIOS_AVAILABLE, CLIInterface
+
+        print("[OK] CLIInterface imported")
         print(f"     TERMIOS_AVAILABLE: {TERMIOS_AVAILABLE}")
     except ImportError as e:
         print(f"[FAIL] Could not import CLIInterface: {e}")
@@ -31,6 +32,7 @@ def test_imports():
 
     try:
         from prompt_toolkit.formatted_text import HTML
+
         print("[OK] HTML imported from prompt_toolkit")
     except ImportError as e:
         print(f"[FAIL] Could not import HTML: {e}")
@@ -38,6 +40,7 @@ def test_imports():
 
     try:
         from prompt_toolkit.patch_stdout import patch_stdout
+
         print("[OK] patch_stdout imported from prompt_toolkit")
     except ImportError as e:
         print(f"[FAIL] Could not import patch_stdout: {e}")
@@ -46,6 +49,7 @@ def test_imports():
     if TERMIOS_AVAILABLE:
         try:
             import termios
+
             print("[OK] termios imported (Unix system)")
         except ImportError as e:
             print(f"[WARNING] termios not available: {e}")
@@ -57,9 +61,9 @@ def test_imports():
 
 def test_cli_initialization():
     """Test that CLIInterface initializes with new features."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 2: CLIInterface initialization")
-    print("="*70)
+    print("=" * 70)
 
     try:
         from src.interfaces.cli_interface import CLIInterface
@@ -67,16 +71,16 @@ def test_cli_initialization():
         cli = CLIInterface()
 
         # Check new attributes
-        assert hasattr(cli, '_saved_term_attrs'), "No _saved_term_attrs attribute"
+        assert hasattr(cli, "_saved_term_attrs"), "No _saved_term_attrs attribute"
         print("[OK] Terminal state tracking initialized")
 
         # Check new methods
         methods = [
-            '_save_terminal_state',
-            '_restore_terminal_state',
-            '_flush_pending_tty_input',
-            '_handle_interrupt',
-            '_handle_terminate'
+            "_save_terminal_state",
+            "_restore_terminal_state",
+            "_flush_pending_tty_input",
+            "_handle_interrupt",
+            "_handle_terminate",
         ]
 
         for method in methods:
@@ -87,15 +91,16 @@ def test_cli_initialization():
     except Exception as e:
         print(f"[FAIL] Error initializing CLIInterface: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def test_html_prompt_formatting():
     """Test HTML prompt formatting."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 3: HTML prompt formatting")
-    print("="*70)
+    print("=" * 70)
 
     try:
         from prompt_toolkit.formatted_text import HTML
@@ -104,7 +109,7 @@ def test_html_prompt_formatting():
         prompts = [
             HTML("<b fg='ansibrightcyan'>[🔧 AGENT]</b> <b fg='ansiyellow'>You:</b> "),
             HTML("<b fg='ansigreen'>Test:</b> "),
-            HTML("<ansiyellow>Simple prompt</ansiyellow>")
+            HTML("<ansiyellow>Simple prompt</ansiyellow>"),
         ]
 
         for i, prompt in enumerate(prompts, 1):
@@ -115,18 +120,19 @@ def test_html_prompt_formatting():
     except Exception as e:
         print(f"[FAIL] Error creating HTML prompts: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def test_terminal_methods():
     """Test terminal management methods (if available)."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 4: Terminal management methods")
-    print("="*70)
+    print("=" * 70)
 
     try:
-        from src.interfaces.cli_interface import CLIInterface, TERMIOS_AVAILABLE
+        from src.interfaces.cli_interface import TERMIOS_AVAILABLE, CLIInterface
 
         cli = CLIInterface()
 
@@ -159,18 +165,20 @@ def test_terminal_methods():
     except Exception as e:
         print(f"[FAIL] Error testing terminal methods: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def test_signal_handlers():
     """Test signal handler registration."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 5: Signal handler registration")
-    print("="*70)
+    print("=" * 70)
 
     try:
         import signal
+
         from src.interfaces.cli_interface import CLIInterface
 
         # Create CLI instance (registers handlers)
@@ -182,7 +190,7 @@ def test_signal_handlers():
         print("[OK] SIGINT handler registered")
 
         # Check SIGTERM handler (Unix only)
-        if hasattr(signal, 'SIGTERM'):
+        if hasattr(signal, "SIGTERM"):
             sigterm_handler = signal.getsignal(signal.SIGTERM)
             assert sigterm_handler != signal.SIG_DFL, "SIGTERM handler not registered"
             print("[OK] SIGTERM handler registered")
@@ -193,15 +201,16 @@ def test_signal_handlers():
     except Exception as e:
         print(f"[FAIL] Error testing signal handlers: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def main():
     """Run all tests."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("FASE 1: CLI IMPROVEMENTS - TEST SUITE")
-    print("="*70)
+    print("=" * 70)
 
     results = []
 
@@ -213,9 +222,9 @@ def main():
     results.append(("Signal Handlers", test_signal_handlers()))
 
     # Summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     for name, passed in results:
         status = "[PASS]" if passed else "[FAIL]"

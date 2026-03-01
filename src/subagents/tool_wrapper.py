@@ -6,12 +6,11 @@ subagents by filtering out specific tools (like spawn_subagent) to
 prevent recursive spawning and other unwanted behaviors.
 """
 
-from typing import Callable, Any
+from collections.abc import Callable
 
 
 def create_tool_subset(
-    all_tools: list[Callable],
-    exclude_names: list[str] = None
+    all_tools: list[Callable], exclude_names: list[str] = None
 ) -> list[Callable]:
     """Create a filtered subset of tools by excluding specific names.
 

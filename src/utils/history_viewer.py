@@ -27,6 +27,7 @@ class HistoryViewer:
         """
         if console is None:
             from src.utils.vibe_spinner import WindowsSafeConsole
+
             console = WindowsSafeConsole()
         self.console = console
 

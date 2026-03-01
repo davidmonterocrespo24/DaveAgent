@@ -82,7 +82,9 @@ async def spawn_subagent(
         - Maximum 15 iterations per subagent (vs 25 for main agent)
     """
     if _subagent_manager is None:
-        return "Error: Subagent system not initialized. This tool requires setup in the orchestrator."
+        return (
+            "Error: Subagent system not initialized. This tool requires setup in the orchestrator."
+        )
 
     return await _subagent_manager.spawn(
         task=task,

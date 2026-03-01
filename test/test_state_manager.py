@@ -1,4 +1,4 @@
-"""
+r"""
 Test: StateManager save/load with tool-using agents to verify tool reflection capture.
 
 This test demonstrates:
@@ -35,8 +35,8 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.ui import Console
-from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_core.tools import FunctionTool
+from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from src.managers.state_manager import StateManager
 
@@ -53,6 +53,7 @@ MODEL_INFO = {
 # Simple Tools for Testing
 # =========================================================================
 
+
 def read_file_tool(file_path: str) -> str:
     """
     Read the contents of a file.
@@ -64,7 +65,7 @@ def read_file_tool(file_path: str) -> str:
         File contents as string
     """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
         return f"File '{file_path}' ({len(content)} chars):\n{content[:500]}..."
     except FileNotFoundError:
@@ -228,7 +229,7 @@ def analyze_tool_reflections(state_data: dict) -> None:
                                 print(f"     💭 Thought/Reflection: {thought}")
                             else:
                                 tools_without_reflection += 1
-                                print(f"     ⚠️  No thought/reflection captured")
+                                print("     ⚠️  No thought/reflection captured")
 
                             # Look for the result in next messages
                             if i + 1 < len(llm_messages):
@@ -270,7 +271,9 @@ async def main():
 
     # Save state via StateManager
     session_id = state_manager.start_session(title="Tool Usage Test")
-    await state_manager.save_agent_state("FileExplorer", agent1, metadata={"test": "tool_reflection"})
+    await state_manager.save_agent_state(
+        "FileExplorer", agent1, metadata={"test": "tool_reflection"}
+    )
     await state_manager.save_team_state("main_team", team, metadata={"task": task})
 
     saved_path = await state_manager.save_to_disk(session_id)
@@ -280,7 +283,7 @@ async def main():
     with open(saved_path) as f:
         saved_state = json.load(f)
 
-    print(f"\n📋 Saved state structure:")
+    print("\n📋 Saved state structure:")
     print(f"   - session_id: {saved_state.get('session_id')}")
     print(f"   - agent_states: {list(saved_state.get('agent_states', {}).keys())}")
     print(f"   - team_states: {list(saved_state.get('team_states', {}).keys())}")
@@ -313,8 +316,8 @@ async def main():
     print(f"  Reflection rate: {stats['reflection_rate']:.1f}%")
     print(f"  Error rate: {stats['error_rate']:.1f}%")
     print(f"  Agents using tools: {stats['agents_using_tools']}")
-    print(f"\n  Tool Frequency:")
-    for tool, count in stats['tool_frequency'].items():
+    print("\n  Tool Frequency:")
+    for tool, count in stats["tool_frequency"].items():
         print(f"    - {tool}: {count} calls")
 
     # Save reflection report
@@ -336,7 +339,9 @@ async def main():
     print("✅ State loaded successfully")
 
     # Ask follow-up question that requires context from previous tool usage
-    follow_up_task = "Based on what you found earlier, what types of files are in the test directory?"
+    follow_up_task = (
+        "Based on what you found earlier, what types of files are in the test directory?"
+    )
     await Console(new_team.run_stream(task=follow_up_task))
 
     print("\n" + "=" * 80)

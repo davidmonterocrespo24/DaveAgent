@@ -7,8 +7,8 @@ Tests the complete auto-injection system:
 3. Auto-injection of subagent results
 """
 
-import sys
 import asyncio
+import sys
 from pathlib import Path
 
 # Add src to path
@@ -17,12 +17,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 def test_imports():
     """Test that all auto-injection components can be imported."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 1: Import auto-injection components")
-    print("="*70)
+    print("=" * 70)
 
     try:
         from src.bus import MessageBus, SystemMessage
+
         print("[OK] MessageBus and SystemMessage imported")
     except ImportError as e:
         print(f"[FAIL] Could not import MessageBus: {e}")
@@ -30,6 +31,7 @@ def test_imports():
 
     try:
         from src.config.orchestrator import AgentOrchestrator
+
         print("[OK] AgentOrchestrator imported")
     except ImportError as e:
         print(f"[FAIL] Could not import AgentOrchestrator: {e}")
@@ -40,12 +42,13 @@ def test_imports():
 
 async def test_message_bus_basic():
     """Test basic MessageBus operations."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 2: MessageBus basic operations")
-    print("="*70)
+    print("=" * 70)
+
+    from datetime import datetime
 
     from src.bus import MessageBus, SystemMessage
-    from datetime import datetime
 
     try:
         # Create MessageBus
@@ -62,7 +65,7 @@ async def test_message_bus_basic():
             message_type="subagent_result",
             sender_id="subagent:test123",
             content="Test result",
-            metadata={"test": True}
+            metadata={"test": True},
         )
         await bus.publish_inbound(msg)
         print("[OK] Message published")
@@ -87,15 +90,16 @@ async def test_message_bus_basic():
     except Exception as e:
         print(f"[FAIL] Error in MessageBus test: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 async def test_message_bus_timeout():
     """Test MessageBus timeout behavior."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 3: MessageBus timeout")
-    print("="*70)
+    print("=" * 70)
 
     from src.bus import MessageBus
 
@@ -104,6 +108,7 @@ async def test_message_bus_timeout():
 
         # Try to consume from empty queue
         import time
+
         start = time.time()
         msg = await bus.consume_inbound(timeout=0.5)
         elapsed = time.time() - start
@@ -116,15 +121,16 @@ async def test_message_bus_timeout():
     except Exception as e:
         print(f"[FAIL] Error in timeout test: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 async def test_detector_lifecycle():
     """Test system message detector start/stop."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 4: Detector lifecycle")
-    print("="*70)
+    print("=" * 70)
 
     from src.bus import MessageBus
 
@@ -150,7 +156,7 @@ async def test_detector_lifecycle():
                 if self._detector_task:
                     try:
                         await asyncio.wait_for(self._detector_task, timeout=2.0)
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         self._detector_task.cancel()
                         try:
                             await self._detector_task
@@ -181,15 +187,16 @@ async def test_detector_lifecycle():
     except Exception as e:
         print(f"[FAIL] Error in lifecycle test: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 async def test_auto_injection_flow():
     """Test complete auto-injection flow."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 5: Auto-injection flow")
-    print("="*70)
+    print("=" * 70)
 
     from src.bus import MessageBus, SystemMessage
 
@@ -215,7 +222,7 @@ async def test_auto_injection_flow():
                 if self._detector_task:
                     try:
                         await asyncio.wait_for(self._detector_task, timeout=2.0)
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         self._detector_task.cancel()
                         try:
                             await self._detector_task
@@ -242,7 +249,7 @@ async def test_auto_injection_flow():
             message_type="subagent_result",
             sender_id="subagent:abc123",
             content="Task completed successfully",
-            metadata={"subagent_id": "abc123", "label": "test", "status": "ok"}
+            metadata={"subagent_id": "abc123", "label": "test", "status": "ok"},
         )
         await mock.message_bus.publish_inbound(msg1)
         print("[OK] Published subagent result message")
@@ -260,7 +267,7 @@ async def test_auto_injection_flow():
             message_type="cron_result",
             sender_id="cron:job789",
             content="Cron job executed",
-            metadata={"job_id": "job789"}
+            metadata={"job_id": "job789"},
         )
         await mock.message_bus.publish_inbound(msg2)
         print("[OK] Published cron result message")
@@ -281,15 +288,16 @@ async def test_auto_injection_flow():
     except Exception as e:
         print(f"[FAIL] Error in auto-injection flow: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 async def test_integration_with_subagent_manager():
     """Test integration with SubAgentManager._inject_result()."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 6: Integration with SubAgentManager")
-    print("="*70)
+    print("=" * 70)
 
     from src.bus import MessageBus, SystemMessage
 
@@ -319,7 +327,7 @@ Do not mention technical details like "subagent" or task IDs."""
             message_type="subagent_result",
             sender_id=f"subagent:{subagent_id}",
             content=announce_content,
-            metadata={"subagent_id": subagent_id, "label": label, "status": status}
+            metadata={"subagent_id": subagent_id, "label": label, "status": status},
         )
 
         await message_bus.publish_inbound(sys_msg)
@@ -336,15 +344,16 @@ Do not mention technical details like "subagent" or task IDs."""
     except Exception as e:
         print(f"[FAIL] Error in integration test: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def main():
     """Run all tests."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("FASE 3: AUTO-INJECTION - TEST SUITE")
-    print("="*70)
+    print("=" * 70)
 
     results = []
 
@@ -357,12 +366,17 @@ def main():
     results.append(("MessageBus Timeout", loop.run_until_complete(test_message_bus_timeout())))
     results.append(("Detector Lifecycle", loop.run_until_complete(test_detector_lifecycle())))
     results.append(("Auto-Injection Flow", loop.run_until_complete(test_auto_injection_flow())))
-    results.append(("SubAgentManager Integration", loop.run_until_complete(test_integration_with_subagent_manager())))
+    results.append(
+        (
+            "SubAgentManager Integration",
+            loop.run_until_complete(test_integration_with_subagent_manager()),
+        )
+    )
 
     # Summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     for name, passed in results:
         status = "[PASS]" if passed else "[FAIL]"
@@ -374,9 +388,9 @@ def main():
     print(f"\nTotal: {passed}/{total} tests passed")
 
     if passed == total:
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("[SUCCESS] FASE 3: AUTO-INJECTION - INFRASTRUCTURE COMPLETE!")
-        print("="*70)
+        print("=" * 70)
         print("\nImplemented features:")
         print("  [OK] MessageBus with asyncio.Queue")
         print("  [OK] SystemMessage dataclass")
@@ -390,7 +404,7 @@ def main():
         print("  1. python -m src.main")
         print("  2. /agent-mode")
         print("  3. Spawn a subagent and watch for auto-injection")
-        print("="*70)
+        print("=" * 70)
         return 0
     else:
         print(f"\n[WARNING] {total - passed} test(s) failed")

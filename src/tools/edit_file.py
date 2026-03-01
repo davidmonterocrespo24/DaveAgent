@@ -126,7 +126,11 @@ def _calculate_regex_replacement(current_content: str, old_string: str, new_stri
 
 
 async def edit_file(
-    target_file: str, old_string: str, new_string: str, instructions: str = "", explanation: str = ""
+    target_file: str,
+    old_string: str,
+    new_string: str,
+    instructions: str = "",
+    explanation: str = "",
 ) -> str:
     """
     Replaces a specific string in a file with a new string using smart matching strategies.

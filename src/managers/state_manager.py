@@ -651,7 +651,10 @@ class StateManager:
                                         is_error = False
                                         if i + 1 < len(llm_messages):
                                             next_msg = llm_messages[i + 1]
-                                            if next_msg.get("type") == "FunctionExecutionResultMessage":
+                                            if (
+                                                next_msg.get("type")
+                                                == "FunctionExecutionResultMessage"
+                                            ):
                                                 results = next_msg.get("content", [])
                                                 for res in results:
                                                     if isinstance(res, dict):
@@ -659,15 +662,19 @@ class StateManager:
                                                         is_error = res.get("is_error", False)
                                                         break
 
-                                        reflections.append({
-                                            "agent": agent_name,
-                                            "tool_name": tool_name,
-                                            "arguments": tool_args if isinstance(tool_args, dict) else {},
-                                            "thought": thought,
-                                            "result": result,
-                                            "is_error": is_error,
-                                            "timestamp_index": i,
-                                        })
+                                        reflections.append(
+                                            {
+                                                "agent": agent_name,
+                                                "tool_name": tool_name,
+                                                "arguments": tool_args
+                                                if isinstance(tool_args, dict)
+                                                else {},
+                                                "thought": thought,
+                                                "result": result,
+                                                "is_error": is_error,
+                                                "timestamp_index": i,
+                                            }
+                                        )
 
             # Also process individual agent states (not in teams)
             for agent_name, agent_data in agent_states.items():
@@ -708,15 +715,19 @@ class StateManager:
                                                     is_error = res.get("is_error", False)
                                                     break
 
-                                    reflections.append({
-                                        "agent": agent_name,
-                                        "tool_name": tool_name,
-                                        "arguments": tool_args if isinstance(tool_args, dict) else {},
-                                        "thought": thought,
-                                        "result": result,
-                                        "is_error": is_error,
-                                        "timestamp_index": i,
-                                    })
+                                    reflections.append(
+                                        {
+                                            "agent": agent_name,
+                                            "tool_name": tool_name,
+                                            "arguments": tool_args
+                                            if isinstance(tool_args, dict)
+                                            else {},
+                                            "thought": thought,
+                                            "result": result,
+                                            "is_error": is_error,
+                                            "timestamp_index": i,
+                                        }
+                                    )
 
             return reflections
 

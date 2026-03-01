@@ -39,8 +39,8 @@ class DaveAgentCLI(AgentOrchestrator):
         """
         Initialize all agent components by calling parent AgentOrchestrator
         """
-        import time
         import os
+        import time
 
         t_start = time.time()
 
@@ -53,19 +53,19 @@ class DaveAgentCLI(AgentOrchestrator):
             ssl_verify=ssl_verify,
             headless=headless,
         )
-        
+
         self.should_exit = False
 
         t0 = time.time()
         # State management system (AutoGen save_state/load_state)
         from src.managers import StateManager
 
-        _state_dir = os.path.join(os.getcwd(), ".daveagent", "state")       
+        _state_dir = os.path.join(os.getcwd(), ".daveagent", "state")
         self.state_manager = StateManager(
             auto_save_enabled=True,
             auto_save_interval=300,  # Auto-save every 5 minutes
             state_dir=_state_dir,
-        )        
+        )
 
         t0 = time.time()
         # Agent Skills system
@@ -77,7 +77,6 @@ class DaveAgentCLI(AgentOrchestrator):
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
         else:
             self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
-        
 
         t0 = time.time()
         # Context Manager (DAVEAGENT.md)
@@ -89,7 +88,6 @@ class DaveAgentCLI(AgentOrchestrator):
             self.logger.info(f"✓ Found {len(context_files)} DAVEAGENT.md context file(s)")
         else:
             self.logger.debug("No DAVEAGENT.md context files found")
-        
 
         # Error Reporter (sends errors to SigNoz instead of creating GitHub issues)
         from src.managers import ErrorReporter
@@ -185,7 +183,6 @@ class DaveAgentCLI(AgentOrchestrator):
             write_file,
             write_json,
         )
-        
 
         # Store all tools to filter them according to mode
         self.all_tools = {
@@ -238,7 +235,6 @@ class DaveAgentCLI(AgentOrchestrator):
                 run_terminal_cmd,
             ],
         }
-        
 
     # =========================================================================
     # COMMAND HANDLING
@@ -300,7 +296,11 @@ class DaveAgentCLI(AgentOrchestrator):
 
         elif cmd == "/debug":
             # Change console handler level (file handler always stays at DEBUG)
-            console_handlers = [h for h in self.logger.logger.handlers if isinstance(h, logging.Handler) and not isinstance(h, logging.FileHandler)]
+            console_handlers = [
+                h
+                for h in self.logger.logger.handlers
+                if isinstance(h, logging.Handler) and not isinstance(h, logging.FileHandler)
+            ]
             current_console_level = console_handlers[0].level if console_handlers else logging.INFO
             if current_console_level == logging.DEBUG:
                 for h in console_handlers:
@@ -780,7 +780,9 @@ TITLE:"""
                 self.state_manager.start_session(session_id=session_id, title=title)
 
             # Save team state
-            self.logger.debug(f"💾 Auto-save: saving team state, session={self.state_manager.session_id}")
+            self.logger.debug(
+                f"💾 Auto-save: saving team state, session={self.state_manager.session_id}"
+            )
             await self.state_manager.save_agent_state(
                 "Coder", self.coder_agent, metadata={"description": "Main coder agent with tools"}
             )
@@ -797,11 +799,10 @@ TITLE:"""
             # Save session metadata to disk
             await self.state_manager.save_to_disk()
 
-            
-
         except Exception as e:
             # Don't fail if auto-save fails, just log
             import traceback
+
             self.logger.warning(f"⚠️ Auto-save failed: {str(e)}\n{traceback.format_exc()}")
 
     async def _save_state_command(self, parts: list):
@@ -898,7 +899,9 @@ TITLE:"""
                 return
 
             # Load team state
-            team_loaded = await self.state_manager.load_team_state(self.main_team, self.client_strong)
+            team_loaded = await self.state_manager.load_team_state(
+                self.main_team, self.client_strong
+            )
 
             self.cli.stop_thinking()
 
@@ -1033,7 +1036,7 @@ TITLE:"""
         Shows currently running subagents with their IDs, labels, and status.
         """
         try:
-            if not hasattr(self.orchestrator, 'subagent_manager'):
+            if not hasattr(self.orchestrator, "subagent_manager"):
                 self.cli.print_warning("Subagent system not initialized")
                 return
 
@@ -1045,14 +1048,14 @@ TITLE:"""
                 return
 
             # Create table data
-            from rich.table import Table
             from rich import box
+            from rich.table import Table
 
             table = Table(
                 title="[bold cyan]Active Subagents[/bold cyan]",
                 box=box.ROUNDED,
                 show_header=True,
-                header_style="bold magenta"
+                header_style="bold magenta",
             )
 
             table.add_column("ID", style="cyan", no_wrap=True)
@@ -1067,9 +1070,12 @@ TITLE:"""
                 status = "Running" if not task.done() else "Completed"
 
                 # Find spawn event for this subagent
-                spawn_event = next((e for e in spawned_events if e.subagent_id == subagent_id), None)
+                spawn_event = next(
+                    (e for e in spawned_events if e.subagent_id == subagent_id), None
+                )
                 if spawn_event:
                     from datetime import datetime
+
                     start_time = datetime.fromtimestamp(spawn_event.timestamp).strftime("%H:%M:%S")
                 else:
                     start_time = "Unknown"
@@ -1094,7 +1100,7 @@ TITLE:"""
             subagent_id: The ID of the subagent to check
         """
         try:
-            if not hasattr(self.orchestrator, 'subagent_manager'):
+            if not hasattr(self.orchestrator, "subagent_manager"):
                 self.cli.print_warning("Subagent system not initialized")
                 return
 
@@ -1115,16 +1121,19 @@ TITLE:"""
                 return
 
             # Display subagent information
-            from rich.panel import Panel
-            from rich.markdown import Markdown
             from datetime import datetime
+
+            from rich.markdown import Markdown
+            from rich.panel import Panel
 
             # Get spawn event
             spawn_event = next((e for e in subagent_events if e.event_type == "spawned"), None)
             if spawn_event:
-                label = spawn_event.content.get('label', 'Unknown')
-                task = spawn_event.content.get('task', 'Unknown')
-                start_time = datetime.fromtimestamp(spawn_event.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                label = spawn_event.content.get("label", "Unknown")
+                task = spawn_event.content.get("task", "Unknown")
+                start_time = datetime.fromtimestamp(spawn_event.timestamp).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
             else:
                 label = "Unknown"
                 task = "Unknown"
@@ -1135,17 +1144,23 @@ TITLE:"""
             has_result = subagent_id in manager._results
 
             # Get completion/failure info
-            completed_event = next((e for e in subagent_events if e.event_type == "completed"), None)
+            completed_event = next(
+                (e for e in subagent_events if e.event_type == "completed"), None
+            )
             failed_event = next((e for e in subagent_events if e.event_type == "failed"), None)
 
             if completed_event:
                 status = "Completed"
-                end_time = datetime.fromtimestamp(completed_event.timestamp).strftime("%Y-%m-%d %H:%M:%S")
-                result = completed_event.content.get('result', 'No result')
+                end_time = datetime.fromtimestamp(completed_event.timestamp).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+                result = completed_event.content.get("result", "No result")
                 result_preview = result[:200] + "..." if len(result) > 200 else result
             elif failed_event:
                 status = "Failed"
-                end_time = datetime.fromtimestamp(failed_event.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                end_time = datetime.fromtimestamp(failed_event.timestamp).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
                 result_preview = f"Error: {failed_event.content.get('error', 'Unknown error')}"
             elif is_running:
                 status = "Running"
@@ -1184,7 +1199,7 @@ TITLE:"""
                 Panel(
                     Markdown(status_text),
                     title=f"[bold cyan]Subagent {subagent_id}[/bold cyan]",
-                    border_style="cyan"
+                    border_style="cyan",
                 )
             )
             self.cli.console.print()
@@ -1199,7 +1214,7 @@ TITLE:"""
 
     async def _cron_command(self, subcmd: str, args: list):
         """Handle cron subcommands."""
-        if not hasattr(self, 'cron_service') or self.cron_service is None:
+        if not hasattr(self, "cron_service") or self.cron_service is None:
             self.cli.print_error("Cron service not initialized")
             return
 
@@ -1248,7 +1263,13 @@ TITLE:"""
 
         for job in jobs:
             enabled = "✓" if job["enabled"] else "✗"
-            status_color = "green" if job["last_status"] == "ok" else "red" if job["last_status"] == "error" else "dim"
+            status_color = (
+                "green"
+                if job["last_status"] == "ok"
+                else "red"
+                if job["last_status"] == "error"
+                else "dim"
+            )
 
             table.add_row(
                 job["id"],
@@ -1257,7 +1278,7 @@ TITLE:"""
                 job["schedule"],
                 job["next_run"],
                 str(job["run_count"]),
-                f"[{status_color}]{job['last_status']}[/{status_color}]"
+                f"[{status_color}]{job['last_status']}[/{status_color}]",
             )
 
         self.cli.console.print(table)
@@ -1265,8 +1286,9 @@ TITLE:"""
 
     async def _cron_add_command(self, args: list):
         """Add a new cron job."""
-        from src.cron.types import CronSchedule
         from datetime import datetime
+
+        from src.cron.types import CronSchedule
 
         if len(args) < 2:
             self.cli.print_error("Usage: /cron add <at|every|cron> <time/interval/expr> <task>")
@@ -1294,11 +1316,7 @@ TITLE:"""
                 at_ms = int(dt.timestamp() * 1000)
 
                 schedule = CronSchedule(kind="at", at_ms=at_ms)
-                job_id = self.cron_service.add_job(
-                    name=task[:50],
-                    schedule=schedule,
-                    task=task
-                )
+                job_id = self.cron_service.add_job(name=task[:50], schedule=schedule, task=task)
 
                 self.cli.print_success(f"✓ Added one-time job {job_id}")
                 self.cli.print_info(f"  Will run at: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -1312,7 +1330,9 @@ TITLE:"""
             if len(args) < 3:
                 self.cli.print_error("Usage: /cron add every <interval> <task>")
                 self.cli.print_info("Example: /cron add every 1h Check build status")
-                self.cli.print_info("Intervals: 30s, 5m, 1h, 2d (s=seconds, m=minutes, h=hours, d=days)")
+                self.cli.print_info(
+                    "Intervals: 30s, 5m, 1h, 2d (s=seconds, m=minutes, h=hours, d=days)"
+                )
                 return
 
             interval_str = args[1]
@@ -1321,7 +1341,8 @@ TITLE:"""
             try:
                 # Parse interval (e.g., "1h", "30m", "2d")
                 import re
-                match = re.match(r'^(\d+)([smhd])$', interval_str)
+
+                match = re.match(r"^(\d+)([smhd])$", interval_str)
                 if not match:
                     raise ValueError("Invalid interval format")
 
@@ -1329,15 +1350,11 @@ TITLE:"""
                 unit = match.group(2)
 
                 # Convert to milliseconds
-                multipliers = {'s': 1000, 'm': 60000, 'h': 3600000, 'd': 86400000}
+                multipliers = {"s": 1000, "m": 60000, "h": 3600000, "d": 86400000}
                 every_ms = value * multipliers[unit]
 
                 schedule = CronSchedule(kind="every", every_ms=every_ms)
-                job_id = self.cron_service.add_job(
-                    name=task[:50],
-                    schedule=schedule,
-                    task=task
-                )
+                job_id = self.cron_service.add_job(name=task[:50], schedule=schedule, task=task)
 
                 self.cli.print_success(f"✓ Added recurring job {job_id}")
                 self.cli.print_info(f"  Interval: {interval_str}")
@@ -1360,22 +1377,21 @@ TITLE:"""
             try:
                 # Validate cron expression
                 from croniter import croniter
+
                 if not croniter.is_valid(cron_expr):
                     raise ValueError("Invalid cron expression")
 
                 schedule = CronSchedule(kind="cron", expr=cron_expr)
-                job_id = self.cron_service.add_job(
-                    name=task[:50],
-                    schedule=schedule,
-                    task=task
-                )
+                job_id = self.cron_service.add_job(name=task[:50], schedule=schedule, task=task)
 
                 # Show next run times
-                from croniter import croniter as CronIter
                 from datetime import datetime
+
+                from croniter import croniter as CronIter
+
                 now = datetime.now()
                 cron = CronIter(cron_expr, now)
-                next_3 = [cron.get_next(datetime).strftime('%Y-%m-%d %H:%M') for _ in range(3)]
+                next_3 = [cron.get_next(datetime).strftime("%Y-%m-%d %H:%M") for _ in range(3)]
 
                 self.cli.print_success(f"✓ Added cron job {job_id}")
                 self.cli.print_info(f"  Expression: {cron_expr}")
@@ -1595,7 +1611,9 @@ TITLE:"""
 
             # Track last message time to detect stuck state
             last_message_time = asyncio.get_event_loop().time()
-            message_timeout = 600  # 10 minutes without messages = might be stuck (long tasks need time)
+            message_timeout = (
+                600  # 10 minutes without messages = might be stuck (long tasks need time)
+            )
 
             # Log progress every N tool calls
             last_progress_log = 0
@@ -1632,7 +1650,6 @@ TITLE:"""
                         full_content = ""
                         if hasattr(msg, "content"):
                             full_content = str(msg.content)
-                        
 
                     # Only process messages that are NOT from the user
                     # UPDATED: Also process messages without source (fallback)
@@ -1645,7 +1662,18 @@ TITLE:"""
                             if msg_type == "TextMessage" and hasattr(msg, "content"):
                                 content = str(msg.content)
                                 # Agent responses typically don't start with user-like phrases
-                                if any(marker in content for marker in ["I'll", "I will", "I've", "Let me", "I have", "Based on", "TERMINATE"]):
+                                if any(
+                                    marker in content
+                                    for marker in [
+                                        "I'll",
+                                        "I will",
+                                        "I've",
+                                        "Let me",
+                                        "I have",
+                                        "Based on",
+                                        "TERMINATE",
+                                    ]
+                                ):
                                     self.logger.warning(
                                         f"⚠️ TextMessage with source='user' but appears to be agent response! "
                                         f"Content: {content[:100]}"
@@ -1665,12 +1693,9 @@ TITLE:"""
                                 skip_reason = "source is 'user'"
                         else:
                             skip_reason = "no source attribute"
-                        self.logger.debug(
-                            f"⏭️  Skipping message: {msg_type} ({skip_reason})"
-                        )
+                        self.logger.debug(f"⏭️  Skipping message: {msg_type} ({skip_reason})")
 
                     if should_process:
-
                         # Determine message content
                         if hasattr(msg, "content"):
                             content = msg.content
@@ -1693,11 +1718,15 @@ TITLE:"""
                             message_key = f"{agent_name}:{hash(str(content))}"
 
                         if message_key not in agent_messages_shown:
-                            self.logger.debug(f"✅ Processing message (will show in terminal): {msg_type} from {agent_name}")
+                            self.logger.debug(
+                                f"✅ Processing message (will show in terminal): {msg_type} from {agent_name}"
+                            )
 
                             # SHOW DIFFERENT MESSAGE TYPES IN CONSOLE IN REAL-TIME
                         else:
-                            self.logger.debug(f"⏭️  Skipping duplicate message: {msg_type} from {agent_name} (already shown)")
+                            self.logger.debug(
+                                f"⏭️  Skipping duplicate message: {msg_type} from {agent_name} (already shown)"
+                            )
 
                         if message_key not in agent_messages_shown:
                             if msg_type == "ThoughtEvent":
@@ -1708,6 +1737,7 @@ TITLE:"""
                                     spinner_active = False
                                     # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
                                     import time
+
                                     time.sleep(0.05)  # 50ms delay
                                 self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
                                 self.logger.debug(f"💭 Thought: {content_str}")
@@ -1715,13 +1745,17 @@ TITLE:"""
                                 self.json_logger.log_thought(agent_name, content_str)
                                 agent_messages_shown.add(message_key)
 
-                            elif msg_type in ["ModelClientStreamingChunkEvent", "CodeGenerationEvent"]:
+                            elif msg_type in [
+                                "ModelClientStreamingChunkEvent",
+                                "CodeGenerationEvent",
+                            ]:
                                 # Show streaming chunks and code generation events (agent thinking)
                                 if spinner_active:
                                     self.cli.stop_thinking(clear=True)
                                     spinner_active = False
                                     # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
                                     import time
+
                                     time.sleep(0.05)  # 50ms delay
                                 self.cli.print_thinking(f"🤔 {agent_name} is thinking...")
                                 self.logger.debug(f"🧠 {msg_type}: {content_str[:200]}")
@@ -1730,16 +1764,25 @@ TITLE:"""
                             elif msg_type == "ToolCallRequestEvent":
                                 # 🔧 Show tools to be called
                                 # Stop spinner to show tool call, then restart with specific message
-                                self.logger.debug(f"🔧 [SPINNER_DEBUG] ToolCallRequestEvent received, spinner_active={spinner_active}")
+                                self.logger.debug(
+                                    f"🔧 [SPINNER_DEBUG] ToolCallRequestEvent received, spinner_active={spinner_active}"
+                                )
                                 if spinner_active:
-                                    self.logger.debug("🔧 [SPINNER_DEBUG] Stopping spinner before tool call...")
+                                    self.logger.debug(
+                                        "🔧 [SPINNER_DEBUG] Stopping spinner before tool call..."
+                                    )
                                     self.cli.stop_thinking(clear=True)
-                                    self.logger.debug("🔧 [SPINNER_DEBUG] Spinner stopped, waiting 50ms...")
+                                    self.logger.debug(
+                                        "🔧 [SPINNER_DEBUG] Spinner stopped, waiting 50ms..."
+                                    )
                                     # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
                                     # and stdout is flushed before Rich Console prints
                                     import time
+
                                     time.sleep(0.05)  # 50ms delay
-                                    self.logger.debug("🔧 [SPINNER_DEBUG] 50ms delay complete, ready to print")
+                                    self.logger.debug(
+                                        "🔧 [SPINNER_DEBUG] 50ms delay complete, ready to print"
+                                    )
 
                                 # Log progress every N tool calls
                                 if len(tools_called) - last_progress_log >= progress_log_interval:
@@ -1772,6 +1815,7 @@ TITLE:"""
                                             # Check if an approval prompt is currently active
                                             # If so, skip printing to avoid terminal output interleaving
                                             from src.utils.interaction import is_interaction_active
+
                                             _skip_print = is_interaction_active()
 
                                             # For write_file/edit_file: DON'T show content panels here.
@@ -1783,7 +1827,9 @@ TITLE:"""
                                                 and isinstance(tool_args, dict)
                                                 and "file_content" in tool_args
                                             ):
-                                                target_file = tool_args.get("target_file", "unknown")
+                                                target_file = tool_args.get(
+                                                    "target_file", "unknown"
+                                                )
                                                 if not _skip_print:
                                                     self.cli.print_thinking(
                                                         f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
@@ -1792,14 +1838,18 @@ TITLE:"""
                                             elif tool_name == "edit_file" and isinstance(
                                                 tool_args, dict
                                             ):
-                                                target_file = tool_args.get("target_file", "unknown")
+                                                target_file = tool_args.get(
+                                                    "target_file", "unknown"
+                                                )
                                                 instructions = tool_args.get("instructions", "")
                                                 if not _skip_print:
                                                     self.cli.print_thinking(
                                                         f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
                                                     )
                                                     if instructions:
-                                                        self.cli.print_thinking(f"   📝 {instructions}")
+                                                        self.cli.print_thinking(
+                                                            f"   📝 {instructions}"
+                                                        )
                                                 # NOTE: Removed print_diff() call - approval prompt shows diff
                                             else:
                                                 # Default: show explanation (if provided) + parameters
@@ -1811,32 +1861,52 @@ TITLE:"""
                                                     # Show explanation prominently if available
                                                     if explanation:
                                                         # Parse tool name to make it more readable
-                                                        tool_display = tool_name.replace("_", " ").title()
-                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} with explanation")
+                                                        tool_display = tool_name.replace(
+                                                            "_", " "
+                                                        ).title()
+                                                        self.logger.debug(
+                                                            f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} with explanation"
+                                                        )
                                                         self.cli.print_info(
                                                             f"🔧 {tool_display}: {explanation}",
                                                             agent_name,
                                                         )
-                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}")
+                                                        self.logger.debug(
+                                                            f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}"
+                                                        )
                                                         # Show compact parameters (without explanation)
-                                                        params_copy = {k: v for k, v in tool_args.items() if k != "explanation"}
+                                                        params_copy = {
+                                                            k: v
+                                                            for k, v in tool_args.items()
+                                                            if k != "explanation"
+                                                        }
                                                         if params_copy:
                                                             params_str = str(params_copy)
                                                             if len(params_str) > 150:
-                                                                params_str = params_str[:150] + "..."
-                                                            self.cli.print_thinking(f"   Parameters: {params_str}")
+                                                                params_str = (
+                                                                    params_str[:150] + "..."
+                                                                )
+                                                            self.cli.print_thinking(
+                                                                f"   Parameters: {params_str}"
+                                                            )
                                                     else:
                                                         # No explanation - show old format
                                                         args_str = str(tool_args)
                                                         if len(args_str) > 200:
                                                             args_str = args_str[:200] + "..."
-                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} (no explanation)")
-                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] Tool args: {args_str[:100]}")
+                                                        self.logger.debug(
+                                                            f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} (no explanation)"
+                                                        )
+                                                        self.logger.debug(
+                                                            f"🔧 [PRINT_DEBUG] Tool args: {args_str[:100]}"
+                                                        )
                                                         self.cli.print_info(
                                                             f"🔧 Calling tool: {tool_name} with parameters {args_str}",
                                                             agent_name,
                                                         )
-                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}")
+                                                        self.logger.debug(
+                                                            f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}"
+                                                        )
 
                                             self.logger.debug(f"🔧 Tool call: {tool_name}")
                                             # JSON Logger: Capture tool call
@@ -1860,27 +1930,42 @@ TITLE:"""
                                         self.logger.debug(f"executing {tool_names[0]}")
                                         # Start spinner with context about what's executing
                                         tool_desc = tool_names[0].replace("_", " ")
-                                        self.logger.debug(f"🔧 [SPINNER_DEBUG] About to restart spinner with message: 'executing {tool_desc}'")
+                                        self.logger.debug(
+                                            f"🔧 [SPINNER_DEBUG] About to restart spinner with message: 'executing {tool_desc}'"
+                                        )
                                         self.cli.start_thinking(message=f"executing {tool_desc}")
                                         spinner_active = True
-                                        self.logger.debug(f"🔧 [SPINNER_DEBUG] Spinner restarted, spinner_active={spinner_active}")
+                                        self.logger.debug(
+                                            f"🔧 [SPINNER_DEBUG] Spinner restarted, spinner_active={spinner_active}"
+                                        )
                                     else:
-                                        self.logger.warning(f"🔧 [SPINNER_DEBUG] No tool_names found in ToolCallRequestEvent!")
+                                        self.logger.warning(
+                                            "🔧 [SPINNER_DEBUG] No tool_names found in ToolCallRequestEvent!"
+                                        )
                                 agent_messages_shown.add(message_key)
 
                             elif msg_type == "ToolCallExecutionEvent":
                                 # ✅ Show tool results
-                                self.logger.debug(f"🎯 ToolCallExecutionEvent RECEIVED (results ready)")
-                                self.logger.debug(f"🔧 [SPINNER_DEBUG] ToolCallExecutionEvent, spinner_active={spinner_active}")
+                                self.logger.debug(
+                                    "🎯 ToolCallExecutionEvent RECEIVED (results ready)"
+                                )
+                                self.logger.debug(
+                                    f"🔧 [SPINNER_DEBUG] ToolCallExecutionEvent, spinner_active={spinner_active}"
+                                )
 
                                 # Stop spinner to show results
                                 if spinner_active:
-                                    self.logger.debug("🔧 [SPINNER_DEBUG] Stopping spinner to show results...")
+                                    self.logger.debug(
+                                        "🔧 [SPINNER_DEBUG] Stopping spinner to show results..."
+                                    )
                                     self.cli.stop_thinking(clear=True)
                                     spinner_active = False
-                                    self.logger.debug("🔧 [SPINNER_DEBUG] Spinner stopped, waiting 50ms...")
+                                    self.logger.debug(
+                                        "🔧 [SPINNER_DEBUG] Spinner stopped, waiting 50ms..."
+                                    )
                                     # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
                                     import time
+
                                     time.sleep(0.05)  # 50ms delay
                                     self.logger.debug("🔧 [SPINNER_DEBUG] 50ms delay complete")
 
@@ -1959,7 +2044,10 @@ TITLE:"""
                                                     self.logger.debug(
                                                         f"✅ Tool result: {tool_name} -> {result_preview}"
                                                     )
-                                            elif tool_name == "read_file" and "File:" in result_content:
+                                            elif (
+                                                tool_name == "read_file"
+                                                and "File:" in result_content
+                                            ):
                                                 # Special handling for read_file - show with syntax highlighting
                                                 # Extract filename from result
                                                 try:
@@ -2037,12 +2125,24 @@ TITLE:"""
                                 # Check if this looks like reasoning (typically shorter, discusses what to do)
                                 is_reasoning = False
                                 reasoning_indicators = [
-                                    "let me", "i'll", "i will", "first", "now", "next",
-                                    "to do this", "i need to", "i should", "let's",
-                                    "i can", "i must", "going to"
+                                    "let me",
+                                    "i'll",
+                                    "i will",
+                                    "first",
+                                    "now",
+                                    "next",
+                                    "to do this",
+                                    "i need to",
+                                    "i should",
+                                    "let's",
+                                    "i can",
+                                    "i must",
+                                    "going to",
                                 ]
                                 content_lower = content_str.lower()
-                                if any(indicator in content_lower for indicator in reasoning_indicators):
+                                if any(
+                                    indicator in content_lower for indicator in reasoning_indicators
+                                ):
                                     # Short messages are likely reasoning
                                     if len(content_str) < 500:
                                         is_reasoning = True
@@ -2054,9 +2154,14 @@ TITLE:"""
                                         spinner_active = False
                                         # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
                                         import time
+
                                         time.sleep(0.05)  # 50ms delay
-                                    self.logger.debug(f"🖥️  SHOWING IN TERMINAL (reasoning): {content_str[:100]}")
-                                    self.cli.print_thinking(f"💭 {agent_name} is thinking: {content_str}")
+                                    self.logger.debug(
+                                        f"🖥️  SHOWING IN TERMINAL (reasoning): {content_str[:100]}"
+                                    )
+                                    self.cli.print_thinking(
+                                        f"💭 {agent_name} is thinking: {content_str}"
+                                    )
                                     self.logger.debug(f"💭 Reasoning: {content_str}")
                                     self.json_logger.log_thought(agent_name, content_str)
                                     agent_messages_shown.add(message_key)
@@ -2068,15 +2173,24 @@ TITLE:"""
                                         spinner_active = False
                                         # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
                                         import time
+
                                         time.sleep(0.05)  # 50ms delay
 
-                                    preview = content_str[:100] if len(content_str) > 100 else content_str
-                                    self.logger.log_message_processing(msg_type, agent_name, preview)
-                                    self.logger.debug(f"🖥️  SHOWING IN TERMINAL (final response): {content_str[:200]}")
+                                    preview = (
+                                        content_str[:100] if len(content_str) > 100 else content_str
+                                    )
+                                    self.logger.log_message_processing(
+                                        msg_type, agent_name, preview
+                                    )
+                                    self.logger.debug(
+                                        f"🖥️  SHOWING IN TERMINAL (final response): {content_str[:200]}"
+                                    )
                                     self.cli.print_agent_message(content_str, agent_name)
                                     # JSON Logger: Capture agent message
                                     self.json_logger.log_agent_message(
-                                        agent_name=agent_name, content=content_str, message_type="text"
+                                        agent_name=agent_name,
+                                        content=content_str,
+                                        message_type="text",
                                     )
                                     # Collect agent responses for logging
                                     all_agent_responses.append(f"[{agent_name}] {content_str}")
@@ -2159,8 +2273,10 @@ TITLE:"""
             # Handle token limit errors (BadRequestError 400) - should be rare with compression
             is_token_limit_error = (
                 "maximum context length" in error_str.lower()
-                or "requested" in error_str and "tokens" in error_str
-                or "BadRequestError" in type(e).__name__ and "400" in error_str
+                or "requested" in error_str
+                and "tokens" in error_str
+                or "BadRequestError" in type(e).__name__
+                and "400" in error_str
             )
 
             if is_token_limit_error:
@@ -2180,7 +2296,9 @@ TITLE:"""
 
                     # Reduce buffer size dramatically for emergency recovery
                     self.coder_agent._model_context = BufferedChatCompletionContext(buffer_size=30)
-                    self.planning_agent._model_context = BufferedChatCompletionContext(buffer_size=30)
+                    self.planning_agent._model_context = BufferedChatCompletionContext(
+                        buffer_size=30
+                    )
 
                     self.cli.print_warning(
                         "⚠️ Agent contexts have been reset to keep only recent messages. "
@@ -2217,19 +2335,13 @@ TITLE:"""
                 self.cli.print_error(
                     "❌ Authentication failed: your API key is invalid or missing."
                 )
-                self.cli.print_info(
-                    "🔧 Let's reconfigure your provider and API key."
-                )
+                self.cli.print_info("🔧 Let's reconfigure your provider and API key.")
                 try:
                     await self._reconfigure_from_setup_wizard()
-                    self.cli.print_success(
-                        "✅ Configuration updated. Please retry your request."
-                    )
+                    self.cli.print_success("✅ Configuration updated. Please retry your request.")
                 except Exception as setup_err:
                     self.logger.error(f"Reconfiguration failed: {setup_err}")
-                    self.cli.print_error(
-                        f"Failed to reconfigure: {setup_err}"
-                    )
+                    self.cli.print_error(f"Failed to reconfigure: {setup_err}")
                 return
 
             # JSON Logger: Capture error
@@ -2267,14 +2379,14 @@ TITLE:"""
         with the new API key, base URL and model.
         """
         import asyncio
-        from src.utils.setup_wizard import run_interactive_setup
+
         import httpx
+
+        from src.utils.setup_wizard import run_interactive_setup
 
         # Run setup wizard in executor to avoid blocking the event loop
         loop = asyncio.get_event_loop()
-        api_key, base_url, model = await loop.run_in_executor(
-            None, run_interactive_setup
-        )
+        api_key, base_url, model = await loop.run_in_executor(None, run_interactive_setup)
 
         # Update settings
         self.settings.api_key = api_key
@@ -2413,7 +2525,7 @@ TITLE:"""
             sessions = self.state_manager.list_sessions()
 
             if not sessions:
-                # No previous sessions, start fresh               
+                # No previous sessions, start fresh
                 return
 
             # Get most recent session
@@ -2458,7 +2570,9 @@ TITLE:"""
 
                 if loaded:
                     # Load team state
-                    team_loaded = await self.state_manager.load_team_state(self.main_team, self.client_strong)
+                    team_loaded = await self.state_manager.load_team_state(
+                        self.main_team, self.client_strong
+                    )
 
                     # Get metadata
                     metadata = self.state_manager.get_session_metadata()
@@ -2503,7 +2617,7 @@ TITLE:"""
         self.cli.print_banner()
 
         # Start cron service
-        await self.cron_service.start()        
+        await self.cron_service.start()
 
         # Start system message detector (FASE 3: Auto-Injection)
         await self.start_system_message_detector()

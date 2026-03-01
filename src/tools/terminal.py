@@ -41,12 +41,12 @@ async def run_terminal_cmd(
     is_dangerous = any(keyword in command.lower() for keyword in dangerous_keywords)
 
     if require_user_approval or is_dangerous:
-        from src.utils.interaction import ask_for_approval
         import logging
+
+        from src.utils.interaction import ask_for_approval
 
         logger = logging.getLogger(__name__)
         logger.warning(f"⚠️  Command requires approval: {command}")
-    
 
         explanation_text = f"Command: {command}\n{explanation}"
         approval_result = await ask_for_approval(
@@ -100,16 +100,16 @@ async def run_terminal_cmd(
                     read_stream(process.stdout, stdout_lines),
                     read_stream(process.stderr, stderr_lines),
                 ),
-                timeout=60
+                timeout=60,
             )
             try:
                 await asyncio.wait_for(process.wait(), timeout=2.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 process.kill()
                 await process.wait()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             process.kill()
-            return f"Error: Command timed out after 60 seconds"
+            return "Error: Command timed out after 60 seconds"
 
         # Build output from accumulated lines
         output_parts = [f"Command: {command}", f"Exit code: {process.returncode}\n"]

@@ -2,8 +2,8 @@
 Interaction utilities for Human-in-the-Loop approval.
 """
 
-import sys
 import asyncio
+import sys
 import threading
 
 from src.utils.errors import UserCancelledError
@@ -34,12 +34,10 @@ async def ask_for_approval(action_description: str, context: str = ""):
         None if approved.
         A string message if cancelled or if feedback is provided.
     """
-    import sys
-    import time
-    import asyncio
 
     # Check if running in headless mode (subagents/background tasks)
     from src.utils.headless_context import is_headless
+
     if is_headless():
         # Auto-approve in headless mode (no user interaction)
         return None
@@ -51,11 +49,11 @@ async def ask_for_approval(action_description: str, context: str = ""):
 
 async def _ask_for_approval_inner(action_description: str, context: str = ""):
     """Internal implementation of ask_for_approval, called under _approval_lock."""
-    import sys
-    import time
     import asyncio
+    import time
 
     from src.utils.headless_context import is_headless
+
     if is_headless():
         return None
 
@@ -105,6 +103,7 @@ async def _ask_for_approval_inner(action_description: str, context: str = ""):
         # CRITICAL: Clear spinner artifacts and move to new line
         # This prevents spinner from overlapping with approval dialog
         import time
+
         time.sleep(0.1)  # Give spinner AND concurrent output time to finish
         sys.stdout.write("\r" + " " * 150 + "\r")  # Clear current line
         sys.stdout.write("\n")  # Move to new line to ensure clean slate
@@ -120,7 +119,9 @@ async def _ask_for_approval_inner(action_description: str, context: str = ""):
                 # Extract language hint and inner content
                 first_line_end = raw_context.find("\n")
                 lang_hint = raw_context[3:first_line_end].strip() if first_line_end != -1 else ""
-                inner = raw_context[first_line_end + 1:] if first_line_end != -1 else raw_context[3:]
+                inner = (
+                    raw_context[first_line_end + 1 :] if first_line_end != -1 else raw_context[3:]
+                )
                 if inner.endswith("```"):
                     inner = inner[: inner.rfind("```")]
                 raw_context = inner.strip()
@@ -173,9 +174,7 @@ async def _ask_for_approval_inner(action_description: str, context: str = ""):
                     "\n".join(diff_lines), "diff", theme="monokai", word_wrap=True
                 )
             elif lang_hint:
-                content_renderable = Syntax(
-                    raw_context, lang_hint, theme="monokai", word_wrap=True
-                )
+                content_renderable = Syntax(raw_context, lang_hint, theme="monokai", word_wrap=True)
             elif "\n" in raw_context or len(raw_context) > 50:
                 content_renderable = Markdown(raw_context)
             else:
@@ -196,6 +195,7 @@ async def _ask_for_approval_inner(action_description: str, context: str = ""):
             # Calculate how many lines to add to keep menu visible
             # Get terminal height to determine optimal spacing
             import shutil
+
             terminal_height = shutil.get_terminal_size().lines
 
             # Panel uses approximately: title (1) + content (max 15) + borders (2) = ~18 lines
@@ -234,6 +234,7 @@ async def _ask_for_approval_inner(action_description: str, context: str = ""):
             # questionary uses prompt_toolkit which requires ANSI escape sequences
             # Without this, options will be invisible on Windows
             from src.utils.vibe_spinner import _ensure_windows_vt_processing
+
             _ensure_windows_vt_processing()
 
             # Use questionary instead of pick - much better scroll behavior
@@ -242,24 +243,30 @@ async def _ask_for_approval_inner(action_description: str, context: str = ""):
             from questionary import Style
 
             # Custom style to ensure visibility on Windows
-            custom_style = Style([
-                ('qmark', 'fg:#673ab7 bold'),       # Question mark
-                ('question', 'bold'),                # Question text
-                ('answer', 'fg:#f44336 bold'),       # Selected answer
-                ('pointer', 'fg:#673ab7 bold'),      # Pointer (>)
-                ('highlighted', 'fg:#673ab7 bold'),  # Highlighted option
-                ('selected', 'fg:#cc5454'),          # Selected checkbox
-                ('separator', 'fg:#cc5454'),         # Separator
-                ('instruction', ''),                 # Instruction text
-                ('text', ''),                        # Plain text
-                ('disabled', 'fg:#858585 italic')    # Disabled options
-            ])
+            custom_style = Style(
+                [
+                    ("qmark", "fg:#673ab7 bold"),  # Question mark
+                    ("question", "bold"),  # Question text
+                    ("answer", "fg:#f44336 bold"),  # Selected answer
+                    ("pointer", "fg:#673ab7 bold"),  # Pointer (>)
+                    ("highlighted", "fg:#673ab7 bold"),  # Highlighted option
+                    ("selected", "fg:#cc5454"),  # Selected checkbox
+                    ("separator", "fg:#cc5454"),  # Separator
+                    ("instruction", ""),  # Instruction text
+                    ("text", ""),  # Plain text
+                    ("disabled", "fg:#858585 italic"),  # Disabled options
+                ]
+            )
 
             # Define choices for questionary
             choices = [
                 questionary.Choice("Yes", value="execute"),
-                questionary.Choice("Yes, and don't ask again for this specific command", value="execute_save"),
-                questionary.Choice("Type feedback to tell the agent what to do differently", value="feedback"),
+                questionary.Choice(
+                    "Yes, and don't ask again for this specific command", value="execute_save"
+                ),
+                questionary.Choice(
+                    "Type feedback to tell the agent what to do differently", value="feedback"
+                ),
                 questionary.Choice("No, cancel", value="cancel"),
             ]
 

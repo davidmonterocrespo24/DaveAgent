@@ -7,21 +7,24 @@ Tests:
 3. Fuzzy matching for files
 """
 
-import sys
 import os
+import sys
 
 # Ensure we import from local src, not system site-packages
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from pathlib import Path
 from unittest.mock import Mock, patch
+
 from prompt_toolkit.document import Document
 
 
 def test_imports():
     """Test that all required imports work."""
-    from src.interfaces.cli_interface import CLIInterface, FileCompleter
     from prompt_toolkit.completion import WordCompleter
+
+    from src.interfaces.cli_interface import CLIInterface, FileCompleter
+
     assert CLIInterface is not None
     assert FileCompleter is not None
     assert WordCompleter is not None
@@ -46,7 +49,9 @@ def test_file_completer_basic():
 
     # All completions should contain "src" in the path
     for completion in completions[:5]:  # Check first 5
-        assert "src" in completion.text.lower(), f"Completion {completion.text} should contain 'src'"
+        assert "src" in completion.text.lower(), (
+            f"Completion {completion.text} should contain 'src'"
+        )
 
     print(f"✅ File completer found {len(completions)} matches for 'src'")
 
@@ -100,22 +105,25 @@ def test_file_completer_cache():
     for file_path in completer._file_cache:
         parts = file_path.split(os.sep)
         # Should not have these as directory components
-        if any(excluded in parts for excluded in ['.git', 'node_modules', '__pycache__']):
+        if any(excluded in parts for excluded in [".git", "node_modules", "__pycache__"]):
             excluded_found = True
             break
 
-    assert not excluded_found, "Should exclude common directories like .git, node_modules, __pycache__"
+    assert not excluded_found, (
+        "Should exclude common directories like .git, node_modules, __pycache__"
+    )
 
     print(f"✅ File cache populated with {len(completer._file_cache)} files")
 
 
 def test_cli_interface_has_completer():
     """Test that CLIInterface has completer configured."""
+    from unittest.mock import MagicMock, patch
+
     from src.interfaces.cli_interface import CLIInterface
-    from unittest.mock import patch, MagicMock
 
     # Mock PromptSession to avoid terminal requirements
-    with patch('src.interfaces.cli_interface.PromptSession') as mock_session:
+    with patch("src.interfaces.cli_interface.PromptSession") as mock_session:
         mock_instance = MagicMock()
         mock_session.return_value = mock_instance
 
@@ -126,10 +134,10 @@ def test_cli_interface_has_completer():
         mock_session.assert_called_once()
         call_kwargs = mock_session.call_args[1]
 
-        assert 'completer' in call_kwargs, "Should have completer in session config"
-        assert call_kwargs['completer'] is not None, "Completer should not be None"
-        assert 'complete_while_typing' in call_kwargs, "Should have complete_while_typing"
-        assert call_kwargs['complete_while_typing'] == True, "complete_while_typing should be True"
+        assert "completer" in call_kwargs, "Should have completer in session config"
+        assert call_kwargs["completer"] is not None, "Completer should not be None"
+        assert "complete_while_typing" in call_kwargs, "Should have complete_while_typing"
+        assert call_kwargs["complete_while_typing"] == True, "complete_while_typing should be True"
 
     print("✅ CLIInterface has completer configured")
 
@@ -140,7 +148,7 @@ def test_command_completer_suggestions():
     from prompt_toolkit.document import Document
 
     # Create command completer
-    commands = ['/help', '/exit', '/agent-mode', '/cron', '/subagents']
+    commands = ["/help", "/exit", "/agent-mode", "/cron", "/subagents"]
     completer = WordCompleter(commands, ignore_case=True, sentence=True)
 
     # Test completion for /he
@@ -149,7 +157,7 @@ def test_command_completer_suggestions():
 
     # Should suggest /help
     assert len(completions) > 0, "Should have completions for /he"
-    assert any('help' in c.text for c in completions), "Should suggest /help"
+    assert any("help" in c.text for c in completions), "Should suggest /help"
 
     print("✅ Command completer suggests slash commands")
 
@@ -159,7 +167,7 @@ def test_command_completer_case_insensitive():
     from prompt_toolkit.completion import WordCompleter
     from prompt_toolkit.document import Document
 
-    commands = ['/help', '/exit']
+    commands = ["/help", "/exit"]
     completer = WordCompleter(commands, ignore_case=True, sentence=True)
 
     # Test lowercase (normal)
@@ -169,7 +177,7 @@ def test_command_completer_case_insensitive():
     assert len(completions) > 0, "Should complete lowercase input"
 
     # Verify help is in completions
-    assert any('help' in c.text for c in completions), "Should suggest help"
+    assert any("help" in c.text for c in completions), "Should suggest help"
 
     print("✅ Command completer is case insensitive")
 
@@ -179,7 +187,7 @@ def test_completion_in_middle_of_sentence():
     from prompt_toolkit.completion import WordCompleter
     from prompt_toolkit.document import Document
 
-    commands = ['/help', '/cron', '/agent-mode']
+    commands = ["/help", "/cron", "/agent-mode"]
     completer = WordCompleter(commands, ignore_case=True, sentence=True)
 
     # Test completion at start (normal use case)
@@ -188,7 +196,7 @@ def test_completion_in_middle_of_sentence():
 
     # Should suggest /cron
     assert len(completions) > 0, "Should complete command"
-    assert any('cron' in c.text for c in completions), "Should suggest /cron"
+    assert any("cron" in c.text for c in completions), "Should suggest /cron"
 
     print("✅ Completion works for commands")
 
@@ -212,9 +220,9 @@ def test_file_completer_multiple_at_symbols():
 
 
 if __name__ == "__main__":
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Testing Autocompletion Features (FASE 5)")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     # Run tests
     test_imports()
@@ -228,6 +236,6 @@ if __name__ == "__main__":
     test_completion_in_middle_of_sentence()
     test_file_completer_multiple_at_symbols()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("✅ All Autocompletion Tests Passed (10/10)")
-    print("="*60)
+    print("=" * 60)

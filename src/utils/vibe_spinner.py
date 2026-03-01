@@ -29,6 +29,7 @@ def _ensure_windows_vt_processing():
         return
     try:
         import ctypes
+
         kernel32 = ctypes.windll.kernel32
 
         # Process both STDOUT and STDERR
@@ -63,8 +64,10 @@ class WindowsSafeConsole:
     and enables Windows VT processing before each print operation.
     Fully supports context manager protocol and all Console methods.
     """
+
     def __init__(self, *args, **kwargs):
         from rich.console import Console
+
         self._console = Console(*args, **kwargs)
 
     def print(self, *args, **kwargs):
@@ -73,6 +76,7 @@ class WindowsSafeConsole:
         result = self._console.print(*args, **kwargs)
         # Force flush after every print to ensure visibility
         import sys
+
         sys.stdout.flush()
         return result
 
@@ -298,10 +302,7 @@ class VibeSpinner:
         # Use WindowsSafeConsole to ensure VT processing is maintained
         self.console = WindowsSafeConsole(stderr=True)
         self.status = Status(
-            self.messages[0],
-            console=self.console,
-            spinner=spinner_style,
-            spinner_style=color
+            self.messages[0], console=self.console, spinner=spinner_style, spinner_style=color
         )
 
         self._thread: threading.Thread | None = None
@@ -316,13 +317,15 @@ class VibeSpinner:
             while not self._stop_event.is_set():
                 current_time = time.time()
                 if current_time - last_change >= self.message_interval:
-                    self._current_message_index = (self._current_message_index + 1) % len(self.messages)
+                    self._current_message_index = (self._current_message_index + 1) % len(
+                        self.messages
+                    )
                     message = self.messages[self._current_message_index]
                     # Update the rich status text safely
                     self.status.update(f"{message}...  [dim](thinking)[/dim]")
                     last_change = current_time
                 time.sleep(0.1)
-        except Exception as e:
+        except Exception:
             pass
 
     def start(self):
@@ -342,7 +345,7 @@ class VibeSpinner:
 
         # Randomize starting message for variety
         self._current_message_index = random.randint(0, len(self.messages) - 1)
-        
+
         # Start the underlying Rich Status context manager manually
         initial_msg = f"{self.messages[self._current_message_index]}...  [dim](thinking)[/dim]"
         self.status.update(initial_msg)
@@ -354,7 +357,7 @@ class VibeSpinner:
             self._thread.start()
 
     def stop(self, clear_line: bool = True):
-        """ Stop the spinner animation """
+        """Stop the spinner animation"""
         # CLEAR ACTIVE SPINNER
         VibeSpinner.clear_active_spinner()
 

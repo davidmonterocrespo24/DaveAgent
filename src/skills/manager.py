@@ -7,8 +7,6 @@ Skills are matched by keyword search on their descriptions.
 """
 
 import logging
-import os
-import shutil
 from pathlib import Path
 
 from src.skills.models import Skill
@@ -194,11 +192,11 @@ class SkillManager:
             name = escape_xml(skill.name)
             desc = escape_xml(skill.description)
             path = str(skill.path)
-            lines.append(f"  <skill>")
+            lines.append("  <skill>")
             lines.append(f"    <name>{name}</name>")
             lines.append(f"    <description>{desc}</description>")
             lines.append(f"    <location>{path}</location>")
-            lines.append(f"  </skill>")
+            lines.append("  </skill>")
         lines.append("</skills>")
 
         return "\n".join(lines)

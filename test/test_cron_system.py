@@ -8,10 +8,10 @@ Tests the complete cron scheduling system:
 4. CLI commands integration
 """
 
-import sys
 import asyncio
-from pathlib import Path
+import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -19,12 +19,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 def test_imports():
     """Test that all cron components can be imported."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 1: Import cron components")
-    print("="*70)
+    print("=" * 70)
 
     try:
-        from src.cron import CronSchedule, CronJobState, CronJob, CronService
+        from src.cron import CronJob, CronJobState, CronSchedule, CronService
+
         print("[OK] All cron types imported")
     except ImportError as e:
         print(f"[FAIL] Could not import cron types: {e}")
@@ -32,6 +33,7 @@ def test_imports():
 
     try:
         from src.cron.types import CronSchedule
+
         print("[OK] CronSchedule imported")
     except ImportError as e:
         print(f"[FAIL] Could not import CronSchedule: {e}")
@@ -39,6 +41,7 @@ def test_imports():
 
     try:
         from src.cron.service import CronService
+
         print("[OK] CronService imported")
     except ImportError as e:
         print(f"[FAIL] Could not import CronService: {e}")
@@ -49,9 +52,9 @@ def test_imports():
 
 def test_schedule_types():
     """Test creating different schedule types."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 2: Schedule types (at/every/cron)")
-    print("="*70)
+    print("=" * 70)
 
     from src.cron.types import CronSchedule
 
@@ -79,15 +82,16 @@ def test_schedule_types():
     except Exception as e:
         print(f"[FAIL] Error creating schedules: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def test_schedule_validation():
     """Test schedule validation logic."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 3: Schedule validation")
-    print("="*70)
+    print("=" * 70)
 
     from src.cron.types import CronSchedule
 
@@ -128,11 +132,11 @@ def test_schedule_validation():
 
 def test_job_serialization():
     """Test CronJob to_dict and from_dict."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 4: Job serialization")
-    print("="*70)
+    print("=" * 70)
 
-    from src.cron.types import CronSchedule, CronJob
+    from src.cron.types import CronJob, CronSchedule
 
     try:
         # Create a job
@@ -142,7 +146,7 @@ def test_job_serialization():
             name="Test Job",
             enabled=True,
             schedule=schedule,
-            task="Test task description"
+            task="Test task description",
         )
 
         # Serialize to dict
@@ -164,21 +168,23 @@ def test_job_serialization():
     except Exception as e:
         print(f"[FAIL] Error with serialization: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 async def test_cron_service_basic():
     """Test basic CronService operations."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 5: CronService basic operations")
-    print("="*70)
+    print("=" * 70)
 
-    from src.cron import CronService, CronSchedule
     import tempfile
 
+    from src.cron import CronSchedule, CronService
+
     # Create temp file for storage
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         storage_path = Path(f.name)
 
     try:
@@ -195,11 +201,7 @@ async def test_cron_service_basic():
 
         # Add a job
         schedule = CronSchedule(kind="every", every_ms=1000)  # 1 second
-        job_id = service.add_job(
-            name="Test Job",
-            schedule=schedule,
-            task="Test task"
-        )
+        job_id = service.add_job(name="Test Job", schedule=schedule, task="Test task")
         print(f"[OK] Job added with ID: {job_id}")
 
         # List jobs
@@ -242,6 +244,7 @@ async def test_cron_service_basic():
     except Exception as e:
         print(f"[FAIL] Error in CronService: {e}")
         import traceback
+
         traceback.print_exc()
         # Cleanup on error
         if storage_path.exists():
@@ -251,18 +254,20 @@ async def test_cron_service_basic():
 
 async def test_cron_persistence():
     """Test job persistence to disk."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 6: Job persistence")
-    print("="*70)
+    print("=" * 70)
 
-    from src.cron import CronService, CronSchedule
     import tempfile
 
+    from src.cron import CronSchedule, CronService
+
     # Create temp file for storage
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         storage_path = Path(f.name)
 
     try:
+
         async def dummy_callback(job):
             pass
 
@@ -275,7 +280,7 @@ async def test_cron_persistence():
         schedule2 = CronSchedule(kind="every", every_ms=120000)
         job_id2 = service1.add_job("Job 2", schedule2, "Task 2")
 
-        print(f"[OK] Created 2 jobs in first service")
+        print("[OK] Created 2 jobs in first service")
 
         # Create new service instance (should load from disk)
         service2 = CronService(storage_path=storage_path, on_job=dummy_callback)
@@ -285,7 +290,7 @@ async def test_cron_persistence():
         job_ids = {job["id"] for job in jobs}
         assert job_id1 in job_ids
         assert job_id2 in job_ids
-        print(f"[OK] Jobs persisted and loaded correctly")
+        print("[OK] Jobs persisted and loaded correctly")
 
         # Cleanup
         storage_path.unlink()
@@ -294,6 +299,7 @@ async def test_cron_persistence():
     except Exception as e:
         print(f"[FAIL] Error with persistence: {e}")
         import traceback
+
         traceback.print_exc()
         # Cleanup on error
         if storage_path.exists():
@@ -303,15 +309,16 @@ async def test_cron_persistence():
 
 async def test_cron_execution():
     """Test actual job execution with timer."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 7: Job execution with timer")
-    print("="*70)
+    print("=" * 70)
 
-    from src.cron import CronService, CronSchedule
     import tempfile
 
+    from src.cron import CronSchedule, CronService
+
     # Create temp file for storage
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         storage_path = Path(f.name)
 
     try:
@@ -353,6 +360,7 @@ async def test_cron_execution():
     except Exception as e:
         print(f"[FAIL] Error with execution: {e}")
         import traceback
+
         traceback.print_exc()
         # Cleanup on error
         if storage_path.exists():
@@ -362,9 +370,9 @@ async def test_cron_execution():
 
 def main():
     """Run all tests."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("FASE 2: CRON SYSTEM - TEST SUITE")
-    print("="*70)
+    print("=" * 70)
 
     results = []
 
@@ -381,9 +389,9 @@ def main():
     results.append(("Job Execution", loop.run_until_complete(test_cron_execution())))
 
     # Summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     for name, passed in results:
         status = "[PASS]" if passed else "[FAIL]"
@@ -395,9 +403,9 @@ def main():
     print(f"\nTotal: {passed}/{total} tests passed")
 
     if passed == total:
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("[SUCCESS] FASE 2: CRON SYSTEM - COMPLETE!")
-        print("="*70)
+        print("=" * 70)
         print("\nImplemented features:")
         print("  [OK] 3 schedule types: at (one-time), every (interval), cron (expression)")
         print("  [OK] CronService with asyncio timers")
@@ -411,7 +419,7 @@ def main():
         print("  /cron add cron '0 9 * * *' Daily standup")
         print("  /cron list")
         print("\nReady for FASE 3: Auto-Injection")
-        print("="*70)
+        print("=" * 70)
         return 0
     else:
         print(f"\n[WARNING] {total - passed} test(s) failed")
