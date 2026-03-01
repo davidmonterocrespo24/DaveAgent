@@ -5,6 +5,39 @@ All notable changes to DaveAgent will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] - 2026-03-01
+
+### Added
+- **Implemented a comprehensive Agent Skills system** with modular capabilities. Added a `SkillManager` for discovering, loading, and managing skills from directories, parsing utilities for `SKILL.md` files (including YAML frontmatter and markdown body), and a `Skill` data model. This allows agents to dynamically load and use new capabilities.
+- **Added a context compression and token management system** to prevent token limit errors. Introduced a `context_compressor.py` module to summarize old messages and `token_counter.py` utilities for proactive context management. The system now triggers emergency context cleanup automatically.
+- **Implemented a subagent spawning tool (`spawn_subagent.py`)** for parallel task execution, enabling the creation of background subagents with isolated state to handle tasks concurrently.
+- **Added a comprehensive test suite** for the Cron System, LLM Auto-Injection, and Nanobot-style integration, validating schedule types, job serialization, message logging, concurrent limits, and component imports.
+- **Added various utility tools** for enhanced file handling and information access: `glob_tool.py` for efficient file searching with gitignore support, `json_tools.py` for JSON processing, `web_search.py` for real-time searches using DuckDuckGo/Bing, `wikipedia_tools.py` for Wikipedia access, and improved file read/write/search tools.
+- **Added the `tiktoken` dependency** to support accurate tokenization features required by the project.
+
+### Changed
+- **Refactored agent initialization by introducing an `AgentOrchestrator` class**, moving logic from `DaveAgentCLI` to centralize model client setup, tool imports, and agent management. This simplifies the CLI constructor and improves configuration validation.
+- **Refactored state management** to handle individual agent and team states separately with auto-saving, and enhanced tool reflection capabilities to extract usage statistics and improve agent prompts.
+- **Refactored CLI and Subagent Management for improved asynchronous handling**. Introduced a thread pool executor in `CLIInterface` for non-blocking syntax highlighting rendering, made `print_code` asynchronous, and refactored terminal command execution to use async subprocess for real-time output streaming.
+- **Enhanced subagent management and message processing** by refactoring access to use `self.subagent_manager` directly, implementing headless mode to bypass user prompts during background tasks, and improving terminal interface with bracketed paste support.
+- **Refactored the filesystem module** by splitting operations into dedicated files (read, write, edit, delete, search) and implementing a facade pattern for better organization and error handling. Removed the obsolete `reapply_edit.py` file.
+- **Updated `SkillManager` to use keyword-based skill discovery** instead of RAG for semantic search, and removed `RAGManager` dependency from `AgentOrchestrator` and `SkillManager` to simplify the architecture.
+- **Refactored and enhanced agent functionality with critical fixes and logging improvements**. Improved logging for message reception and processing, introduced small delays for proper spinner thread termination, enhanced terminal command execution with user approval logging, preserved `reasoning_content` for DeepSeek compatibility, and updated the history viewer to use `WindowsSafeConsole`.
+- **Refactored type hints and imports** across multiple modules to use modern syntax (`str | None`, `list[dict[str, Any]]`) for better clarity and Python 3.10+ compatibility, and cleaned up whitespace for PEP 8 adherence.
+- **Refactored `VibeSpinner` to use Rich Status** for better spinner management and interaction handling, and improved user interaction for command approval with `questionary` integration.
+
+### Fixed
+- **Fixed agent logging and spinner state management** to ensure proper thread termination and prevent UI glitches during asynchronous operations.
+- **Improved error handling in `main.py`** to properly trigger emergency context cleanup on token limit errors, preventing crashes during long conversations.
+- **Enhanced error handling and logging** in subagent execution and tool operations, providing better traceability of subagent lifecycle events and user feedback.
+- **Ensured Windows VT processing is enabled** for console outputs, fixing display issues on Windows terminals.
+- **Corrected timing variable in startup message** and initialization logic within the orchestrator refactor.
+
+### Removed
+- **Removed `RAGManager` dependency and related code** from `AgentOrchestrator` and `DaveAgentCLI`, simplifying the initialization process and skill discovery.
+- **Removed outdated manual testing documentation** and obsolete test files (`test_console_reflection.py`, `test_reflection_live.py`) as part of codebase cleanup.
+- **Cleaned up README by removing outdated sections** on Data Analysis, Git Operations, and various legacy features to keep documentation current.
+
 ## [1.0.9] - 2025-12-26
 
 ### Added
@@ -154,3 +187,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.0.4]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.4
 [1.0.8]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.8
 [1.0.9]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.9
+[1.0.14]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.14
