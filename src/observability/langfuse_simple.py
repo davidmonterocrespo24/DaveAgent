@@ -84,15 +84,26 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
         import logging
         import sys
 
-        # Reduce noise from telemetry libraries (keep WARNING+ so errors still surface)
+        # Reduce noise from telemetry libraries (keep CRITICAL+ so only critical errors surface)
         for logger_name in [
             "openlit",
             "opentelemetry",
             "opentelemetry.sdk",
             "opentelemetry.exporter",
             "opentelemetry.metrics",
+            "opentelemetry.instrumentation",
+            "opentelemetry.instrumentation.autogen",
+            "opentelemetry.instrumentation.anthropic",
+            "opentelemetry.instrumentation.cohere",
+            "opentelemetry.instrumentation.openai",
         ]:
-            logging.getLogger(logger_name).setLevel(logging.WARNING)
+            logging.getLogger(logger_name).setLevel(logging.CRITICAL)
+
+        # Also suppress warnings module
+        import warnings
+        warnings.filterwarnings("ignore", message=".*already instrumented.*")
+        warnings.filterwarnings("ignore", message=".*DependencyConflict.*")
+        warnings.filterwarnings("ignore", message=".*No module named.*conversable_agent.*")
 
         # Initialize OpenLit with user identification metadata
         # Using OTLP direct endpoint for Langfuse v3 compatibility
@@ -110,15 +121,32 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
         auth_str = f"{lf_pk}:{lf_sk}"
         b64_auth = base64.b64encode(auth_str.encode()).decode()
 
+        # Suppress stderr warnings from OpenLit instrumentation failures
+        import io
+        import contextlib
+
+        # Capture both stderr AND stdout to suppress ALL instrumentation noise
+        stderr_capture = io.StringIO()
+        stdout_capture = io.StringIO()
+
         try:
-            openlit.init(
-                otlp_endpoint=f"{lf_host}/api/public/otel",
-                otlp_headers={"Authorization": f"Basic {b64_auth}"},
-                disable_batch=True,  # Process traces immediately
-                disable_metrics=True,  # Disable metrics (this should stop JSON output)
-                environment=f"daveagent-{machine_name}" if machine_name else "daveagent",
-                application_name=f"DaveAgent-{user_id[:8]}" if user_id else "DaveAgent",
-            )
+            with contextlib.redirect_stderr(stderr_capture), contextlib.redirect_stdout(stdout_capture):
+                # Temporarily disable all logging during init
+                old_level = logging.root.level
+                logging.root.setLevel(logging.CRITICAL)
+
+                try:
+                    openlit.init(
+                        otlp_endpoint=f"{lf_host}/api/public/otel",
+                        otlp_headers={"Authorization": f"Basic {b64_auth}"},
+                        disable_batch=True,  # Process traces immediately
+                        disable_metrics=True,  # Disable metrics (this should stop JSON output)
+                        environment=f"daveagent-{machine_name}" if machine_name else "daveagent",
+                        application_name=f"DaveAgent-{user_id[:8]}" if user_id else "DaveAgent",
+                    )
+                finally:
+                    logging.root.setLevel(old_level)
+
         except TypeError:
             # Fallback for older OpenLit versions via env vars
             os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = f"{lf_host}/api/public/otel"
@@ -129,7 +157,21 @@ def init_langfuse_tracing(enabled: bool = True, debug: bool = False) -> bool:
             os.environ["OPENLIT_APPLICATION_NAME"] = (
                 f"DaveAgent-{user_id[:8]}" if user_id else "DaveAgent"
             )
-            openlit.init(disable_metrics=True)
+            with contextlib.redirect_stderr(stderr_capture), contextlib.redirect_stdout(stdout_capture):
+                old_level = logging.root.level
+                logging.root.setLevel(logging.CRITICAL)
+                try:
+                    openlit.init(disable_metrics=True)
+                finally:
+                    logging.root.setLevel(old_level)
+
+        except Exception as e:
+            # Silently ignore ALL instrumentation errors
+            pass  # Completamente silencioso a menos que debug=True
+
+        # Solo mostrar en debug mode
+        if debug and (stderr_capture.getvalue() or stdout_capture.getvalue()):
+            print(f"[DEBUG] Instrumentation output suppressed: {len(stderr_capture.getvalue())} chars")
 
         if debug:
             print("[OK] OpenLit instrumentation initialized")

@@ -9,6 +9,7 @@ async def read_file(
     should_read_entire_file: bool = True,
     start_line_one_indexed: int = 1,
     end_line_one_indexed_inclusive: int = -1,
+    explanation: str = "",
 ) -> str:
     """
     Read the contents of a file with line range support.
@@ -19,6 +20,7 @@ async def read_file(
         should_read_entire_file: Whether to read the entire file or use line range
         start_line_one_indexed: Starting line number (1-based indexing)
         end_line_one_indexed_inclusive: Ending line number (1-based, inclusive). Use -1 for end of file.
+        explanation: Optional explanation of why this file is being read (shown in terminal)
 
     Returns:
         File contents with line range information, or error message if file not found

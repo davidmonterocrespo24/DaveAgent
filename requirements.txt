@@ -7,6 +7,9 @@ python-dotenv>=1.0.0
 rich>=13.0.0
 readchar>=4.0.0
 prompt-toolkit>=3.0.0
+questionary>=2.0.0
+pick>=2.0.0
+windows-curses>=2.0.0; sys_platform == 'win32'
 pydantic>=2.10.0
 httpcore
 httpx>=0.24.0

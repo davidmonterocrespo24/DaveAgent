@@ -3,13 +3,23 @@ Interactive CLI interface in the style of Claude Code
 """
 
 import asyncio
+import functools
+import os
 import random
+import signal
+import sys
 import time
 from pathlib import Path
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
+from prompt_toolkit.patch_stdout import patch_stdout
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
+from prompt_toolkit.completion import Completer, Completion, WordCompleter, merge_completers
+from prompt_toolkit.document import Document
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
@@ -20,27 +30,287 @@ from rich.text import Text
 
 from src.utils import FileIndexer, VibeSpinner, select_file_interactive
 
+# Platform-specific imports
+try:
+    import termios
+    TERMIOS_AVAILABLE = True
+except ImportError:
+    TERMIOS_AVAILABLE = False  # Windows doesn't have termios
+
+
+class FileCompleter(Completer):
+    """Custom completer for file paths after @ symbol with fuzzy matching."""
+
+    def __init__(self, base_dir: str = "."):
+        self.base_dir = Path(base_dir)
+        self._file_cache = []
+        self._cache_time = 0
+        self._cache_ttl = 5  # Refresh cache every 5 seconds
+
+    def _refresh_cache(self):
+        """Refresh the file cache if TTL expired."""
+        current_time = time.time()
+        if current_time - self._cache_time > self._cache_ttl:
+            self._file_cache = []
+            try:
+                # Get all files recursively, excluding common directories
+                for path in self.base_dir.rglob("*"):
+                    if path.is_file():
+                        # Skip common excluded directories
+                        parts = path.parts
+                        if any(excluded in parts for excluded in [
+                            '.git', 'node_modules', '__pycache__', '.venv',
+                            'venv', '.pytest_cache', '.mypy_cache', 'dist', 'build'
+                        ]):
+                            continue
+
+                        # Store relative path
+                        try:
+                            rel_path = str(path.relative_to(self.base_dir))
+                            self._file_cache.append(rel_path)
+                        except ValueError:
+                            continue
+            except Exception:
+                pass
+
+            self._cache_time = current_time
+
+    def get_completions(self, document: Document, complete_event):
+        """Generate completions for files after @ symbol."""
+        text = document.text_before_cursor
+
+        # Find the last @ symbol
+        at_pos = text.rfind('@')
+        if at_pos == -1:
+            return
+
+        # Extract the query after @
+        query = text[at_pos + 1:]
+
+        # Don't complete if there's a space after @ (means they finished the mention)
+        if ' ' in query:
+            return
+
+        # Refresh cache if needed
+        self._refresh_cache()
+
+        # Fuzzy match files
+        query_lower = query.lower()
+        matches = []
+
+        for file_path in self._file_cache:
+            file_lower = file_path.lower()
+
+            # Simple fuzzy matching: all query chars must appear in order
+            if self._fuzzy_match(query_lower, file_lower):
+                # Calculate score (shorter paths score higher)
+                score = len(file_path)
+                if file_lower.startswith(query_lower):
+                    score -= 1000  # Prefix matches score much higher
+
+                matches.append((score, file_path))
+
+        # Sort by score and yield top 20
+        matches.sort(key=lambda x: x[0])
+        for _, file_path in matches[:20]:
+            # Show completion starting from the query position
+            yield Completion(
+                file_path,
+                start_position=-len(query),
+                display=f"📄 {file_path}",
+            )
+
+    def _fuzzy_match(self, query: str, text: str) -> bool:
+        """Check if all characters in query appear in text in order."""
+        if not query:
+            return True
+
+        query_idx = 0
+        for char in text:
+            if query_idx < len(query) and char == query[query_idx]:
+                query_idx += 1
+
+        return query_idx == len(query)
+
 
 class CLIInterface:
     """Rich and interactive CLI interface for DaveAgent"""
 
     def __init__(self):
-        self.console = Console()
+        # CRITICAL FIX: Force terminal mode and disable buffering for immediate output
+        # Without force_terminal=True, Rich may buffer output when detecting redirected stdout
+        # force_interactive=True ensures live updates work correctly
+        # Use WindowsSafeConsole to automatically fix VT processing before each print
+        from src.utils.vibe_spinner import WindowsSafeConsole
+        self.console = WindowsSafeConsole(force_terminal=True, force_interactive=True)
+        self._executor = None  # Lazy-initialized thread pool for async rendering
 
         # Ensure .daveagent directory exists
         history_dir = Path(".daveagent")
         history_dir.mkdir(exist_ok=True)
         history_file = history_dir / ".agent_history"
 
+        # Setup key bindings for bracketed paste mode
+        kb = KeyBindings()
+
+        @kb.add(Keys.BracketedPaste)
+        def _(event):
+            """Handle bracketed paste - insert content without executing"""
+            # Get pasted data
+            data = event.data
+            # Insert into buffer as single block (prevents line-by-line execution)
+            event.current_buffer.insert_text(data)
+
+        # Setup command completer (slash commands)
+        command_words = [
+            '/help', '/exit', '/quit',
+            '/agent-mode', '/chat-mode',
+            '/new-session', '/load-session', '/save-session', '/list-sessions',
+            '/config', '/set-model', '/set-url',
+            '/cron', '/cron-list', '/cron-add', '/cron-remove', '/cron-enable',
+            '/subagents', '/subagent-status',
+            '/index', '/index-status', '/index-rebuild',
+            '/memory', '/memory-clear',
+            '/stats', '/clear', '/history',
+            '/debug', '/debug-on', '/debug-off',
+            '/telemetry', '/telemetry-on', '/telemetry-off',
+        ]
+        command_completer = WordCompleter(
+            command_words,
+            ignore_case=True,
+            sentence=True,  # Allow completion in middle of sentence
+        )
+
+        # Setup file completer for @ mentions
+        file_completer = FileCompleter(base_dir=".")
+
+        # Merge completers: commands + files
+        combined_completer = merge_completers([command_completer, file_completer])
+
         self.session = PromptSession(
             history=FileHistory(str(history_file)),
             auto_suggest=AutoSuggestFromHistory(),
+            key_bindings=kb,  # Enable bracketed paste mode
+            completer=combined_completer,  # Enable command and file completion
+            complete_while_typing=True,  # Show completions as you type
+            enable_open_in_editor=False,
+            multiline=False,  # Enter submits (single line mode)
         )
         self.conversation_active = False
         self.file_indexer = None  # Will be initialized on first use
         self.mentioned_files: list[str] = []  # Track files mentioned with @
         self.vibe_spinner: VibeSpinner | None = None  # Spinner for thinking animation
         self.current_mode = "agent"  # Track current mode for display
+
+        # Terminal state management (Nanobot-style)
+        self._saved_term_attrs = None
+        self._save_terminal_state()
+
+        # Setup signal handlers for graceful cleanup
+        signal.signal(signal.SIGINT, self._handle_interrupt)
+        if hasattr(signal, 'SIGTERM'):
+            signal.signal(signal.SIGTERM, self._handle_terminate)
+
+    # =========================================================================
+    # TERMINAL STATE MANAGEMENT (Nanobot-style)
+    # =========================================================================
+
+    def _save_terminal_state(self):
+        """Save terminal attributes for later recovery."""
+        if not TERMIOS_AVAILABLE:
+            return  # Skip on Windows
+
+        try:
+            if os.isatty(sys.stdin.fileno()):
+                self._saved_term_attrs = termios.tcgetattr(sys.stdin.fileno())
+        except Exception:
+            # Silently fail if we can't save terminal state
+            pass
+
+    def _restore_terminal_state(self):
+        """Restore terminal to original state."""
+        if not TERMIOS_AVAILABLE or not self._saved_term_attrs:
+            return
+
+        try:
+            termios.tcsetattr(
+                sys.stdin.fileno(),
+                termios.TCSADRAIN,
+                self._saved_term_attrs
+            )
+        except Exception:
+            pass
+
+    def _flush_pending_tty_input(self):
+        """
+        Drop unread keypresses typed while model was generating.
+
+        This prevents "ghost characters" from appearing after long outputs.
+        Uses termios on Unix/Mac, fallback to select on Windows.
+        Inspired by Nanobot's cross-platform implementation.
+        """
+        try:
+            fd = sys.stdin.fileno()
+            if not os.isatty(fd):
+                return
+        except Exception:
+            return
+
+        # Try termios first (Unix/Mac)
+        if TERMIOS_AVAILABLE:
+            try:
+                termios.tcflush(fd, termios.TCIFLUSH)
+                return
+            except Exception:
+                pass
+
+        # Fallback for Windows: manual drain using select
+        try:
+            import select
+            while True:
+                ready, _, _ = select.select([fd], [], [], 0)
+                if not ready:
+                    break
+                if not os.read(fd, 4096):
+                    break
+        except Exception:
+            pass
+
+    def _handle_interrupt(self, signum, frame):
+        """Handle Ctrl+C gracefully."""
+        self._restore_terminal_state()
+        self.console.print("\n\n[yellow]👋 Interrupted by user[/yellow]")
+        sys.exit(0)
+
+    def _handle_terminate(self, signum, frame):
+        """Handle termination signal."""
+        self._restore_terminal_state()
+        sys.exit(0)
+
+    def __del__(self):
+        """Cleanup on destruction."""
+        self._restore_terminal_state()
+        # Cleanup executor if initialized
+        if self._executor:
+            self._executor.shutdown(wait=False)
+
+    async def _run_in_executor(self, func, *args):
+        """
+        Run a synchronous function in a thread pool to prevent blocking the event loop.
+
+        This is critical for heavy rendering operations (Rich panels, syntax highlighting)
+        that can block for seconds on large files.
+        """
+        if self._executor is None:
+            import concurrent.futures
+            self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self._executor, func, *args)
+
+    # =========================================================================
+    # CLI INTERFACE METHODS
+    # =========================================================================
 
     def print_banner(self):
         """Shows the welcome banner with a 'particles' animation"""
@@ -145,26 +415,35 @@ class CLIInterface:
 
     async def get_user_input(self, prompt: str = "") -> str:
         """
-        Gets user input asynchronously
-        Detects @ for file selection
+        Gets user input asynchronously with HTML formatted prompt.
+        Detects @ for file selection.
+        Uses patch_stdout to prevent output conflicts.
 
         Args:
-            prompt: Prompt text
+            prompt: Prompt text (plain string or HTML)
 
         Returns:
             User input
         """
+        # Flush any pending TTY input before prompting
+        self._flush_pending_tty_input()
+
         if not prompt:
-            # Create prompt with mode indicator
+            # Create HTML formatted prompt with mode indicator (Nanobot-style)
             mode_indicator = "🔧" if self.current_mode == "agent" else "💬"
             mode_text = self.current_mode.upper()
-            prompt = f"[{mode_indicator} {mode_text}] You: "
+            prompt = HTML(f"<b fg='ansibrightcyan'>[{mode_indicator} {mode_text}]</b> <b fg='ansiyellow'>You:</b> ")
+        elif isinstance(prompt, str):
+            # Convert plain string to HTML if needed
+            prompt = HTML(f"<ansiyellow>{prompt}</ansiyellow>")
 
         try:
-            # Ejecutar el prompt en un executor para no bloquear el loop
-            loop = asyncio.get_event_loop()
-            user_input = await loop.run_in_executor(None, lambda: self.session.prompt(prompt))
-            user_input = user_input.strip()
+            # Use patch_stdout to prevent conflicts with Rich output
+            with patch_stdout():
+                # Ejecutar el prompt en un executor para no bloquear el loop
+                loop = asyncio.get_event_loop()
+                user_input = await loop.run_in_executor(None, lambda: self.session.prompt(prompt))
+                user_input = user_input.strip()
 
             # Check for @ mentions
             if "@" in user_input:
@@ -172,7 +451,14 @@ class CLIInterface:
 
             return user_input
         except (EOFError, KeyboardInterrupt):
+            # Restore terminal state on interrupt
+            self._restore_terminal_state()
             return "/exit"
+        except Exception as e:
+            # Restore terminal state on any error
+            self._restore_terminal_state()
+            self.console.print(f"[red]Error getting input: {e}[/red]")
+            return ""
 
     async def _process_file_mentions(self, user_input: str) -> str:
         """
@@ -259,10 +545,18 @@ class CLIInterface:
         self.console.print(f"[bold blue]You:[/bold blue] {message}")
         self.console.print()
 
-    def print_agent_message(self, message: str, agent_name: str = "Agent"):
-        """Shows an agent message"""
+    def print_agent_message(self, message: str, agent_name: str = "Agent", markdown: bool = True):
+        """
+        Shows an agent message.
+
+        Args:
+            message: Message content
+            agent_name: Name of the agent
+            markdown: Render as markdown (True) or plain text (False)
+        """
         self.console.print(f"[bold green]{agent_name}:[/bold green]")
-        self.console.print(Panel(Markdown(message), border_style="green"))
+        content = Markdown(message) if markdown else Text(message)
+        self.console.print(Panel(content, border_style="green"))
         self.console.print()
 
     def print_plan(self, plan_summary: str):
@@ -316,19 +610,27 @@ class CLIInterface:
         Args:
             message: Optional custom message (uses rotating vibes if None)
         """
+        import logging
+        logger = logging.getLogger("DaveAgent")
+        logger.debug(f"🔧 [CLI_SPINNER_DEBUG] start_thinking called with message='{message}'")
+
         # Stop any existing spinner first
         self.stop_thinking()
 
         if message:
             # Single custom message
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Creating spinner with custom message: '{message}'")
             self.vibe_spinner = VibeSpinner(
                 messages=[message], spinner_style="dots", color="cyan", language="es"
             )
         else:
             # Rotating vibe messages
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Creating spinner with rotating vibe messages")
             self.vibe_spinner = VibeSpinner(spinner_style="dots", color="cyan", language="es")
 
+        logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Starting spinner...")
         self.vibe_spinner.start()
+        logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner started successfully")
 
     def stop_thinking(self, clear: bool = True):
         """
@@ -337,9 +639,44 @@ class CLIInterface:
         Args:
             clear: Whether to clear the spinner line
         """
+        import logging
+        logger = logging.getLogger("DaveAgent")
+        logger.debug(f"🔧 [CLI_SPINNER_DEBUG] stop_thinking called, clear={clear}")
+
         if self.vibe_spinner and self.vibe_spinner.is_running():
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner is running, stopping it...")
             self.vibe_spinner.stop(clear_line=clear)
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner stopped")
             self.vibe_spinner = None
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] Spinner reference cleared")
+        else:
+            logger.debug(f"🔧 [CLI_SPINNER_DEBUG] No active spinner to stop (vibe_spinner={self.vibe_spinner is not None}, is_running={self.vibe_spinner.is_running() if self.vibe_spinner else 'N/A'})")
+
+    def thinking_context(self, message: str | None = None):
+        """
+        Context manager for thinking spinner - auto-cleanup.
+
+        Usage:
+            with cli.thinking_context("Analyzing code..."):
+                result = await analyze_function()
+
+        Args:
+            message: Optional custom message (uses rotating vibes if None)
+
+        Returns:
+            Context manager that starts/stops spinner automatically
+        """
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _context():
+            self.start_thinking(message)
+            try:
+                yield
+            finally:
+                self.stop_thinking()
+
+        return _context()
 
     def print_thinking(self, message: str = "Thinking..."):
         """
@@ -347,6 +684,7 @@ class CLIInterface:
         (Legacy method - consider using start_thinking/stop_thinking instead)
         """
         self.console.print(f"[dim]{message}[/dim]")
+        sys.stdout.flush()  # Force immediate output
 
     def print_error(self, error: str):
         """Shows an error message"""
@@ -363,6 +701,7 @@ class CLIInterface:
         self.console.print(
             Panel(info, title=f"[bold cyan]{title}[/bold cyan]", border_style="cyan")
         )
+        sys.stdout.flush()
 
     def print_success(self, message: str):
         """Shows a success message"""
@@ -392,14 +731,11 @@ class CLIInterface:
                 # Context lines in dim white
                 self.console.print(f"[dim]{line}[/dim]")
 
-    def print_code(self, code: str, filename: str, max_lines: int = 50):
+    def _print_code_sync(self, code: str, filename: str, max_lines: int = 50):
         """
-        Display code with syntax highlighting based on file extension
+        Internal synchronous version of print_code for executor.
 
-        Args:
-            code: The code content to display
-            filename: The filename (used to determine language)
-            max_lines: Maximum lines to display (truncates if longer)
+        DO NOT call directly - use print_code() instead.
         """
         # Map file extensions to language names for syntax highlighting
         extension_map = {
@@ -484,6 +820,18 @@ class CLIInterface:
             self.console.print(
                 Panel(code, title=f"[bold cyan]{filename}[/bold cyan]", border_style="dim")
             )
+
+    async def print_code(self, code: str, filename: str, max_lines: int = 50):
+        """
+        Display code with syntax highlighting (async, non-blocking version).
+
+        Args:
+            code: The code content to display
+            filename: The filename (used to determine language)
+            max_lines: Maximum lines to display (truncates if longer)
+        """
+        # Run heavy rendering in executor to prevent blocking
+        await self._run_in_executor(self._print_code_sync, code, filename, max_lines)
 
     def print_task_summary(self, summary: str):
         """
@@ -591,6 +939,20 @@ DAVEAGENT_MODEL=deepseek-reasoner
 • `/debug` - Toggle debug mode
 • `/logs` - Show log file location
 • `/exit` or `/quit` - Exit the agent
+
+**Subagents (Parallel Execution):**
+• `/subagents` - List all active subagents
+• `/subagent-status <id>` - Show detailed status of a specific subagent
+
+**Cron (Scheduled Tasks):**
+• `/cron list` - List all scheduled jobs
+• `/cron add at <time> <task>` - Schedule one-time task (e.g., 2026-02-20T15:30)
+• `/cron add every <interval> <task>` - Schedule recurring task (e.g., 1h, 30m, 2d)
+• `/cron add cron '<expr>' <task>` - Schedule with cron expression (e.g., '0 9 * * *')
+• `/cron enable <id>` - Enable a disabled job
+• `/cron disable <id>` - Disable a job temporarily
+• `/cron remove <id>` - Delete a job permanently
+• `/cron run <id>` - Manually trigger a job now
 
 **Mention Specific Files:**
 
@@ -734,3 +1096,86 @@ Simply write what you need the agent to do. The agent will:
                 content_parts.append(f"\n⚠️ Error reading {file_path}: {e}\n")
 
         return "\n".join(content_parts)
+
+    # =========================================================================
+    # SUBAGENT VISUALIZATION (Enhanced Terminal Integration)
+    # =========================================================================
+
+    def print_subagent_spawned(self, subagent_id: str, label: str, task: str):
+        """Show enhanced subagent spawn notification.
+
+        Args:
+            subagent_id: Unique ID of the subagent
+            label: Human-readable label
+            task: Task description
+        """
+        self.console.print(
+            Panel(
+                f"[cyan]Task:[/cyan] {task}\n\n"
+                f"[dim]Subagent ID: {subagent_id}[/dim]\n"
+                f"[dim]This task will run in the background. You'll be notified when it completes.[/dim]",
+                title=f"[bold green]🚀 Subagent Spawned: {label}[/bold green]",
+                border_style="green",
+                padding=(1, 2)
+            )
+        )
+
+    def print_subagent_progress(self, subagent_id: str, label: str, progress_msg: str):
+        """Show subagent progress update.
+
+        Args:
+            subagent_id: Unique ID of the subagent
+            label: Human-readable label
+            progress_msg: Progress message
+        """
+        self.console.print(
+            f"[dim]🔄 Subagent '{label}' ({subagent_id[:8]}): {progress_msg}[/dim]"
+        )
+
+    def print_subagent_completed(self, subagent_id: str, label: str, summary: str):
+        """Show enhanced subagent completion notification.
+
+        Args:
+            subagent_id: Unique ID of the subagent
+            label: Human-readable label
+            summary: Brief summary of results
+        """
+        self.console.print(
+            Panel(
+                f"[green]{summary}[/green]\n\n"
+                f"[dim]Subagent ID: {subagent_id}[/dim]\n"
+                f"[dim]The results are being processed by the agent...[/dim]",
+                title=f"[bold green]✓ Subagent Completed: {label}[/bold green]",
+                border_style="green",
+                padding=(1, 2)
+            )
+        )
+
+    def print_subagent_failed(self, subagent_id: str, label: str, error: str):
+        """Show enhanced subagent failure notification.
+
+        Args:
+            subagent_id: Unique ID of the subagent
+            label: Human-readable label
+            error: Error message
+        """
+        self.console.print(
+            Panel(
+                f"[red]{error}[/red]\n\n"
+                f"[dim]Subagent ID: {subagent_id}[/dim]\n"
+                f"[dim]The agent will handle this failure and suggest alternatives.[/dim]",
+                title=f"[bold red]✗ Subagent Failed: {label}[/bold red]",
+                border_style="red",
+                padding=(1, 2)
+            )
+        )
+
+    def print_background_notification(self, title: str, message: str, style: str = "cyan"):
+        """Show a background notification (non-intrusive).
+
+        Args:
+            title: Notification title
+            message: Notification message
+            style: Color style (cyan, green, yellow, red)
+        """
+        self.console.print(f"[dim][{style}]💬 {title}:[/{style}] {message}[/dim]")

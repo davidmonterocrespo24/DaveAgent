@@ -49,6 +49,13 @@ class LoggingModelClientWrapper:
         self._agent_name = agent_name
         self.logger = logging.getLogger(__name__)
 
+        # Initialize compression state for persistent failure tracking
+        from src.utils.context_compressor import CompressionState
+        self._compression_state = CompressionState(
+            compression_threshold=0.5,  # 50% threshold (more aggressive than old 80%)
+            enable_probe=True,  # Enable verification by default
+        )
+
     async def create(self, messages: Sequence[LLMMessage], **kwargs) -> CreateResult:
         """
         Intercepts the create() method and records input/output
@@ -71,6 +78,45 @@ class LoggingModelClientWrapper:
             if hasattr(msg, "reasoning_content") and msg.reasoning_content:
                 msg_dict["reasoning_content"] = msg.reasoning_content
             input_messages.append(msg_dict)
+
+        # CONTEXT COMPRESSION: Check if compression needed
+        from src.utils.context_compressor import compress_context_if_needed
+        from src.utils.token_counter import count_message_tokens, get_model_context_limit
+
+        # Extract model name (try kwargs first, then wrapped client)
+        model = kwargs.get("model") or (self._wrapped.model if hasattr(self._wrapped, "model") else "deepseek-chat")
+
+        # Count tokens before compression
+        tokens_before = count_message_tokens(input_messages, model)
+        max_tokens = get_model_context_limit(model)
+
+        self.logger.debug(
+            f"📊 Context tokens: {tokens_before}/{max_tokens} "
+            f"({(tokens_before/max_tokens)*100:.1f}%)"
+        )
+
+        # Compress if needed using persistent compression state
+        compressed_messages_dicts = await compress_context_if_needed(
+            messages=input_messages,
+            model=model,
+            model_client=self._wrapped,
+            logger=self.logger,
+            state=self._compression_state  # Use persistent state
+        )
+
+        # Log if compression occurred
+        if len(compressed_messages_dicts) != len(input_messages):
+            tokens_after = count_message_tokens(compressed_messages_dicts, model)
+            self.logger.info(
+                f"🗜️ Context compressed: "
+                f"{len(input_messages)} → {len(compressed_messages_dicts)} messages "
+                f"({tokens_before} → {tokens_after} tokens, "
+                f"saved {tokens_before - tokens_after} tokens)"
+            )
+            # Update input_messages for logging
+            input_messages = compressed_messages_dicts
+            # Reconstruct processed_messages from compressed dicts
+            processed_messages = self._reconstruct_llm_messages(compressed_messages_dicts)
 
         # Log: LLM call started
         self.logger.info(
@@ -194,6 +240,44 @@ class LoggingModelClientWrapper:
                 return str(content)
             return content
         return str(message)
+
+    def _reconstruct_llm_messages(self, message_dicts: list[dict]) -> Sequence[LLMMessage]:
+        """
+        Reconstruct LLMMessage objects from message dictionaries.
+
+        Used after context compression to convert compressed message dicts
+        back into the proper LLMMessage types expected by the model client.
+
+        Args:
+            message_dicts: List of message dictionaries with role/content
+
+        Returns:
+            Sequence of LLMMessage objects
+        """
+        messages = []
+        for msg_dict in message_dicts:
+            role = msg_dict.get("role", "user")
+            content = msg_dict.get("content", "")
+
+            if role == "system":
+                messages.append(SystemMessage(content=content))
+            elif role == "user":
+                messages.append(UserMessage(content=content, source="user"))
+            elif role == "assistant":
+                # Preserve reasoning_content if it exists
+                reasoning_content = msg_dict.get("reasoning_content")
+                if reasoning_content:
+                    # Create AssistantMessage with reasoning_content
+                    msg = AssistantMessage(content=content, source="assistant")
+                    msg.reasoning_content = reasoning_content
+                    messages.append(msg)
+                else:
+                    messages.append(AssistantMessage(content=content, source="assistant"))
+            else:
+                # Default to user message for unknown roles
+                messages.append(UserMessage(content=content, source="user"))
+
+        return messages
 
     def _preserve_reasoning_content(self, messages: Sequence[LLMMessage]) -> Sequence[LLMMessage]:
         """

@@ -210,8 +210,8 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
         """
         Inject reasoning_content into assistant messages before sending to API.
 
-        This is the critical fix: DeepSeek requires reasoning_content in assistant
-        messages when using tool calls.
+        This is the critical fix: DeepSeek requires reasoning_content in ALL
+        assistant messages when thinking mode is enabled, not just tool call ones.
         """
         modified_messages = []
         for msg in oai_messages:
@@ -219,32 +219,45 @@ class DeepSeekReasoningClient(OpenAIChatCompletionClient):
 
             # Only inject into assistant messages
             if msg.get("role") == "assistant":
-                # CRITICAL Fix for "Invalid consecutive assistant message":
-                # Only inject reasoning_content if the message has tool_calls.
-                # Injecting reasoning into pure text messages in history causes API errors.
-                if not msg.get("tool_calls"):
+                # Already has reasoning_content? Keep it.
+                if msg.get("reasoning_content"):
                     modified_messages.append(modified_msg)
                     continue
 
-                # Try to match this message with a raw response
+                # Try to match this message with a cached raw response
                 matched = False
-                for raw_resp in reversed(self._raw_responses):
-                    # Match by tool_calls ONLY (since content matching is risky for history)
-                    if self._messages_match_tools(msg, raw_resp):
-                        reasoning = raw_resp.get("reasoning_content")
-                        if reasoning:
-                            modified_msg["reasoning_content"] = reasoning
-                            self.logger.debug("💭 Injected reasoning_content for tool call")
-                        matched = True
-                        break
 
+                # Strategy 1: Match by tool_calls IDs (most reliable)
+                if msg.get("tool_calls"):
+                    for raw_resp in reversed(self._raw_responses):
+                        if self._messages_match_tools(msg, raw_resp):
+                            reasoning = raw_resp.get("reasoning_content")
+                            if reasoning:
+                                modified_msg["reasoning_content"] = reasoning
+                                self.logger.debug("💭 Injected reasoning_content for tool call")
+                            matched = True
+                            break
+
+                # Strategy 2: Match by content (for non-tool-call messages)
                 if not matched:
-                    # No cache entry found (e.g. state loaded from disk before cache was persisted).
-                    # Add empty reasoning_content — DeepSeek requires the field to exist,
-                    # but accepts an empty string for historical messages.
+                    msg_content = str(msg.get("content", ""))
+                    if msg_content:
+                        for raw_resp in reversed(self._raw_responses):
+                            raw_content = str(raw_resp.get("content", ""))
+                            if raw_content and msg_content[:200] == raw_content[:200]:
+                                reasoning = raw_resp.get("reasoning_content")
+                                if reasoning:
+                                    modified_msg["reasoning_content"] = reasoning
+                                    self.logger.debug("💭 Injected reasoning_content for text message")
+                                matched = True
+                                break
+
+                # CRITICAL: DeepSeek requires reasoning_content on ALL assistant messages
+                # when thinking mode is enabled. Use empty string as fallback.
+                if "reasoning_content" not in modified_msg:
                     modified_msg["reasoning_content"] = ""
                     self.logger.debug(
-                        "⚠️ No reasoning_content cache for tool_call — using empty placeholder"
+                        "⚠️ No reasoning_content cache — using empty placeholder"
                     )
 
             modified_messages.append(modified_msg)

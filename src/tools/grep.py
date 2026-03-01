@@ -147,10 +147,17 @@ async def grep_search(
     case_sensitive: bool = False,
     include_pattern: str | None = None,
     exclude_pattern: str | None = None,  # Deprecated in favor of gitignore but kept for compat
-    explanation: str | None = None,
+    explanation: str = "",
 ) -> str:
     """
     Search for a regex pattern in files.
+
+    Args:
+        query: Regex pattern to search for
+        case_sensitive: Whether to use case-sensitive matching
+        include_pattern: File pattern to include (e.g., "*.py")
+        exclude_pattern: File pattern to exclude (deprecated)
+        explanation: Optional description of why this search is being performed (shown in terminal)
     """
     workspace = get_workspace()
 

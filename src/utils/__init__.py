@@ -4,6 +4,7 @@ from .conversation_tracker import ConversationTracker, get_conversation_tracker
 from .deepseek_reasoning_client import DeepSeekReasoningClient
 from .file_indexer import FileIndexer
 from .file_selector import FileSelector, select_file_interactive
+from .headless_context import is_headless, set_headless
 from .history_viewer import HistoryViewer
 from .logger import DaveAgentLogger, get_logger, set_log_level
 from .logging_model_client import LoggingModelClientWrapper
@@ -30,4 +31,6 @@ __all__ = [
     "HistoryViewer",
     "LoggingModelClientWrapper",
     "DeepSeekReasoningClient",
+    "is_headless",
+    "set_headless",
 ]

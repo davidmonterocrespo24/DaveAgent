@@ -40,6 +40,7 @@ class DaveAgentCLI(AgentOrchestrator):
         Initialize all agent components by calling parent AgentOrchestrator
         """
         import time
+        import os
 
         t_start = time.time()
 
@@ -52,22 +53,19 @@ class DaveAgentCLI(AgentOrchestrator):
             ssl_verify=ssl_verify,
             headless=headless,
         )
-        print(f"[Startup] Model clients initialized in {time.time() - t_start:.4f}s")
+        
         self.should_exit = False
 
         t0 = time.time()
         # State management system (AutoGen save_state/load_state)
         from src.managers import StateManager
 
-        _state_dir = os.path.join(os.getcwd(), ".daveagent", "state")
-        print(f"[Startup] Working directory: {os.getcwd()}")
-        print(f"[Startup] State directory: {_state_dir}")
+        _state_dir = os.path.join(os.getcwd(), ".daveagent", "state")       
         self.state_manager = StateManager(
             auto_save_enabled=True,
             auto_save_interval=300,  # Auto-save every 5 minutes
             state_dir=_state_dir,
-        )
-        print(f"[Startup] StateManager initialized in {time.time() - t0:.4f}s")
+        )        
 
         t0 = time.time()
         # Agent Skills system
@@ -79,7 +77,7 @@ class DaveAgentCLI(AgentOrchestrator):
             self.logger.info(f"✓ Loaded {skill_count} agent skills")
         else:
             self.logger.debug("No agent skills found (check .daveagent/skills/ directories)")
-        print(f"[Startup] SkillManager initialized in {time.time() - t0:.4f}s")
+        
 
         t0 = time.time()
         # Context Manager (DAVEAGENT.md)
@@ -91,7 +89,7 @@ class DaveAgentCLI(AgentOrchestrator):
             self.logger.info(f"✓ Found {len(context_files)} DAVEAGENT.md context file(s)")
         else:
             self.logger.debug("No DAVEAGENT.md context files found")
-        print(f"[Startup] ContextManager initialized in {time.time() - t0:.4f}s")
+        
 
         # Error Reporter (sends errors to SigNoz instead of creating GitHub issues)
         from src.managers import ErrorReporter
@@ -187,8 +185,7 @@ class DaveAgentCLI(AgentOrchestrator):
             write_file,
             write_json,
         )
-
-        self.logger.info(f"[Startup] Tools imported in {time.time() - t0:.4f}s")
+        
 
         # Store all tools to filter them according to mode
         self.all_tools = {
@@ -241,8 +238,7 @@ class DaveAgentCLI(AgentOrchestrator):
                 run_terminal_cmd,
             ],
         }
-
-        self.logger.info(f"✨ DaveAgent initialized in {time.time() - t_start:.2f}s")
+        
 
     # =========================================================================
     # COMMAND HANDLING
@@ -489,6 +485,33 @@ class DaveAgentCLI(AgentOrchestrator):
                 self.cli.print_info("ℹ️  Use /telemetry-on to enable telemetry")
             else:
                 self.cli.print_info("ℹ️  Use /telemetry-off to disable telemetry")
+
+        elif cmd == "/subagents":
+            # List active subagents
+            await self._list_subagents_command()
+
+        elif cmd == "/subagent-status":
+            # Show status of specific subagent
+            if len(parts) < 2:
+                self.cli.print_error("Usage: /subagent-status <subagent-id>")
+                self.cli.print_info("Use /subagents to see active subagents")
+            else:
+                await self._subagent_status_command(parts[1])
+
+        elif cmd == "/cron":
+            # Cron management commands
+            if len(parts) < 2:
+                self.cli.print_error("Usage: /cron <add|list|enable|disable|remove|run>")
+                self.cli.print_info("Examples:")
+                self.cli.print_info("  /cron add at 2026-02-20T15:30 Review PRs")
+                self.cli.print_info("  /cron add every 1h Check build status")
+                self.cli.print_info("  /cron add cron '0 9 * * *' Daily standup")
+                self.cli.print_info("  /cron list")
+                self.cli.print_info("  /cron enable <job-id>")
+                self.cli.print_info("  /cron run <job-id>")
+            else:
+                subcmd = parts[1]
+                await self._cron_command(subcmd, parts[2:])
 
         else:
             self.cli.print_error(f"Unknown command: {cmd}")
@@ -774,7 +797,7 @@ TITLE:"""
             # Save session metadata to disk
             await self.state_manager.save_to_disk()
 
-            self.logger.info("💾 Auto-save: State saved successfully")
+            
 
         except Exception as e:
             # Don't fail if auto-save fails, just log
@@ -829,15 +852,6 @@ TITLE:"""
             # Get metadata and messages for display
             metadata = self.state_manager.get_session_metadata()
             messages = self.state_manager.get_session_history()
-
-            self.cli.print_success("✅ State saved successfully!")
-            self.cli.print_info(f"  • Title: {metadata.get('title', 'Untitled')}")
-            self.cli.print_info(f"  • Session ID: {session_id}")
-            self.cli.print_info(f"  • Location: {state_path}")
-            self.cli.print_info("  • Agents saved: 3")
-            self.cli.print_info(f"  • Messages saved: {len(messages)}")
-
-            self.logger.info(f"✅ State saved in session: {session_id}")
 
         except Exception as e:
             self.cli.stop_thinking()
@@ -1012,6 +1026,422 @@ TITLE:"""
             self.logger.log_error_with_context(e, "_show_history_command")
             self.cli.print_error(f"Error showing history: {str(e)}")
 
+    async def _list_subagents_command(self):
+        """
+        Command /subagents: List all active subagents
+
+        Shows currently running subagents with their IDs, labels, and status.
+        """
+        try:
+            if not hasattr(self.orchestrator, 'subagent_manager'):
+                self.cli.print_warning("Subagent system not initialized")
+                return
+
+            manager = self.subagent_manager
+            running_tasks = manager._running_tasks
+
+            if not running_tasks:
+                self.cli.print_info("No active subagents")
+                return
+
+            # Create table data
+            from rich.table import Table
+            from rich import box
+
+            table = Table(
+                title="[bold cyan]Active Subagents[/bold cyan]",
+                box=box.ROUNDED,
+                show_header=True,
+                header_style="bold magenta"
+            )
+
+            table.add_column("ID", style="cyan", no_wrap=True)
+            table.add_column("Status", style="yellow")
+            table.add_column("Started", style="dim")
+
+            # Get event history to find labels and start times
+            event_bus = manager.event_bus
+            spawned_events = [e for e in event_bus._event_history if e.event_type == "spawned"]
+
+            for subagent_id, task in running_tasks.items():
+                status = "Running" if not task.done() else "Completed"
+
+                # Find spawn event for this subagent
+                spawn_event = next((e for e in spawned_events if e.subagent_id == subagent_id), None)
+                if spawn_event:
+                    from datetime import datetime
+                    start_time = datetime.fromtimestamp(spawn_event.timestamp).strftime("%H:%M:%S")
+                else:
+                    start_time = "Unknown"
+
+                table.add_row(subagent_id, status, start_time)
+
+            self.cli.console.print()
+            self.cli.console.print(table)
+            self.cli.console.print()
+            self.cli.print_info(f"Total active subagents: {len(running_tasks)}")
+            self.cli.print_info("Use /subagent-status <id> to see detailed status")
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_list_subagents_command")
+            self.cli.print_error(f"Error listing subagents: {str(e)}")
+
+    async def _subagent_status_command(self, subagent_id: str):
+        """
+        Command /subagent-status: Show detailed status of a specific subagent
+
+        Args:
+            subagent_id: The ID of the subagent to check
+        """
+        try:
+            if not hasattr(self.orchestrator, 'subagent_manager'):
+                self.cli.print_warning("Subagent system not initialized")
+                return
+
+            manager = self.subagent_manager
+
+            # Check if subagent exists
+            if subagent_id not in manager._running_tasks and subagent_id not in manager._results:
+                self.cli.print_error(f"Subagent '{subagent_id}' not found")
+                self.cli.print_info("Use /subagents to see active subagents")
+                return
+
+            # Get all events for this subagent
+            event_bus = manager.event_bus
+            subagent_events = [e for e in event_bus._event_history if e.subagent_id == subagent_id]
+
+            if not subagent_events:
+                self.cli.print_warning(f"No events found for subagent '{subagent_id}'")
+                return
+
+            # Display subagent information
+            from rich.panel import Panel
+            from rich.markdown import Markdown
+            from datetime import datetime
+
+            # Get spawn event
+            spawn_event = next((e for e in subagent_events if e.event_type == "spawned"), None)
+            if spawn_event:
+                label = spawn_event.content.get('label', 'Unknown')
+                task = spawn_event.content.get('task', 'Unknown')
+                start_time = datetime.fromtimestamp(spawn_event.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                label = "Unknown"
+                task = "Unknown"
+                start_time = "Unknown"
+
+            # Check status
+            is_running = subagent_id in manager._running_tasks
+            has_result = subagent_id in manager._results
+
+            # Get completion/failure info
+            completed_event = next((e for e in subagent_events if e.event_type == "completed"), None)
+            failed_event = next((e for e in subagent_events if e.event_type == "failed"), None)
+
+            if completed_event:
+                status = "Completed"
+                end_time = datetime.fromtimestamp(completed_event.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                result = completed_event.content.get('result', 'No result')
+                result_preview = result[:200] + "..." if len(result) > 200 else result
+            elif failed_event:
+                status = "Failed"
+                end_time = datetime.fromtimestamp(failed_event.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                result_preview = f"Error: {failed_event.content.get('error', 'Unknown error')}"
+            elif is_running:
+                status = "Running"
+                end_time = "N/A"
+                result_preview = "Still executing..."
+            else:
+                status = "Unknown"
+                end_time = "N/A"
+                result_preview = "No result available"
+
+            # Create markdown content
+            status_text = f"""
+**Subagent Status Report**
+
+**ID:** `{subagent_id}`
+**Label:** {label}
+**Status:** {status}
+**Started:** {start_time}
+**Ended:** {end_time}
+
+**Task:**
+```
+{task}
+```
+
+**Result:**
+```
+{result_preview}
+```
+
+**Events:** {len(subagent_events)} total
+            """
+
+            self.cli.console.print()
+            self.cli.console.print(
+                Panel(
+                    Markdown(status_text),
+                    title=f"[bold cyan]Subagent {subagent_id}[/bold cyan]",
+                    border_style="cyan"
+                )
+            )
+            self.cli.console.print()
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_subagent_status_command")
+            self.cli.print_error(f"Error showing subagent status: {str(e)}")
+
+    # =========================================================================
+    # CRON MANAGEMENT
+    # =========================================================================
+
+    async def _cron_command(self, subcmd: str, args: list):
+        """Handle cron subcommands."""
+        if not hasattr(self, 'cron_service') or self.cron_service is None:
+            self.cli.print_error("Cron service not initialized")
+            return
+
+        try:
+            if subcmd == "list":
+                await self._cron_list_command()
+            elif subcmd == "add":
+                await self._cron_add_command(args)
+            elif subcmd == "enable":
+                await self._cron_enable_command(args, enabled=True)
+            elif subcmd == "disable":
+                await self._cron_enable_command(args, enabled=False)
+            elif subcmd == "remove":
+                await self._cron_remove_command(args)
+            elif subcmd == "run":
+                await self._cron_run_command(args)
+            else:
+                self.cli.print_error(f"Unknown cron command: {subcmd}")
+                self.cli.print_info("Use /cron without arguments to see usage")
+        except Exception as e:
+            self.logger.log_error_with_context(e, f"_cron_command_{subcmd}")
+            self.cli.print_error(f"Error in cron command: {str(e)}")
+
+    async def _cron_list_command(self):
+        """List all cron jobs."""
+        from rich.table import Table
+
+        jobs = self.cron_service.list_jobs()
+
+        if not jobs:
+            self.cli.print_info("\n⏰ No cron jobs scheduled")
+            self.cli.print_info("\nAdd a job with:")
+            self.cli.print_info("  /cron add at 2026-02-20T15:30 Review PRs")
+            self.cli.print_info("  /cron add every 1h Check build status")
+            self.cli.print_info("  /cron add cron '0 9 * * *' Daily standup")
+            return
+
+        table = Table(title=f"\n⏰ Scheduled Cron Jobs ({len(jobs)} total)")
+        table.add_column("ID", style="cyan")
+        table.add_column("Name", style="yellow")
+        table.add_column("Enabled", style="green")
+        table.add_column("Schedule", style="magenta")
+        table.add_column("Next Run", style="blue")
+        table.add_column("Runs", justify="right")
+        table.add_column("Status")
+
+        for job in jobs:
+            enabled = "✓" if job["enabled"] else "✗"
+            status_color = "green" if job["last_status"] == "ok" else "red" if job["last_status"] == "error" else "dim"
+
+            table.add_row(
+                job["id"],
+                job["name"][:30],
+                enabled,
+                job["schedule"],
+                job["next_run"],
+                str(job["run_count"]),
+                f"[{status_color}]{job['last_status']}[/{status_color}]"
+            )
+
+        self.cli.console.print(table)
+        self.cli.console.print()
+
+    async def _cron_add_command(self, args: list):
+        """Add a new cron job."""
+        from src.cron.types import CronSchedule
+        from datetime import datetime
+
+        if len(args) < 2:
+            self.cli.print_error("Usage: /cron add <at|every|cron> <time/interval/expr> <task>")
+            self.cli.print_info("Examples:")
+            self.cli.print_info("  /cron add at 2026-02-20T15:30 Review PRs")
+            self.cli.print_info("  /cron add every 1h Check build status")
+            self.cli.print_info("  /cron add cron '0 9 * * *' Daily standup")
+            return
+
+        schedule_type = args[0]
+
+        if schedule_type == "at":
+            # Parse: /cron add at 2026-02-20T15:30 Task description
+            if len(args) < 3:
+                self.cli.print_error("Usage: /cron add at <datetime> <task>")
+                self.cli.print_info("Example: /cron add at 2026-02-20T15:30 Review PRs")
+                return
+
+            time_str = args[1]
+            task = " ".join(args[2:])
+
+            try:
+                # Parse datetime
+                dt = datetime.fromisoformat(time_str)
+                at_ms = int(dt.timestamp() * 1000)
+
+                schedule = CronSchedule(kind="at", at_ms=at_ms)
+                job_id = self.cron_service.add_job(
+                    name=task[:50],
+                    schedule=schedule,
+                    task=task
+                )
+
+                self.cli.print_success(f"✓ Added one-time job {job_id}")
+                self.cli.print_info(f"  Will run at: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
+                self.cli.print_info(f"  Task: {task}")
+            except ValueError as e:
+                self.cli.print_error(f"Invalid datetime format: {e}")
+                self.cli.print_info("Use ISO format: YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS")
+
+        elif schedule_type == "every":
+            # Parse: /cron add every 1h Task description
+            if len(args) < 3:
+                self.cli.print_error("Usage: /cron add every <interval> <task>")
+                self.cli.print_info("Example: /cron add every 1h Check build status")
+                self.cli.print_info("Intervals: 30s, 5m, 1h, 2d (s=seconds, m=minutes, h=hours, d=days)")
+                return
+
+            interval_str = args[1]
+            task = " ".join(args[2:])
+
+            try:
+                # Parse interval (e.g., "1h", "30m", "2d")
+                import re
+                match = re.match(r'^(\d+)([smhd])$', interval_str)
+                if not match:
+                    raise ValueError("Invalid interval format")
+
+                value = int(match.group(1))
+                unit = match.group(2)
+
+                # Convert to milliseconds
+                multipliers = {'s': 1000, 'm': 60000, 'h': 3600000, 'd': 86400000}
+                every_ms = value * multipliers[unit]
+
+                schedule = CronSchedule(kind="every", every_ms=every_ms)
+                job_id = self.cron_service.add_job(
+                    name=task[:50],
+                    schedule=schedule,
+                    task=task
+                )
+
+                self.cli.print_success(f"✓ Added recurring job {job_id}")
+                self.cli.print_info(f"  Interval: {interval_str}")
+                self.cli.print_info(f"  Task: {task}")
+            except ValueError as e:
+                self.cli.print_error(f"Invalid interval: {e}")
+                self.cli.print_info("Use format: <number><unit> where unit is s/m/h/d")
+                self.cli.print_info("Examples: 30s, 5m, 1h, 2d")
+
+        elif schedule_type == "cron":
+            # Parse: /cron add cron '0 9 * * *' Task description
+            if len(args) < 3:
+                self.cli.print_error("Usage: /cron add cron '<expression>' <task>")
+                self.cli.print_info("Example: /cron add cron '0 9 * * *' Daily standup")
+                return
+
+            cron_expr = args[1]
+            task = " ".join(args[2:])
+
+            try:
+                # Validate cron expression
+                from croniter import croniter
+                if not croniter.is_valid(cron_expr):
+                    raise ValueError("Invalid cron expression")
+
+                schedule = CronSchedule(kind="cron", expr=cron_expr)
+                job_id = self.cron_service.add_job(
+                    name=task[:50],
+                    schedule=schedule,
+                    task=task
+                )
+
+                # Show next run times
+                from croniter import croniter as CronIter
+                from datetime import datetime
+                now = datetime.now()
+                cron = CronIter(cron_expr, now)
+                next_3 = [cron.get_next(datetime).strftime('%Y-%m-%d %H:%M') for _ in range(3)]
+
+                self.cli.print_success(f"✓ Added cron job {job_id}")
+                self.cli.print_info(f"  Expression: {cron_expr}")
+                self.cli.print_info(f"  Task: {task}")
+                self.cli.print_info(f"  Next runs: {', '.join(next_3)}")
+            except ImportError:
+                self.cli.print_error("croniter library not installed")
+                self.cli.print_info("Install with: pip install croniter")
+            except ValueError as e:
+                self.cli.print_error(f"Invalid cron expression: {e}")
+                self.cli.print_info("Use standard cron format: '0 9 * * *'")
+
+        else:
+            self.cli.print_error(f"Unknown schedule type: {schedule_type}")
+            self.cli.print_info("Supported types: at, every, cron")
+
+    async def _cron_enable_command(self, args: list, enabled: bool):
+        """Enable or disable a cron job."""
+        if len(args) < 1:
+            action = "enable" if enabled else "disable"
+            self.cli.print_error(f"Usage: /cron {action} <job-id>")
+            self.cli.print_info("Use /cron list to see job IDs")
+            return
+
+        job_id = args[0]
+        success = self.cron_service.enable_job(job_id, enabled)
+
+        if success:
+            action = "enabled" if enabled else "disabled"
+            self.cli.print_success(f"✓ Job {job_id} {action}")
+        else:
+            self.cli.print_error(f"Job {job_id} not found")
+            self.cli.print_info("Use /cron list to see available jobs")
+
+    async def _cron_remove_command(self, args: list):
+        """Remove a cron job."""
+        if len(args) < 1:
+            self.cli.print_error("Usage: /cron remove <job-id>")
+            self.cli.print_info("Use /cron list to see job IDs")
+            return
+
+        job_id = args[0]
+        success = self.cron_service.remove_job(job_id)
+
+        if success:
+            self.cli.print_success(f"✓ Job {job_id} removed")
+        else:
+            self.cli.print_error(f"Job {job_id} not found")
+            self.cli.print_info("Use /cron list to see available jobs")
+
+    async def _cron_run_command(self, args: list):
+        """Manually run a cron job now."""
+        if len(args) < 1:
+            self.cli.print_error("Usage: /cron run <job-id>")
+            self.cli.print_info("Use /cron list to see job IDs")
+            return
+
+        job_id = args[0]
+        success = await self.cron_service.run_job_now(job_id)
+
+        if success:
+            self.cli.print_success(f"✓ Job {job_id} triggered")
+        else:
+            self.cli.print_error(f"Job {job_id} not found")
+            self.cli.print_info("Use /cron list to see available jobs")
+
     # =========================================================================
     # USER REQUEST PROCESSING
     # =========================================================================
@@ -1156,25 +1586,90 @@ TITLE:"""
             tools_called = []
 
             # Process messages with streaming using the ROUTER TEAM
-            # Create the stream task so it can be cancelled
-            stream_task = asyncio.create_task(self._run_team_stream(full_input))
-            self.current_task = stream_task
+            # _run_team_stream is async and returns an async generator
+            # We need to await it first to get the generator
+            stream_generator = await self._run_team_stream(full_input)
 
             # Silence autogen internal loggers to avoid leaking raw tracebacks.
             self.logger.debug("🚀 Stream task started")
+
+            # Track last message time to detect stuck state
+            last_message_time = asyncio.get_event_loop().time()
+            message_timeout = 600  # 10 minutes without messages = might be stuck (long tasks need time)
+
+            # Log progress every N tool calls
+            last_progress_log = 0
+            progress_log_interval = 10  # Log every 10 tool calls
+
             try:
-                async for msg in await stream_task:
+                # CRITICAL FIX: Iterate over async generator for true streaming
+                # The await above gets the generator, now we iterate over it
+                async for msg in stream_generator:
+                    # Update last message time
+                    last_message_time = asyncio.get_event_loop().time()
                     message_count += 1
                     msg_type = type(msg).__name__
-                    self.logger.debug(f"Stream mensaje #{message_count} - Tipo: {msg_type}")
+                    msg_source = getattr(msg, "source", "unknown")
+
+                    # DIAGNOSTIC: Log ALL message types with full details
+                    content_preview = ""
+                    if hasattr(msg, "content"):
+                        c = msg.content
+                        if isinstance(c, str):
+                            content_preview = c[:80]
+                        elif isinstance(c, list):
+                            content_preview = f"[list with {len(c)} items]"
+                        else:
+                            content_preview = str(c)[:80]
+
+                    self.logger.debug(
+                        f"📨 Msg #{message_count} | Type: {msg_type:30} | Source: '{msg_source:10}' | "
+                        f"Preview: {content_preview}"
+                    )
+
+                    # LOG FULL MESSAGE CONTENT for important types (helps debug missing messages)
+                    if msg_type in ["TextMessage", "ThoughtEvent"]:
+                        full_content = ""
+                        if hasattr(msg, "content"):
+                            full_content = str(msg.content)
+                        
 
                     # Only process messages that are NOT from the user
-                    if hasattr(msg, "source") and msg.source != "user":
+                    # UPDATED: Also process messages without source (fallback)
+                    should_process = False
+                    if hasattr(msg, "source"):
+                        if msg.source != "user":
+                            should_process = True
+                        else:
+                            # DIAGNOSTIC: Check if this is actually an agent response incorrectly marked
+                            if msg_type == "TextMessage" and hasattr(msg, "content"):
+                                content = str(msg.content)
+                                # Agent responses typically don't start with user-like phrases
+                                if any(marker in content for marker in ["I'll", "I will", "I've", "Let me", "I have", "Based on", "TERMINATE"]):
+                                    self.logger.warning(
+                                        f"⚠️ TextMessage with source='user' but appears to be agent response! "
+                                        f"Content: {content[:100]}"
+                                    )
+
+                    if should_process:
                         agent_name = msg.source
 
                         # Track which agents were used
                         if agent_name not in agents_used:
                             agents_used.append(agent_name)
+                    else:
+                        # Log why message was NOT processed
+                        skip_reason = "unknown"
+                        if hasattr(msg, "source"):
+                            if msg.source == "user":
+                                skip_reason = "source is 'user'"
+                        else:
+                            skip_reason = "no source attribute"
+                        self.logger.debug(
+                            f"⏭️  Skipping message: {msg_type} ({skip_reason})"
+                        )
+
+                    if should_process:
 
                         # Determine message content
                         if hasattr(msg, "content"):
@@ -1198,24 +1693,61 @@ TITLE:"""
                             message_key = f"{agent_name}:{hash(str(content))}"
 
                         if message_key not in agent_messages_shown:
+                            self.logger.debug(f"✅ Processing message (will show in terminal): {msg_type} from {agent_name}")
+
                             # SHOW DIFFERENT MESSAGE TYPES IN CONSOLE IN REAL-TIME
+                        else:
+                            self.logger.debug(f"⏭️  Skipping duplicate message: {msg_type} from {agent_name} (already shown)")
+
+                        if message_key not in agent_messages_shown:
                             if msg_type == "ThoughtEvent":
                                 # 💭 Show agent thoughts/reflections
                                 # Stop spinner for thoughts to show them clearly
                                 if spinner_active:
                                     self.cli.stop_thinking(clear=True)
                                     spinner_active = False
+                                    # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                    import time
+                                    time.sleep(0.05)  # 50ms delay
                                 self.cli.print_thinking(f"💭 {agent_name}: {content_str}")
                                 self.logger.debug(f"💭 Thought: {content_str}")
                                 # JSON Logger: Capture thought
                                 self.json_logger.log_thought(agent_name, content_str)
                                 agent_messages_shown.add(message_key)
 
+                            elif msg_type in ["ModelClientStreamingChunkEvent", "CodeGenerationEvent"]:
+                                # Show streaming chunks and code generation events (agent thinking)
+                                if spinner_active:
+                                    self.cli.stop_thinking(clear=True)
+                                    spinner_active = False
+                                    # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                    import time
+                                    time.sleep(0.05)  # 50ms delay
+                                self.cli.print_thinking(f"🤔 {agent_name} is thinking...")
+                                self.logger.debug(f"🧠 {msg_type}: {content_str[:200]}")
+                                agent_messages_shown.add(message_key)
+
                             elif msg_type == "ToolCallRequestEvent":
                                 # 🔧 Show tools to be called
                                 # Stop spinner to show tool call, then restart with specific message
+                                self.logger.debug(f"🔧 [SPINNER_DEBUG] ToolCallRequestEvent received, spinner_active={spinner_active}")
                                 if spinner_active:
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] Stopping spinner before tool call...")
                                     self.cli.stop_thinking(clear=True)
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] Spinner stopped, waiting 50ms...")
+                                    # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                    # and stdout is flushed before Rich Console prints
+                                    import time
+                                    time.sleep(0.05)  # 50ms delay
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] 50ms delay complete, ready to print")
+
+                                # Log progress every N tool calls
+                                if len(tools_called) - last_progress_log >= progress_log_interval:
+                                    self.logger.info(
+                                        f"📊 Progress: {len(tools_called)} tool calls completed, "
+                                        f"{message_count} messages processed"
+                                    )
+                                    last_progress_log = len(tools_called)
 
                                 if isinstance(content, list):
                                     tool_names = []
@@ -1237,62 +1769,74 @@ TITLE:"""
                                                 except (json.JSONDecodeError, TypeError):
                                                     pass  # Keep as string if parsing fails
 
-                                            # Special formatting for file tools with code content
+                                            # Check if an approval prompt is currently active
+                                            # If so, skip printing to avoid terminal output interleaving
+                                            from src.utils.interaction import is_interaction_active
+                                            _skip_print = is_interaction_active()
+
+                                            # For write_file/edit_file: DON'T show content panels here.
+                                            # The ask_for_approval() in the tool itself already shows
+                                            # the content in its own panel. Showing it here too causes
+                                            # duplicate output AND race conditions with the approval prompt.
                                             if (
                                                 tool_name == "write_file"
                                                 and isinstance(tool_args, dict)
                                                 and "file_content" in tool_args
                                             ):
-                                                # Show write_file with syntax highlighting
                                                 target_file = tool_args.get("target_file", "unknown")
-                                                file_content = tool_args.get("file_content", "")
-                                                self.cli.print_thinking(
-                                                    f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
-                                                )
-                                                self.cli.print_code(
-                                                    file_content, target_file, max_lines=50
-                                                )
+                                                if not _skip_print:
+                                                    self.cli.print_thinking(
+                                                        f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
+                                                    )
+                                                # NOTE: Removed print_code() call - approval prompt shows content
                                             elif tool_name == "edit_file" and isinstance(
                                                 tool_args, dict
                                             ):
-                                                # Show edit_file with unified diff
-                                                import difflib
-
                                                 target_file = tool_args.get("target_file", "unknown")
-                                                old_string = tool_args.get("old_string", "")
-                                                new_string = tool_args.get("new_string", "")
                                                 instructions = tool_args.get("instructions", "")
-                                                self.cli.print_thinking(
-                                                    f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
-                                                )
-                                                if instructions:
-                                                    self.cli.print_thinking(f"   📝 {instructions}")
-                                                # Generate unified diff
-                                                old_lines = old_string.splitlines(keepends=True)
-                                                new_lines = new_string.splitlines(keepends=True)
-                                                diff = difflib.unified_diff(
-                                                    old_lines,
-                                                    new_lines,
-                                                    fromfile=f"a/{target_file}",
-                                                    tofile=f"b/{target_file}",
-                                                    lineterm="",
-                                                )
-                                                diff_text = "".join(diff)
-                                                if diff_text:
-                                                    self.cli.print_diff(diff_text)
-                                                else:
+                                                if not _skip_print:
                                                     self.cli.print_thinking(
-                                                        "   (no changes detected in diff)"
+                                                        f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
                                                     )
+                                                    if instructions:
+                                                        self.cli.print_thinking(f"   📝 {instructions}")
+                                                # NOTE: Removed print_diff() call - approval prompt shows diff
                                             else:
-                                                # Default: show parameters as JSON (truncate if too long)
-                                                args_str = str(tool_args)
-                                                if len(args_str) > 200:
-                                                    args_str = args_str[:200] + "..."
-                                                self.cli.print_info(
-                                                    f"🔧 Calling tool: {tool_name} with parameters {args_str}",
-                                                    agent_name,
-                                                )
+                                                # Default: show explanation (if provided) + parameters
+                                                explanation = None
+                                                if isinstance(tool_args, dict):
+                                                    explanation = tool_args.get("explanation")
+
+                                                if not _skip_print:
+                                                    # Show explanation prominently if available
+                                                    if explanation:
+                                                        # Parse tool name to make it more readable
+                                                        tool_display = tool_name.replace("_", " ").title()
+                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} with explanation")
+                                                        self.cli.print_info(
+                                                            f"🔧 {tool_display}: {explanation}",
+                                                            agent_name,
+                                                        )
+                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}")
+                                                        # Show compact parameters (without explanation)
+                                                        params_copy = {k: v for k, v in tool_args.items() if k != "explanation"}
+                                                        if params_copy:
+                                                            params_str = str(params_copy)
+                                                            if len(params_str) > 150:
+                                                                params_str = params_str[:150] + "..."
+                                                            self.cli.print_thinking(f"   Parameters: {params_str}")
+                                                    else:
+                                                        # No explanation - show old format
+                                                        args_str = str(tool_args)
+                                                        if len(args_str) > 200:
+                                                            args_str = args_str[:200] + "..."
+                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} (no explanation)")
+                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] Tool args: {args_str[:100]}")
+                                                        self.cli.print_info(
+                                                            f"🔧 Calling tool: {tool_name} with parameters {args_str}",
+                                                            agent_name,
+                                                        )
+                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}")
 
                                             self.logger.debug(f"🔧 Tool call: {tool_name}")
                                             # JSON Logger: Capture tool call
@@ -1310,16 +1854,35 @@ TITLE:"""
 
                                     # Restart spinner ONCE with first tool name (not in loop)
                                     if tool_names:
+                                        self.logger.debug(
+                                            f"🚀 STARTING EXECUTION of {len(tool_names)} tool(s): {', '.join(tool_names)}"
+                                        )
                                         self.logger.debug(f"executing {tool_names[0]}")
+                                        # Start spinner with context about what's executing
+                                        tool_desc = tool_names[0].replace("_", " ")
+                                        self.logger.debug(f"🔧 [SPINNER_DEBUG] About to restart spinner with message: 'executing {tool_desc}'")
+                                        self.cli.start_thinking(message=f"executing {tool_desc}")
                                         spinner_active = True
+                                        self.logger.debug(f"🔧 [SPINNER_DEBUG] Spinner restarted, spinner_active={spinner_active}")
+                                    else:
+                                        self.logger.warning(f"🔧 [SPINNER_DEBUG] No tool_names found in ToolCallRequestEvent!")
                                 agent_messages_shown.add(message_key)
 
                             elif msg_type == "ToolCallExecutionEvent":
                                 # ✅ Show tool results
+                                self.logger.debug(f"🎯 ToolCallExecutionEvent RECEIVED (results ready)")
+                                self.logger.debug(f"🔧 [SPINNER_DEBUG] ToolCallExecutionEvent, spinner_active={spinner_active}")
+
                                 # Stop spinner to show results
                                 if spinner_active:
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] Stopping spinner to show results...")
                                     self.cli.stop_thinking(clear=True)
                                     spinner_active = False
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] Spinner stopped, waiting 50ms...")
+                                    # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                    import time
+                                    time.sleep(0.05)  # 50ms delay
+                                    self.logger.debug("🔧 [SPINNER_DEBUG] 50ms delay complete")
 
                                 if isinstance(content, list):
                                     for execution_result in content:
@@ -1329,6 +1892,10 @@ TITLE:"""
                                                 str(execution_result.content)
                                                 if hasattr(execution_result, "content")
                                                 else "OK"
+                                            )
+                                            self.logger.debug(
+                                                f"🔧 Tool '{tool_name}' execution completed, "
+                                                f"result length: {len(result_content)} chars"
                                             )
 
                                             # 🚨 CRITICAL: Detect user cancellation in tool results
@@ -1406,8 +1973,8 @@ TITLE:"""
                                                         code_content = "\n".join(
                                                             result_content.split("\n")[1:]
                                                         )
-                                                        # Display with syntax highlighting
-                                                        self.cli.print_code(
+                                                        # Display with syntax highlighting (async to prevent blocking)
+                                                        await self.cli.print_code(
                                                             code_content, filename, max_lines=50
                                                         )
                                                         self.logger.debug(
@@ -1453,38 +2020,74 @@ TITLE:"""
                                                 success=True,
                                             )
 
-                                # Restart spinner for next action
-                                self.cli.start_thinking()
+                                # Restart spinner for next action with better context
+                                self.cli.start_thinking(message=f"{agent_name} analyzing results")
                                 spinner_active = True
                                 agent_messages_shown.add(message_key)
 
-                                # 💾 AUTO-SAVE after each tool execution
-                                await self._auto_save_agent_states()
+                                # 💾 AUTO-SAVE after each tool execution (non-blocking)
+                                asyncio.create_task(self._auto_save_agent_states())
 
                             elif msg_type == "TextMessage":
-                                # 💬 Show final agent response
-                                # Stop spinner for final response
-                                if spinner_active:
-                                    self.cli.stop_thinking(clear=True)
-                                    spinner_active = False
+                                # 💬 TextMessage can be:
+                                # 1. Agent reasoning/reflection BEFORE tool call (when reflect_on_tool_use=True)
+                                # 2. Final agent response
+                                # We need to distinguish between them
 
-                                preview = content_str[:100] if len(content_str) > 100 else content_str
-                                self.logger.log_message_processing(msg_type, agent_name, preview)
-                                self.cli.print_agent_message(content_str, agent_name)
-                                # JSON Logger: Capture agent message
-                                self.json_logger.log_agent_message(
-                                    agent_name=agent_name, content=content_str, message_type="text"
-                                )
-                                # Collect agent responses for logging
-                                all_agent_responses.append(f"[{agent_name}] {content_str}")
-                                agent_messages_shown.add(message_key)
+                                # Check if this looks like reasoning (typically shorter, discusses what to do)
+                                is_reasoning = False
+                                reasoning_indicators = [
+                                    "let me", "i'll", "i will", "first", "now", "next",
+                                    "to do this", "i need to", "i should", "let's",
+                                    "i can", "i must", "going to"
+                                ]
+                                content_lower = content_str.lower()
+                                if any(indicator in content_lower for indicator in reasoning_indicators):
+                                    # Short messages are likely reasoning
+                                    if len(content_str) < 500:
+                                        is_reasoning = True
 
-                                # After agent finishes, start spinner waiting for next agent
-                                self.cli.start_thinking(message="waiting for next action")
-                                spinner_active = True
+                                if is_reasoning:
+                                    # Show as thinking/reasoning (different style)
+                                    if spinner_active:
+                                        self.cli.stop_thinking(clear=True)
+                                        spinner_active = False
+                                        # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                        import time
+                                        time.sleep(0.05)  # 50ms delay
+                                    self.logger.debug(f"🖥️  SHOWING IN TERMINAL (reasoning): {content_str[:100]}")
+                                    self.cli.print_thinking(f"💭 {agent_name} is thinking: {content_str}")
+                                    self.logger.debug(f"💭 Reasoning: {content_str}")
+                                    self.json_logger.log_thought(agent_name, content_str)
+                                    agent_messages_shown.add(message_key)
+                                    # Don't restart spinner - let next event handle it
+                                else:
+                                    # Show as final agent response
+                                    if spinner_active:
+                                        self.cli.stop_thinking(clear=True)
+                                        spinner_active = False
+                                        # CRITICAL FIX: Add small delay to ensure spinner thread fully stops
+                                        import time
+                                        time.sleep(0.05)  # 50ms delay
 
-                                # 💾 AUTO-SAVE after each agent TextMessage
-                                await self._auto_save_agent_states()
+                                    preview = content_str[:100] if len(content_str) > 100 else content_str
+                                    self.logger.log_message_processing(msg_type, agent_name, preview)
+                                    self.logger.debug(f"🖥️  SHOWING IN TERMINAL (final response): {content_str[:200]}")
+                                    self.cli.print_agent_message(content_str, agent_name)
+                                    # JSON Logger: Capture agent message
+                                    self.json_logger.log_agent_message(
+                                        agent_name=agent_name, content=content_str, message_type="text"
+                                    )
+                                    # Collect agent responses for logging
+                                    all_agent_responses.append(f"[{agent_name}] {content_str}")
+                                    agent_messages_shown.add(message_key)
+
+                                    # After agent finishes, start spinner waiting for next agent
+                                    self.cli.start_thinking(message="waiting for next action")
+                                    spinner_active = True
+
+                                # 💾 AUTO-SAVE after each agent TextMessage (non-blocking)
+                                asyncio.create_task(self._auto_save_agent_states())
 
                             else:
                                 # Other message types (for debugging)
@@ -1551,8 +2154,58 @@ TITLE:"""
             # Stop spinner on error
             self.cli.stop_thinking()
 
-            # Handle authentication errors (401) by prompting reconfiguration
             error_str = str(e)
+
+            # Handle token limit errors (BadRequestError 400) - should be rare with compression
+            is_token_limit_error = (
+                "maximum context length" in error_str.lower()
+                or "requested" in error_str and "tokens" in error_str
+                or "BadRequestError" in type(e).__name__ and "400" in error_str
+            )
+
+            if is_token_limit_error:
+                self.logger.error(
+                    "🚨 Token limit exceeded! This should have been prevented by compression. "
+                    "Forcing emergency context cleanup..."
+                )
+
+                self.cli.print_error(
+                    "⚠️ Context exceeded maximum tokens. The compression system should have "
+                    "prevented this, but we'll perform emergency cleanup."
+                )
+
+                # Emergency fallback: Reset agent contexts to smaller buffer
+                try:
+                    from autogen_core.model_context import BufferedChatCompletionContext
+
+                    # Reduce buffer size dramatically for emergency recovery
+                    self.coder_agent._model_context = BufferedChatCompletionContext(buffer_size=30)
+                    self.planning_agent._model_context = BufferedChatCompletionContext(buffer_size=30)
+
+                    self.cli.print_warning(
+                        "⚠️ Agent contexts have been reset to keep only recent messages. "
+                        "Some conversation history was lost."
+                    )
+
+                    self.cli.print_info(
+                        "💡 To prevent this, consider starting a new session with /new-session "
+                        "or saving current progress with /save-state"
+                    )
+
+                    self.logger.info("Emergency context reset complete: buffer_size=30")
+
+                except Exception as reset_error:
+                    self.logger.error(f"Failed to reset contexts: {reset_error}")
+                    self.cli.print_error(
+                        "Failed to recover from token limit error. Please start a new session with /new-session"
+                    )
+
+                # Still log the error but don't continue with normal error handling
+                self.json_logger.log_error(e, context="token_limit_exceeded")
+                await self._auto_save_agent_states()
+                return
+
+            # Handle authentication errors (401) by prompting reconfiguration
             is_auth_error = (
                 "401" in error_str
                 or "authentication" in error_str.lower()
@@ -1760,8 +2413,7 @@ TITLE:"""
             sessions = self.state_manager.list_sessions()
 
             if not sessions:
-                # No previous sessions, start fresh
-                self.logger.info("No previous sessions, starting new session")
+                # No previous sessions, start fresh               
                 return
 
             # Get most recent session
@@ -1850,6 +2502,12 @@ TITLE:"""
 
         self.cli.print_banner()
 
+        # Start cron service
+        await self.cron_service.start()        
+
+        # Start system message detector (FASE 3: Auto-Injection)
+        await self.start_system_message_detector()
+
         # Check for previous sessions and offer to resume
         await self._check_and_resume_session()
 
@@ -1900,6 +2558,19 @@ TITLE:"""
         finally:
             self.logger.info("🔚 Closing DaveAgent CLI")
             self.cli.print_goodbye()
+
+            # Stop system message detector (FASE 3: Auto-Injection)
+            try:
+                await self.stop_system_message_detector()
+            except Exception as e:
+                self.logger.error(f"Error stopping system message detector: {e}")
+
+            # Stop cron service
+            try:
+                await self.cron_service.stop()
+                self.logger.info("⏰ Cron service stopped")
+            except Exception as e:
+                self.logger.error(f"Error stopping cron service: {e}")
 
             # Close state system (saves final state automatically)
             try:

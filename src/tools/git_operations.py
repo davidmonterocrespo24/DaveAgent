@@ -6,12 +6,13 @@ import asyncio
 import os
 
 
-async def git_status(path: str | None = None) -> str:
+async def git_status(path: str | None = None, explanation: str = "") -> str:
     """
     Gets the git repository status.
 
     Args:
         path: Repository path (uses current directory if not specified)
+        explanation: Optional description of why git status is being checked (shown in terminal)
 
     Returns:
         str: Repository status in readable format
@@ -78,13 +79,14 @@ Untracked files: {untracked}
         return f"ERROR executing git status: {str(e)}"
 
 
-async def git_add(files: str | list[str], path: str | None = None) -> str:
+async def git_add(files: str | list[str], path: str | None = None, explanation: str = "") -> str:
     """
     Adds files to the git staging area.
 
     Args:
         files: File(s) to add (string or list of strings)
         path: Repository path (uses current directory if not specified)
+        explanation: Optional description of why files are being staged (shown in terminal)
 
     Returns:
         str: Operation result
@@ -114,13 +116,14 @@ async def git_add(files: str | list[str], path: str | None = None) -> str:
         return f"ERROR executing git add: {str(e)}"
 
 
-async def git_commit(message: str, path: str | None = None) -> str:
+async def git_commit(message: str, path: str | None = None, explanation: str = "") -> str:
     """
     Creates a commit with staged changes.
 
     Args:
         message: Commit message
         path: Repository path (uses current directory if not specified)
+        explanation: Optional description of why this commit is being created (shown in terminal)
 
     Returns:
         str: Commit result including hash
@@ -150,7 +153,7 @@ async def git_commit(message: str, path: str | None = None) -> str:
 
 
 async def git_push(
-    remote: str = "origin", branch: str | None = None, path: str | None = None
+    remote: str = "origin", branch: str | None = None, path: str | None = None, explanation: str = ""
 ) -> str:
     """
     Pushes commits to the remote repository.
@@ -159,6 +162,7 @@ async def git_push(
         remote: Remote name (default: origin)
         branch: Branch name (uses current if not specified)
         path: Repository path (uses current directory if not specified)
+        explanation: Optional description of why commits are being pushed (shown in terminal)
 
     Returns:
         str: Push result
@@ -188,7 +192,7 @@ async def git_push(
 
 
 async def git_pull(
-    remote: str = "origin", branch: str | None = None, path: str | None = None
+    remote: str = "origin", branch: str | None = None, path: str | None = None, explanation: str = ""
 ) -> str:
     """
     Pulls changes from the remote repository.
@@ -197,6 +201,7 @@ async def git_pull(
         remote: Remote name (default: origin)
         branch: Branch name (uses current if not specified)
         path: Repository path (uses current directory if not specified)
+        explanation: Optional description of why changes are being pulled (shown in terminal)
 
     Returns:
         str: Pull result
@@ -224,13 +229,14 @@ async def git_pull(
         return f"ERROR executing git pull: {str(e)}"
 
 
-async def git_log(limit: int = 10, path: str | None = None) -> str:
+async def git_log(limit: int = 10, path: str | None = None, explanation: str = "") -> str:
     """
     Shows the commit history.
 
     Args:
         limit: Maximum number of commits to show
         path: Repository path (uses current directory if not specified)
+        explanation: Optional description of why git log is being viewed (shown in terminal)
 
     Returns:
         str: List of recent commits
@@ -261,7 +267,7 @@ async def git_log(limit: int = 10, path: str | None = None) -> str:
 
 
 async def git_branch(
-    operation: str = "list", branch_name: str | None = None, path: str | None = None
+    operation: str = "list", branch_name: str | None = None, path: str | None = None, explanation: str = ""
 ) -> str:
     """
     Manages git branches.
@@ -270,6 +276,7 @@ async def git_branch(
         operation: Operation to perform ('list', 'create', 'delete', 'switch')
         branch_name: Branch name (required for create, delete, switch)
         path: Repository path (uses current directory if not specified)
+        explanation: Optional description of why branch operation is being performed (shown in terminal)
 
     Returns:
         str: Operation result
@@ -303,13 +310,14 @@ async def git_branch(
         return f"ERROR executing git branch: {str(e)}"
 
 
-async def git_diff(cached: bool = False, path: str | None = None) -> str:
+async def git_diff(cached: bool = False, path: str | None = None, explanation: str = "") -> str:
     """
     Shows the differences in the repository.
 
     Args:
         cached: If True, shows diff of staged changes
         path: Repository path (uses current directory if not specified)
+        explanation: Optional description of why diff is being viewed (shown in terminal)
 
     Returns:
         str: Diff of changes

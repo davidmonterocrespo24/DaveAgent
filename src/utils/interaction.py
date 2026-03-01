@@ -3,11 +3,26 @@ Interaction utilities for Human-in-the-Loop approval.
 """
 
 import sys
+import asyncio
+import threading
 
 from src.utils.errors import UserCancelledError
 
+# Lock to serialize concurrent approval prompts (e.g. multiple tool calls in one batch)
+_approval_lock = asyncio.Lock()
 
-async def ask_for_approval(action_description: str, context: str = "") -> str | None:
+# Threading event to signal that an approval prompt is active.
+# Other output (e.g. ToolCallRequestEvent handler) should check this before printing.
+_interaction_active = threading.Event()  # NOT set = interaction active, SET = output allowed
+_interaction_active.set()  # Initially: output is allowed
+
+
+def is_interaction_active() -> bool:
+    """Returns True if an approval prompt is currently active on the terminal."""
+    return not _interaction_active.is_set()
+
+
+async def ask_for_approval(action_description: str, context: str = ""):
     """
     Interactively asks the user for approval to execute an action.
 
@@ -19,22 +34,43 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
         None if approved.
         A string message if cancelled or if feedback is provided.
     """
+    import sys
+    import time
     import asyncio
 
+    # Check if running in headless mode (subagents/background tasks)
+    from src.utils.headless_context import is_headless
+    if is_headless():
+        # Auto-approve in headless mode (no user interaction)
+        return None
+
+    # Serialize concurrent approval prompts
+    async with _approval_lock:
+        return await _ask_for_approval_inner(action_description, context)
+
+
+async def _ask_for_approval_inner(action_description: str, context: str = ""):
+    """Internal implementation of ask_for_approval, called under _approval_lock."""
+    import sys
+    import time
+    import asyncio
+
+    from src.utils.headless_context import is_headless
+    if is_headless():
+        return None
+
     try:
-        from InquirerPy import inquirer
-        from InquirerPy.base.control import Choice
-        from rich.console import Console, Group
         from rich.markdown import Markdown
         from rich.panel import Panel
         from rich.text import Text
 
         from src.utils.permissions import get_permission_manager
 
-        # Import VibeSpinner and PermissionManager
-        from src.utils.vibe_spinner import VibeSpinner
+        # Import VibeSpinner and WindowsSafeConsole
+        from src.utils.vibe_spinner import VibeSpinner, WindowsSafeConsole
 
-        console = Console()
+        # Use WindowsSafeConsole to ensure VT processing is enabled before each print
+        console = WindowsSafeConsole()
         perm_mgr = get_permission_manager()
 
         # 1. Construct Action String for Permissions
@@ -58,18 +94,24 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
         elif perm_status == "deny":
             return "Action denied by persistent settings."
 
-        # Pause any active spinner to prevent interference
-        # Pause active spinner during user interaction
-        active_spinner = VibeSpinner.pause_active_spinner()
+        # CRITICAL: Signal that interaction is active BEFORE any output
+        # This prevents ToolCallRequestEvent handler from printing concurrently
+        _interaction_active.clear()
 
-        # Clear any potential artifacts visually
-        sys.stdout.write("\r" + " " * 120 + "\r")
+        # Pause any active spinner to prevent interference
+        # Pause active spinner during user interaction and prevent new ones from starting
+        active_spinner = VibeSpinner.suspend_for_interaction()
+
+        # CRITICAL: Clear spinner artifacts and move to new line
+        # This prevents spinner from overlapping with approval dialog
+        import time
+        time.sleep(0.1)  # Give spinner AND concurrent output time to finish
+        sys.stdout.write("\r" + " " * 150 + "\r")  # Clear current line
+        sys.stdout.write("\n")  # Move to new line to ensure clean slate
         sys.stdout.flush()
 
         try:
             from rich.syntax import Syntax
-
-            warning_text = Text("WARNING: This action requires approval.", style="bold yellow")
 
             # Detect content type for best rendering
             # Strip markdown code fences if present
@@ -92,6 +134,17 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
                 or raw_context.startswith("---")
                 or raw_context.startswith("+++")
             )
+
+            # Limit content height to prevent panel from being too large
+            # This ensures options stay visible without scrolling
+            max_content_lines = 15
+            content_lines = raw_context.splitlines()
+
+            if len(content_lines) > max_content_lines:
+                # Truncate and add indicator
+                truncated_context = "\n".join(content_lines[:max_content_lines])
+                truncated_context += f"\n... ({len(content_lines) - max_content_lines} more lines)"
+                raw_context = truncated_context
 
             if is_diff:
                 # Convert internal diff markers to unified diff format for Rich
@@ -128,7 +181,8 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             else:
                 content_renderable = Text(f"`{raw_context}`")
 
-            panel_content = Group(content_renderable, Text(""), warning_text)
+            # Remove warning text from panel to make it more compact
+            panel_content = content_renderable
 
             panel = Panel(
                 panel_content,
@@ -139,77 +193,98 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
 
             console.print(panel)
 
-            # Force blocking input using executor to guarantee wait on Windows/Agent environments
+            # Calculate how many lines to add to keep menu visible
+            # Get terminal height to determine optimal spacing
+            import shutil
+            terminal_height = shutil.get_terminal_size().lines
+
+            # Panel uses approximately: title (1) + content (max 15) + borders (2) = ~18 lines
+            # Questionary needs: title (1) + options (4) + spacing (2) = ~7 lines
+            # We want to position the menu in the lower third of the screen
+            # Add spacing to push menu upward if needed
+
+            # Calculate lines used by panel (estimate)
+            panel_lines = min(len(content_lines) + 5, 20)  # Panel + borders + padding
+            questionary_lines = 7  # Menu size
+
+            # If we're close to bottom of terminal, add spacing
+            available_space = terminal_height - panel_lines
+            if available_space < questionary_lines + 2:
+                # Not enough space, add blank lines to create room
+                spacing_needed = max(2, questionary_lines - available_space + 3)
+                print("\n" * min(spacing_needed, 5))  # Cap at 5 lines to avoid too much space
+            else:
+                # Enough space, just add minimal separation
+                print("\n")
+
+            sys.stdout.flush()
+
+            # Ensure clean separation before menu
+            import sys
+            import time
+
+            # Force all pending output to flush
+            sys.stdout.flush()
+            sys.stderr.flush()
+
+            # Wait for any pending output to complete
+            time.sleep(0.1)
+
+            # CRITICAL FIX: Ensure Windows VT processing is enabled BEFORE questionary
+            # questionary uses prompt_toolkit which requires ANSI escape sequences
+            # Without this, options will be invisible on Windows
+            from src.utils.vibe_spinner import _ensure_windows_vt_processing
+            _ensure_windows_vt_processing()
+
+            # Use questionary instead of pick - much better scroll behavior
+            # questionary doesn't hijack the screen like curses-based pick
+            import questionary
+            from questionary import Style
+
+            # Custom style to ensure visibility on Windows
+            custom_style = Style([
+                ('qmark', 'fg:#673ab7 bold'),       # Question mark
+                ('question', 'bold'),                # Question text
+                ('answer', 'fg:#f44336 bold'),       # Selected answer
+                ('pointer', 'fg:#673ab7 bold'),      # Pointer (>)
+                ('highlighted', 'fg:#673ab7 bold'),  # Highlighted option
+                ('selected', 'fg:#cc5454'),          # Selected checkbox
+                ('separator', 'fg:#cc5454'),         # Separator
+                ('instruction', ''),                 # Instruction text
+                ('text', ''),                        # Plain text
+                ('disabled', 'fg:#858585 italic')    # Disabled options
+            ])
+
+            # Define choices for questionary
+            choices = [
+                questionary.Choice("Yes", value="execute"),
+                questionary.Choice("Yes, and don't ask again for this specific command", value="execute_save"),
+                questionary.Choice("Type feedback to tell the agent what to do differently", value="feedback"),
+                questionary.Choice("No, cancel", value="cancel"),
+            ]
+
+            # Run questionary in executor to avoid blocking async loop
+            def run_questionary():
+                # Ensure VT processing one more time right before questionary runs
+                _ensure_windows_vt_processing()
+
+                return questionary.select(
+                    "Do you want to proceed?",
+                    choices=choices,
+                    style=custom_style,
+                    use_arrow_keys=True,
+                    use_shortcuts=False,
+                    use_indicator=True,
+                ).ask()
+
             loop = asyncio.get_running_loop()
+            choice = await loop.run_in_executor(None, run_questionary)
 
-            def windows_arrow_menu():
-                import msvcrt
-                import sys
-                import time
+            # Re-enable VT processing after questionary (in case it got disabled)
+            _ensure_windows_vt_processing()
 
-                options = [
-                    ("Yes", "execute"),
-                    ("Yes, and don't ask again for this specific command", "execute_save"),
-                    ("Type here to tell the agent what to do differently", "feedback"),
-                    ("No, cancel", "cancel"),
-                ]
-                current_idx = 0
-
-                # ANSI codes
-                gray = "\033[90m"
-                reset = "\033[0m"
-                clear_line = "\033[K"
-                up = "\033[F"
-
-                # Clear any potential spinner artifacts from the current line
-                sys.stdout.write("\n\n")
-                sys.stdout.write("\r" + " " * 120 + "\r")
-                sys.stdout.flush()
-
-                print(f" {gray}Do you want to proceed?{reset}")
-                print(f" {gray}Esc to cancel{reset}\n")
-
-                # Initial render lines (allocate space)
-                for _ in options:
-                    print()
-
-                # Move cursor back up to start of options
-                for _ in options:
-                    sys.stdout.write(up)
-
-                while True:
-                    # Redraw options
-                    for idx, (label, _) in enumerate(options):
-                        prefix = " > " if idx == current_idx else "   "
-                        color = "\033[1m" if idx == current_idx else ""  # Bold for selected
-                        print(f"{prefix}{color}{idx + 1}. {label}{reset}{clear_line}")
-
-                    # Check for input
-                    if msvcrt.kbhit():
-                        key = msvcrt.getch()
-                        if key == b"\x1b":  # Esc
-                            return "cancel"
-                        elif key == b"\r":  # Enter
-                            _, value = options[current_idx]
-                            return value
-                        elif key == b"\xe0":  # Special key (arrows)
-                            try:
-                                key = msvcrt.getch()
-                                if key == b"H":  # Up
-                                    current_idx = max(0, current_idx - 1)
-                                elif key == b"P":  # Down
-                                    current_idx = min(len(options) - 1, current_idx + 1)
-                            except Exception:
-                                pass
-
-                    # Move cursor back up to repaint for next frame
-                    for _ in options:
-                        sys.stdout.write(up)
-
-                    time.sleep(0.05)
-
-            # Execute the menu in the thread executor
-            choice = await loop.run_in_executor(None, windows_arrow_menu)
+            # Questionary doesn't leave artifacts, but ensure clean output
+            sys.stdout.flush()
 
             if choice == "cancel":
                 raise UserCancelledError("User selected 'No, cancel'")
@@ -221,9 +296,11 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
                 return None
 
             if choice == "feedback":
-                # Use standard input for feedback
+                # Clear the line and ask for feedback with standard input
+                console.print("\n[cyan]Enter your feedback for the agent:[/cyan]")
+
                 def get_feedback():
-                    return input("Enter your feedback for the agent: ")
+                    return input("> ")
 
                 loop = asyncio.get_running_loop()
                 feedback = await loop.run_in_executor(None, get_feedback)
@@ -235,28 +312,33 @@ async def ask_for_approval(action_description: str, context: str = "") -> str | 
             return None
 
         finally:
+            # Signal that interaction is done - allow output again
+            _interaction_active.set()
             # Resume spinner if it was active
-            if active_spinner:
-                try:
-                    VibeSpinner.resume_spinner(active_spinner)
-                except Exception:
-                    pass
+            try:
+                VibeSpinner.resume_from_interaction(active_spinner)
+            except Exception:
+                pass
 
     except ImportError:
         # Fallback
-        print(f"\nWARNING: Approval required for: {action_description}")
-        print(f"Context: {context}")
+        _interaction_active.clear()
+        try:
+            print(f"\nWARNING: Approval required for: {action_description}")
+            print(f"Context: {context}")
 
-        # Run blocking input in executor
-        loop = asyncio.get_running_loop()
+            # Run blocking input in executor
+            loop = asyncio.get_running_loop()
 
-        def get_input():
-            return input("Execute this action? (y/n/feedback): ").lower()
+            def get_input():
+                return input("Execute this action? (y/n/feedback): ").lower()
 
-        response = await loop.run_in_executor(None, get_input)
+            response = await loop.run_in_executor(None, get_input)
 
-        if response.startswith("n"):
-            return "Action cancelled by user."
-        if not response.startswith("y"):
-            return f"User Feedback: {response}"
-        return None
+            if response.startswith("n"):
+                return "Action cancelled by user."
+            if not response.startswith("y"):
+                return f"User Feedback: {response}"
+            return None
+        finally:
+            _interaction_active.set()

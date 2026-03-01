@@ -126,7 +126,7 @@ def _calculate_regex_replacement(current_content: str, old_string: str, new_stri
 
 
 async def edit_file(
-    target_file: str, old_string: str, new_string: str, instructions: str = ""
+    target_file: str, old_string: str, new_string: str, instructions: str = "", explanation: str = ""
 ) -> str:
     """
     Replaces a specific string in a file with a new string using smart matching strategies.
@@ -142,6 +142,7 @@ async def edit_file(
         old_string: The exact string to be replaced.
         new_string: The new string to replace the old string with.
         instructions: Optional description of the change (used for LLM auto-correction context).
+        explanation: Optional description of why this edit is being made (shown in terminal).
 
     Returns:
         Success message with strategy used, or error message if replacement failed.
