@@ -1769,88 +1769,74 @@ TITLE:"""
                                                 except (json.JSONDecodeError, TypeError):
                                                     pass  # Keep as string if parsing fails
 
-                                            # Special formatting for file tools with code content
+                                            # Check if an approval prompt is currently active
+                                            # If so, skip printing to avoid terminal output interleaving
+                                            from src.utils.interaction import is_interaction_active
+                                            _skip_print = is_interaction_active()
+
+                                            # For write_file/edit_file: DON'T show content panels here.
+                                            # The ask_for_approval() in the tool itself already shows
+                                            # the content in its own panel. Showing it here too causes
+                                            # duplicate output AND race conditions with the approval prompt.
                                             if (
                                                 tool_name == "write_file"
                                                 and isinstance(tool_args, dict)
                                                 and "file_content" in tool_args
                                             ):
-                                                # Show write_file with syntax highlighting
                                                 target_file = tool_args.get("target_file", "unknown")
-                                                file_content = tool_args.get("file_content", "")
-                                                self.cli.print_thinking(
-                                                    f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
-                                                )
-                                                await self.cli.print_code(
-                                                    file_content, target_file, max_lines=50
-                                                )
+                                                if not _skip_print:
+                                                    self.cli.print_thinking(
+                                                        f"🔧 {agent_name} > {tool_name}: Writing to {target_file}"
+                                                    )
+                                                # NOTE: Removed print_code() call - approval prompt shows content
                                             elif tool_name == "edit_file" and isinstance(
                                                 tool_args, dict
                                             ):
-                                                # Show edit_file with unified diff
-                                                import difflib
-
                                                 target_file = tool_args.get("target_file", "unknown")
-                                                old_string = tool_args.get("old_string", "")
-                                                new_string = tool_args.get("new_string", "")
                                                 instructions = tool_args.get("instructions", "")
-                                                self.cli.print_thinking(
-                                                    f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
-                                                )
-                                                if instructions:
-                                                    self.cli.print_thinking(f"   📝 {instructions}")
-                                                # Generate unified diff
-                                                old_lines = old_string.splitlines(keepends=True)
-                                                new_lines = new_string.splitlines(keepends=True)
-                                                diff = difflib.unified_diff(
-                                                    old_lines,
-                                                    new_lines,
-                                                    fromfile=f"a/{target_file}",
-                                                    tofile=f"b/{target_file}",
-                                                    lineterm="",
-                                                )
-                                                diff_text = "".join(diff)
-                                                if diff_text:
-                                                    self.cli.print_diff(diff_text)
-                                                else:
+                                                if not _skip_print:
                                                     self.cli.print_thinking(
-                                                        "   (no changes detected in diff)"
+                                                        f"🔧 {agent_name} > {tool_name}: Editing {target_file}"
                                                     )
+                                                    if instructions:
+                                                        self.cli.print_thinking(f"   📝 {instructions}")
+                                                # NOTE: Removed print_diff() call - approval prompt shows diff
                                             else:
                                                 # Default: show explanation (if provided) + parameters
                                                 explanation = None
                                                 if isinstance(tool_args, dict):
                                                     explanation = tool_args.get("explanation")
 
-                                                # Show explanation prominently if available
-                                                if explanation:
-                                                    # Parse tool name to make it more readable
-                                                    tool_display = tool_name.replace("_", " ").title()
-                                                    self.logger.debug(f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} with explanation")
-                                                    self.cli.print_info(
-                                                        f"🔧 {tool_display}: {explanation}",
-                                                        agent_name,
-                                                    )
-                                                    self.logger.debug(f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}")
-                                                    # Show compact parameters (without explanation)
-                                                    params_copy = {k: v for k, v in tool_args.items() if k != "explanation"}
-                                                    if params_copy:
-                                                        params_str = str(params_copy)
-                                                        if len(params_str) > 150:
-                                                            params_str = params_str[:150] + "..."
-                                                        self.cli.print_thinking(f"   Parameters: {params_str}")
-                                                else:
-                                                    # No explanation - show old format
-                                                    args_str = str(tool_args)
-                                                    if len(args_str) > 200:
-                                                        args_str = args_str[:200] + "..."
-                                                    self.logger.debug(f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} (no explanation)")
-                                                    self.logger.debug(f"🔧 [PRINT_DEBUG] Tool args: {args_str[:100]}")
-                                                    self.cli.print_info(
-                                                        f"🔧 Calling tool: {tool_name} with parameters {args_str}",
-                                                        agent_name,
-                                                    )
-                                                    self.logger.debug(f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}")
+                                                if not _skip_print:
+                                                    # Show explanation prominently if available
+                                                    if explanation:
+                                                        # Parse tool name to make it more readable
+                                                        tool_display = tool_name.replace("_", " ").title()
+                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} with explanation")
+                                                        self.cli.print_info(
+                                                            f"🔧 {tool_display}: {explanation}",
+                                                            agent_name,
+                                                        )
+                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}")
+                                                        # Show compact parameters (without explanation)
+                                                        params_copy = {k: v for k, v in tool_args.items() if k != "explanation"}
+                                                        if params_copy:
+                                                            params_str = str(params_copy)
+                                                            if len(params_str) > 150:
+                                                                params_str = params_str[:150] + "..."
+                                                            self.cli.print_thinking(f"   Parameters: {params_str}")
+                                                    else:
+                                                        # No explanation - show old format
+                                                        args_str = str(tool_args)
+                                                        if len(args_str) > 200:
+                                                            args_str = args_str[:200] + "..."
+                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] About to call print_info for {tool_name} (no explanation)")
+                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] Tool args: {args_str[:100]}")
+                                                        self.cli.print_info(
+                                                            f"🔧 Calling tool: {tool_name} with parameters {args_str}",
+                                                            agent_name,
+                                                        )
+                                                        self.logger.debug(f"🔧 [PRINT_DEBUG] print_info completed for {tool_name}")
 
                                             self.logger.debug(f"🔧 Tool call: {tool_name}")
                                             # JSON Logger: Capture tool call

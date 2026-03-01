@@ -3,8 +3,23 @@ Interaction utilities for Human-in-the-Loop approval.
 """
 
 import sys
+import asyncio
+import threading
 
 from src.utils.errors import UserCancelledError
+
+# Lock to serialize concurrent approval prompts (e.g. multiple tool calls in one batch)
+_approval_lock = asyncio.Lock()
+
+# Threading event to signal that an approval prompt is active.
+# Other output (e.g. ToolCallRequestEvent handler) should check this before printing.
+_interaction_active = threading.Event()  # NOT set = interaction active, SET = output allowed
+_interaction_active.set()  # Initially: output is allowed
+
+
+def is_interaction_active() -> bool:
+    """Returns True if an approval prompt is currently active on the terminal."""
+    return not _interaction_active.is_set()
 
 
 async def ask_for_approval(action_description: str, context: str = ""):
@@ -27,6 +42,21 @@ async def ask_for_approval(action_description: str, context: str = ""):
     from src.utils.headless_context import is_headless
     if is_headless():
         # Auto-approve in headless mode (no user interaction)
+        return None
+
+    # Serialize concurrent approval prompts
+    async with _approval_lock:
+        return await _ask_for_approval_inner(action_description, context)
+
+
+async def _ask_for_approval_inner(action_description: str, context: str = ""):
+    """Internal implementation of ask_for_approval, called under _approval_lock."""
+    import sys
+    import time
+    import asyncio
+
+    from src.utils.headless_context import is_headless
+    if is_headless():
         return None
 
     try:
@@ -64,6 +94,10 @@ async def ask_for_approval(action_description: str, context: str = ""):
         elif perm_status == "deny":
             return "Action denied by persistent settings."
 
+        # CRITICAL: Signal that interaction is active BEFORE any output
+        # This prevents ToolCallRequestEvent handler from printing concurrently
+        _interaction_active.clear()
+
         # Pause any active spinner to prevent interference
         # Pause active spinner during user interaction and prevent new ones from starting
         active_spinner = VibeSpinner.suspend_for_interaction()
@@ -71,7 +105,7 @@ async def ask_for_approval(action_description: str, context: str = ""):
         # CRITICAL: Clear spinner artifacts and move to new line
         # This prevents spinner from overlapping with approval dialog
         import time
-        time.sleep(0.05)  # Give spinner time to stop
+        time.sleep(0.1)  # Give spinner AND concurrent output time to finish
         sys.stdout.write("\r" + " " * 150 + "\r")  # Clear current line
         sys.stdout.write("\n")  # Move to new line to ensure clean slate
         sys.stdout.flush()
@@ -278,6 +312,8 @@ async def ask_for_approval(action_description: str, context: str = ""):
             return None
 
         finally:
+            # Signal that interaction is done - allow output again
+            _interaction_active.set()
             # Resume spinner if it was active
             try:
                 VibeSpinner.resume_from_interaction(active_spinner)
@@ -286,19 +322,23 @@ async def ask_for_approval(action_description: str, context: str = ""):
 
     except ImportError:
         # Fallback
-        print(f"\nWARNING: Approval required for: {action_description}")
-        print(f"Context: {context}")
+        _interaction_active.clear()
+        try:
+            print(f"\nWARNING: Approval required for: {action_description}")
+            print(f"Context: {context}")
 
-        # Run blocking input in executor
-        loop = asyncio.get_running_loop()
+            # Run blocking input in executor
+            loop = asyncio.get_running_loop()
 
-        def get_input():
-            return input("Execute this action? (y/n/feedback): ").lower()
+            def get_input():
+                return input("Execute this action? (y/n/feedback): ").lower()
 
-        response = await loop.run_in_executor(None, get_input)
+            response = await loop.run_in_executor(None, get_input)
 
-        if response.startswith("n"):
-            return "Action cancelled by user."
-        if not response.startswith("y"):
-            return f"User Feedback: {response}"
-        return None
+            if response.startswith("n"):
+                return "Action cancelled by user."
+            if not response.startswith("y"):
+                return f"User Feedback: {response}"
+            return None
+        finally:
+            _interaction_active.set()

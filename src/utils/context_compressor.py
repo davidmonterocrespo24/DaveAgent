@@ -219,9 +219,12 @@ async def compress_message_block_with_verification(
     else:
         user_prompt = f"Summarize this conversation:\n\n{conversation_text}\n\nFirst, reason in your scratchpad. Then, generate the <state_snapshot>."
 
+    # Convert to LLMMessage objects
+    from autogen_core.models import SystemMessage, UserMessage, AssistantMessage
+
     summary_messages = [
-        {"role": "system", "content": get_compression_prompt()},
-        {"role": "user", "content": user_prompt}
+        SystemMessage(content=get_compression_prompt()),
+        UserMessage(content=user_prompt, source="user")
     ]
 
     try:
@@ -255,8 +258,8 @@ async def compress_message_block_with_verification(
                 logger.debug("Running verification probe...")
 
             verification_messages = summary_messages + [
-                {"role": "assistant", "content": summary_content},
-                {"role": "user", "content": get_probe_prompt()}
+                AssistantMessage(content=summary_content, source="assistant"),
+                UserMessage(content=get_probe_prompt(), source="user")
             ]
 
             verification_result = await model_client.create(
@@ -446,7 +449,7 @@ async def compress_context_if_needed(
         system_messages = [msg for msg in messages if msg.get("role") == "system"]
         non_system = [msg for msg in messages if msg.get("role") != "system"]
 
-        truncated = system_messages + non_system[-state.compression_threshold:]
+        truncated = system_messages + non_system[-DEFAULT_KEEP_RECENT:]
 
         tokens_after = count_message_tokens(truncated, model)
 
