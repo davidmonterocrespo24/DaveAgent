@@ -413,7 +413,11 @@ async def compress_context_if_needed(
         ...     state=state
         ... )
     """
-    from src.utils.token_counter import count_message_tokens, should_compress_context
+    from src.utils.token_counter import (
+        count_message_tokens,
+        get_model_context_limit,
+        should_compress_context,
+    )
 
     # Create default state if not provided
     if state is None:
