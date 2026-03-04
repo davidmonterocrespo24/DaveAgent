@@ -59,23 +59,18 @@ class LoggingModelClientWrapper:
 
     async def create(self, messages: Sequence[LLMMessage], **kwargs) -> CreateResult:
         """
-        Intercepts the create() method and records input/output
+        Intercepts the create() method and records input/output.
 
         Accepts any arguments the wrapped client may need
         (tools, json_output, extra_create_args, cancellation_token, tool_choice, etc.)
-
-        IMPORTANT: For DeepSeek Reasoner, preserves the reasoning_content field
-        in assistant messages as required by the API.
         """
-        # Preserve reasoning_content in assistant messages for DeepSeek Reasoner
-        # According to documentation: https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
-        processed_messages = self._preserve_reasoning_content(messages)
+        processed_messages = messages
 
         # Extract message content for logging
         input_messages = []
         for msg in processed_messages:
             msg_dict = {"role": self._get_role(msg), "content": self._get_content(msg)}
-            # Include reasoning_content if it exists (for DeepSeek Reasoner)
+            # Include reasoning_content if present (e.g. reasoning models)
             if hasattr(msg, "reasoning_content") and msg.reasoning_content:
                 msg_dict["reasoning_content"] = msg.reasoning_content
             input_messages.append(msg_dict)
@@ -86,7 +81,7 @@ class LoggingModelClientWrapper:
 
         # Extract model name (try kwargs first, then wrapped client)
         model = kwargs.get("model") or (
-            self._wrapped.model if hasattr(self._wrapped, "model") else "deepseek-chat"
+            self._wrapped.model if hasattr(self._wrapped, "model") else "unknown"
         )
 
         # Count tokens before compression
@@ -142,7 +137,7 @@ class LoggingModelClientWrapper:
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
-            # Extract response and reasoning_content (for DeepSeek Reasoner)
+            # Extract response and reasoning_content if available
             response_content = result.content if hasattr(result, "content") else str(result)
             reasoning_content = getattr(result, "reasoning_content", None)
 
@@ -181,7 +176,7 @@ class LoggingModelClientWrapper:
                     "tokens_used": tokens_used or {},
                 }
 
-                # Add reasoning_content if it exists (DeepSeek Reasoner)
+                # Add reasoning_content if present
                 if reasoning_content:
                     llm_call_data["reasoning_content"] = reasoning_content
                     self.logger.debug(
@@ -269,54 +264,12 @@ class LoggingModelClientWrapper:
             elif role == "user":
                 messages.append(UserMessage(content=content, source="user"))
             elif role == "assistant":
-                # Preserve reasoning_content if it exists
-                reasoning_content = msg_dict.get("reasoning_content")
-                if reasoning_content:
-                    # Create AssistantMessage with reasoning_content
-                    msg = AssistantMessage(content=content, source="assistant")
-                    msg.reasoning_content = reasoning_content
-                    messages.append(msg)
-                else:
-                    messages.append(AssistantMessage(content=content, source="assistant"))
+                messages.append(AssistantMessage(content=content, source="assistant"))
             else:
                 # Default to user message for unknown roles
                 messages.append(UserMessage(content=content, source="user"))
 
         return messages
-
-    def _preserve_reasoning_content(self, messages: Sequence[LLMMessage]) -> Sequence[LLMMessage]:
-        """
-        Preserves the reasoning_content field in assistant messages.
-
-        This is critical for DeepSeek Reasoner when using tool calls.
-        According to official DeepSeek documentation:
-        https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
-
-        The reasoning_content field must be included in assistant messages
-        when continuing a conversation after tool calls.
-
-        Args:
-            messages: Sequence of LLM messages
-
-        Returns:
-            Sequence of messages with reasoning_content preserved
-        """
-        # Messages already come with reasoning_content if AutoGen preserved it
-        # This method is mainly to ensure it doesn't get lost
-        # and for logging/debugging
-
-        processed = []
-        for msg in messages:
-            processed.append(msg)
-
-            # Log if we find reasoning_content
-            if isinstance(msg, AssistantMessage) and hasattr(msg, "reasoning_content"):
-                if msg.reasoning_content:
-                    self.logger.info(
-                        f"💭 Preserving reasoning_content in assistant message: {len(msg.reasoning_content)} chars"
-                    )
-
-        return processed
 
     def set_agent_name(self, agent_name: str):
         """

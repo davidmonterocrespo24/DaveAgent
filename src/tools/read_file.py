@@ -3,6 +3,11 @@ from pathlib import Path
 from src.tools.common import get_workspace
 from src.utils.file_utils import process_single_file_content
 
+# Maximum characters for read_file output to prevent context overflow.
+# 500 lines of dense code can still be ~30K chars (~8K tokens).
+# This cap ensures a single read_file call never dominates the context.
+MAX_OUTPUT_CHARS = 30000  # ~8K tokens
+
 
 async def read_file(
     target_file: str,
@@ -79,7 +84,16 @@ async def read_file(
                 f"For example, to read the next section of the file, use start_line_one_indexed={next_start_line}.\n\n"
                 f"--- FILE CONTENT (truncated) ---\n"
             )
-            return header + llm_content
+            output = header + llm_content
+
+            # Apply character limit
+            if len(output) > MAX_OUTPUT_CHARS:
+                output = (
+                    output[:MAX_OUTPUT_CHARS]
+                    + f"\n\n[OUTPUT TRUNCATED at {MAX_OUTPUT_CHARS} chars to prevent context overflow. "
+                    f"Use read_file with specific start_line_one_indexed/end_line_one_indexed_inclusive to read smaller sections.]"
+                )
+            return output
 
         # Normal Text Content
         header = f"File: {target_file}"
@@ -90,7 +104,16 @@ async def read_file(
             header += f" (lines {start_line_one_indexed}-{end_desc})"
         header += "\n"
 
-        return header + llm_content
+        output = header + llm_content
+
+        # Apply character limit
+        if len(output) > MAX_OUTPUT_CHARS:
+            output = (
+                output[:MAX_OUTPUT_CHARS]
+                + f"\n\n[OUTPUT TRUNCATED at {MAX_OUTPUT_CHARS} chars to prevent context overflow. "
+                f"Use read_file with specific start_line_one_indexed/end_line_one_indexed_inclusive to read smaller sections.]"
+            )
+        return output
 
     except Exception as e:
         return f"Error reading file: {str(e)}"

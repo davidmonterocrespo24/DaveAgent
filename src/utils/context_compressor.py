@@ -27,7 +27,7 @@ from src.utils.tool_output_truncator import (
 )
 
 # Configuration constants
-DEFAULT_COMPRESSION_THRESHOLD = 0.5  # 50% of model limit
+DEFAULT_COMPRESSION_THRESHOLD = 0.75  # 75% of model limit (increased from 0.5)
 DEFAULT_KEEP_RECENT = 30  # Increased from 20
 DEFAULT_TOOL_TRUNCATE_THRESHOLD = 40000  # 40K characters
 DEFAULT_MAX_SUMMARY_TOKENS = 4000  # Max tokens for state_snapshot
@@ -419,16 +419,29 @@ async def compress_context_if_needed(
     if state is None:
         state = CompressionState()
 
+    # Count tokens and check usage
+    current_tokens = count_message_tokens(messages, model)
+    max_tokens = get_model_context_limit(model)
+    usage_ratio = current_tokens / max_tokens
+
     # Check if compression is needed
     if not should_compress_context(messages, model, state.compression_threshold):
+        # Log context stats at DEBUG level when no compression needed
+        if logger:
+            logger.debug(
+                f"📊 Context usage: {current_tokens}/{max_tokens} tokens "
+                f"({usage_ratio*100:.1f}%, threshold: {state.compression_threshold*100:.0f}%)"
+            )
         return messages  # No compression needed
 
+    # Only show WARNING when actually starting compression
     if logger:
-        tokens_before = count_message_tokens(messages, model)
         logger.warning(
-            f"⚠️ Context approaching token limit ({tokens_before} tokens). "
-            f"Compressing older messages..."
+            f"⚠️ Context at {usage_ratio*100:.1f}% ({current_tokens}/{max_tokens} tokens). "
+            f"Starting compression..."
         )
+
+    tokens_before = current_tokens
 
     # If previous compression failed, use simple truncation only
     if state.has_failed_compression:
