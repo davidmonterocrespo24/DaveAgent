@@ -83,6 +83,10 @@ async def _ask_for_approval_inner(action_description: str, context: str = ""):
             # Extract just the filename from "WRITE FILE: filename"
             filename = action_description.replace("WRITE FILE:", "").strip()
             action_string = f"WriteFile({filename})"
+        elif "EDIT FILE:" in action_description:
+            # Extract just the filename from "EDIT FILE: filename"
+            filename = action_description.replace("EDIT FILE:", "").strip()
+            action_string = f"EditFile({filename})"
 
         # 2. Check Persistent Permissions
         perm_status = perm_mgr.check_permission(action_string)
@@ -149,27 +153,35 @@ async def _ask_for_approval_inner(action_description: str, context: str = ""):
 
             if is_diff:
                 # Convert internal diff markers to unified diff format for Rich
+                # Also add visual section headers for better readability
                 diff_lines = []
                 in_old = False
                 in_new = False
+
                 for line in raw_context.splitlines():
+                    # Check for our custom diff markers
                     if line.strip() == "<<<<<< OLD":
+                        diff_lines.append("--- OLD VERSION")
                         in_old = True
                         in_new = False
                         continue
                     elif line.strip() == "======":
+                        diff_lines.append("+++ NEW VERSION")
                         in_old = False
                         in_new = True
                         continue
                     elif line.strip() == ">>>>>> NEW":
                         in_new = False
                         continue
+
+                    # Add appropriate diff prefix
                     if in_old:
-                        diff_lines.append(f"-{line}")
+                        diff_lines.append(f"- {line}")
                     elif in_new:
-                        diff_lines.append(f"+{line}")
+                        diff_lines.append(f"+ {line}")
                     else:
-                        diff_lines.append(f" {line}")
+                        diff_lines.append(f"  {line}")
+
                 content_renderable = Syntax(
                     "\n".join(diff_lines), "diff", theme="monokai", word_wrap=True
                 )
@@ -298,8 +310,9 @@ async def _ask_for_approval_inner(action_description: str, context: str = ""):
 
             if choice == "execute_save":
                 perm_mgr.save_permission(action_string, "allow")
-                console.print(f"[green]Permission saved: {action_string}[/green]")
-                console.print("[green]Approved. Executing...[/green]")
+                # Show short confirmation - avoid printing full diff/context
+                display_action = action_string if len(action_string) < 120 else action_string[:120] + "..."
+                console.print(f"[green]Permission saved: {display_action}[/green]")
                 return None
 
             if choice == "feedback":

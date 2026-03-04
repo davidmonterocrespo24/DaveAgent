@@ -282,15 +282,8 @@ class DaveAgentCLI(AgentOrchestrator):
             await self._show_history_command(parts)
 
         elif cmd == "/init":
-            # Create DAVEAGENT.md template
-            try:
-                path = self.context_manager.create_template()
-                self.cli.print_success(f"✓ Created configuration file: {path}")
-                self.cli.print_info(
-                    "Edit this file to add project-specific commands and guidelines."
-                )
-            except Exception as e:
-                self.cli.print_error(f"Error creating DAVEAGENT.md: {e}")
+            # Analyze the project and create a tailored DAVEAGENT.md file (Gemini-style)
+            await self._init_command()
 
         # REMOVED: /load command - Use /load-state instead (AutoGen official)
 
@@ -518,6 +511,50 @@ class DaveAgentCLI(AgentOrchestrator):
             self.cli.print_info("Use /help to see available commands")
 
         return True
+
+    # =========================================================================
+    # PROJECT INIT - Analyze project and generate DAVEAGENT.md (Gemini-style)
+    # =========================================================================
+
+    async def _init_command(self):
+        """
+        Command /init: Analyze the project and create a tailored DAVEAGENT.md
+
+        Inspired by Gemini CLI's approach:
+        1. Check if DAVEAGENT.md already exists → refuse if so
+        2. Create an empty DAVEAGENT.md file
+        3. Submit a prompt to the agent that instructs it to:
+           - Explore the project structure
+           - Read key files (README, configs, entry points)
+           - Identify project type (code vs non-code)
+           - Generate comprehensive, project-specific documentation
+           - Write the content to DAVEAGENT.md using write_file tool
+        """
+        try:
+            # Check if DAVEAGENT.md already exists
+            if self.context_manager.exists():
+                target_path = self.context_manager.get_target_path()
+                self.cli.print_info(
+                    f"A DAVEAGENT.md file already exists at {target_path}. No changes were made."
+                )
+                self.cli.print_info(
+                    "Delete it first if you want to regenerate it, or edit it manually."
+                )
+                return
+
+            # Create an empty DAVEAGENT.md file
+            target_path = self.context_manager.create_empty()
+            self.cli.print_info(
+                f"📄 Empty DAVEAGENT.md created at {target_path}. Now analyzing the project to populate it..."
+            )
+
+            # Get the LLM analysis prompt and submit it through the agent
+            init_prompt = self.context_manager.get_init_prompt()
+            await self.process_user_request(init_prompt)
+
+        except Exception as e:
+            self.logger.log_error_with_context(e, "_init_command")
+            self.cli.print_error(f"Error initializing DAVEAGENT.md: {e}")
 
     # =========================================================================
     # SKILLS MANAGEMENT - Agent Skills (Claude-compatible)

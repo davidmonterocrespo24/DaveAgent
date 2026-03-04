@@ -137,7 +137,8 @@ class FileIndexer:
         if not query:
             return self.indexed_files
 
-        query_lower = query.lower()
+        # Normalize backslashes to forward slashes (paths are indexed with /)
+        query_lower = query.lower().replace("\\", "/")
         matches = []
 
         for file_path in self.indexed_files:

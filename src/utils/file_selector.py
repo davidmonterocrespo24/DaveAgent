@@ -253,7 +253,7 @@ class FileSelector:
         Returns:
             Selected file path or None if cancelled
         """
-        query = initial_query
+        query = initial_query.replace("\\", "/")  # Normalize backslashes (Windows)
         self.lines_drawn = 0
 
         while True:
