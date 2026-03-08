@@ -16,7 +16,7 @@ long_description = (
 
 setup(
     name="daveagent-cli",
-    version="1.0.14",
+    version="1.0.16",
     author="DaveAgent Team",
     author_email="davidmonterocrespo24@gmail.com",
     description="AI-powered coding assistant with intelligent agent orchestration - search, plan, and code with AI",
