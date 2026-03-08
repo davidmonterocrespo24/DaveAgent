@@ -5,6 +5,39 @@ All notable changes to DaveAgent will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.16] - 2026-03-04
+
+### Added
+- **Implemented context compression and token management system** to prevent token limit errors. Added a context compressor that automatically summarizes old messages when approaching token limits, integrated with proactive token counting utilities. Enhanced error handling to trigger emergency context cleanup on token limit errors.
+- **Introduced a comprehensive Agent Skills system** with modular capabilities. Added a SkillManager for discovering, loading, and managing skills from directories, along with parsing utilities for SKILL.md files (including YAML frontmatter and markdown body). Implemented validation for skill names and descriptions to ensure compliance with specifications.
+- **Added a subagent spawning tool** (`spawn_subagent.py`) to facilitate the creation of background subagents for parallel task execution. The tool handles task execution in parallel with isolated state management.
+- **Implemented a comprehensive test suite** for the Cron System (including schedule types, validation, job serialization, and CronService operations), LLM Auto-Injection (verifying message logging, concurrent limits, and integration flow), and Nanobot-style integration (focusing on component imports, system prompts, and tool registration).
+- **Added various utility tools** for enhanced file handling and information access: `glob_tool.py` for efficient file searching with gitignore support, `json_tools.py` for reading, writing, merging, and validating JSON files, `search_tools.py` for regex pattern searching in files with git grep fallback, `web_search.py` for real-time web searching using DuckDuckGo and Bing, and `wikipedia_tools.py` for searching and accessing Wikipedia content.
+- **Added tiktoken dependency** (>=0.5.0) to support tokenization features required by the project.
+
+### Changed
+- **Refactored agent initialization by introducing an AgentOrchestrator class**. Moved agent initialization logic from DaveAgentCLI to the new orchestrator, simplifying the CLI constructor. Consolidated model client setup, tool imports, and agent management within the orchestrator to dynamically handle tools and context based on the current mode.
+- **Refactored and enhanced agent functionality** with critical fixes and logging improvements. Improved logging for message reception and processing, including spinner state management. Enhanced terminal command execution with async subprocess handling and user approval logging. Preserved `reasoning_content` in messages for DeepSeek compatibility. Updated the history viewer to use WindowsSafeConsole for better output handling.
+- **Refactored CLI and Subagent Management for improved asynchronous handling**. Introduced a thread pool executor in CLIInterface for non-blocking rendering of code with syntax highlighting. Updated the `print_code` method to be asynchronous. Enhanced logging throughout the subagent manager for better traceability of subagent lifecycle events. Added explanation parameters to various tools for improved user feedback in terminal.
+- **Enhanced subagent management and message processing**. Refactored subagent manager access to use `self.subagent_manager` directly. Added message tracking and logging improvements in stream processing. Implemented headless mode functionality to bypass user prompts during background tasks. Improved terminal interface with bracketed paste support and enhanced subagent notifications.
+- **Refactored state management** to handle individual agent and team states separately. Implemented auto-saving of agent and team states to improve persistence. Added methods for extracting tool reflections and usage statistics. Enhanced prompts for agents to ensure clarity in tool usage.
+- **Removed RAGManager dependency from AgentOrchestrator and SkillManager**. Eliminated RAGManager initialization and related code. Updated SkillManager to use keyword-based skill discovery instead of RAG for semantic search. Added a new method in SkillManager to build an XML summary of skills.
+- **Refactored the filesystem module** by splitting operations into dedicated files (read, write, edit, delete, search) and implementing a facade pattern for better organization. Removed `reapply_edit.py` as its functionality was no longer needed.
+- **Refactored type hints and imports** across multiple modules to use modern syntax (`str | None`, `list[dict[str, Any]]`) for better clarity and Python 3.10+ compatibility. Organized imports and cleaned up whitespace for improved readability and PEP 8 adherence.
+- **Refactored code for improved readability and consistency**. Simplified regex patterns, enhanced error handling and validation messages, streamlined approval prompts in various tools, and improved logging and output formatting in JSONLogger and interaction utilities.
+- **Updated VibeSpinner to use Rich Status** for better spinner management and interaction handling. Ensured Windows VT processing is enabled for console outputs.
+- **Cleaned up README** by removing outdated sections on Data Analysis, Git Operations, and various features.
+
+### Fixed
+- **Fixed critical issues in agent functionality** by introducing small delays to ensure proper spinner thread termination and improving user interaction for command approval with questionary integration.
+- **Fixed "Missing reasoning_content field" error** for DeepSeek compatibility by ensuring `reasoning_content` is preserved in messages during processing.
+- **Corrected timing variable in startup message** and initialization logic in the orchestrator.
+- **Added a wrapper script** (`run_reports.py`) to run `generate_detailed_report.py` with UTF-8 encoding on Windows systems, resolving potential encoding issues.
+
+### Removed
+- **Removed outdated manual testing documentation** and obsolete test files (`test_console_reflection.py`, `test_reflection_live.py`).
+- **Removed the wiki upload script** from the repository.
+
 ## [1.0.14] - 2026-03-01
 
 ### Added
@@ -188,3 +221,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.0.8]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.8
 [1.0.9]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.9
 [1.0.14]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.14
+[1.0.16]: https://github.com/davidmonterocrespo24/DaveAgent/releases/tag/v1.0.16
