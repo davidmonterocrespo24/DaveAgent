@@ -35,6 +35,12 @@ async def ask_for_approval(action_description: str, context: str = ""):
         A string message if cancelled or if feedback is provided.
     """
 
+    # Auto-approve when running inside Docker sandbox (safety is provided by container isolation)
+    from src.utils.sandbox import is_inside_sandbox
+
+    if is_inside_sandbox():
+        return None
+
     # Check if running in headless mode (subagents/background tasks)
     from src.utils.headless_context import is_headless
 

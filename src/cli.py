@@ -54,6 +54,12 @@ def parse_arguments():
 
     parser.add_argument("-v", "--version", action="store_true", help="Shows DaveAgent version")
 
+    parser.add_argument(
+        "--no-sandbox",
+        action="store_true",
+        help="Disable Docker sandbox (run in host environment with approval prompts)",
+    )
+
     return parser.parse_args()
 
 
@@ -69,6 +75,21 @@ def main():
     if args.version:
         print_version()
         return 0
+
+    # --- DOCKER SANDBOX INTERCEPT ---
+    no_sandbox = getattr(args, "no_sandbox", False) or os.environ.get("DAVEAGENT_NO_SANDBOX") == "1"
+    if not no_sandbox:
+        from src.utils.sandbox import is_docker_available, is_inside_sandbox, start_sandbox
+
+        if not is_inside_sandbox():
+            if is_docker_available():
+                exit_code = start_sandbox(sys.argv[1:])
+                if exit_code != -1:
+                    sys.exit(exit_code)
+                print("[WARNING] Docker sandbox failed to start, running in host environment")
+            else:
+                print("[INFO] Docker not available - using approval prompts")
+    # --- END SANDBOX INTERCEPT ---
 
     # Add package root directory to path
     package_root = Path(__file__).parent.parent
