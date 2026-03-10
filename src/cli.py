@@ -60,6 +60,19 @@ def parse_arguments():
         help="Disable Docker sandbox (run in host environment with approval prompts)",
     )
 
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run in headless mode: no approval prompts, no interactive CLI (for scripts/pipelines)",
+    )
+
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        default=None,
+        help="Initial prompt to send automatically (useful with --headless)",
+    )
+
     return parser.parse_args()
 
 
@@ -123,6 +136,8 @@ def main():
                 base_url=args.base_url,
                 model=args.model,
                 ssl_verify=ssl_verify,
+                headless=args.headless,
+                prompt=args.prompt,
             )
         )
         return 0

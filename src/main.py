@@ -2646,7 +2646,7 @@ TITLE:"""
             self.logger.error(f"Error checking previous sessions: {e}")
             # Continue without loading session
 
-    async def run(self):
+    async def run(self, initial_prompt: str = None):
         """Execute the main CLI loop"""
         # Setup signal handler for Ctrl+C
         signal.signal(signal.SIGINT, self._handle_interrupt)
@@ -2662,6 +2662,12 @@ TITLE:"""
         # Check for previous sessions and offer to resume
         await self._check_and_resume_session()
 
+        # In headless mode with an initial prompt, process it and exit
+        if self.headless and initial_prompt:
+            self.logger.info(f"[Headless] Running prompt: {initial_prompt[:80]}...")
+            await self.process_user_request(initial_prompt)
+            return
+
         try:
             while self.running:
                 # Check if should exit (from Ctrl+C handler)
@@ -2672,7 +2678,12 @@ TITLE:"""
                 # Reset interrupt counter when waiting for new input
                 self.interrupt_count = 0
 
-                user_input = await self.cli.get_user_input()
+                # Inject initial_prompt on first loop iteration (interactive mode)
+                if initial_prompt:
+                    user_input = initial_prompt
+                    initial_prompt = None  # Only once
+                else:
+                    user_input = await self.cli.get_user_input()
 
                 if not user_input:
                     continue
@@ -2740,6 +2751,8 @@ async def main(
     base_url: str = None,
     model: str = None,
     ssl_verify: bool = None,
+    headless: bool = False,
+    prompt: str = None,
 ):
     """
     Main entry point
@@ -2750,6 +2763,8 @@ async def main(
         base_url: Base URL of the API
         model: Name of the model to use
         ssl_verify: Whether to verify SSL certificates (default True)
+        headless: If True, disable approval prompts and interactive CLI
+        prompt: Initial prompt to send automatically (useful with headless)
     """
     app = DaveAgentCLI(
         debug=debug,
@@ -2757,8 +2772,9 @@ async def main(
         base_url=base_url,
         model=model,
         ssl_verify=ssl_verify,
+        headless=headless,
     )
-    await app.run()
+    await app.run(initial_prompt=prompt)
 
 
 if __name__ == "__main__":

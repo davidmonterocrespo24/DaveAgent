@@ -520,12 +520,25 @@ async def compress_context_if_needed(
             if "reasoning_content" not in msg:
                 msg["reasoning_content"] = ""
 
+    tokens_after = count_message_tokens(compressed_messages, model)
+
     if logger:
-        tokens_after = count_message_tokens(compressed_messages, model)
         logger.info(
             f"✓ Context compressed: {len(messages)} messages ({tokens_before} tokens) → "
             f"{len(compressed_messages)} messages ({tokens_after} tokens)"
         )
+
+    # Safety check: if compressed result is still above threshold, force truncation to avoid loop
+    if should_compress_context(compressed_messages, model, state.compression_threshold):
+        if logger:
+            logger.warning(
+                f"⚠️ Post-compression context still above threshold "
+                f"({tokens_after}/{max_tokens} tokens). Forcing truncation to avoid loop."
+            )
+        state.has_failed_compression = True
+        system_msgs = [m for m in compressed_messages if m.get("role") == "system"]
+        non_sys = [m for m in compressed_messages if m.get("role") != "system"]
+        compressed_messages = system_msgs + non_sys[-DEFAULT_KEEP_RECENT:]
 
     return compressed_messages
 

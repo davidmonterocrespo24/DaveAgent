@@ -116,11 +116,32 @@ def get_model_context_limit(model: str) -> int:
         "gpt-4-32k": 32768,
         "gpt-4-turbo": 128000,
         "gpt-4o": 128000,
-        "gpt-3.5-turbo": 4096,
+        "gpt-4o-mini": 128000,
+        "gpt-3.5-turbo": 16384,
         "gpt-3.5-turbo-16k": 16384,
+        "claude-3-opus": 200000,
+        "claude-3-sonnet": 200000,
+        "claude-3-haiku": 200000,
+        "claude-opus-4": 200000,
+        "claude-sonnet-4": 200000,
+        "claude-haiku-4": 200000,
+        "gemini-pro": 32768,
+        "gemini-1.5-pro": 1000000,
+        "gemini-1.5-flash": 1000000,
+        "llama-3": 131072,
+        "llama-3.1": 131072,
+        "mistral": 32768,
+        "mixtral": 32768,
+        "qwen": 131072,
     }
 
-    return limits.get(model, 4096)  # Conservative default
+    # Partial match for model families (e.g. "deepseek-chat-v3" matches "deepseek-chat")
+    model_lower = model.lower()
+    for key, limit in limits.items():
+        if model_lower.startswith(key) or key in model_lower:
+            return limit
+
+    return 32768  # Reasonable default for unknown models (not 4096)
 
 
 def should_compress_context(

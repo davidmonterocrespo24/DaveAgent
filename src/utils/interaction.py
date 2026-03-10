@@ -5,7 +5,9 @@ Interaction utilities for Human-in-the-Loop approval.
 import asyncio
 import sys
 import threading
+import asyncio
 
+import time
 from src.utils.errors import UserCancelledError
 
 # Lock to serialize concurrent approval prompts (e.g. multiple tool calls in one batch)
@@ -55,8 +57,7 @@ async def ask_for_approval(action_description: str, context: str = ""):
 
 async def _ask_for_approval_inner(action_description: str, context: str = ""):
     """Internal implementation of ask_for_approval, called under _approval_lock."""
-    import asyncio
-    import time
+
 
     from src.utils.headless_context import is_headless
 
@@ -238,9 +239,6 @@ async def _ask_for_approval_inner(action_description: str, context: str = ""):
             sys.stdout.flush()
 
             # Ensure clean separation before menu
-            import sys
-            import time
-
             # Force all pending output to flush
             sys.stdout.flush()
             sys.stderr.flush()
