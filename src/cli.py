@@ -54,6 +54,27 @@ def parse_arguments():
 
     parser.add_argument("-v", "--version", action="store_true", help="Shows DaveAgent version")
 
+    # Server mode arguments
+    parser.add_argument(
+        "--server",
+        action="store_true",
+        help="Start web server mode (WebSocket API for React frontend)",
+    )
+
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for web server (default: 8000, only with --server)",
+    )
+
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help="Host for web server (default: 0.0.0.0, only with --server)",
+    )
+
     return parser.parse_args()
 
 
@@ -75,13 +96,62 @@ def main():
     if str(package_root) not in sys.path:
         sys.path.insert(0, str(package_root))
 
-    # Import main from src
-    from src.main import main as run_daveagent
-
     # Show working directory information
     working_dir = Path.cwd()
     # Change to current working directory (where user executed the command)
     os.chdir(working_dir)
+
+    # =========================================================================
+    # SERVER MODE - Start FastAPI WebSocket server for React frontend
+    # =========================================================================
+    if args.server:
+        print("=" * 70)
+        print("🌐 DaveAgent Web Server Mode")
+        print("=" * 70)
+        print(f"📡 WebSocket endpoint: ws://{args.host}:{args.port}/ws/agent")
+        print(f"🔧 REST API: http://{args.host}:{args.port}/api/*")
+        print(f"💚 Health check: http://{args.host}:{args.port}/api/health")
+        print(f"📁 Working directory: {working_dir}")
+        if args.debug:
+            print("🐛 Debug mode: ENABLED")
+        print("=" * 70)
+        print("\n🚀 Starting server... (Press Ctrl+C to stop)\n")
+
+        try:
+            import uvicorn
+            from src.api.server import app
+
+            # Run uvicorn server
+            uvicorn.run(
+                app,
+                host=args.host,
+                port=args.port,
+                log_level="debug" if args.debug else "info",
+                reload=args.debug,  # Auto-reload in debug mode
+            )
+            return 0
+
+        except KeyboardInterrupt:
+            print("\n\n👋 DaveAgent server stopped by user")
+            return 0
+        except ImportError as e:
+            print(f"\n❌ Error: Missing dependencies for server mode")
+            print(f"   {e}")
+            print("\n💡 Install server dependencies:")
+            print("   pip install fastapi uvicorn websockets")
+            return 1
+        except Exception as e:
+            print(f"\n❌ Server error: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return 1
+
+    # =========================================================================
+    # CLI MODE - Normal interactive terminal mode
+    # =========================================================================
+    # Import main from src
+    from src.main import main as run_daveagent
 
     if args.debug:
         print("🐛 DEBUG mode enabled\n")

@@ -68,12 +68,12 @@ class DaveAgentCLI(AgentOrchestrator):
             return False
 
         elif cmd == "/help":
-            self.cli.print_help()
+            await self.cli.print_help()
 
         elif cmd == "/clear":
             # Clear screen only - AutoGen handles history
             self.cli.clear_screen()
-            self.cli.print_success("Screen cleared")
+            await self.cli.print_success("Screen cleared")
 
         elif cmd == "/new":
             # Just clear screen - new session will be auto-created if needed
